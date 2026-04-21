@@ -75,6 +75,23 @@ Empty sigil results print `Did you mean: X, Y, Z?` on stderr — retry
 with a suggested name before falling back to grep. sigil_where caps
 at 10 rank-ordered hits; if the question names a class or file path,
 pass parent=CLASS or file=PATH_SUBSTR up front.
+
+WORKED EXAMPLES (pay attention to what the question names vs what you
+query — you query the METHOD by name, not the class):
+
+  Q: "Find the method on class `Parameter` that resolves the default
+      value when a callable is passed to click.option(default=...)."
+  GOOD (1 turn): sigil_where(symbol="get_default")
+    → {"definitions":[{"parent":"Parameter","file":"src/click/core.py",
+        "line":2249,"sig":"def get_default(...)"}]}
+  BAD: sigil_where(symbol="Parameter") — returns the CLASS, not the
+       method you want. Then you spend 10+ turns reading 600 lines.
+
+  Q: "When a user submits a bad choice, the error message shows
+      `%(value)s` literally instead of substituting — the issue is
+      specific to ModelChoiceField."
+  GOOD (1 turn): sigil_where(symbol="to_python", parent="ModelChoiceField")
+    → exact method, one row.
 """
 
 SYSTEM_PROMPT_BASE = """\
