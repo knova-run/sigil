@@ -55,57 +55,26 @@ def task_repo_root(task: dict) -> Path:
 # native sigil_* tools in the manifest, the agent picks from a
 # labeled decision tree rather than improvising.
 SIGIL_BLURB = """\
-sigil_* tools give pre-computed structural code intelligence.
-For ANY text-shaped question prefer sigil_grep — same interface as
-grep, but every hit is annotated with the enclosing class/method so
-you don't need a follow-up read_file to see where you are:
+sigil_* tools give pre-computed structural code intelligence:
 
-  "find 'FILE_INPUT_CONTRADICTION'"   → sigil_grep("FILE_INPUT_CONTRADICTION")
-  "find 'X' inside class C"           → sigil_grep("X", class="C")
-  "count calls to X grouped by file"  → sigil_grep("X", group_by="file")
-  "find X in only django/forms/"      → sigil_grep("X", file=["django/forms/"])
-
-For structural questions (definition/name lookups) the named tools
-below are still more precise:
-
-  "where is X defined?"       → sigil_where(X)
-  "where is X on class C?"    → sigil_where(X, parent=C)
-  "where is X in file F?"     → sigil_where(X, file=F)
-  "list the Xs in file F"     → sigil_symbol_names(F)
-  "signatures / line ranges
-   per symbol in file F"      → sigil_symbol_details(F, depth=1)
+  "where is X defined?"       → sigil_where(X) [add parent=C / file=F]
+  "how does X fit?"           → sigil_context(X) [add with_body=true]
   "who calls X?"              → sigil_callers(X)
   "what does X call?"         → sigil_callees(X)
-  "how does X fit?"           → sigil_context(X)
-  "locate X and read its body
-   in one call"               → sigil_context(X, with_body=true)
-  "tree under directory D"    → sigil_outline(D)
-  "just classes under D"      → sigil_outline(D, kind=["class"])
-  "find matching 'foo'"       → sigil_search("foo")
+  "list names in file F"      → sigil_symbol_names(F)
+  "tree under directory D"    → sigil_outline(D) [add kind=["class"]]
 
-Use grep / read_file / bash for:
-  - text / regex patterns inside a known file
-  - files that exist under a directory (NOT classes+fns — that is
-    sigil_outline)
-  - language syntactic patterns grep nails in one line (e.g. Rust
-    `^pub mod`)
+When the bug report names a literal string, constant, or error message
+(e.g. "FILE_INPUT_CONTRADICTION", "invalid_choice"), use sigil_grep —
+it's ripgrep plus the enclosing class/method on each hit, so one call
+tells you both where the literal is AND which method owns it.
+Not a first-resort tool for definition lookups — use sigil_where for
+those.
 
 Empty sigil results print `Did you mean: X, Y, Z?` on stderr — retry
-with a suggested name before falling back to grep.
-
-sigil_where caps at 10 rank-ordered hits and prints a one-line hint on
-stderr when truncated. If the bug report names a class or file path,
-skip the wide search: call sigil_where with parent=CLASS or
-file=PATH_SUBSTR directly.
-
-WORKED EXAMPLE
-
-  Q: "Find the method on class Parameter that resolves the default
-      value when a callable is passed to click.option(default=...)."
-  GOOD (1 turn): sigil_where(symbol="get_default")
-    → {"definitions":[{"parent":"Parameter","file":"src/click/core.py",
-        "line":2249,"sig":"def get_default(...)"}]}
-  BAD (4+ turns): grep-rn → narrow-grep → read_file → read_file
+with a suggested name before falling back to grep. sigil_where caps
+at 10 rank-ordered hits; if the question names a class or file path,
+pass parent=CLASS or file=PATH_SUBSTR up front.
 """
 
 SYSTEM_PROMPT_BASE = """\
@@ -172,7 +141,7 @@ BASE_TOOLS = [
 SIGIL_TOOLS = [
     {
         "name": "sigil_grep",
-        "description": "Text search with structural annotation. Same interface as grep (regex pattern, -i/-w/-F flags, file/glob filters) BUT every hit is annotated with the enclosing entity (class/method/function). Use this as the FIRST tool for any text-shaped question — bug reports naming a literal like `FILE_INPUT_CONTRADICTION`, error messages, config keys, API endpoints. One call returns `file:line:entity:kind:text`, so you don't need a follow-up read_file to see which class a hit is inside. Pass `class` to filter hits to one class, `group_by` to aggregate. When the hit is outside any entity (license header, top-level imports) the structural fields are omitted — the row falls back to grep shape.",
+        "description": "Text search (ripgrep semantics) with each hit annotated by the enclosing class/method. Use when the question names a specific literal, constant, or error string and you need to know which method owns the match — one call replaces grep+read_file. Not the right tool for 'where is X defined?' (use sigil_where) or 'what's in file F' (use sigil_symbol_names).",
         "input_schema": {
             "type": "object",
             "properties": {

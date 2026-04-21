@@ -1,0 +1,28 @@
+{
+  "task_id": "E4_001",
+  "arm": "treatment",
+  "seed": 1,
+  "model": "claude-sonnet-4-6",
+  "turns": 2,
+  "tokens_in": 7820,
+  "tokens_out": 98,
+  "final_text": "{\"method\":\"get_default\",\"file\":\"src/click/core.py\",\"class\":\"Parameter\"}",
+  "parsed_answer": {
+    "method": "get_default",
+    "file": "src/click/core.py",
+    "class": "Parameter"
+  },
+  "trace": [
+    {
+      "turn": 1,
+      "tool": "sigil_where",
+      "input": {
+        "symbol": "get_default",
+        "parent": "Parameter"
+      },
+      "result_len": 239,
+      "result_preview": "{\"symbol\":\"get_default\",\"definitions\":[{\"name\":\"get_default\",\"file\":\"src/click/core.py\",\"line\":2249,\"line_end\":2251,\"kind\":\"method\",\"parent\":\"Parameter\",\"sig\":\"def get_default( self, ctx: Context, call:\",\"overloads\":3}],\"total_matches\":1}\n"
+    }
+  ],
+  "timestamp": "2026-04-21T20:41:50.863484+00:00"
+}
