@@ -1,0 +1,77 @@
+{
+  "task_id": "E4_002",
+  "arm": "treatment",
+  "seed": 2,
+  "model": "claude-sonnet-4-6",
+  "turns": 7,
+  "tokens_in": 29829,
+  "tokens_out": 614,
+  "final_text": "The fix is clear. The `to_python` method in `ModelChoiceField` raises `ValidationError` without passing `params={'value': value}`, unlike other fields that properly pass the value for substitution.\n\n{\"file\":\"django/forms/models.py\",\"class\":\"ModelChoiceField\",\"method\":\"to_python\",\"parent_class\":\"ChoiceField\",\"fix_summary\":\"The ValidationError raised for an invalid choice must pass `params={'value': value}` so the `%(value)s` placeholder in the error message gets substituted with the actual submitted value.\"}",
+  "parsed_answer": {
+    "file": "django/forms/models.py",
+    "class": "ModelChoiceField",
+    "method": "to_python",
+    "parent_class": "ChoiceField",
+    "fix_summary": "The ValidationError raised for an invalid choice must pass `params={'value': value}` so the `%(value)s` placeholder in the error message gets substituted with the actual submitted value."
+  },
+  "trace": [
+    {
+      "turn": 1,
+      "tool": "sigil_where",
+      "input": {
+        "symbol": "ModelChoiceField"
+      },
+      "result_len": 194,
+      "result_preview": "{\"symbol\":\"ModelChoiceField\",\"definitions\":[{\"name\":\"ModelChoiceField\",\"file\":\"django/forms/models.py\",\"line\":1186,\"line_end\":1298,\"kind\":\"class\",\"sig\":\"class ModelChoiceField(ChoiceField):\"}]}\n"
+    },
+    {
+      "turn": 2,
+      "tool": "sigil_where",
+      "input": {
+        "symbol": "ModelChoiceField.to_python"
+      },
+      "result_len": 241,
+      "result_preview": "{\"symbol\":\"ModelChoiceField.to_python\",\"definitions\":[]}\nsigil: no definition of `ModelChoiceField.to_python` found. Did you mean: ModelChoiceFieldTests, ModelChoiceField, ModelChoiceIterator, ModelChoiceIteratorValue, TypedChoiceFieldTest?\n"
+    },
+    {
+      "turn": 3,
+      "tool": "read_file",
+      "input": {
+        "path": "django/forms/models.py",
+        "offset": 1186,
+        "limit": 120
+      },
+      "result_len": 5642,
+      "result_preview": "  1186\tclass ModelChoiceField(ChoiceField):\n  1187\t    \"\"\"A ChoiceField whose choices are a model QuerySet.\"\"\"\n  1188\t    # This class is a subclass of ChoiceField for purity, but it doesn't\n  1189\t    # actually use any of ChoiceField's implementation.\n  1190\t    default_error_messages = {\n  1191\t        'invalid_choice': _('Select a valid choice. That choice is not one of'\n  1192\t               "
+    },
+    {
+      "turn": 4,
+      "tool": "grep",
+      "input": {
+        "pattern": "raise ValidationError.*invalid_choice.*params",
+        "glob": "django/forms/fields.py"
+      },
+      "result_len": 67,
+      "result_preview": "ERROR: FileNotFoundError: [Errno 2] No such file or directory: 'rg'"
+    },
+    {
+      "turn": 5,
+      "tool": "grep",
+      "input": {
+        "pattern": "params=\\{'value'"
+      },
+      "result_len": 67,
+      "result_preview": "ERROR: FileNotFoundError: [Errno 2] No such file or directory: 'rg'"
+    },
+    {
+      "turn": 6,
+      "tool": "bash",
+      "input": {
+        "command": "grep -n \"params.*value\" django/forms/fields.py | head -20"
+      },
+      "result_len": 233,
+      "result_preview": "808:                params={'value': value},\n844:                params={'value': value},\n878:                    params={'value': val},\n916:                    params={'value': choice},\n1242:                params={'value': value},\n"
+    }
+  ],
+  "timestamp": "2026-04-21T18:49:35.864424+00:00"
+}
