@@ -333,6 +333,21 @@ enum Cli {
         /// answer.
         #[arg(long)]
         include_tests: bool,
+        /// Only return definitions whose enclosing class/module matches
+        /// NAME exactly. Matches against both the raw parent and its
+        /// tail segment, so `--parent ModelChoiceField` works even when
+        /// the index stores `django.forms.models.ModelChoiceField`. Pass
+        /// an empty string (`--parent ""`) to require top-level only.
+        #[arg(long, value_name = "NAME")]
+        parent: Option<String>,
+        /// Only return definitions whose file path contains SUBSTR.
+        /// Useful when many hits are scattered across a monorepo.
+        #[arg(long, value_name = "SUBSTR")]
+        file: Option<String>,
+        /// Cap on rows returned, ordered by file-rank desc. 0 = no cap.
+        /// When the cap hits, stderr gets a one-line "narrow" hint.
+        #[arg(long, default_value_t = sigil::where_cmd::DEFAULT_LIMIT)]
+        limit: usize,
         /// Output format: markdown (default) or json.
         #[arg(long, default_value = "markdown")]
         format: String,
@@ -485,6 +500,11 @@ enum Cli {
         /// Drop test-file candidates and test-file callers from the bundle.
         #[arg(long)]
         exclude_tests: bool,
+        /// Also include the symbol's source body (lines line_start..=line_end)
+        /// inline in the bundle. Saves a follow-up `read_file` in the common
+        /// "locate then read" pattern. Off by default — bodies are large.
+        #[arg(long)]
+        with_body: bool,
     },
     /// Budget-aware ranked digest of the codebase — drop into an agent's
     /// context for cold-start orientation.
@@ -993,10 +1013,15 @@ fn main() {
                 }
             }
         }
-        Cli::Where { symbol, root, include_tests, format, pretty } => {
+        Cli::Where { symbol, root, include_tests, parent, file, limit, format, pretty } => {
             let idx = query::load(&root)
                 .unwrap_or_else(|e| { eprintln!("error: {}", e); std::process::exit(1); });
-            let report = sigil::where_cmd::find_definitions(&idx, &symbol, include_tests);
+            let filters = sigil::where_cmd::WhereFilters {
+                parent,
+                file,
+                include_tests,
+            };
+            let report = sigil::where_cmd::find_definitions(&idx, &symbol, &filters, limit);
             match format.as_str() {
                 "markdown" => print!("{}", sigil::where_cmd::render_markdown(&report)),
                 "json" => println!("{}", sigil::where_cmd::render_json(&report, pretty)),
@@ -1018,6 +1043,8 @@ fn main() {
                         sugg.join(", ")
                     );
                 }
+            } else if let Some(hint) = sigil::where_cmd::narrow_hint(&report) {
+                eprintln!("{}", hint);
             }
         }
         Cli::Blast { symbol, root, depth, format, pretty, exclude_tests } => {
@@ -1147,7 +1174,7 @@ fn main() {
                 }
             }
         }
-        Cli::Context { query: q, root, budget, depth, format, pretty, exclude_tests } => {
+        Cli::Context { query: q, root, budget, depth, format, pretty, exclude_tests, with_body } => {
             let idx = query::load(&root)
                 .unwrap_or_else(|e| { eprintln!("error: {}", e); std::process::exit(1); });
             let Some(fmt) = sigil::context::ContextFormat::parse(&format) else {
@@ -1159,6 +1186,8 @@ fn main() {
                 depth,
                 format: fmt,
                 exclude_tests,
+                with_body,
+                project_root: root.clone(),
             };
             let Some(ctx) = sigil::context::build_context(&idx, &q, &opts) else {
                 eprintln!("no entity matches `{}`", q);

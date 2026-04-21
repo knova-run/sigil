@@ -33,6 +33,15 @@ pub struct ContextOptions {
     /// When true, filter candidates whose file looks like test code and
     /// also drop test-file callers from the output. Default off — opt-in.
     pub exclude_tests: bool,
+    /// Include the symbol's source body (lines `line_start..=line_end`)
+    /// inline in the bundle. Off by default — bodies are large and not
+    /// every caller wants them. Evals show agents typically follow up a
+    /// `sigil context` with a `read_file` on the same line range anyway,
+    /// so bundling saves a round-trip when the caller opts in.
+    pub with_body: bool,
+    /// Root directory used to resolve the entity's `file` path when
+    /// reading its body. Defaults to the current directory.
+    pub project_root: std::path::PathBuf,
 }
 
 impl Default for ContextOptions {
@@ -42,6 +51,8 @@ impl Default for ContextOptions {
             depth: 10,
             format: ContextFormat::Markdown,
             exclude_tests: false,
+            with_body: false,
+            project_root: std::path::PathBuf::from("."),
         }
     }
 }
@@ -122,6 +133,11 @@ pub struct Context {
     pub query: String,
     /// The entity the context was built for.
     pub chosen: SymbolRef,
+    /// Source body of the chosen entity, when `--with-body` was set and
+    /// the file could be read. Contains the raw lines `line_start..=line_end`
+    /// (1-indexed, inclusive), joined with `\n`. None otherwise.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub body: Option<String>,
     /// When `query` resolves to multiple entities, the others are surfaced
     /// so the caller can disambiguate on the next invocation.
     pub alternatives: Vec<SymbolRef>,
@@ -283,9 +299,16 @@ pub fn build_context(idx: &Index, query: &str, opts: &ContextOptions) -> Option<
     // same tail segment. Cap at 5 so we don't blow the budget.
     let (overrides, skipped_overrides) = find_overrides(idx, chosen_entity, opts);
 
+    let body = if opts.with_body {
+        read_entity_body(&opts.project_root, chosen_entity)
+    } else {
+        None
+    };
+
     let mut ctx = Context {
         query: query.to_string(),
         chosen,
+        body,
         alternatives,
         callers,
         callees,
@@ -367,6 +390,27 @@ fn find_overrides(
         .collect();
     let skipped = total.saturating_sub(selected.len());
     (selected, skipped)
+}
+
+/// Read the 1-indexed inclusive line range `[line_start..=line_end]` of
+/// `entity.file` relative to `root`. Returns `None` on any I/O error or
+/// if the range overshoots the file — the caller treats a missing body
+/// as "no body included", which is strictly better than surfacing half
+/// a method.
+fn read_entity_body(root: &std::path::Path, entity: &Entity) -> Option<String> {
+    let path = root.join(&entity.file);
+    let content = std::fs::read_to_string(&path).ok()?;
+    let start = entity.line_start.saturating_sub(1) as usize;
+    let end = entity.line_end as usize;
+    let lines: Vec<&str> = content.lines().collect();
+    if start >= lines.len() {
+        return None;
+    }
+    let end = end.min(lines.len());
+    if end <= start {
+        return None;
+    }
+    Some(lines[start..end].join("\n"))
 }
 
 fn caller_edge(r: &Reference) -> Edge {
@@ -468,6 +512,16 @@ pub fn render_markdown(ctx: &Context) -> String {
         out.push_str("```\n");
         out.push_str(sig.trim());
         out.push_str("\n```\n\n");
+    }
+
+    if let Some(body) = &ctx.body {
+        out.push_str("## Body\n\n");
+        out.push_str("```\n");
+        out.push_str(body);
+        if !body.ends_with('\n') {
+            out.push('\n');
+        }
+        out.push_str("```\n\n");
     }
 
     if !ctx.overrides.is_empty() {
@@ -594,6 +648,9 @@ struct AgentView<'a> {
     p: Option<&'a str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     s: Option<&'a str>,
+    /// Source body, emitted only when the caller asked for `--with-body`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    b: Option<&'a str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     v: Option<&'a str>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -639,6 +696,7 @@ pub fn render_agent_json(ctx: &Context) -> String {
         l: [ctx.chosen.line_start, ctx.chosen.line_end],
         p: ctx.chosen.parent.as_deref(),
         s: ctx.chosen.sig.as_deref(),
+        b: ctx.body.as_deref(),
         v: ctx.chosen.visibility.as_deref(),
         br,
         cr: ctx.callers.iter().map(edge).collect(),
@@ -797,7 +855,7 @@ mod tests {
                 refr("a.rs", Some("process"), "helper", "call", 3),
             ],
         );
-        let ctx = build_context(&idx, "process", &ContextOptions { budget: 0, depth: 10, format: ContextFormat::Markdown, exclude_tests: false }).unwrap();
+        let ctx = build_context(&idx, "process", &ContextOptions { budget: 0, depth: 10, format: ContextFormat::Markdown, exclude_tests: false, ..ContextOptions::default() }).unwrap();
         assert_eq!(ctx.chosen.name, "process");
         assert_eq!(ctx.callers.len(), 2);
         assert_eq!(ctx.callees.len(), 1, "only `helper` is a pure callee");
@@ -824,7 +882,7 @@ mod tests {
             ],
             vec![],
         );
-        let ctx = build_context(&idx, "Config", &ContextOptions { budget: 0, depth: 10, format: ContextFormat::Markdown, exclude_tests: false }).unwrap();
+        let ctx = build_context(&idx, "Config", &ContextOptions { budget: 0, depth: 10, format: ContextFormat::Markdown, exclude_tests: false, ..ContextOptions::default() }).unwrap();
         assert_eq!(ctx.chosen.file, "a.rs");
         assert_eq!(ctx.alternatives.len(), 2);
     }
@@ -843,7 +901,7 @@ mod tests {
                 })
                 .collect(),
         );
-        let ctx = build_context(&idx, "foo", &ContextOptions { budget: 0, depth: 3, format: ContextFormat::Markdown, exclude_tests: false }).unwrap();
+        let ctx = build_context(&idx, "foo", &ContextOptions { budget: 0, depth: 3, format: ContextFormat::Markdown, exclude_tests: false, ..ContextOptions::default() }).unwrap();
         assert_eq!(ctx.callers.len(), 3);
         assert_eq!(ctx.callees.len(), 3);
         assert_eq!(ctx.related_types.len(), 3);
@@ -866,7 +924,7 @@ mod tests {
                 .collect(),
         );
         // Absurdly small budget — implementation must keep at least 1 caller.
-        let ctx = build_context(&idx, "foo", &ContextOptions { budget: 50, depth: 50, format: ContextFormat::Markdown, exclude_tests: false }).unwrap();
+        let ctx = build_context(&idx, "foo", &ContextOptions { budget: 50, depth: 50, format: ContextFormat::Markdown, exclude_tests: false, ..ContextOptions::default() }).unwrap();
         assert_eq!(ctx.chosen.name, "foo");
         assert!(ctx.callers.len() >= 1);
         assert!(ctx.callees.is_empty() || ctx.callees.len() < 50);
@@ -891,7 +949,7 @@ mod tests {
                 refr("a.rs", Some("foo"), "helper", "call", 2),
             ],
         );
-        let ctx = build_context(&idx, "foo", &ContextOptions { budget: 0, depth: 10, format: ContextFormat::Markdown, exclude_tests: false }).unwrap();
+        let ctx = build_context(&idx, "foo", &ContextOptions { budget: 0, depth: 10, format: ContextFormat::Markdown, exclude_tests: false, ..ContextOptions::default() }).unwrap();
         let md = render_markdown(&ctx);
         assert!(md.starts_with("# `foo`"));
         assert!(md.contains("## Signature"));
@@ -931,7 +989,7 @@ mod tests {
         let ctx = build_context(
             &idx,
             "foo",
-            &ContextOptions { budget: 0, depth: 10, format: ContextFormat::Agent, exclude_tests: false },
+            &ContextOptions { budget: 0, depth: 10, format: ContextFormat::Agent, exclude_tests: false, ..ContextOptions::default() },
         )
         .unwrap();
         let agent = render_agent_json(&ctx);
@@ -957,6 +1015,77 @@ mod tests {
         // Keep `markdown` referenced so the fixture stays useful if a future
         // invariant uses it again.
         let _ = markdown.len();
+    }
+
+    #[test]
+    fn with_body_includes_source_lines() {
+        // Write a real file so read_entity_body has something to read.
+        // Use a per-test temp subdir so parallel test runs don't clobber it.
+        let tmp = std::env::temp_dir().join(format!(
+            "sigil-context-with-body-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&tmp).expect("mkdir temp");
+        let file_path = tmp.join("a.rs");
+        std::fs::write(
+            &file_path,
+            "// L1\nfn foo() {\n    answer();\n}\n// L5\n",
+        )
+        .expect("write fixture");
+
+        let mut e = ent_full("a.rs", "foo", "function", None, Some("fn foo()"), Some("public"), 0);
+        // Lines 2..=4 of the fixture file = the fn body.
+        e.line_start = 2;
+        e.line_end = 4;
+        let idx = Index::build(vec![e], vec![]);
+
+        let opts = ContextOptions {
+            budget: 0,
+            depth: 10,
+            format: ContextFormat::Markdown,
+            exclude_tests: false,
+            with_body: true,
+            project_root: tmp.clone(),
+        };
+        let ctx = build_context(&idx, "foo", &opts).expect("resolves");
+        let body = ctx.body.as_deref().expect("body populated when --with-body set");
+        assert!(body.contains("fn foo()"));
+        assert!(body.contains("answer();"));
+        assert!(!body.contains("L5"), "body must not leak lines past line_end");
+
+        let md = render_markdown(&ctx);
+        assert!(md.contains("## Body"), "markdown renderer emits Body section");
+        assert!(md.contains("fn foo()"));
+
+        let agent = render_agent_json(&ctx);
+        assert!(agent.contains("\"b\":"), "agent view emits b field with body");
+    }
+
+    #[test]
+    fn with_body_off_by_default() {
+        let idx = Index::build(
+            vec![ent_full("a.rs", "foo", "function", None, Some("fn foo()"), None, 0)],
+            vec![],
+        );
+        let ctx = build_context(&idx, "foo", &ContextOptions::default()).expect("resolves");
+        assert!(ctx.body.is_none(), "body is None unless --with-body is set");
+        let md = render_markdown(&ctx);
+        assert!(!md.contains("## Body"), "markdown omits Body section by default");
+    }
+
+    #[test]
+    fn with_body_missing_file_degrades_gracefully() {
+        let mut e = ent_full("does-not-exist.rs", "foo", "function", None, None, None, 0);
+        e.line_start = 1;
+        e.line_end = 5;
+        let idx = Index::build(vec![e], vec![]);
+        let opts = ContextOptions {
+            with_body: true,
+            project_root: std::path::PathBuf::from("/nonexistent/root"),
+            ..ContextOptions::default()
+        };
+        let ctx = build_context(&idx, "foo", &opts).expect("resolves even without body");
+        assert!(ctx.body.is_none(), "missing file = body None, not error");
     }
 
     #[test]
