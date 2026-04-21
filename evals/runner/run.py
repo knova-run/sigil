@@ -56,7 +56,17 @@ def task_repo_root(task: dict) -> Path:
 # labeled decision tree rather than improvising.
 SIGIL_BLURB = """\
 sigil_* tools give pre-computed structural code intelligence.
-Use them BEFORE grep for structural questions:
+For ANY text-shaped question prefer sigil_grep — same interface as
+grep, but every hit is annotated with the enclosing class/method so
+you don't need a follow-up read_file to see where you are:
+
+  "find 'FILE_INPUT_CONTRADICTION'"   → sigil_grep("FILE_INPUT_CONTRADICTION")
+  "find 'X' inside class C"           → sigil_grep("X", class="C")
+  "count calls to X grouped by file"  → sigil_grep("X", group_by="file")
+  "find X in only django/forms/"      → sigil_grep("X", file=["django/forms/"])
+
+For structural questions (definition/name lookups) the named tools
+below are still more precise:
 
   "where is X defined?"       → sigil_where(X)
   "where is X on class C?"    → sigil_where(X, parent=C)
@@ -160,6 +170,26 @@ BASE_TOOLS = [
 # "bash commands to remember." This mirrors the production shape where
 # sigil lives behind an MCP / hook integration.
 SIGIL_TOOLS = [
+    {
+        "name": "sigil_grep",
+        "description": "Text search with structural annotation. Same interface as grep (regex pattern, -i/-w/-F flags, file/glob filters) BUT every hit is annotated with the enclosing entity (class/method/function). Use this as the FIRST tool for any text-shaped question — bug reports naming a literal like `FILE_INPUT_CONTRADICTION`, error messages, config keys, API endpoints. One call returns `file:line:entity:kind:text`, so you don't need a follow-up read_file to see which class a hit is inside. Pass `class` to filter hits to one class, `group_by` to aggregate. When the hit is outside any entity (license header, top-level imports) the structural fields are omitted — the row falls back to grep shape.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "pattern": {"type": "string", "description": "Regex pattern (or literal string with fixed_strings=true)."},
+                "ignore_case": {"type": "boolean", "description": "Case-insensitive (grep -i)"},
+                "word": {"type": "boolean", "description": "Whole-word match (grep -w)"},
+                "fixed_strings": {"type": "boolean", "description": "Treat pattern as literal, not regex (grep -F)"},
+                "file": {"type": "array", "items": {"type": "string"}, "description": "File-path substring filter (repeatable)"},
+                "glob": {"type": "array", "items": {"type": "string"}, "description": "Glob patterns for file paths (ripgrep-style)"},
+                "class": {"type": "string", "description": "Only hits whose enclosing entity's parent class equals this (or tail-equals). Matches the `--parent` flag on sigil_where."},
+                "caller": {"type": "string", "description": "Only hits whose enclosing entity name equals FN."},
+                "limit": {"type": "integer", "description": "Max hits. 0 = unlimited. Default 50."},
+                "group_by": {"type": "string", "description": "Aggregate counts instead of rows. Values: file, class, entity, kind."},
+            },
+            "required": ["pattern"],
+        },
+    },
     {
         "name": "sigil_where",
         "description": "FIRST choice for 'where is X defined?' questions. Returns rows ranked by file-importance desc, capped at 10 by default. Each row: file, line, class (parent), signature, overload count. Tail-segment match: `get_default` finds `Parameter.get_default` and `Option.get_default`. When the bug report names a class or path, pass `parent` or `file` to skip the wide search. When >10 hits, prefer filtering over raising `limit`.",
@@ -422,11 +452,35 @@ def tool_sigil_search(inp: dict[str, Any], env: dict[str, str], cwd: Path) -> st
     return _sigil_cmd(env, cwd, args)
 
 
+def tool_sigil_grep(inp: dict[str, Any], env: dict[str, str], cwd: Path) -> str:
+    args = ["grep", inp["pattern"], "--format", "json"]
+    if inp.get("ignore_case"):
+        args.append("-i")
+    if inp.get("word"):
+        args.append("-w")
+    if inp.get("fixed_strings"):
+        args.append("-F")
+    for f in (inp.get("file") or []):
+        args += ["--file", str(f)]
+    for g in (inp.get("glob") or []):
+        args += ["--glob", str(g)]
+    if inp.get("class") is not None:
+        args += ["--class", str(inp["class"])]
+    if inp.get("caller"):
+        args += ["--caller", str(inp["caller"])]
+    if "limit" in inp and inp["limit"] is not None:
+        args += ["--limit", str(int(inp["limit"]))]
+    if inp.get("group_by"):
+        args += ["--group-by", str(inp["group_by"])]
+    return _sigil_cmd(env, cwd, args)
+
+
 DISPATCH = {
     "read_file": tool_read_file,
     "grep": tool_grep,
     "glob": tool_glob,
     "bash": tool_bash,
+    "sigil_grep": tool_sigil_grep,
     "sigil_where": tool_sigil_where,
     "sigil_context": tool_sigil_context,
     "sigil_callers": tool_sigil_callers,

@@ -49,6 +49,8 @@ multi-grep exploration.
 
 | Question shape                           | Command                                        |
 |------------------------------------------|------------------------------------------------|
+| \"find text X anywhere\"                 | `sigil grep <X>`                               |
+| \"find X inside class C\"                | `sigil grep <X> --class <C>`                   |
 | \"where is X defined?\"                  | `sigil where <X>`                              |
 | \"where is X defined on class C?\"       | `sigil where <X> --parent <C>`                 |
 | \"where is X in file/subtree F?\"        | `sigil where <X> --file <F>`                   |

@@ -294,6 +294,66 @@ enum Cli {
         #[arg(long)]
         pretty: bool,
     },
+    /// Text search + structural annotation. Reads like grep, returns
+    /// like grep, but each hit is annotated with the enclosing entity
+    /// (class / method / function). Collapses the common `grep X` +
+    /// `read_file F` chain into one call — the hit itself tells you
+    /// what class or method you're looking at.
+    ///
+    /// Default output is `file:line:entity:kind:text`. Drop the
+    /// structural column with `--no-entity` for strict grep-compatible
+    /// output. When the hit lands outside any indexed entity (license
+    /// comment, top-level imports) the structural columns are omitted
+    /// and the row falls back to `file:line:text`.
+    Grep {
+        /// Regex pattern. Pass `-F` for literal strings.
+        pattern: String,
+        /// Project root directory.
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
+        /// Case-insensitive match (ripgrep-compatible `-i`).
+        #[arg(short = 'i', long = "ignore-case")]
+        ignore_case: bool,
+        /// Whole-word match (ripgrep-compatible `-w`).
+        #[arg(short = 'w', long = "word")]
+        word: bool,
+        /// Treat pattern as a fixed string, not a regex (ripgrep-compatible `-F`).
+        #[arg(short = 'F', long = "fixed-strings")]
+        fixed_strings: bool,
+        /// Only hits whose file path contains SUBSTR (repeatable).
+        #[arg(long, value_name = "SUBSTR")]
+        file: Vec<String>,
+        /// Glob patterns to match file paths (ripgrep-compatible).
+        #[arg(long, value_name = "PATTERN")]
+        glob: Vec<String>,
+        /// Only hits whose enclosing entity's parent class tail-equals C.
+        /// Folds the old `sigil where --parent C` pattern into grep's
+        /// scope plane — `sigil grep X --class FileField` finds `X` only
+        /// inside FileField methods.
+        #[arg(long, value_name = "C")]
+        class: Option<String>,
+        /// Only hits whose enclosing entity's name tail-equals FN. Use
+        /// for "find every usage of X *inside* render_template."
+        #[arg(long, value_name = "FN")]
+        caller: Option<String>,
+        /// Max hits to return. 0 = unlimited. Default 50.
+        #[arg(long, default_value = "50")]
+        limit: usize,
+        /// Aggregate counts instead of returning rows. Values:
+        /// `file`, `class`, `entity`, `kind`.
+        #[arg(long, value_name = "KEY")]
+        group_by: Option<String>,
+        /// Drop the structural column from every row. The output then
+        /// looks exactly like ripgrep (`file:line:text`).
+        #[arg(long)]
+        no_entity: bool,
+        /// Output format: `text` (default, ripgrep-shaped) or `json`.
+        #[arg(long, default_value = "text")]
+        format: String,
+        /// Pretty-print when `--format=json`.
+        #[arg(long)]
+        pretty: bool,
+    },
     /// Hierarchical outline — every top-level class / function / struct /
     /// enum / trait grouped by file. Complements `sigil map` (rank-
     /// ordered, budget-aware) by giving a plain structural tree for
@@ -1006,6 +1066,63 @@ fn main() {
             }
             if borrowed.is_empty() {
                 emit_empty_hint(&root, &caller, "callees");
+            }
+        }
+        Cli::Grep {
+            pattern,
+            root,
+            ignore_case,
+            word,
+            fixed_strings,
+            file,
+            glob,
+            class,
+            caller,
+            limit,
+            group_by,
+            no_entity,
+            format,
+            pretty,
+        } => {
+            let idx = query::load(&root)
+                .unwrap_or_else(|e| { eprintln!("error: {}", e); std::process::exit(1); });
+            let group_by = match group_by.as_deref() {
+                None => None,
+                Some(s) => match sigil::grep_cmd::GroupBy::parse(s) {
+                    Some(g) => Some(g),
+                    None => {
+                        eprintln!("error: unknown --group-by `{}`. expected: file | class | entity | kind", s);
+                        std::process::exit(1);
+                    }
+                },
+            };
+            let opts = sigil::grep_cmd::GrepOptions {
+                pattern,
+                case_insensitive: ignore_case,
+                word_match: word,
+                fixed_strings,
+                file_filter: file,
+                globs: glob,
+                class_filter: class,
+                caller_filter: caller,
+                limit,
+                no_entity,
+                group_by,
+            };
+            let report = match sigil::grep_cmd::run_grep(&root, &idx, &opts) {
+                Ok(r) => r,
+                Err(e) => { eprintln!("error: {}", e); std::process::exit(1); }
+            };
+            match format.as_str() {
+                "text" => print!("{}", sigil::grep_cmd::render_text(&report)),
+                "json" => println!("{}", sigil::grep_cmd::render_json(&report, pretty)),
+                other => {
+                    eprintln!("error: unknown --format `{}`. expected: text | json", other);
+                    std::process::exit(1);
+                }
+            }
+            if report.total_hits == 0 {
+                std::process::exit(1);
             }
         }
         Cli::Outline { root, path, kind, format, pretty } => {

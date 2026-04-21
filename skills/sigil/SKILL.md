@@ -13,6 +13,8 @@ Questions that sigil answers in **one call**, ordered by frequency. Each row is 
 
 | Question (what the user asks) | One-shot command | Why one-shot |
 |---|---|---|
+| "find text `X` anywhere" | `sigil grep X` | Text search + structural annotation. Every hit is `file:line:entity:kind:text`, so you don't need a follow-up `read_file` to see which class the match lives in. Use this as your default for any constant/keyword/error-string hunt — replaces `grep X` + `read_file` for the same task. |
+| "find `X` inside class `C`" | `sigil grep X --class C` | Filters hits whose enclosing class is `C`. No separate tool needed. |
 | "where is `X` defined?" | `sigil where X` | Returns file + line + class + signature + override siblings in one row, rank-sorted (framework-level definitions first). Tail-segment match: `get_default` finds both `Parameter.get_default` and `Option.get_default`. Default cap: 10 rows. |
 | "where is `X` defined **on class `C`**?" | `sigil where X --parent C` | Same shape, filtered to one class. Use when the bare-name query returned >10 hits or hits the wrong class. |
 | "where is `X` defined **in file F** or subtree?" | `sigil where X --file F` | Filters hits whose path contains `F` (substring, not glob). Stack with `--parent`. |
