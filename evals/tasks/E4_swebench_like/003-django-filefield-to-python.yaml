@@ -2,39 +2,53 @@ id: E4_003
 kind: code_location_django
 repo: evals/_workbench/django
 pinned_ref: 42e8cf47c7ee2db238bf91197ea398126c546741
-# Same Django tree as E4_002 — no re-checkout required. Exercises the same
-# "real user bug report -> locate the method" shape but against a different
-# class (FileField vs ModelChoiceField), so the agent can't just pattern-
-# match the E4_002 answer. Tests whether sigil's new --parent filter is
-# routinely reached for when the bug names a class.
+# Reuses the pinned Django workbench from E4_002. Exercises the same
+# "bug report -> locate method" shape but points at FileField.clean —
+# where the cleared-vs-missing logic (FILE_INPUT_CONTRADICTION and the
+# False/None sentinel) actually lives, not FileField.to_python which is
+# the narrower raw-upload converter that clean() delegates to.
+#
+# Writeup note: the first draft of this task asked for "the method that
+# converts raw upload into a Python object" with expected = to_python.
+# Sonnet 2/3 seeds answered `clean` and were graded as failures. Reading
+# the source showed `clean` was the semantically correct answer — the
+# cleared-vs-missing distinction happens in clean, not to_python. Task
+# now points cleanly at clean and notes the relationship with to_python
+# in fix_summary.
 question: |
   You are looking at a clone of the django/django repository at a
   specific commit.
 
   A user has filed the following bug report:
 
-    "I'm using a `forms.FileField` in an upload form. When the user
-    submits a file whose name is empty or the field gets cleared, I
-    expect `FileField.to_python()` to return a sentinel that tells my
-    view the field is empty. Right now if the field was cleared and the
-    form was bound to a non-empty initial file, I get surprising
-    behavior — the cleared sentinel (`forms.FileField.empty_values`
-    style) doesn't seem to be honored. Please find the method that
-    handles converting the raw upload into a Python object so I can
-    understand where the cleared-vs-missing distinction is drawn."
+    "I'm using a `forms.FileField` in an upload form and I want to
+    distinguish three states on a bound form:
+      (a) the user submitted a new file,
+      (b) the user clicked the 'clear' checkbox to remove the
+          existing file,
+      (c) the user left the field alone (keep the initial value).
 
-  Investigate: locate the method that owns this conversion.
+    Right now my view is collapsing (b) and (c). I read the Django
+    source and I see that `FileField.to_python()` just converts the
+    raw upload into a UploadedFile — it doesn't know about initial
+    values or the clear checkbox. There must be another method on
+    `FileField` that sits above `to_python()` and actually draws the
+    cleared-vs-missing distinction (including the `FILE_INPUT_CONTRADICTION`
+    error path). Please find it."
 
   Return ONLY a JSON object with exactly these keys:
 
     - "file":         repo-relative path to the file containing the method
     - "class":        the class name that owns the method
-    - "method":       the method name
+    - "method":       the method name (the one that draws the
+                      cleared-vs-missing distinction, NOT its lower-level
+                      to_python delegate)
     - "parent_class": the class the owner inherits from (the immediate
                       parent in the MRO, not the grandparent)
-    - "fix_summary":  a single-sentence description of what the method
-                      does re: empty / cleared / missing values. Mention
-                      `FILE_INPUT_CONTRADICTION` if relevant.
+    - "fix_summary":  a single-sentence description of how the method
+                      handles the three states above. Mention
+                      `FILE_INPUT_CONTRADICTION` and the relationship
+                      to `to_python()`.
 
   Example of the shape you must return (made-up values):
   {"file":"some/file.py","class":"SomeClass","method":"some_method","parent_class":"SomeParent","fix_summary":"..."}
@@ -43,8 +57,8 @@ grader:
   expected:
     file: django/forms/fields.py
     class: FileField
-    method: to_python
+    method: clean
     parent_class: Field
-    # fix_summary is free-form, not fact-matched — a secondary reviewer
-    # pass can look for `FILE_INPUT_CONTRADICTION` / `empty` / `cleared`
-    # but this isn't required to pass the structural grader.
+    # fix_summary isn't fact-matched — it's free-form prose. A reviewer
+    # pass can spot-check for `FILE_INPUT_CONTRADICTION` and references
+    # to `to_python` but isn't required to pass the structural grader.

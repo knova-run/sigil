@@ -70,6 +70,7 @@ Use them BEFORE grep for structural questions:
   "locate X and read its body
    in one call"               → sigil_context(X, with_body=true)
   "tree under directory D"    → sigil_outline(D)
+  "just classes under D"      → sigil_outline(D, kind=["class"])
   "find matching 'foo'"       → sigil_search("foo")
 
 Use grep / read_file / bash for:
@@ -238,11 +239,12 @@ SIGIL_TOOLS = [
     },
     {
         "name": "sigil_outline",
-        "description": "Hierarchical top-level tree of classes + functions grouped by file across the repo (or under --path). Answers 'what's in this directory structurally?' without needing multiple sigil_symbols calls.",
+        "description": "Hierarchical top-level tree of classes + functions grouped by file across the repo (or under `path`). Answers 'what's in this directory structurally?' without needing multiple sigil_symbols calls. Pass `kind` (e.g. `[\"class\"]`) to restrict the payload — matches `grep -n \"^class \"` exactly but across the structural index.",
         "input_schema": {
             "type": "object",
             "properties": {
                 "path": {"type": "string", "description": "Restrict to files starting with this prefix"},
+                "kind": {"type": "array", "items": {"type": "string"}, "description": "Optional: restrict to entities of these kinds (e.g. ['class']). Default: all outline-eligible kinds."},
             },
         },
     },
@@ -406,6 +408,10 @@ def tool_sigil_outline(inp: dict[str, Any], env: dict[str, str], cwd: Path) -> s
     args = ["outline", "--format", "json"]
     if inp.get("path"):
         args += ["--path", inp["path"]]
+    if inp.get("kind"):
+        kinds = inp["kind"] if isinstance(inp["kind"], list) else [inp["kind"]]
+        for k in kinds:
+            args += ["--kind", str(k)]
     return _sigil_cmd(env, cwd, args)
 
 

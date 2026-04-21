@@ -305,6 +305,14 @@ enum Cli {
         /// Restrict to files starting with this prefix (e.g. `src/click/`).
         #[arg(long)]
         path: Option<String>,
+        /// Restrict to entities of these kinds (repeatable, or comma-
+        /// separated). Useful for matching `grep -n "^class "` one-liners
+        /// exactly — e.g. `--kind class` drops top-level functions and
+        /// module-level helpers that bloat the payload on outline-shaped
+        /// questions. Default: all outline-eligible kinds (classes +
+        /// top-level functions + structs + enums + traits).
+        #[arg(long, value_delimiter = ',')]
+        kind: Vec<String>,
         /// Output format: markdown (default) or json.
         #[arg(long, default_value = "markdown")]
         format: String,
@@ -1000,10 +1008,10 @@ fn main() {
                 emit_empty_hint(&root, &caller, "callees");
             }
         }
-        Cli::Outline { root, path, format, pretty } => {
+        Cli::Outline { root, path, kind, format, pretty } => {
             let idx = query::load(&root)
                 .unwrap_or_else(|e| { eprintln!("error: {}", e); std::process::exit(1); });
-            let report = sigil::outline::build_outline(&idx, path.as_deref());
+            let report = sigil::outline::build_outline(&idx, path.as_deref(), &kind);
             match format.as_str() {
                 "markdown" => print!("{}", sigil::outline::render_markdown(&report)),
                 "json" => println!("{}", sigil::outline::render_json(&report, pretty)),

@@ -59,6 +59,7 @@ multi-grep exploration.
 | \"list the Xs in file F (just names)\"   | `sigil symbols <F> --depth 1 --names-only`     |
 | \"full entities in file F\"              | `sigil symbols <F> --depth 1`                  |
 | \"structural tree under dir D\"          | `sigil outline --path <D>`                     |
+| \"only the classes under dir D\"         | `sigil outline --path <D> --kind class`        |
 | \"find anything matching 'foo'\"         | `sigil search foo`                             |
 | \"impact of editing X?\"                 | `sigil blast <X>`                              |
 | \"entity-level diff of a commit range\"  | `sigil diff A..B --markdown`                   |

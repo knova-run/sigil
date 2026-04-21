@@ -23,6 +23,7 @@ Questions that sigil answers in **one call**, ordered by frequency. Each row is 
 | "how does `X` fit into the codebase?" | `sigil context X --format agent` | Bundle: signature + callers + callees + related types + inheritance overrides. Budget-capped. |
 | "locate `X` **and** show me its body in one call" | `sigil context X --with-body --format agent` | Same bundle plus the raw source lines from `line_start..=line_end`. Saves the follow-up `read_file` in "locate then inspect" flows. |
 | "what's in this directory structurally?" | `sigil outline --path DIR` | Hierarchical tree of classes + top-level fns grouped by file. |
+| "just the classes under `DIR`" | `sigil outline --path DIR --kind class` | Same shape but filtered. Matches `grep -n "^class "` exactly — use this when you want classes only, not helper fns. |
 | "what would break if I rename `X`?" | `sigil blast X --format agent` | Direct callers + files + transitive reach (depth 3). |
 | "structural diff of this change" | `sigil diff A..B --markdown` | Entity-level change list classified as breaking / logic / formatting. |
 | "review this PR" | `sigil review A..B --markdown` | `diff` + blast radius + co-change misses, rank-ordered. |
