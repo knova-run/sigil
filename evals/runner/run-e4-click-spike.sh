@@ -4,17 +4,24 @@
 #   001  pallets/click   @ 04ef3a6   "find Parameter.get_default"
 #   002  django/django   @ 42e8cf4   "#32347 / PR 13933 — ModelChoiceField
 #                                     invalid_choice doesn't substitute %(value)s"
+#   003  django/django   @ 42e8cf4   synthetic bug report shaped like
+#                                     FileField.to_python (tests --parent re-use
+#                                     on a different class than 002)
+#   004  django/django   @ 42e8cf4   enumerate top-level classes under
+#                                     django/db/migrations/operations/ (tests
+#                                     sigil_outline vs find+grep)
 #
-# Each task is pinned to a specific pre-fix commit and graded by exact match
-# against the verified-correct answer (file / class / method / parent_class
-# extracted from the actual upstream fix commit).
+# Tasks 001/002 are real upstream bugs graded against the actual fix commit.
+# 003/004 are synthetic but reuse the pinned Django checkout so no re-clone
+# is required; they exercise eval dimensions 001/002 don't cover.
 #
 # Usage:
 #   export ANTHROPIC_API_KEY=sk-ant-...
 #   bash evals/runner/run-e4-click-spike.sh
 #
-# Cost estimate with 2 tasks × N=3 Sonnet + N=1 Haiku:
-#   ~$2–4 total (Django task is larger — ~350k LOC repo vs click's 2.3k).
+# Cost estimate with 4 tasks × N=3 Sonnet + N=1 Haiku:
+#   ~$4–8 total (Django tree is ~350k LOC vs click's 2.3k; 004 is outline-
+#   shaped so the treatment path should be cheap).
 
 set -euo pipefail
 

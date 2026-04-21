@@ -1,0 +1,50 @@
+id: E4_003
+kind: code_location_django
+repo: evals/_workbench/django
+pinned_ref: 42e8cf47c7ee2db238bf91197ea398126c546741
+# Same Django tree as E4_002 — no re-checkout required. Exercises the same
+# "real user bug report -> locate the method" shape but against a different
+# class (FileField vs ModelChoiceField), so the agent can't just pattern-
+# match the E4_002 answer. Tests whether sigil's new --parent filter is
+# routinely reached for when the bug names a class.
+question: |
+  You are looking at a clone of the django/django repository at a
+  specific commit.
+
+  A user has filed the following bug report:
+
+    "I'm using a `forms.FileField` in an upload form. When the user
+    submits a file whose name is empty or the field gets cleared, I
+    expect `FileField.to_python()` to return a sentinel that tells my
+    view the field is empty. Right now if the field was cleared and the
+    form was bound to a non-empty initial file, I get surprising
+    behavior — the cleared sentinel (`forms.FileField.empty_values`
+    style) doesn't seem to be honored. Please find the method that
+    handles converting the raw upload into a Python object so I can
+    understand where the cleared-vs-missing distinction is drawn."
+
+  Investigate: locate the method that owns this conversion.
+
+  Return ONLY a JSON object with exactly these keys:
+
+    - "file":         repo-relative path to the file containing the method
+    - "class":        the class name that owns the method
+    - "method":       the method name
+    - "parent_class": the class the owner inherits from (the immediate
+                      parent in the MRO, not the grandparent)
+    - "fix_summary":  a single-sentence description of what the method
+                      does re: empty / cleared / missing values. Mention
+                      `FILE_INPUT_CONTRADICTION` if relevant.
+
+  Example of the shape you must return (made-up values):
+  {"file":"some/file.py","class":"SomeClass","method":"some_method","parent_class":"SomeParent","fix_summary":"..."}
+grader:
+  type: fact_match
+  expected:
+    file: django/forms/fields.py
+    class: FileField
+    method: to_python
+    parent_class: Field
+    # fix_summary is free-form, not fact-matched — a secondary reviewer
+    # pass can look for `FILE_INPUT_CONTRADICTION` / `empty` / `cleared`
+    # but this isn't required to pass the structural grader.
