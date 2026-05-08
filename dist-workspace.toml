@@ -9,9 +9,14 @@ cargo-dist-version = "0.31.0"
 ci = "github"
 # The installers to generate for each app
 installers = ["shell", "powershell", "npm"]
-# Auto-publish the npm wrapper package on tagged releases. Requires
-# NPM_TOKEN repository secret (Automation token from npmjs.com),
-# or trusted publishing once configured at npmjs.com.
+# Auto-publish the npm wrapper package on tagged releases.
+# We use npm OIDC trusted publishing (no NPM_TOKEN secret needed) —
+# configured at https://www.npmjs.com/package/@knova-run/sigil/access.
+#
+# WARNING: cargo-dist 0.31.0 doesn't natively emit the trusted-publishing
+# bits, so .github/workflows/release.yml is hand-patched to add
+# `permissions: id-token: write` and `npm publish --provenance` on the
+# publish-npm job. If you run `dist generate` again, re-apply that patch.
 publish-jobs = ["npm"]
 # Scope for the npm wrapper package — published as @knova-run/sigil.
 # (`npx sigil` unscoped is blocked by npm anti-typosquat against the

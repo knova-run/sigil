@@ -289,6 +289,12 @@ jobs:
       - plan
       - host
     runs-on: "ubuntu-22.04"
+    # OIDC trusted publishing — auths to npm via GitHub OIDC (no NPM_TOKEN).
+    # Requires the trusted publisher to be configured at
+    # https://www.npmjs.com/package/@knova-run/sigil/access.
+    permissions:
+      id-token: write
+      contents: read
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       PLAN: ${{ needs.plan.outputs.val }}
@@ -302,15 +308,15 @@ jobs:
           merge-multiple: true
       - uses: actions/setup-node@v6
         with:
-          node-version: '20.x'
+          node-version: '22.x'
           registry-url: 'https://registry.npmjs.org'
+      # Trusted publishing requires npm >= 11.5.1; node 22 ships with npm 10.x.
+      - run: npm install -g npm@latest
       - run: |
           for release in $(echo "$PLAN" | jq --compact-output '.releases[] | select([.artifacts[] | endswith("-npm-package.tar.gz")] | any)'); do
             pkg=$(echo "$release" | jq '.artifacts[] | select(endswith("-npm-package.tar.gz"))' --raw-output)
-            npm publish --access public "./npm/${pkg}"
+            npm publish --access public --provenance "./npm/${pkg}"
           done
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   announce:
     needs:
