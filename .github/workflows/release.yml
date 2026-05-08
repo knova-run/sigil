@@ -307,10 +307,13 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@v6
         with:
-          node-version: '22.x'
+          # Node 24 ships with npm 11.x, which is what we need for
+          # `npm publish --provenance` + OIDC trusted publishing.
+          # (Node 22 ships npm 10.x, and `npm install -g npm@latest`
+          # has a known mid-upgrade race where the new bundled
+          # node_modules is missing dependencies — broke the prior run.)
+          node-version: '24.x'
           registry-url: 'https://registry.npmjs.org'
-      # Trusted publishing + provenance need npm >= 11.5.1; node 22 ships with npm 10.x.
-      - run: npm install -g npm@latest
       - name: Fetch built artifacts
         uses: actions/download-artifact@v7
         with:
