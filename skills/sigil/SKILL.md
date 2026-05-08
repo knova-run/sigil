@@ -13,13 +13,19 @@ Questions that sigil answers in **one call**, ordered by frequency. Each row is 
 
 | Question (what the user asks) | One-shot command | Why one-shot |
 |---|---|---|
-| "where is `X` defined?" | `sigil where X` | Returns file + line + class + signature + override siblings in one row. Tail-segment match: `get_default` finds both `Parameter.get_default` and `Option.get_default`. |
+| "find text `X` anywhere" | `sigil grep X` | Text search + structural annotation. Every hit is `file:line:entity:kind:text`, so you don't need a follow-up `read_file` to see which class the match lives in. Use this as your default for any constant/keyword/error-string hunt — replaces `grep X` + `read_file` for the same task. |
+| "find `X` inside class `C`" | `sigil grep X --class C` | Filters hits whose enclosing class is `C`. No separate tool needed. |
+| "where is `X` defined?" | `sigil where X` | Returns file + line + class + signature + override siblings in one row, rank-sorted (framework-level definitions first). Tail-segment match: `get_default` finds both `Parameter.get_default` and `Option.get_default`. Default cap: 10 rows. |
+| "where is `X` defined **on class `C`**?" | `sigil where X --parent C` | Same shape, filtered to one class. Use when the bare-name query returned >10 hits or hits the wrong class. |
+| "where is `X` defined **in file F** or subtree?" | `sigil where X --file F` | Filters hits whose path contains `F` (substring, not glob). Stack with `--parent`. |
 | "who calls `X`?" | `sigil callers X --json` | Structured caller list with file + caller-fn + line, filtered by kind. Add `--group-by file` when you want `{file: count}` distribution only. |
 | "what does `X` call?" | `sigil callees X --json` | Same shape in reverse. `--group-by name` for a target-count summary. |
 | "list the classes/fns in `F`" | `sigil symbols F --depth 1 --names-only` | Flat JSON array of top-level names, ~300 bytes. Drops imports, nested methods, variables. |
 | "full entities in `F` (with sigs + line ranges)" | `sigil symbols F --depth 1 --json` | Top-level entities with sig + kind + line + parent. |
 | "how does `X` fit into the codebase?" | `sigil context X --format agent` | Bundle: signature + callers + callees + related types + inheritance overrides. Budget-capped. |
+| "locate `X` **and** show me its body in one call" | `sigil context X --with-body --format agent` | Same bundle plus the raw source lines from `line_start..=line_end`. Saves the follow-up `read_file` in "locate then inspect" flows. |
 | "what's in this directory structurally?" | `sigil outline --path DIR` | Hierarchical tree of classes + top-level fns grouped by file. |
+| "just the classes under `DIR`" | `sigil outline --path DIR --kind class` | Same shape but filtered. Matches `grep -n "^class "` exactly — use this when you want classes only, not helper fns. |
 | "what would break if I rename `X`?" | `sigil blast X --format agent` | Direct callers + files + transitive reach (depth 3). |
 | "structural diff of this change" | `sigil diff A..B --markdown` | Entity-level change list classified as breaking / logic / formatting. |
 | "review this PR" | `sigil review A..B --markdown` | `diff` + blast radius + co-change misses, rank-ordered. |
@@ -48,6 +54,21 @@ get_default
 ```
 
 Measured: one tool call, 2 turns total. **Control arm (grep-only): 6 turns, 12,269 tokens.** sigil: 2 turns, 5,521 tokens. **2.22× cheaper**, deterministic across seeds.
+
+**Example 1b — many hits → narrow with `--parent` / `--file`** (common ambiguous-name pattern)
+
+Many names in large codebases collide (`to_python` in Django has ~40 definitions across forms/models). `sigil where` caps at 10 rank-ordered rows and prints a one-line "narrow" hint on stderr:
+
+```
+sigil where to_python
+# stderr: sigil: 38 definitions matched, showing top 10 by rank.
+#         Narrow with `--parent CLASS`, `--file PATH_SUBSTR`, or rerun with --limit 0.
+
+sigil where to_python --parent ModelChoiceField
+# → exactly 1 row: django/forms/models.py:1321, ChoiceField.to_python signature
+```
+
+When the bug report names a class (e.g. "ModelChoiceField invalid_choice"), go straight to `--parent ModelChoiceField`. When it names a file path, use `--file`. For compound filters that flags don't express (e.g. "all `to_python` methods with blast > 5"), drop to `sigil query "SELECT file, parent, line_start FROM entities WHERE name = 'to_python' AND parent LIKE '%ChoiceField%'"`.
 
 **Example 2 — "who calls `parse_file` in this codebase?"**
 

@@ -55,37 +55,43 @@ def task_repo_root(task: dict) -> Path:
 # native sigil_* tools in the manifest, the agent picks from a
 # labeled decision tree rather than improvising.
 SIGIL_BLURB = """\
-sigil_* tools give pre-computed structural code intelligence.
-Use them BEFORE grep for structural questions:
+sigil_* tools give pre-computed structural code intelligence:
 
-  "where is X defined?"       → sigil_where(X)
-  "list the Xs in file F"     → sigil_symbol_names(F)
-  "signatures / line ranges
-   per symbol in file F"      → sigil_symbol_details(F, depth=1)
+  "where is X defined?"       → sigil_where(X) [add parent=C / file=F]
+  "how does X fit?"           → sigil_context(X) [add with_body=true]
   "who calls X?"              → sigil_callers(X)
   "what does X call?"         → sigil_callees(X)
-  "how does X fit?"           → sigil_context(X)
-  "tree under directory D"    → sigil_outline(D)
-  "find matching 'foo'"       → sigil_search("foo")
+  "list names in file F"      → sigil_symbol_names(F)
+  "tree under directory D"    → sigil_outline(D) [add kind=["class"]]
 
-Use grep / read_file / bash for:
-  - text / regex patterns inside a known file
-  - files that exist under a directory (NOT classes+fns — that is
-    sigil_outline)
-  - language syntactic patterns grep nails in one line (e.g. Rust
-    `^pub mod`)
+When the bug report names a literal string, constant, or error message
+(e.g. "FILE_INPUT_CONTRADICTION", "invalid_choice"), use sigil_grep —
+it's ripgrep plus the enclosing class/method on each hit, so one call
+tells you both where the literal is AND which method owns it.
+Not a first-resort tool for definition lookups — use sigil_where for
+those.
 
 Empty sigil results print `Did you mean: X, Y, Z?` on stderr — retry
-with a suggested name before falling back to grep.
+with a suggested name before falling back to grep. sigil_where caps
+at 10 rank-ordered hits; if the question names a class or file path,
+pass parent=CLASS or file=PATH_SUBSTR up front.
 
-WORKED EXAMPLE
+WORKED EXAMPLES (pay attention to what the question names vs what you
+query — you query the METHOD by name, not the class):
 
-  Q: "Find the method on class Parameter that resolves the default
+  Q: "Find the method on class `Parameter` that resolves the default
       value when a callable is passed to click.option(default=...)."
   GOOD (1 turn): sigil_where(symbol="get_default")
     → {"definitions":[{"parent":"Parameter","file":"src/click/core.py",
         "line":2249,"sig":"def get_default(...)"}]}
-  BAD (4+ turns): grep-rn → narrow-grep → read_file → read_file
+  BAD: sigil_where(symbol="Parameter") — returns the CLASS, not the
+       method you want. Then you spend 10+ turns reading 600 lines.
+
+  Q: "When a user submits a bad choice, the error message shows
+      `%(value)s` literally instead of substituting — the issue is
+      specific to ModelChoiceField."
+  GOOD (1 turn): sigil_where(symbol="to_python", parent="ModelChoiceField")
+    → exact method, one row.
 """
 
 SYSTEM_PROMPT_BASE = """\
@@ -151,12 +157,35 @@ BASE_TOOLS = [
 # sigil lives behind an MCP / hook integration.
 SIGIL_TOOLS = [
     {
+        "name": "sigil_grep",
+        "description": "Text search (ripgrep semantics) with each hit annotated by the enclosing class/method. Use when the question names a specific literal, constant, or error string and you need to know which method owns the match — one call replaces grep+read_file. Not the right tool for 'where is X defined?' (use sigil_where) or 'what's in file F' (use sigil_symbol_names).",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "pattern": {"type": "string", "description": "Regex pattern (or literal string with fixed_strings=true)."},
+                "ignore_case": {"type": "boolean", "description": "Case-insensitive (grep -i)"},
+                "word": {"type": "boolean", "description": "Whole-word match (grep -w)"},
+                "fixed_strings": {"type": "boolean", "description": "Treat pattern as literal, not regex (grep -F)"},
+                "file": {"type": "array", "items": {"type": "string"}, "description": "File-path substring filter (repeatable)"},
+                "glob": {"type": "array", "items": {"type": "string"}, "description": "Glob patterns for file paths (ripgrep-style)"},
+                "class": {"type": "string", "description": "Only hits whose enclosing entity's parent class equals this (or tail-equals). Matches the `--parent` flag on sigil_where."},
+                "caller": {"type": "string", "description": "Only hits whose enclosing entity name equals FN."},
+                "limit": {"type": "integer", "description": "Max hits. 0 = unlimited. Default 50."},
+                "group_by": {"type": "string", "description": "Aggregate counts instead of rows. Values: file, class, entity, kind."},
+            },
+            "required": ["pattern"],
+        },
+    },
+    {
         "name": "sigil_where",
-        "description": "FIRST choice for 'where is X defined?' questions. Returns one row per definition (file, line, class, signature, overload count). Tail-segment match: `get_default` finds `Parameter.get_default` and `Option.get_default`. Faster and more precise than grep for definition lookups.",
+        "description": "FIRST choice for 'where is X defined?' questions. Returns rows ranked by file-importance desc, capped at 10 by default. Each row: file, line, class (parent), signature, overload count. Tail-segment match: `get_default` finds `Parameter.get_default` and `Option.get_default`. When the bug report names a class or path, pass `parent` or `file` to skip the wide search. When >10 hits, prefer filtering over raising `limit`.",
         "input_schema": {
             "type": "object",
             "properties": {
                 "symbol": {"type": "string", "description": "Symbol name. Tail segment matched exactly."},
+                "parent": {"type": "string", "description": "Exact match on enclosing class/module (or its tail segment). Use when the question names a specific class like 'ModelChoiceField'."},
+                "file": {"type": "string", "description": "Substring match on file path. Use when the question scopes to a subtree like 'django/forms'."},
+                "limit": {"type": "integer", "description": "Max rows. 0 = unlimited. Default 10."},
                 "include_tests": {"type": "boolean", "description": "Include test-file definitions (default false)", "default": False},
             },
             "required": ["symbol"],
@@ -164,11 +193,12 @@ SIGIL_TOOLS = [
     },
     {
         "name": "sigil_context",
-        "description": "Full bundle for a symbol: signature, callers, callees, related types, and inheritance overrides. Use when you need to understand how X fits into the codebase — replaces multiple search+read_file pairs.",
+        "description": "Full bundle for a symbol: signature, callers, callees, related types, and inheritance overrides. Use when you need to understand how X fits into the codebase — replaces multiple search+read_file pairs. Pass `with_body=true` to also inline the source body (lines line_start..=line_end), which saves a follow-up read_file in 'locate then read' flows.",
         "input_schema": {
             "type": "object",
             "properties": {
                 "symbol": {"type": "string", "description": "Symbol name. Accepts `Parent.name` or `file.rs::Parent::name` forms."},
+                "with_body": {"type": "boolean", "description": "Include source body inline (default false)"},
             },
             "required": ["symbol"],
         },
@@ -225,11 +255,12 @@ SIGIL_TOOLS = [
     },
     {
         "name": "sigil_outline",
-        "description": "Hierarchical top-level tree of classes + functions grouped by file across the repo (or under --path). Answers 'what's in this directory structurally?' without needing multiple sigil_symbols calls.",
+        "description": "Hierarchical top-level tree of classes + functions grouped by file across the repo (or under `path`). Answers 'what's in this directory structurally?' without needing multiple sigil_symbols calls. Pass `kind` (e.g. `[\"class\"]`) to restrict the payload — matches `grep -n \"^class \"` exactly but across the structural index.",
         "input_schema": {
             "type": "object",
             "properties": {
                 "path": {"type": "string", "description": "Restrict to files starting with this prefix"},
+                "kind": {"type": "array", "items": {"type": "string"}, "description": "Optional: restrict to entities of these kinds (e.g. ['class']). Default: all outline-eligible kinds."},
             },
         },
     },
@@ -336,11 +367,20 @@ def tool_sigil_where(inp: dict[str, Any], env: dict[str, str], cwd: Path) -> str
     args = ["where", inp["symbol"], "--format", "json"]
     if inp.get("include_tests"):
         args.append("--include-tests")
+    if inp.get("parent") is not None:
+        args += ["--parent", str(inp["parent"])]
+    if inp.get("file"):
+        args += ["--file", str(inp["file"])]
+    if "limit" in inp and inp["limit"] is not None:
+        args += ["--limit", str(int(inp["limit"]))]
     return _sigil_cmd(env, cwd, args)
 
 
 def tool_sigil_context(inp: dict[str, Any], env: dict[str, str], cwd: Path) -> str:
-    return _sigil_cmd(env, cwd, ["context", inp["symbol"], "--format", "json"])
+    args = ["context", inp["symbol"], "--format", "json"]
+    if inp.get("with_body"):
+        args.append("--with-body")
+    return _sigil_cmd(env, cwd, args)
 
 
 def tool_sigil_callers(inp: dict[str, Any], env: dict[str, str], cwd: Path) -> str:
@@ -384,6 +424,10 @@ def tool_sigil_outline(inp: dict[str, Any], env: dict[str, str], cwd: Path) -> s
     args = ["outline", "--format", "json"]
     if inp.get("path"):
         args += ["--path", inp["path"]]
+    if inp.get("kind"):
+        kinds = inp["kind"] if isinstance(inp["kind"], list) else [inp["kind"]]
+        for k in kinds:
+            args += ["--kind", str(k)]
     return _sigil_cmd(env, cwd, args)
 
 
@@ -394,11 +438,35 @@ def tool_sigil_search(inp: dict[str, Any], env: dict[str, str], cwd: Path) -> st
     return _sigil_cmd(env, cwd, args)
 
 
+def tool_sigil_grep(inp: dict[str, Any], env: dict[str, str], cwd: Path) -> str:
+    args = ["grep", inp["pattern"], "--format", "json"]
+    if inp.get("ignore_case"):
+        args.append("-i")
+    if inp.get("word"):
+        args.append("-w")
+    if inp.get("fixed_strings"):
+        args.append("-F")
+    for f in (inp.get("file") or []):
+        args += ["--file", str(f)]
+    for g in (inp.get("glob") or []):
+        args += ["--glob", str(g)]
+    if inp.get("class") is not None:
+        args += ["--class", str(inp["class"])]
+    if inp.get("caller"):
+        args += ["--caller", str(inp["caller"])]
+    if "limit" in inp and inp["limit"] is not None:
+        args += ["--limit", str(int(inp["limit"]))]
+    if inp.get("group_by"):
+        args += ["--group-by", str(inp["group_by"])]
+    return _sigil_cmd(env, cwd, args)
+
+
 DISPATCH = {
     "read_file": tool_read_file,
     "grep": tool_grep,
     "glob": tool_glob,
     "bash": tool_bash,
+    "sigil_grep": tool_sigil_grep,
     "sigil_where": tool_sigil_where,
     "sigil_context": tool_sigil_context,
     "sigil_callers": tool_sigil_callers,

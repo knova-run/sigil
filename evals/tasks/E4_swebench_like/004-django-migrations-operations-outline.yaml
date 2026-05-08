@@ -1,0 +1,53 @@
+id: E4_004
+kind: code_location_django
+repo: evals/_workbench/django
+pinned_ref: 42e8cf47c7ee2db238bf91197ea398126c546741
+# Different shape from E4_001/002/003. Where those test "locate one method,"
+# this tests "enumerate every class in a subsystem" — the shape `sigil
+# outline --path` was built for. The control arm has to stitch `find` +
+# `grep '^class '` across 4 files; the treatment arm can call outline once.
+question: |
+  You are looking at a clone of the django/django repository at a
+  specific commit.
+
+  Task: list every top-level class defined in the
+  `django/db/migrations/operations/` subtree. Top-level means
+  module-level — do not descend into nested classes, and do not
+  include classes imported from elsewhere.
+
+  Return ONLY a JSON array of strings. Each string has the form
+  `"<repo-relative-path>:<ClassName>"` (colon separator). The array
+  must include every top-level class in that subtree and nothing else
+  (no duplicates, no helpers that aren't classes).
+
+  Example of the shape you must return (made-up values):
+  ["some/file.py:SomeClass", "some/other.py:AnotherClass"]
+grader:
+  type: set_match
+  expected:
+    - django/db/migrations/operations/base.py:Operation
+    - django/db/migrations/operations/fields.py:AddField
+    - django/db/migrations/operations/fields.py:AlterField
+    - django/db/migrations/operations/fields.py:FieldOperation
+    - django/db/migrations/operations/fields.py:RemoveField
+    - django/db/migrations/operations/fields.py:RenameField
+    - django/db/migrations/operations/models.py:AddConstraint
+    - django/db/migrations/operations/models.py:AddIndex
+    - django/db/migrations/operations/models.py:AlterIndexTogether
+    - django/db/migrations/operations/models.py:AlterModelManagers
+    - django/db/migrations/operations/models.py:AlterModelOptions
+    - django/db/migrations/operations/models.py:AlterModelTable
+    - django/db/migrations/operations/models.py:AlterOrderWithRespectTo
+    - django/db/migrations/operations/models.py:AlterTogetherOptionOperation
+    - django/db/migrations/operations/models.py:AlterUniqueTogether
+    - django/db/migrations/operations/models.py:CreateModel
+    - django/db/migrations/operations/models.py:DeleteModel
+    - django/db/migrations/operations/models.py:IndexOperation
+    - django/db/migrations/operations/models.py:ModelOperation
+    - django/db/migrations/operations/models.py:ModelOptionOperation
+    - django/db/migrations/operations/models.py:RemoveConstraint
+    - django/db/migrations/operations/models.py:RemoveIndex
+    - django/db/migrations/operations/models.py:RenameModel
+    - django/db/migrations/operations/special.py:RunPython
+    - django/db/migrations/operations/special.py:RunSQL
+    - django/db/migrations/operations/special.py:SeparateDatabaseAndState

@@ -49,13 +49,19 @@ multi-grep exploration.
 
 | Question shape                           | Command                                        |
 |------------------------------------------|------------------------------------------------|
+| \"find text X anywhere\"                 | `sigil grep <X>`                               |
+| \"find X inside class C\"                | `sigil grep <X> --class <C>`                   |
 | \"where is X defined?\"                  | `sigil where <X>`                              |
+| \"where is X defined on class C?\"       | `sigil where <X> --parent <C>`                 |
+| \"where is X in file/subtree F?\"        | `sigil where <X> --file <F>`                   |
 | \"how does X fit in the codebase?\"      | `sigil context <X>`                            |
+| \"locate X and show its body\"           | `sigil context <X> --with-body`                |
 | \"who calls X?\"                         | `sigil callers <X>` (add `--group-by file`)    |
 | \"what does X call?\"                    | `sigil callees <X>` (add `--group-by name`)    |
 | \"list the Xs in file F (just names)\"   | `sigil symbols <F> --depth 1 --names-only`     |
 | \"full entities in file F\"              | `sigil symbols <F> --depth 1`                  |
 | \"structural tree under dir D\"          | `sigil outline --path <D>`                     |
+| \"only the classes under dir D\"         | `sigil outline --path <D> --kind class`        |
 | \"find anything matching 'foo'\"         | `sigil search foo`                             |
 | \"impact of editing X?\"                 | `sigil blast <X>`                              |
 | \"entity-level diff of a commit range\"  | `sigil diff A..B --markdown`                   |
@@ -122,7 +128,27 @@ sigil where get_default
 ```
 
 Answer: `Parameter.get_default` at `src/click/core.py:2249`, with \
-`Option.get_default` as an override. Done in one command."
+`Option.get_default` as an override. Done in one command.
+
+## Worked example — many hits → narrow the search
+
+`sigil where` caps at 10 rank-ordered rows and prints a one-line hint \
+on stderr when more matched. When a bug report names a class or file, \
+add a filter instead of scanning ranked rows:
+
+```
+sigil where to_python
+# stderr: sigil: 38 definitions matched, showing top 10 by rank.
+#         Narrow with `--parent CLASS`, `--file PATH_SUBSTR`, or
+#         rerun with --limit 0.
+
+sigil where to_python --parent ModelChoiceField
+# → exactly 1 row, answer in one call
+```
+
+For compound filters the flags don't express, drop to SQL: `sigil query \
+\"SELECT file, parent, line_start FROM entities WHERE name = 'to_python' \
+AND parent LIKE '%Choice%'\"`."
         .to_string()
 }
 

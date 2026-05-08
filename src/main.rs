@@ -294,6 +294,66 @@ enum Cli {
         #[arg(long)]
         pretty: bool,
     },
+    /// Text search + structural annotation. Reads like grep, returns
+    /// like grep, but each hit is annotated with the enclosing entity
+    /// (class / method / function). Collapses the common `grep X` +
+    /// `read_file F` chain into one call — the hit itself tells you
+    /// what class or method you're looking at.
+    ///
+    /// Default output is `file:line:entity:kind:text`. Drop the
+    /// structural column with `--no-entity` for strict grep-compatible
+    /// output. When the hit lands outside any indexed entity (license
+    /// comment, top-level imports) the structural columns are omitted
+    /// and the row falls back to `file:line:text`.
+    Grep {
+        /// Regex pattern. Pass `-F` for literal strings.
+        pattern: String,
+        /// Project root directory.
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
+        /// Case-insensitive match (ripgrep-compatible `-i`).
+        #[arg(short = 'i', long = "ignore-case")]
+        ignore_case: bool,
+        /// Whole-word match (ripgrep-compatible `-w`).
+        #[arg(short = 'w', long = "word")]
+        word: bool,
+        /// Treat pattern as a fixed string, not a regex (ripgrep-compatible `-F`).
+        #[arg(short = 'F', long = "fixed-strings")]
+        fixed_strings: bool,
+        /// Only hits whose file path contains SUBSTR (repeatable).
+        #[arg(long, value_name = "SUBSTR")]
+        file: Vec<String>,
+        /// Glob patterns to match file paths (ripgrep-compatible).
+        #[arg(long, value_name = "PATTERN")]
+        glob: Vec<String>,
+        /// Only hits whose enclosing entity's parent class tail-equals C.
+        /// Folds the old `sigil where --parent C` pattern into grep's
+        /// scope plane — `sigil grep X --class FileField` finds `X` only
+        /// inside FileField methods.
+        #[arg(long, value_name = "C")]
+        class: Option<String>,
+        /// Only hits whose enclosing entity's name tail-equals FN. Use
+        /// for "find every usage of X *inside* render_template."
+        #[arg(long, value_name = "FN")]
+        caller: Option<String>,
+        /// Max hits to return. 0 = unlimited. Default 50.
+        #[arg(long, default_value = "50")]
+        limit: usize,
+        /// Aggregate counts instead of returning rows. Values:
+        /// `file`, `class`, `entity`, `kind`.
+        #[arg(long, value_name = "KEY")]
+        group_by: Option<String>,
+        /// Drop the structural column from every row. The output then
+        /// looks exactly like ripgrep (`file:line:text`).
+        #[arg(long)]
+        no_entity: bool,
+        /// Output format: `text` (default, ripgrep-shaped) or `json`.
+        #[arg(long, default_value = "text")]
+        format: String,
+        /// Pretty-print when `--format=json`.
+        #[arg(long)]
+        pretty: bool,
+    },
     /// Hierarchical outline — every top-level class / function / struct /
     /// enum / trait grouped by file. Complements `sigil map` (rank-
     /// ordered, budget-aware) by giving a plain structural tree for
@@ -305,6 +365,14 @@ enum Cli {
         /// Restrict to files starting with this prefix (e.g. `src/click/`).
         #[arg(long)]
         path: Option<String>,
+        /// Restrict to entities of these kinds (repeatable, or comma-
+        /// separated). Useful for matching `grep -n "^class "` one-liners
+        /// exactly — e.g. `--kind class` drops top-level functions and
+        /// module-level helpers that bloat the payload on outline-shaped
+        /// questions. Default: all outline-eligible kinds (classes +
+        /// top-level functions + structs + enums + traits).
+        #[arg(long, value_delimiter = ',')]
+        kind: Vec<String>,
         /// Output format: markdown (default) or json.
         #[arg(long, default_value = "markdown")]
         format: String,
@@ -333,6 +401,21 @@ enum Cli {
         /// answer.
         #[arg(long)]
         include_tests: bool,
+        /// Only return definitions whose enclosing class/module matches
+        /// NAME exactly. Matches against both the raw parent and its
+        /// tail segment, so `--parent ModelChoiceField` works even when
+        /// the index stores `django.forms.models.ModelChoiceField`. Pass
+        /// an empty string (`--parent ""`) to require top-level only.
+        #[arg(long, value_name = "NAME")]
+        parent: Option<String>,
+        /// Only return definitions whose file path contains SUBSTR.
+        /// Useful when many hits are scattered across a monorepo.
+        #[arg(long, value_name = "SUBSTR")]
+        file: Option<String>,
+        /// Cap on rows returned, ordered by file-rank desc. 0 = no cap.
+        /// When the cap hits, stderr gets a one-line "narrow" hint.
+        #[arg(long, default_value_t = sigil::where_cmd::DEFAULT_LIMIT)]
+        limit: usize,
         /// Output format: markdown (default) or json.
         #[arg(long, default_value = "markdown")]
         format: String,
@@ -485,6 +568,11 @@ enum Cli {
         /// Drop test-file candidates and test-file callers from the bundle.
         #[arg(long)]
         exclude_tests: bool,
+        /// Also include the symbol's source body (lines line_start..=line_end)
+        /// inline in the bundle. Saves a follow-up `read_file` in the common
+        /// "locate then read" pattern. Off by default — bodies are large.
+        #[arg(long)]
+        with_body: bool,
     },
     /// Budget-aware ranked digest of the codebase — drop into an agent's
     /// context for cold-start orientation.
@@ -980,10 +1068,67 @@ fn main() {
                 emit_empty_hint(&root, &caller, "callees");
             }
         }
-        Cli::Outline { root, path, format, pretty } => {
+        Cli::Grep {
+            pattern,
+            root,
+            ignore_case,
+            word,
+            fixed_strings,
+            file,
+            glob,
+            class,
+            caller,
+            limit,
+            group_by,
+            no_entity,
+            format,
+            pretty,
+        } => {
             let idx = query::load(&root)
                 .unwrap_or_else(|e| { eprintln!("error: {}", e); std::process::exit(1); });
-            let report = sigil::outline::build_outline(&idx, path.as_deref());
+            let group_by = match group_by.as_deref() {
+                None => None,
+                Some(s) => match sigil::grep_cmd::GroupBy::parse(s) {
+                    Some(g) => Some(g),
+                    None => {
+                        eprintln!("error: unknown --group-by `{}`. expected: file | class | entity | kind", s);
+                        std::process::exit(1);
+                    }
+                },
+            };
+            let opts = sigil::grep_cmd::GrepOptions {
+                pattern,
+                case_insensitive: ignore_case,
+                word_match: word,
+                fixed_strings,
+                file_filter: file,
+                globs: glob,
+                class_filter: class,
+                caller_filter: caller,
+                limit,
+                no_entity,
+                group_by,
+            };
+            let report = match sigil::grep_cmd::run_grep(&root, &idx, &opts) {
+                Ok(r) => r,
+                Err(e) => { eprintln!("error: {}", e); std::process::exit(1); }
+            };
+            match format.as_str() {
+                "text" => print!("{}", sigil::grep_cmd::render_text(&report)),
+                "json" => println!("{}", sigil::grep_cmd::render_json(&report, pretty)),
+                other => {
+                    eprintln!("error: unknown --format `{}`. expected: text | json", other);
+                    std::process::exit(1);
+                }
+            }
+            if report.total_hits == 0 {
+                std::process::exit(1);
+            }
+        }
+        Cli::Outline { root, path, kind, format, pretty } => {
+            let idx = query::load(&root)
+                .unwrap_or_else(|e| { eprintln!("error: {}", e); std::process::exit(1); });
+            let report = sigil::outline::build_outline(&idx, path.as_deref(), &kind);
             match format.as_str() {
                 "markdown" => print!("{}", sigil::outline::render_markdown(&report)),
                 "json" => println!("{}", sigil::outline::render_json(&report, pretty)),
@@ -993,10 +1138,15 @@ fn main() {
                 }
             }
         }
-        Cli::Where { symbol, root, include_tests, format, pretty } => {
+        Cli::Where { symbol, root, include_tests, parent, file, limit, format, pretty } => {
             let idx = query::load(&root)
                 .unwrap_or_else(|e| { eprintln!("error: {}", e); std::process::exit(1); });
-            let report = sigil::where_cmd::find_definitions(&idx, &symbol, include_tests);
+            let filters = sigil::where_cmd::WhereFilters {
+                parent,
+                file,
+                include_tests,
+            };
+            let report = sigil::where_cmd::find_definitions(&idx, &symbol, &filters, limit);
             match format.as_str() {
                 "markdown" => print!("{}", sigil::where_cmd::render_markdown(&report)),
                 "json" => println!("{}", sigil::where_cmd::render_json(&report, pretty)),
@@ -1018,6 +1168,8 @@ fn main() {
                         sugg.join(", ")
                     );
                 }
+            } else if let Some(hint) = sigil::where_cmd::narrow_hint(&report) {
+                eprintln!("{}", hint);
             }
         }
         Cli::Blast { symbol, root, depth, format, pretty, exclude_tests } => {
@@ -1147,7 +1299,7 @@ fn main() {
                 }
             }
         }
-        Cli::Context { query: q, root, budget, depth, format, pretty, exclude_tests } => {
+        Cli::Context { query: q, root, budget, depth, format, pretty, exclude_tests, with_body } => {
             let idx = query::load(&root)
                 .unwrap_or_else(|e| { eprintln!("error: {}", e); std::process::exit(1); });
             let Some(fmt) = sigil::context::ContextFormat::parse(&format) else {
@@ -1159,6 +1311,8 @@ fn main() {
                 depth,
                 format: fmt,
                 exclude_tests,
+                with_body,
+                project_root: root.clone(),
             };
             let Some(ctx) = sigil::context::build_context(&idx, &q, &opts) else {
                 eprintln!("no entity matches `{}`", q);

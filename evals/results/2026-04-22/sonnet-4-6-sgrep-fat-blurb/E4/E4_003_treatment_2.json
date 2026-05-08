@@ -1,0 +1,49 @@
+{
+  "task_id": "E4_003",
+  "arm": "treatment",
+  "seed": 2,
+  "model": "claude-sonnet-4-6",
+  "turns": 4,
+  "tokens_in": 19016,
+  "tokens_out": 412,
+  "final_text": "The answer is clear. `FileField.clean` in `django/forms/fields.py` is the method that handles all three states (new file, clear, keep initial), raises `FILE_INPUT_CONTRADICTION`, and delegates to `super().clean()` (i.e., `Field.clean` \u2192 `to_python`) only when there's actual new data.\n\n```json\n{\"file\":\"django/forms/fields.py\",\"class\":\"FileField\",\"method\":\"clean\",\"parent_class\":\"Field\",\"fix_summary\":\"FileField.clean() distinguishes all three states \u2014 raising a ValidationError for FILE_INPUT_CONTRADICTION when the widget sees both a new upload and a clear checkbox, returning False (or the initial value) when the user clears or leaves the field unchanged, and only delegating to to_python() via super().clean() when the user has actually submitted a new file.\"}\n```",
+  "parsed_answer": {
+    "file": "django/forms/fields.py",
+    "class": "FileField",
+    "method": "clean",
+    "parent_class": "Field",
+    "fix_summary": "FileField.clean() distinguishes all three states \u2014 raising a ValidationError for FILE_INPUT_CONTRADICTION when the widget sees both a new upload and a clear checkbox, returning False (or the initial value) when the user clears or leaves the field unchanged, and only delegating to to_python() via super().clean() when the user has actually submitted a new file."
+  },
+  "trace": [
+    {
+      "turn": 1,
+      "tool": "sigil_grep",
+      "input": {
+        "pattern": "FILE_INPUT_CONTRADICTION"
+      },
+      "result_len": 911,
+      "result_preview": "{\"pattern\":\"FILE_INPUT_CONTRADICTION\",\"total_hits\":5,\"hits\":[{\"file\":\"django/forms/fields.py\",\"line\":22,\"text\":\"    FILE_INPUT_CONTRADICTION, CheckboxInput, ClearableFileInput, DateInput,\",\"entity\":\"URLInput\",\"kind\":\"import\"},{\"file\":\"django/forms/fields.py\",\"line\":575,\"text\":\"        if data is FILE_INPUT_CONTRADICTION:\",\"entity\":\"FileField.clean\",\"kind\":\"method\",\"parent\":\"FileField\"},{\"file\":\"dj"
+    },
+    {
+      "turn": 2,
+      "tool": "sigil_context",
+      "input": {
+        "symbol": "FileField.clean",
+        "with_body": true
+      },
+      "result_len": 2549,
+      "result_preview": "{\"query\":\"FileField.clean\",\"chosen\":{\"file\":\"django/forms/fields.py\",\"name\":\"FileField.clean\",\"kind\":\"method\",\"line_start\":573,\"line_end\":590,\"parent\":\"FileField\",\"sig\":\"def clean(self, data, initial=None):\",\"visibility\":\"public\"},\"body\":\"    def clean(self, data, initial=None):\\n        # If the widget got contradictory inputs, we raise a validation error\\n        if data is FILE_INPUT_CONTRADICT"
+    },
+    {
+      "turn": 3,
+      "tool": "sigil_where",
+      "input": {
+        "symbol": "FileField",
+        "file": "django/forms/fields.py"
+      },
+      "result_len": 183,
+      "result_preview": "{\"symbol\":\"FileField\",\"definitions\":[{\"name\":\"FileField\",\"file\":\"django/forms/fields.py\",\"line\":534,\"line_end\":598,\"kind\":\"class\",\"sig\":\"class FileField(Field):\"}],\"total_matches\":1}\n"
+    }
+  ],
+  "timestamp": "2026-04-21T20:42:07.328458+00:00"
+}

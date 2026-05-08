@@ -40,7 +40,18 @@ pub struct OutlineReport {
     pub total_entities: usize,
 }
 
-pub fn build_outline(idx: &Index, path_prefix: Option<&str>) -> OutlineReport {
+/// Build a hierarchical outline.
+///
+/// `kind_filter` restricts the returned entities to the listed kinds. An
+/// empty slice means "all outline-eligible kinds" (the pre-filter default).
+/// Typical values: `["class"]` to match `grep -n "^class "`, `["class",
+/// "function"]` to mirror the default outline shape. Unknown kinds are
+/// silently skipped — they just won't match anything.
+pub fn build_outline(
+    idx: &Index,
+    path_prefix: Option<&str>,
+    kind_filter: &[String],
+) -> OutlineReport {
     let mut by_file: BTreeMap<String, Vec<&Entity>> = BTreeMap::new();
     for e in &idx.entities {
         if !is_top_level_outline(e) {
@@ -50,6 +61,9 @@ pub fn build_outline(idx: &Index, path_prefix: Option<&str>) -> OutlineReport {
             if !e.file.starts_with(prefix) {
                 continue;
             }
+        }
+        if !kind_filter.is_empty() && !kind_filter.iter().any(|k| k == &e.kind) {
+            continue;
         }
         by_file.entry(e.file.clone()).or_default().push(e);
     }
@@ -150,7 +164,7 @@ mod tests {
             ],
             vec![],
         );
-        let report = build_outline(&idx, None);
+        let report = build_outline(&idx, None, &[]);
         assert_eq!(report.total_files, 2);
         assert_eq!(report.total_entities, 3, "Foo, top_fn, OtherClass");
         assert_eq!(report.files[0].entities.len(), 2);
@@ -167,9 +181,36 @@ mod tests {
             ],
             vec![],
         );
-        let src_only = build_outline(&idx, Some("src/"));
+        let src_only = build_outline(&idx, Some("src/"), &[]);
         assert_eq!(src_only.total_files, 1);
         assert_eq!(src_only.files[0].path, "src/a.py");
+    }
+
+    #[test]
+    fn outline_kind_filter_restricts_to_listed_kinds() {
+        let idx = Index::build(
+            vec![
+                ent("a.py", "Foo", "class", None, 10),
+                ent("a.py", "helper_fn", "function", None, 30),
+                ent("a.py", "_priv_fn", "function", None, 50),
+                ent("a.py", "Bar", "class", None, 70),
+            ],
+            vec![],
+        );
+        let classes_only = build_outline(&idx, None, &["class".to_string()]);
+        assert_eq!(classes_only.total_entities, 2);
+        assert!(classes_only.files[0].entities.iter().all(|e| e.kind == "class"));
+
+        // Empty slice = no filter — default behavior unchanged.
+        let all = build_outline(&idx, None, &[]);
+        assert_eq!(all.total_entities, 4);
+
+        let both = build_outline(
+            &idx,
+            None,
+            &["class".to_string(), "function".to_string()],
+        );
+        assert_eq!(both.total_entities, 4);
     }
 
     #[test]
@@ -182,7 +223,7 @@ mod tests {
             ],
             vec![],
         );
-        let report = build_outline(&idx, None);
+        let report = build_outline(&idx, None, &[]);
         assert_eq!(report.total_entities, 1);
         assert_eq!(report.files[0].entities[0].name, "Foo");
     }

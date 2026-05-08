@@ -9,6 +9,7 @@ pub mod diff_json;
 pub mod entity;
 pub mod formatter;
 pub mod git;
+pub mod grep_cmd;
 pub mod grouping;
 pub mod hasher;
 pub mod index;
