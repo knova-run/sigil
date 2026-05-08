@@ -10,8 +10,14 @@ ci = "github"
 # The installers to generate for each app
 installers = ["shell", "powershell", "npm"]
 # Auto-publish the npm wrapper package on tagged releases. Requires
-# NPM_TOKEN repository secret (Automation token from npmjs.com).
+# NPM_TOKEN repository secret (Automation token from npmjs.com),
+# or trusted publishing once configured at npmjs.com.
 publish-jobs = ["npm"]
+# Scope for the npm wrapper package — published as @knova-run/sigil.
+# (`npx sigil` unscoped is blocked by npm anti-typosquat against the
+# pre-existing `sigil_` package; `@knova.run/sigil` is unusable due to
+# an npm registry bug with dotted scopes.)
+npm-scope = "@knova-run"
 # Target platforms to build apps for (Rust target-triple syntax)
 targets = ["aarch64-apple-darwin", "aarch64-unknown-linux-gnu", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"]
 # Which actions to run on pull requests

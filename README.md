@@ -93,8 +93,8 @@ Pre-built archives for every supported platform ship on the [Releases page](http
 **npm / npx** (any platform with Node ≥ 14):
 
 ```bash
-npx sigil --help            # one-shot
-npm install -g sigil        # persistent
+npx @knova-run/sigil --help        # one-shot
+npm install -g @knova-run/sigil    # persistent (alias as `sigil`)
 ```
 
 **macOS / Linux** (one-liner):
