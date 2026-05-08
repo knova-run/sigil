@@ -4,6 +4,48 @@ All notable changes to sigil are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] — 2026-05-09 — npm distribution + eval-driven primitives
+
+### Added
+
+- **`sigil grep <pattern>`** — text search with structural annotation.
+  Returns hits in the file:line:text shape `grep`/`rg` users expect, but
+  every hit is annotated with the entity it lives in (`fn foo`, `class
+  Bar`, `method Bar.baz`) so the agent doesn't need a follow-up
+  `sigil context` call to locate the match in the structure.
+- **`sigil outline --kind <kind>`** — filter the outline tree to a
+  single entity kind (e.g. `--kind class` for "every class top-level
+  in this directory"). Stacks with `--path` for scoped views.
+- **`sigil where`** — rank-sorted output by default; gains `--kind`,
+  `--path`, and `--limit` filters that compose the same way `sigil
+  search` does.
+- **`sigil context --with-body`** — bundles the resolved symbol's
+  body alongside the existing signature/callers/callees view. Removes
+  the `sigil context` + `read_file` chain when the agent needs to read
+  the actual implementation.
+
+### Distribution
+
+- **Repository moved** to [knova-run/sigil](https://github.com/knova-run/sigil).
+  All install URLs, `cargo install` clones, and Python bindings now point
+  at the new home; old `gauravverma/sigil` URLs redirect via GitHub.
+- **`npx @knova-run/sigil`** — sigil now ships on npm using the
+  esbuild-style optionalDependencies layout: a thin
+  `@knova-run/sigil` wrapper plus per-platform binary packages
+  (`-darwin-arm64`, `-darwin-x64`, `-linux-x64-gnu`, `-linux-arm64-gnu`,
+  `-win32-x64-msvc`). npm picks the matching one via `os`/`cpu`/`libc`
+  fields, so install is fast, lockfile-friendly, and works under
+  `npm install --ignore-scripts`. Publishing runs from CI under npm
+  OIDC trusted publishing — no `NPM_TOKEN` in repo secrets.
+
+### Eval coverage
+
+- New E4 swebench-like cases: `003-django-filefield-to-python`,
+  `004-django-migrations-operations-outline`. Branch tested at N=3
+  on both Sonnet 4.6 and Haiku 4.5; Haiku median tokens_in
+  124k → 36k (≈3.4× reduction); Sonnet wins on per-task pass rate
+  while running close to control on tokens.
+
 ## [0.4.0] — 2026-04-21
 
 ### Added — gap-widening primitives
