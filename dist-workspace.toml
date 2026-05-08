@@ -9,6 +9,19 @@ cargo-dist-version = "0.31.0"
 ci = "github"
 # The installers to generate for each app
 installers = ["shell", "powershell"]
+# npm publishing is hand-rolled (esbuild-style optionalDependencies pattern,
+# not cargo-dist's postinstall-download wrapper) — see
+# .github/workflows/release.yml's `publish-npm` job and scripts/publish-npm.mjs.
+# This gives a fast `npx @knova-run/sigil` with no first-run download:
+# npm picks the matching @knova-run/sigil-<platform> sub-package at install
+# time via the wrapper's optionalDependencies + os/cpu fields.
+#
+# `allow-dirty = ["ci"]` lets `dist plan` skip its freshness check on
+# release.yml — the file has hand-rolled additions (the publish-npm
+# job + the corresponding `announce.needs`/`if` updates) that cargo-dist
+# wouldn't regenerate, and without this flag every PR run of the
+# Release workflow fails the plan step.
+allow-dirty = ["ci"]
 # Target platforms to build apps for (Rust target-triple syntax)
 targets = ["aarch64-apple-darwin", "aarch64-unknown-linux-gnu", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"]
 # Which actions to run on pull requests

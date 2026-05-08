@@ -1516,7 +1516,7 @@ fn main() {
             if let Err(e) = updater.load_receipt() {
                 eprintln!("Update failed: {}", e);
                 eprintln!("hint: self-update only works when sigil was installed via the official installer.");
-                eprintln!("      Reinstall with: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/gauravverma/sigil/releases/latest/download/sigil-installer.sh | sh");
+                eprintln!("      Reinstall with: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/knova-run/sigil/releases/latest/download/sigil-installer.sh | sh");
                 std::process::exit(1);
             }
             match updater.run_sync() {

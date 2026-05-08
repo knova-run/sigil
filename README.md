@@ -88,25 +88,37 @@ Every `sigil <cmd>` works as `git sigil <cmd>`.
 
 ## Install
 
-Pre-built archives for every supported platform ship on the [Releases page](https://github.com/gauravverma/sigil/releases/latest). No Rust toolchain required.
+Pre-built archives for every supported platform ship on the [Releases page](https://github.com/knova-run/sigil/releases/latest). No Rust toolchain required.
+
+**npm / npx** (any platform with Node ≥ 18):
+
+```bash
+npx @knova-run/sigil --help        # one-shot, no compile, no postinstall
+npm install -g @knova-run/sigil    # persistent (alias as `sigil`)
+```
+
+The wrapper is a thin shim — npm picks the matching prebuilt binary
+(`@knova-run/sigil-darwin-arm64`, `-darwin-x64`, `-linux-x64-gnu`,
+`-linux-arm64-gnu`, `-win32-x64-msvc`) via optional dependencies, so
+nothing is downloaded outside the npm cache.
 
 **macOS / Linux** (one-liner):
 
 ```bash
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/gauravverma/sigil/releases/latest/download/sigil-installer.sh | sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/knova-run/sigil/releases/latest/download/sigil-installer.sh | sh
 ```
 
 **Windows** (PowerShell):
 
 ```powershell
-irm https://github.com/gauravverma/sigil/releases/latest/download/sigil-installer.ps1 | iex
+irm https://github.com/knova-run/sigil/releases/latest/download/sigil-installer.ps1 | iex
 ```
 
-**Manual** — grab the right archive for your platform from [Releases](https://github.com/gauravverma/sigil/releases/latest), untar it, and drop the `sigil` binary anywhere on `PATH`:
+**Manual** — grab the right archive for your platform from [Releases](https://github.com/knova-run/sigil/releases/latest), untar it, and drop the `sigil` binary anywhere on `PATH`:
 
 ```bash
 # Example: aarch64 macOS
-curl -LO https://github.com/gauravverma/sigil/releases/latest/download/sigil-aarch64-apple-darwin.tar.gz
+curl -LO https://github.com/knova-run/sigil/releases/latest/download/sigil-aarch64-apple-darwin.tar.gz
 tar -xzf sigil-aarch64-apple-darwin.tar.gz
 sudo mv sigil-aarch64-apple-darwin/sigil /usr/local/bin/
 ```
@@ -118,7 +130,7 @@ Single binary, ~20 MB. Every command ships in it: `index` / `diff` / `map` / `co
 ### Building from source (optional)
 
 ```bash
-git clone https://github.com/gauravverma/sigil && cd sigil
+git clone https://github.com/knova-run/sigil && cd sigil
 cargo build --release
 ```
 
@@ -148,7 +160,7 @@ See [python/README.md](python/README.md) for full API.
 Clone this repo as the demo corpus:
 
 ```bash
-git clone https://github.com/gauravverma/sigil && cd sigil
+git clone https://github.com/knova-run/sigil && cd sigil
 ```
 
 ### 1. Index
@@ -507,7 +519,7 @@ Unknown `SIGIL_BACKEND` values are a hard error — no silent fallbacks. Reprodu
 # .github/workflows/review.yml
 - name: sigil structural diff
   run: |
-    curl -LsSf https://github.com/gauravverma/sigil/releases/latest/download/sigil-installer.sh | sh
+    curl -LsSf https://github.com/knova-run/sigil/releases/latest/download/sigil-installer.sh | sh
     sigil index
     sigil review origin/main..HEAD --markdown > review.md
 

@@ -247,7 +247,7 @@ derived DuckDB artifact.
 Three bundled releases shipping together: the codeix-free parser layer,
 the agent-adoption command surface (rank + blast + map/context/review),
 and the DuckDB-materialized backend for monorepo scale. See the
-[agent-adoption PR](https://github.com/gauravverma/sigil/pull/3) for the
+[agent-adoption PR](https://github.com/knova-run/sigil/pull/3) for the
 full rationale.
 
 ### Agent-adoption surface (Phase 1)

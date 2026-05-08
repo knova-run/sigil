@@ -87,7 +87,17 @@ python/
   README.md        — Python API documentation
 
 scripts/
-  git-sigil        — Shim enabling `git sigil <cmd>` on PATH
+  git-sigil               — Shim enabling `git sigil <cmd>` on PATH
+  publish-npm.mjs         — Release-time helper: extracts each cargo-dist
+                             per-target archive, stages a thin
+                             @knova-run/sigil-<platform> npm package, then
+                             stages and publishes the @knova-run/sigil
+                             wrapper (esbuild-style optionalDependencies).
+                             Run by the publish-npm job in release.yml.
+  bootstrap-npm-stubs.mjs — One-time helper to claim the 5 platform package
+                             names with 0.0.0 stubs so trusted publishers
+                             can be configured per package before the first
+                             real release.
 
 evals/
   bench_multilang.py, compare_rg.py, corpus.tsv, cross_repo.sh, run.sh

@@ -284,14 +284,58 @@ jobs:
 
           gh release create "${{ needs.plan.outputs.tag }}" --target "$RELEASE_COMMIT" $PRERELEASE_FLAG --title "$ANNOUNCEMENT_TITLE" --notes-file "$RUNNER_TEMP/notes.txt" artifacts/*
 
+  # Hand-rolled npm publish (esbuild-style optionalDependencies pattern,
+  # not cargo-dist's postinstall-download wrapper). Publishes one thin
+  # @knova-run/sigil-<platform> package per target, then the
+  # @knova-run/sigil wrapper that lists them as optionalDependencies.
+  # Auths via GitHub OIDC trusted publishing — no NPM_TOKEN needed.
+  # See scripts/publish-npm.mjs for the package layout.
+  publish-npm:
+    needs:
+      - plan
+      - host
+    runs-on: "ubuntu-22.04"
+    if: ${{ !fromJson(needs.plan.outputs.val).announcement_is_prerelease || fromJson(needs.plan.outputs.val).publish_prereleases }}
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      VERSION: ${{ fromJson(needs.plan.outputs.val).announcement_tag_is_implicit && fromJson(needs.plan.outputs.val).releases[0].app_version || needs.plan.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22.x'
+          registry-url: 'https://registry.npmjs.org'
+      # Trusted publishing + provenance need npm >= 11.5.1; node 22 ships with npm 10.x.
+      - run: npm install -g npm@latest
+      - name: Fetch built artifacts
+        uses: actions/download-artifact@v7
+        with:
+          pattern: artifacts-*
+          path: artifacts/
+          merge-multiple: true
+      - name: Strip dist-manifest fragments
+        run: rm -f artifacts/*-dist-manifest.json
+      - name: Publish npm packages
+        env:
+          ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
+        run: |
+          # Strip a leading 'v' if the tag has one (v0.4.1 -> 0.4.1).
+          export VERSION="${VERSION#v}"
+          node scripts/publish-npm.mjs
+
   announce:
     needs:
       - plan
       - host
+      - publish-npm
     # use "always() && ..." to allow us to wait for all publish jobs while
     # still allowing individual publish jobs to skip themselves (for prereleases).
     # "host" however must run to completion, no skipping allowed!
-    if: ${{ always() && needs.host.result == 'success' }}
+    if: ${{ always() && needs.host.result == 'success' && (needs.publish-npm.result == 'skipped' || needs.publish-npm.result == 'success') }}
     runs-on: "ubuntu-22.04"
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

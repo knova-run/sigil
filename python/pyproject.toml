@@ -33,9 +33,9 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/gauravverma/sigil"
-Repository = "https://github.com/gauravverma/sigil"
-Issues = "https://github.com/gauravverma/sigil/issues"
+Homepage = "https://github.com/knova-run/sigil"
+Repository = "https://github.com/knova-run/sigil"
+Issues = "https://github.com/knova-run/sigil/issues"
 
 [tool.maturin]
 module-name = "sigil"

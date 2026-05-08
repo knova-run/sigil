@@ -1,6 +1,6 @@
 # sigil-diff
 
-Python bindings for [sigil](https://github.com/gauravverma/sigil) — structural code fingerprinting and diffing.
+Python bindings for [sigil](https://github.com/knova-run/sigil) — structural code fingerprinting and diffing.
 
 ```
 pip install sigil-diff
@@ -215,7 +215,7 @@ changed_fields = [
 
 ```bash
 # Clone the repo
-git clone https://github.com/gauravverma/sigil.git
+git clone https://github.com/knova-run/sigil.git
 cd sigil/python
 
 # Create venv and build
