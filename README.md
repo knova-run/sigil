@@ -90,6 +90,13 @@ Every `sigil <cmd>` works as `git sigil <cmd>`.
 
 Pre-built archives for every supported platform ship on the [Releases page](https://github.com/knova-run/sigil/releases/latest). No Rust toolchain required.
 
+**npm / npx** (any platform with Node ≥ 14):
+
+```bash
+npx sigil --help            # one-shot
+npm install -g sigil        # persistent
+```
+
 **macOS / Linux** (one-liner):
 
 ```bash
