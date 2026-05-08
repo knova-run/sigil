@@ -147,8 +147,12 @@ function stagePlatformPackage(target) {
     rmSync(extractDir, { recursive: true, force: true });
     extractArchive(archivePath, extractDir);
 
-    // cargo-dist tarballs unpack to a top-level dir named after the archive.
-    const innerDir = join(extractDir, `sigil-${target.triple}`);
+    // cargo-dist's Linux/macOS tarballs unpack into a top-level
+    // `sigil-<triple>/` directory, but the Windows .zip is flat —
+    // files (including sigil.exe) sit at the archive root.
+    const innerDir = target.archiveExt === '.tar.gz'
+        ? join(extractDir, `sigil-${target.triple}`)
+        : extractDir;
     const binSrc = join(innerDir, target.binName);
     if (!existsSync(binSrc)) {
         throw new Error(`Binary not found inside archive: ${binSrc}`);
