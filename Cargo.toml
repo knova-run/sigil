@@ -1,6 +1,6 @@
 [package]
 name = "sigil"
-version = "0.4.1"
+version = "0.4.2"
 edition = "2024"
 description = "Structural code fingerprinting and diffing CLI"
 repository = "https://github.com/knova-run/sigil"

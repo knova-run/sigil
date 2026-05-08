@@ -4,6 +4,16 @@ All notable changes to sigil are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2] — 2026-05-09 — first npm release (fix for 0.4.1 CI break)
+
+Functionally identical to 0.4.1. The 0.4.1 release pipeline produced
+GitHub binaries successfully but its `publish-npm` job failed at
+`npm install -g npm@latest` (a known mid-upgrade race on Node 22 where
+the new bundled `node_modules` is missing dependencies). 0.4.2 bumps
+the `publish-npm` job to Node 24, which already ships with npm 11.x
+and removes the upgrade step. This is the first version published to
+npm as `@knova-run/sigil`.
+
 ## [0.4.1] — 2026-05-09 — npm distribution + eval-driven primitives
 
 ### Added
