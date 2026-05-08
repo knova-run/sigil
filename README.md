@@ -90,12 +90,17 @@ Every `sigil <cmd>` works as `git sigil <cmd>`.
 
 Pre-built archives for every supported platform ship on the [Releases page](https://github.com/knova-run/sigil/releases/latest). No Rust toolchain required.
 
-**npm / npx** (any platform with Node ≥ 14):
+**npm / npx** (any platform with Node ≥ 18):
 
 ```bash
-npx @knova-run/sigil --help        # one-shot
+npx @knova-run/sigil --help        # one-shot, no compile, no postinstall
 npm install -g @knova-run/sigil    # persistent (alias as `sigil`)
 ```
+
+The wrapper is a thin shim — npm picks the matching prebuilt binary
+(`@knova-run/sigil-darwin-arm64`, `-darwin-x64`, `-linux-x64-gnu`,
+`-linux-arm64-gnu`, `-win32-x64-msvc`) via optional dependencies, so
+nothing is downloaded outside the npm cache.
 
 **macOS / Linux** (one-liner):
 

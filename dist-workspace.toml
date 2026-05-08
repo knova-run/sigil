@@ -8,21 +8,13 @@ cargo-dist-version = "0.31.0"
 # CI backends to support
 ci = "github"
 # The installers to generate for each app
-installers = ["shell", "powershell", "npm"]
-# Auto-publish the npm wrapper package on tagged releases.
-# We use npm OIDC trusted publishing (no NPM_TOKEN secret needed) —
-# configured at https://www.npmjs.com/package/@knova-run/sigil/access.
-#
-# WARNING: cargo-dist 0.31.0 doesn't natively emit the trusted-publishing
-# bits, so .github/workflows/release.yml is hand-patched to add
-# `permissions: id-token: write` and `npm publish --provenance` on the
-# publish-npm job. If you run `dist generate` again, re-apply that patch.
-publish-jobs = ["npm"]
-# Scope for the npm wrapper package — published as @knova-run/sigil.
-# (`npx sigil` unscoped is blocked by npm anti-typosquat against the
-# pre-existing `sigil_` package; `@knova.run/sigil` is unusable due to
-# an npm registry bug with dotted scopes.)
-npm-scope = "@knova-run"
+installers = ["shell", "powershell"]
+# npm publishing is hand-rolled (esbuild-style optionalDependencies pattern,
+# not cargo-dist's postinstall-download wrapper) — see
+# .github/workflows/release.yml's `publish-npm` job and scripts/publish-npm.mjs.
+# This gives a fast `npx @knova-run/sigil` with no first-run download:
+# npm picks the matching @knova-run/sigil-<platform> sub-package at install
+# time via the wrapper's optionalDependencies + os/cpu fields.
 # Target platforms to build apps for (Rust target-triple syntax)
 targets = ["aarch64-apple-darwin", "aarch64-unknown-linux-gnu", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"]
 # Which actions to run on pull requests
