@@ -4,20 +4,28 @@
 // by publishing 0.0.0 stub packages, so trusted publishers can be
 // configured per package before the first real release.
 //
-// Run locally (npm CLI must be logged in):
+// Auth modes (in order of preference):
+//   - NPM_TOKEN env var (Automation token) — use for one-shot bootstrap
+//     when interactive 2FA (passkey) blocks `npm publish`. Token is
+//     written to a temp .npmrc that's deleted on exit; never persisted.
+//   - Otherwise, falls back to your existing `npm` CLI session, which
+//     means npm will prompt for OTP if your account has 2FA enabled.
 //
-//   node scripts/bootstrap-npm-stubs.mjs        # stage + publish all 5
-//   STAGE_ONLY=1 node scripts/bootstrap-npm-stubs.mjs   # just stage
+// Run locally:
+//
+//   NPM_TOKEN=npm_xxx node scripts/bootstrap-npm-stubs.mjs   # one-shot
+//   STAGE_ONLY=1 node scripts/bootstrap-npm-stubs.mjs        # just stage
 //
 // After this lands, go to
 //   https://www.npmjs.com/package/@knova-run/sigil-<platform>/access
 // for each, and add the GitHub Actions trusted publisher (repo
 // knova-run/sigil, workflow release.yml). Then the next tagged release
-// can publish without an NPM_TOKEN.
+// can publish without any NPM_TOKEN.
 //
 
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -25,6 +33,17 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, '..');
 const STAGE_DIR = resolve(REPO_ROOT, 'npm-stub-stage');
 const STAGE_ONLY = process.env.STAGE_ONLY === '1';
+const NPM_TOKEN = process.env.NPM_TOKEN;
+
+let tmpNpmrc = null;
+if (NPM_TOKEN) {
+    const dir = mkdtempSync(join(tmpdir(), 'sigil-npmrc-'));
+    tmpNpmrc = join(dir, '.npmrc');
+    writeFileSync(tmpNpmrc, `//registry.npmjs.org/:_authToken=${NPM_TOKEN}\n`, { mode: 0o600 });
+    process.on('exit', () => {
+        try { rmSync(dirname(tmpNpmrc), { recursive: true, force: true }); } catch (_e) { /* ignore */ }
+    });
+}
 
 const SCOPE = '@knova-run';
 const STUBS = [
@@ -65,7 +84,9 @@ for (const s of STUBS) {
     process.stdout.write(`staged ${name} -> ${dir}\n`);
 
     if (!STAGE_ONLY) {
-        execFileSync('npm', ['publish', '--access', 'public'], {
+        const args = ['publish', '--access', 'public'];
+        if (tmpNpmrc) args.push('--userconfig', tmpNpmrc);
+        execFileSync('npm', args, {
             cwd: dir,
             stdio: 'inherit',
         });
