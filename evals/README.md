@@ -159,7 +159,7 @@ unconditionally until the corresponding DuckDB methods land.
 ## Reproducibility
 
 ```bash
-git clone https://github.com/gauravverma/sigil
+git clone https://github.com/knova-run/sigil
 cd sigil
 cargo install --path . --features tokenizer
 sigil index
