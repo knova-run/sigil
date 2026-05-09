@@ -371,6 +371,7 @@ fn extract_array_items(
             visibility: None,
             rank: None,
             blast_radius: None,
+            doc: None,
         });
 
         // Recurse into object items to extract their properties as children
@@ -443,6 +444,7 @@ fn extract_object_entities(
             visibility: None,
             rank: None,
             blast_radius: None,
+            doc: None,
         });
 
         // Recurse into nested objects

@@ -497,6 +497,7 @@ mod tests {
             visibility: None,
             rank: None,
             blast_radius: Some(BlastRadius::default()),
+            doc: None,
         }
     }
 

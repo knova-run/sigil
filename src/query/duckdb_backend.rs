@@ -875,6 +875,7 @@ fn row_to_entity(row: &duckdb::Row<'_>) -> duckdb::Result<Entity> {
         visibility: row.get::<_, Option<String>>(7)?,
         rank: None,
         blast_radius: None,
+        doc: None,
     })
 }
 
@@ -975,6 +976,7 @@ mod tests {
             visibility: None,
             rank: None,
             blast_radius: None,
+            doc: None,
         }
     }
 

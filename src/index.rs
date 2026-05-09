@@ -31,9 +31,21 @@ pub fn parse_single_file(
         return crate::markdown_index::parse_markdown_file(source, file_path);
     }
 
-    let (symbols, _texts, references) = crate::parser::treesitter::parse_file(
+    let (symbols, texts, references) = crate::parser::treesitter::parse_file(
         source.as_bytes(), language, file_path
     ).map_err(|e| format!("parse error: {}", e))?;
+
+    // Index docstrings by parent symbol name so we can attach them in O(1)
+    // during the entity build below. Python parsers emit docstrings as
+    // TextEntry rows with `parent` set to the qualified function/class name.
+    // For Rust/Go-style leading doc-comments, parsers will also surface them
+    // through the same TextEntry pipeline (kind="docstring") in later phases;
+    // the lookup here is intentionally generic.
+    let docs_by_parent: std::collections::HashMap<&str, &str> = texts
+        .iter()
+        .filter(|t| t.kind == "docstring")
+        .filter_map(|t| t.parent.as_deref().map(|p| (p, t.text.as_str())))
+        .collect();
 
     let mut entities = Vec::new();
     let mut refs = Vec::new();
@@ -43,9 +55,12 @@ pub fn parse_single_file(
         let line_end = sym.line[1] as usize;
 
         let raw_text = hasher::extract_raw_bytes(source, line_start, line_end);
-        let (sig, body_start) = signature::extract_signature(
+        let (extracted_sig, body_start) = signature::extract_signature(
             source, line_start, line_end, language
         );
+        // Prefer a parser-provided sig (e.g. constant/variable RHS captured
+        // directly from the AST) over the line-range textual extractor.
+        let sig = sym.sig.clone().or(extracted_sig);
         let meta_start = find_decorator_start(source, line_start, language);
         let markers = meta::extract_markers(source, meta_start, line_end, language);
 
@@ -55,6 +70,10 @@ pub fn parse_single_file(
             let sh = hasher::sig_hash(sig.as_deref());
             (sig, sh)
         };
+
+        let doc = docs_by_parent
+            .get(sym.name.as_str())
+            .and_then(|raw| crate::entity::truncate_doc(raw));
 
         entities.push(Entity {
             file: file_path.to_string(),
@@ -74,6 +93,7 @@ pub fn parse_single_file(
             visibility: sym.visibility.clone(),
             rank: None,
             blast_radius: None,
+            doc,
         });
     }
 
@@ -359,5 +379,378 @@ mod tests {
         let (entities, refs) = parse_single_file("", "test.py", "python").unwrap();
         assert!(entities.is_empty());
         assert!(refs.is_empty());
+    }
+
+    #[test]
+    fn parse_single_file_javascript_jsdoc_attaches_to_function() {
+        let source = "/** Compute the answer. */\nfunction compute() { return 42; }\n";
+        let (entities, _refs) = parse_single_file(source, "lib.js", "javascript").unwrap();
+        let f = entities.iter().find(|e| e.name == "compute").unwrap();
+        assert_eq!(f.doc.as_deref(), Some("Compute the answer."));
+    }
+
+    #[test]
+    fn parse_single_file_javascript_jsdoc_attaches_to_const() {
+        let source = "/** API endpoint URL. */\nexport const API_URL = \"https://x\";\n";
+        let (entities, _refs) = parse_single_file(source, "lib.js", "javascript").unwrap();
+        let c = entities.iter().find(|e| e.name == "API_URL").unwrap();
+        assert_eq!(c.doc.as_deref(), Some("API endpoint URL."));
+    }
+
+    #[test]
+    fn parse_single_file_typescript_jsdoc_attaches_to_function() {
+        let source = "/** Greets the user. */\nexport function greet(name: string): string { return name; }\n";
+        let (entities, _refs) = parse_single_file(source, "lib.ts", "typescript").unwrap();
+        let f = entities.iter().find(|e| e.name == "greet").unwrap();
+        assert_eq!(f.doc.as_deref(), Some("Greets the user."));
+    }
+
+    #[test]
+    fn parse_single_file_typescript_jsdoc_attaches_to_interface() {
+        let source = "/** A user record. */\nexport interface User { name: string; }\n";
+        let (entities, _refs) = parse_single_file(source, "lib.ts", "typescript").unwrap();
+        let i = entities.iter().find(|e| e.name == "User").unwrap();
+        assert_eq!(i.doc.as_deref(), Some("A user record."));
+    }
+
+    #[test]
+    fn parse_single_file_java_javadoc_attaches_to_class() {
+        let source = "/** A point in 2D space. */\npublic class Point { public int x; }\n";
+        let (entities, _refs) = parse_single_file(source, "Point.java", "java").unwrap();
+        let c = entities.iter().find(|e| e.name == "Point").unwrap();
+        assert_eq!(c.doc.as_deref(), Some("A point in 2D space."));
+    }
+
+    #[test]
+    fn parse_single_file_java_javadoc_attaches_to_method() {
+        let source = "public class Foo {\n    /** Doubles its input. */\n    public int twice(int x) { return x * 2; }\n}\n";
+        let (entities, _refs) = parse_single_file(source, "Foo.java", "java").unwrap();
+        let m = entities.iter().find(|e| e.name.ends_with("twice")).unwrap();
+        assert_eq!(m.doc.as_deref(), Some("Doubles its input."));
+    }
+
+    #[test]
+    fn parse_single_file_csharp_xmldoc_attaches_to_method() {
+        let source = "public class Foo {\n    /// <summary>Doubles its input.</summary>\n    public int Twice(int x) { return x * 2; }\n}\n";
+        let (entities, _refs) = parse_single_file(source, "Foo.cs", "csharp").unwrap();
+        let m = entities.iter().find(|e| e.name.ends_with("Twice")).unwrap();
+        assert!(
+            m.doc.as_deref().unwrap_or("").contains("Doubles its input"),
+            "missing doc body: {:?}",
+            m.doc
+        );
+    }
+
+    #[test]
+    fn parse_single_file_cpp_doxygen_attaches_to_function() {
+        // C++ uses Doxygen — /** is the canonical form.
+        let source = "/** Returns the answer. */\nint answer() { return 42; }\n";
+        let (entities, _refs) = parse_single_file(source, "lib.cpp", "cpp").unwrap();
+        let f = entities.iter().find(|e| e.name == "answer").unwrap();
+        assert_eq!(f.doc.as_deref(), Some("Returns the answer."));
+    }
+
+    #[test]
+    fn parse_single_file_cpp_triple_slash_attaches_to_function() {
+        let source = "/// Returns the answer.\nint answer() { return 42; }\n";
+        let (entities, _refs) = parse_single_file(source, "lib.cpp", "cpp").unwrap();
+        let f = entities.iter().find(|e| e.name == "answer").unwrap();
+        assert_eq!(f.doc.as_deref(), Some("Returns the answer."));
+    }
+
+    #[test]
+    fn parse_single_file_go_function_picks_up_preceding_godoc_comment() {
+        // godoc convention: a comment line immediately preceding the
+        // declaration with no blank line in between is the doc.
+        let source = "package main\n\n// Compute returns the answer.\nfunc Compute() int {\n    return 42\n}\n";
+        let (entities, _refs) = parse_single_file(source, "main.go", "go").unwrap();
+        let f = entities.iter().find(|e| e.name == "Compute").unwrap();
+        assert_eq!(f.doc.as_deref(), Some("Compute returns the answer."));
+    }
+
+    #[test]
+    fn parse_single_file_go_function_blank_line_severs_doc() {
+        // Comment + blank line + func is NOT a godoc — the blank line
+        // disassociates them. Sigil should respect that.
+        let source = "package main\n\n// detached comment\n\nfunc Bar() {}\n";
+        let (entities, _refs) = parse_single_file(source, "main.go", "go").unwrap();
+        let f = entities.iter().find(|e| e.name == "Bar").unwrap();
+        assert!(
+            f.doc.is_none(),
+            "blank line must sever doc-comment association, got {:?}",
+            f.doc
+        );
+    }
+
+    #[test]
+    fn parse_single_file_rust_function_picks_up_preceding_triple_slash() {
+        let source = "/// Compute the answer.\npub fn compute() -> i32 { 42 }\n";
+        let (entities, _refs) = parse_single_file(source, "lib.rs", "rust").unwrap();
+        let f = entities.iter().find(|e| e.name == "compute").unwrap();
+        assert_eq!(f.doc.as_deref(), Some("Compute the answer."));
+    }
+
+    #[test]
+    fn parse_single_file_rust_function_collapses_multiline_doc() {
+        let source = "/// Line one.\n/// Line two.\npub fn x() {}\n";
+        let (entities, _refs) = parse_single_file(source, "lib.rs", "rust").unwrap();
+        let f = entities.iter().find(|e| e.name == "x").unwrap();
+        // Multiple /// lines join with newlines preserved as paragraph break.
+        assert!(
+            f.doc.as_deref().unwrap_or("").contains("Line one"),
+            "missing line one: {:?}",
+            f.doc
+        );
+        assert!(
+            f.doc.as_deref().unwrap_or("").contains("Line two"),
+            "missing line two: {:?}",
+            f.doc
+        );
+    }
+
+    #[test]
+    fn parse_single_file_python_function_doc_carried_into_entity() {
+        // The aider example from issue #12: docstring is the single best
+        // description of intent and should reach `code.context` consumers.
+        let source = "def tags_cache_error(self, original_error=None):\n    \"\"\"Handle SQLite errors by trying to recreate cache, falling back to dict if needed\"\"\"\n    pass\n";
+        let (entities, _refs) = parse_single_file(source, "repomap.py", "python").unwrap();
+        let f = entities
+            .iter()
+            .find(|e| e.name == "tags_cache_error")
+            .unwrap();
+        assert_eq!(
+            f.doc.as_deref(),
+            Some("Handle SQLite errors by trying to recreate cache, falling back to dict if needed")
+        );
+    }
+
+    #[test]
+    fn parse_single_file_python_method_doc_carried_into_entity() {
+        // Issue #12 headline example — RepoMap.tags_cache_error in aider.
+        let source = "class RepoMap:\n    def tags_cache_error(self, original_error=None):\n        \"\"\"Handle SQLite errors by trying to recreate cache, falling back to dict if needed\"\"\"\n        pass\n";
+        let (entities, _refs) = parse_single_file(source, "repomap.py", "python").unwrap();
+        let m = entities
+            .iter()
+            .find(|e| e.name == "RepoMap.tags_cache_error")
+            .expect("method not extracted");
+        assert_eq!(
+            m.doc.as_deref(),
+            Some("Handle SQLite errors by trying to recreate cache, falling back to dict if needed")
+        );
+    }
+
+    #[test]
+    fn parse_single_file_python_class_doc_carried_into_entity() {
+        let source = "class RepoMap:\n    \"\"\"Builds a code map for an LLM agent.\"\"\"\n    pass\n";
+        let (entities, _refs) = parse_single_file(source, "repomap.py", "python").unwrap();
+        let c = entities.iter().find(|e| e.name == "RepoMap").unwrap();
+        assert_eq!(c.doc.as_deref(), Some("Builds a code map for an LLM agent."));
+    }
+
+    #[test]
+    fn parse_single_file_python_function_without_doc_has_none() {
+        let source = "def foo():\n    pass\n";
+        let (entities, _refs) = parse_single_file(source, "x.py", "python").unwrap();
+        let f = entities.iter().find(|e| e.name == "foo").unwrap();
+        assert!(f.doc.is_none(), "no docstring → no doc field");
+    }
+
+    #[test]
+    fn parse_single_file_python_module_constant_carries_value_as_sig() {
+        let source = "RETRY_TIMEOUT = 60\n";
+        let (entities, _refs) = parse_single_file(source, "config.py", "python").unwrap();
+        let c = entities
+            .iter()
+            .find(|e| e.name == "RETRY_TIMEOUT")
+            .expect("RETRY_TIMEOUT entity not emitted");
+        assert_eq!(c.kind, "constant");
+        assert_eq!(c.sig.as_deref(), Some("60"));
+    }
+
+    #[test]
+    fn parse_single_file_python_module_variable_carries_value_as_sig() {
+        let source = "debug_mode = True\n";
+        let (entities, _refs) = parse_single_file(source, "config.py", "python").unwrap();
+        let v = entities
+            .iter()
+            .find(|e| e.name == "debug_mode")
+            .expect("debug_mode entity not emitted");
+        assert_eq!(v.kind, "variable");
+        assert_eq!(v.sig.as_deref(), Some("True"));
+    }
+
+    #[test]
+    fn parse_single_file_python_string_constant_keeps_quotes_in_sig() {
+        // Issue example: ANTHROPIC_BETA_HEADER = "prompt-caching-2024-07-31,…"
+        let source = "API_VERSION = \"v1.2.3\"\n";
+        let (entities, _refs) = parse_single_file(source, "client.py", "python").unwrap();
+        let c = entities.iter().find(|e| e.name == "API_VERSION").unwrap();
+        assert_eq!(c.kind, "constant");
+        // Quotes preserved verbatim — consumers shouldn't have to guess how
+        // a value was spelled.
+        assert_eq!(c.sig.as_deref(), Some("\"v1.2.3\""));
+    }
+
+    #[test]
+    fn parse_single_file_rust_const_carries_value_as_sig() {
+        let source = "pub const MAX_RETRIES: usize = 5;\n";
+        let (entities, _refs) = parse_single_file(source, "lib.rs", "rust").unwrap();
+        let c = entities
+            .iter()
+            .find(|e| e.name == "MAX_RETRIES")
+            .expect("MAX_RETRIES not emitted");
+        assert_eq!(c.kind, "constant");
+        assert_eq!(c.sig.as_deref(), Some("5"));
+    }
+
+    #[test]
+    fn parse_single_file_rust_static_carries_value_as_sig() {
+        let source = "static GREETING: &str = \"hello\";\n";
+        let (entities, _refs) = parse_single_file(source, "lib.rs", "rust").unwrap();
+        let c = entities
+            .iter()
+            .find(|e| e.name == "GREETING")
+            .expect("GREETING not emitted");
+        assert_eq!(c.kind, "constant");
+        assert_eq!(c.sig.as_deref(), Some("\"hello\""));
+    }
+
+    #[test]
+    fn parse_single_file_go_const_carries_value_as_sig() {
+        let source = "package main\n\nconst MaxRetries = 5\n";
+        let (entities, _refs) = parse_single_file(source, "main.go", "go").unwrap();
+        let c = entities
+            .iter()
+            .find(|e| e.name == "MaxRetries")
+            .expect("MaxRetries not emitted");
+        assert_eq!(c.kind, "constant");
+        assert_eq!(c.sig.as_deref(), Some("5"));
+    }
+
+    #[test]
+    fn parse_single_file_go_const_block_carries_each_value() {
+        let source = "package main\n\nconst (\n    MaxA = 1\n    MaxB = 2\n)\n";
+        let (entities, _refs) = parse_single_file(source, "main.go", "go").unwrap();
+        let a = entities.iter().find(|e| e.name == "MaxA").unwrap();
+        let b = entities.iter().find(|e| e.name == "MaxB").unwrap();
+        assert_eq!(a.sig.as_deref(), Some("1"));
+        assert_eq!(b.sig.as_deref(), Some("2"));
+    }
+
+    #[test]
+    fn parse_single_file_go_var_carries_value_as_sig() {
+        let source = "package main\n\nvar Workers = 15\n";
+        let (entities, _refs) = parse_single_file(source, "main.go", "go").unwrap();
+        let v = entities.iter().find(|e| e.name == "Workers").unwrap();
+        assert_eq!(v.kind, "variable");
+        assert_eq!(v.sig.as_deref(), Some("15"));
+    }
+
+    #[test]
+    fn parse_single_file_typescript_const_carries_value_as_sig() {
+        let source = "export const FOO = 42;\n";
+        let (entities, _refs) = parse_single_file(source, "lib.ts", "typescript").unwrap();
+        let c = entities.iter().find(|e| e.name == "FOO").expect("FOO not emitted");
+        assert_eq!(c.kind, "constant");
+        assert_eq!(c.sig.as_deref(), Some("42"));
+    }
+
+    #[test]
+    fn parse_single_file_javascript_const_carries_value_as_sig() {
+        let source = "const API_URL = \"https://api.example.com\";\n";
+        let (entities, _refs) = parse_single_file(source, "client.js", "javascript").unwrap();
+        let c = entities.iter().find(|e| e.name == "API_URL").unwrap();
+        assert_eq!(c.kind, "constant");
+        assert_eq!(c.sig.as_deref(), Some("\"https://api.example.com\""));
+    }
+
+    #[test]
+    fn parse_single_file_typescript_arrow_function_keeps_function_kind() {
+        // Regression guard — `const handler = () => …` should still be kind=function,
+        // and we don't want the new sig wiring to clobber the function signature path.
+        let source = "const handler = (req: Request) => { return req.url; };\n";
+        let (entities, _refs) = parse_single_file(source, "h.ts", "typescript").unwrap();
+        let h = entities.iter().find(|e| e.name == "handler").unwrap();
+        assert_eq!(h.kind, "function");
+    }
+
+    #[test]
+    fn parse_single_file_java_static_final_carries_value_as_sig() {
+        let source = "class Foo {\n    public static final int MAX_SIZE = 100;\n}\n";
+        let (entities, _refs) = parse_single_file(source, "Foo.java", "java").unwrap();
+        let c = entities
+            .iter()
+            .find(|e| e.name.ends_with("MAX_SIZE"))
+            .expect("MAX_SIZE not emitted");
+        assert_eq!(c.kind, "constant");
+        assert_eq!(c.sig.as_deref(), Some("100"));
+    }
+
+    #[test]
+    fn parse_single_file_csharp_const_carries_value_as_sig() {
+        let source = "class Foo {\n    public const int MAX_SIZE = 100;\n}\n";
+        let (entities, _refs) = parse_single_file(source, "Foo.cs", "csharp").unwrap();
+        let c = entities
+            .iter()
+            .find(|e| e.name.ends_with("MAX_SIZE"))
+            .expect("MAX_SIZE not emitted");
+        assert_eq!(c.kind, "constant");
+        assert_eq!(c.sig.as_deref(), Some("100"));
+    }
+
+    #[test]
+    fn parse_single_file_cpp_constexpr_classified_as_constant_with_sig() {
+        let source = "constexpr int MAX_RETRIES = 5;\n";
+        let (entities, _refs) = parse_single_file(source, "lib.cpp", "cpp").unwrap();
+        let c = entities
+            .iter()
+            .find(|e| e.name == "MAX_RETRIES")
+            .expect("MAX_RETRIES not emitted");
+        assert_eq!(c.kind, "constant");
+        assert_eq!(c.sig.as_deref(), Some("5"));
+    }
+
+    #[test]
+    fn parse_single_file_cpp_define_carries_value_as_sig() {
+        let source = "#define MAX_RETRIES 5\n";
+        let (entities, _refs) = parse_single_file(source, "lib.cpp", "cpp").unwrap();
+        let c = entities
+            .iter()
+            .find(|e| e.name == "MAX_RETRIES")
+            .expect("MAX_RETRIES not emitted");
+        assert_eq!(c.kind, "constant");
+        assert_eq!(c.sig.as_deref(), Some("5"));
+    }
+
+    #[test]
+    fn parse_single_file_python_long_constant_sig_truncates_with_ellipsis() {
+        // A 300-char string literal — well above the 256-char cap.
+        let payload = "x".repeat(300);
+        let source = format!("BIG_BLOB = \"{payload}\"\n");
+        let (entities, _refs) = parse_single_file(&source, "data.py", "python").unwrap();
+        let c = entities.iter().find(|e| e.name == "BIG_BLOB").unwrap();
+        let sig = c.sig.as_deref().unwrap();
+        assert!(
+            sig.chars().count() <= 257, // 256 + the trailing '…'
+            "sig should be truncated, got {} chars",
+            sig.chars().count()
+        );
+        assert!(
+            sig.ends_with('…'),
+            "truncated sig must end with the ellipsis sentinel, got {sig:?}"
+        );
+    }
+
+    #[test]
+    fn parse_single_file_python_class_level_constant_has_parent_and_sig() {
+        let source = "class Config:\n    CACHE_VERSION = 3\n";
+        let (entities, _refs) = parse_single_file(source, "config.py", "python").unwrap();
+        let c = entities
+            .iter()
+            .find(|e| e.name.ends_with("CACHE_VERSION"))
+            .expect("class-level CACHE_VERSION not emitted");
+        assert_eq!(c.kind, "constant");
+        assert_eq!(c.parent.as_deref(), Some("Config"));
+        assert_eq!(c.sig.as_deref(), Some("3"));
     }
 }

@@ -384,22 +384,6 @@ fn walk_node(
         "lexical_declaration" | "variable_declaration" => {
             extract_variable_decl(node, source, file_path, parent_ctx, symbols);
         }
-        "export_statement" => {
-            let mut cursor = node.walk();
-            for child in node.children(&mut cursor) {
-                walk_node(
-                    child,
-                    source,
-                    file_path,
-                    parent_ctx,
-                    symbols,
-                    texts,
-                    references,
-                    depth + 1,
-                );
-            }
-            return;
-        }
         "import_statement" => {
             extract_import(node, source, file_path, symbols, references);
         }
@@ -450,9 +434,44 @@ fn walk_node(
         _ => {}
     }
 
-    // Recurse into children
+    // Recurse into children, threading pending JSDoc across siblings so a
+    // `/** … */` block before a function / class / interface / type alias /
+    // enum / variable declaration (or an export_statement wrapping one)
+    // attaches as that item's doc.
     let mut cursor = node.walk();
+    let mut pending_docs: Vec<String> = Vec::new();
     for child in node.children(&mut cursor) {
+        if child.kind() == "comment" {
+            if let Some(text) = ts_jsdoc_text(child, source) {
+                pending_docs.push(text);
+            } else {
+                pending_docs.clear();
+            }
+            walk_node(
+                child,
+                source,
+                file_path,
+                parent_ctx,
+                symbols,
+                texts,
+                references,
+                depth + 1,
+            );
+            continue;
+        }
+        if !pending_docs.is_empty() {
+            if let Some(item_name) = ts_item_name(child, source, parent_ctx) {
+                texts.push(TextEntry {
+                    file: file_path.to_string(),
+                    kind: "docstring".to_string(),
+                    line: node_line_range(child),
+                    text: pending_docs.join("\n"),
+                    parent: Some(item_name),
+                    project: String::new(),
+                });
+            }
+            pending_docs.clear();
+        }
         walk_node(
             child,
             source,
@@ -463,6 +482,59 @@ fn walk_node(
             references,
             depth + 1,
         );
+    }
+}
+
+fn ts_jsdoc_text(node: Node, source: &[u8]) -> Option<String> {
+    let raw = node_text(node, source);
+    if raw.starts_with("/**") || raw.starts_with("/*!") {
+        Some(strip_block_comment(&raw))
+    } else {
+        None
+    }
+}
+
+fn ts_item_name(node: Node, source: &[u8], parent_ctx: Option<&str>) -> Option<String> {
+    let kind = node.kind();
+    let qualify = |n: &str| match parent_ctx {
+        Some(p) => format!("{p}.{n}"),
+        None => n.to_string(),
+    };
+    match kind {
+        "function_declaration"
+        | "generator_function_declaration"
+        | "class_declaration"
+        | "abstract_class_declaration"
+        | "method_definition"
+        | "interface_declaration"
+        | "type_alias_declaration"
+        | "enum_declaration"
+        | "module"
+        | "internal_module" => find_child_by_field(node, "name")
+            .map(|n| qualify(&node_text(n, source))),
+        "lexical_declaration" | "variable_declaration" => {
+            let mut c = node.walk();
+            for ch in node.children(&mut c) {
+                if ch.kind() == "variable_declarator" {
+                    let n = find_child_by_field(ch, "name")?;
+                    if n.kind() != "identifier" {
+                        return None;
+                    }
+                    return Some(qualify(&node_text(n, source)));
+                }
+            }
+            None
+        }
+        "export_statement" => {
+            let mut c = node.walk();
+            for ch in node.children(&mut c) {
+                if let Some(name) = ts_item_name(ch, source, parent_ctx) {
+                    return Some(name);
+                }
+            }
+            None
+        }
+        _ => None,
     }
 }
 
@@ -978,17 +1050,26 @@ fn extract_variable_decl(
                 // Extract tokens from variable value
                 let tokens = value_node.and_then(|v| filter_ts_tokens(extract_tokens(v, source)));
 
-                push_symbol(
-                    symbols,
-                    file_path,
-                    full_name,
-                    kind,
+                // Capture RHS literal as sig for constants/variables.
+                // Functions keep the signature-from-source path (set in index.rs).
+                let sig = if is_func {
+                    None
+                } else {
+                    value_node.map(|v| truncate_sig(&node_text(v, source)))
+                };
+
+                symbols.push(SymbolEntry {
+                    file: file_path.to_string(),
+                    name: full_name,
+                    kind: kind.to_string(),
                     line,
-                    parent_ctx,
+                    parent: parent_ctx.map(String::from),
                     tokens,
-                    None,
-                    Some(visibility.to_string()),
-                );
+                    alias: None,
+                    visibility: Some(visibility.to_string()),
+                    sig,
+                    project: String::new(),
+                });
             }
         }
     }

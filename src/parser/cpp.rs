@@ -380,9 +380,61 @@ fn walk_node(
         _ => {}
     }
 
-    // Recurse
+    // Recurse with Doxygen tracking — runs of `///`, `//!`, `/** */`, or
+    // `/*! */` immediately preceding a declaration attach as that item's
+    // doc. Plain `//` and `/*` comments don't qualify.
+    walk_cpp_children_with_docs(
+        node, source, file_path, parent_ctx, access, symbols, texts, references, depth,
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn walk_cpp_children_with_docs(
+    node: Node,
+    source: &[u8],
+    file_path: &str,
+    parent_ctx: Option<&str>,
+    access: &str,
+    symbols: &mut Vec<SymbolEntry>,
+    texts: &mut Vec<TextEntry>,
+    references: &mut Vec<ReferenceEntry>,
+    depth: usize,
+) {
     let mut cursor = node.walk();
+    let mut pending_docs: Vec<String> = Vec::new();
     for child in node.children(&mut cursor) {
+        if child.kind() == "comment" {
+            if let Some(text) = cpp_doxygen_text(child, source) {
+                pending_docs.push(text);
+            } else {
+                pending_docs.clear();
+            }
+            walk_node(
+                child,
+                source,
+                file_path,
+                parent_ctx,
+                access,
+                symbols,
+                texts,
+                references,
+                depth + 1,
+            );
+            continue;
+        }
+        if !pending_docs.is_empty() {
+            if let Some(item_name) = cpp_item_name(child, source, parent_ctx) {
+                texts.push(TextEntry {
+                    file: file_path.to_string(),
+                    kind: "docstring".to_string(),
+                    line: node_line_range(child),
+                    text: pending_docs.join("\n"),
+                    parent: Some(item_name),
+                    project: String::new(),
+                });
+            }
+            pending_docs.clear();
+        }
         walk_node(
             child,
             source,
@@ -394,6 +446,71 @@ fn walk_node(
             references,
             depth + 1,
         );
+    }
+}
+
+fn cpp_doxygen_text(node: Node, source: &[u8]) -> Option<String> {
+    let raw = node_text(node, source);
+    if raw.starts_with("///") || raw.starts_with("//!") {
+        Some(strip_doc_comment_prefix(&raw))
+    } else if raw.starts_with("/**") || raw.starts_with("/*!") {
+        Some(strip_block_comment(&raw))
+    } else {
+        None
+    }
+}
+
+fn cpp_item_name(node: Node, source: &[u8], parent_ctx: Option<&str>) -> Option<String> {
+    let kind = node.kind();
+    let qualify = |n: &str| match parent_ctx {
+        Some(p) => format!("{p}.{n}"),
+        None => n.to_string(),
+    };
+    match kind {
+        "class_specifier"
+        | "struct_specifier"
+        | "union_specifier"
+        | "enum_specifier"
+        | "namespace_definition" => find_child_by_field(node, "name")
+            .map(|n| qualify(&node_text(n, source))),
+        "function_definition" => {
+            // Mirror extract_function_def's name resolution path.
+            let decl = find_child_by_field(node, "declarator")?;
+            let name = extract_declarator_name(decl, source);
+            if name.is_empty() {
+                None
+            } else {
+                Some(qualify(&name))
+            }
+        }
+        "preproc_def" | "preproc_function_def" => {
+            find_child_by_field(node, "name").map(|n| node_text(n, source))
+        }
+        "declaration" => {
+            // Top-level variable/constant declaration (extract_declaration).
+            // Walk for the first init_declarator's name.
+            let mut c = node.walk();
+            for ch in node.children(&mut c) {
+                match ch.kind() {
+                    "init_declarator" => {
+                        let decl = find_child_by_field(ch, "declarator")?;
+                        let name = extract_declarator_name(decl, source);
+                        if !name.is_empty() {
+                            return Some(qualify(&name));
+                        }
+                    }
+                    "function_declarator" => {
+                        let name = extract_declarator_name(ch, source);
+                        if !name.is_empty() {
+                            return Some(qualify(&name));
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            None
+        }
+        _ => None,
     }
 }
 
@@ -661,7 +778,13 @@ fn extract_declaration(
                 if let Some(decl) = find_child_by_field(child, "declarator") {
                     let name = extract_declarator_name(decl, source);
                     if !name.is_empty() {
-                        let kind = if parent_ctx.is_some() {
+                        // Promote to "constant" when the declaration carries
+                        // `constexpr` or a top-level `const` qualifier — these
+                        // are the C++ equivalents of static final / const.
+                        let is_constant = is_constexpr_or_const(node, source);
+                        let kind = if is_constant {
+                            "constant"
+                        } else if parent_ctx.is_some() {
                             "property"
                         } else {
                             "variable"
@@ -671,17 +794,27 @@ fn extract_declaration(
                         } else {
                             name
                         };
-                        push_symbol(
-                            symbols,
-                            file_path,
-                            full_name,
-                            kind,
+                        // Capture the initializer as sig for constants. Plain
+                        // variables/properties keep the source-line sig from
+                        // signature.rs (which carries the type info too).
+                        let sig = if is_constant {
+                            find_child_by_field(child, "value")
+                                .map(|v| truncate_sig(&node_text(v, source)))
+                        } else {
+                            None
+                        };
+                        symbols.push(SymbolEntry {
+                            file: file_path.to_string(),
+                            name: full_name,
+                            kind: kind.to_string(),
                             line,
-                            parent_ctx,
-                            None,
-                            None,
-                            Some(visibility.clone()),
-                        );
+                            parent: parent_ctx.map(String::from),
+                            tokens: None,
+                            alias: None,
+                            visibility: Some(visibility.clone()),
+                            sig,
+                            project: String::new(),
+                        });
                     }
                 }
             }
@@ -1115,17 +1248,27 @@ fn extract_macro(node: Node, source: &[u8], file_path: &str, symbols: &mut Vec<S
         "constant"
     };
 
-    push_symbol(
-        symbols,
-        file_path,
+    // For `#define FOO 100`, the "value" field is a `preproc_arg` whose text
+    // includes the leading whitespace; trim/collapse so the sig is just the
+    // tokens. Function-like macros leave sig empty — there's no "literal value".
+    let sig = if kind == "constant" {
+        find_child_by_field(node, "value").map(|v| truncate_sig(node_text(v, source).trim()))
+    } else {
+        None
+    };
+
+    symbols.push(SymbolEntry {
+        file: file_path.to_string(),
         name,
-        kind,
+        kind: kind.to_string(),
         line,
-        None,
-        None,
-        None,
-        Some("public".to_string()),
-    );
+        parent: None,
+        tokens: None,
+        alias: None,
+        visibility: Some("public".to_string()),
+        sig,
+        project: String::new(),
+    });
 }
 
 fn extract_declarator_name(node: Node, source: &[u8]) -> String {
@@ -1160,6 +1303,26 @@ fn extract_declarator_name(node: Node, source: &[u8]) -> String {
         }
         _ => String::new(),
     }
+}
+
+/// Detect whether a `declaration` node has a `constexpr` or top-level
+/// `const` qualifier — both promote a plain init_declarator from "variable"
+/// to "constant" for the entity model. tree-sitter-cpp emits both as
+/// `type_qualifier` nodes (despite C++ classifying constexpr as a storage
+/// specifier). Pointer-target const (`const int *p`) lives inside the
+/// pointer_declarator subtree and is intentionally not picked up — the
+/// variable itself is still mutable.
+fn is_constexpr_or_const(node: Node, source: &[u8]) -> bool {
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if matches!(child.kind(), "type_qualifier" | "storage_class_specifier") {
+            let text = node_text(child, source);
+            if text == "const" || text == "constexpr" {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 fn has_storage_class(node: Node, source: &[u8], class: &str) -> bool {

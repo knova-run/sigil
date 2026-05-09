@@ -32,6 +32,33 @@ pub struct Entity {
     pub rank: Option<f64>,
     #[serde(default, skip_serializing_if = "is_none_or_zero_blast")]
     pub blast_radius: Option<BlastRadius>,
+    /// Author-provided description of the entity, harvested from the
+    /// language's docstring / leading doc-comment convention (Python `"""…"""`
+    /// first statement, Rust `///` and `/** */`, Go godoc, etc.). Truncated
+    /// to `DOC_MAX_LEN`. Surfaced in `code.context` as the `## Doc` section
+    /// so downstream LLM consumers see the hand-written intent without a
+    /// follow-up file read.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub doc: Option<String>,
+}
+
+/// Cap on a preserved doc string (per-entity). Tuned to keep multi-paragraph
+/// Sphinx / godoc blocks inside an LLM prompt without dominating it.
+pub const DOC_MAX_LEN: usize = 1024;
+
+/// Trim, collapse interior whitespace softly (preserve paragraph breaks),
+/// and cap to `DOC_MAX_LEN` characters with a trailing `…` if truncated.
+pub fn truncate_doc(s: &str) -> Option<String> {
+    let trimmed = s.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    if trimmed.chars().count() <= DOC_MAX_LEN {
+        return Some(trimmed.to_string());
+    }
+    let mut out: String = trimmed.chars().take(DOC_MAX_LEN).collect();
+    out.push('…');
+    Some(out)
 }
 
 // Skip predicates used by `Entity`'s serde attributes to elide noise fields

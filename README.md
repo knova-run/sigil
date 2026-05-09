@@ -454,8 +454,8 @@ Exit code is always 0 on success; non-zero only on fatal errors. Rename / move d
 |---|---|
 | `sigil where <symbol> [--include-tests] [--format markdown\|json] [--pretty]` | Single-shot definition locator. Returns one row per defining `(file, parent, kind)` with signature preview + overload count. Test files excluded by default. |
 | `sigil outline [--path DIR] [--format markdown\|json]` | Hierarchical top-level tree of classes + functions grouped by file. Complements `sigil map` (rank-ordered) with a plain structural view. |
-| `sigil map [--tokens N] [--focus PATH] [--exclude-tests] [--write]` | Ranked codebase digest. Pack N tokens of highest-impact orientation into one markdown artifact. `--write` tees to `.sigil/SIGIL_MAP.md`. |
-| `sigil context <symbol> [--budget N] [--format agent\|markdown\|json]` | Focused bundle for one symbol: signature + callers + callees + related types + inheritance overrides. |
+| `sigil map [--tokens N] [--focus PATH] [--exclude-tests] [--write] [--top-entities-per-subsystem N]` | Ranked codebase digest. Pack N tokens of highest-impact orientation into one markdown artifact. `--write` tees to `.sigil/SIGIL_MAP.md`. `--top-entities-per-subsystem N` (default 0) attaches the top-K highest-impact entities per subsystem with full `code.context`-shaped fields, so downstream tooling doesn't have to walk subsystems → files → entities → context manually. |
+| `sigil context <symbol> [--budget N] [--format agent\|markdown\|json]` | Focused bundle for one symbol: signature + author docstring (when present) + callers + callees + related types + inheritance overrides. |
 | `sigil review <refspec> [--markdown\|--json]` | PR review: structural diff + blast radius + co-change misses. |
 | `sigil blast <symbol> [--depth N]` | Impact summary: direct callers, files, transitive reach. |
 | `sigil benchmark [--refspec R] [--symbol S] [--tokenizer o200k_base\|cl100k_base\|p50k_base\|proxy] [--format markdown\|json]` | Publishes a median token-reduction number for your repo. |

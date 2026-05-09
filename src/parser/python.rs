@@ -332,15 +332,17 @@ fn extract_class(
         let mut cursor = body.walk();
         let mut first = true;
         for child in body.children(&mut cursor) {
-            // Check for class docstring
+            // Check for class docstring on the very first statement only.
+            // Anything else (including the first class-level assignment) must
+            // still flow through `walk_node` so it gets indexed.
             if first && child.kind() == "expression_statement" {
                 if let Some(str_node) = child.child(0)
                     && (str_node.kind() == "string" || str_node.kind() == "concatenated_string")
                 {
                     extract_docstring(str_node, source, file_path, Some(&full_name), texts);
+                    first = false;
+                    continue;
                 }
-                first = false;
-                continue;
             }
             first = false;
             // Class members don't use module-level __all__
@@ -595,17 +597,24 @@ fn extract_assignment(
         name
     };
 
-    push_symbol(
-        symbols,
-        file_path,
-        full_name,
-        kind,
+    // Capture the RHS as the signature so `code.context <CONST>` can return
+    // the literal value inline. Truncate long collection literals so a single
+    // big dict can't dominate an agent prompt.
+    let sig = find_child_by_field(node, "right")
+        .map(|right| truncate_sig(&node_text(right, source)));
+
+    symbols.push(SymbolEntry {
+        file: file_path.to_string(),
+        name: full_name,
+        kind: kind.to_string(),
         line,
-        parent_ctx,
-        None,
-        None,
-        Some(visibility),
-    );
+        parent: parent_ctx.map(String::from),
+        tokens: None,
+        alias: None,
+        visibility: Some(visibility),
+        sig,
+        project: String::new(),
+    });
 }
 
 /// Extract a function call as a reference.

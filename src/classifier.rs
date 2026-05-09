@@ -135,6 +135,7 @@ mod tests {
             visibility: None,
             rank: None,
             blast_radius: None,
+            doc: None,
         }
     }
 

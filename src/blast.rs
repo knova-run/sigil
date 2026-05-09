@@ -331,6 +331,7 @@ mod tests {
                 direct_files: blast_files,
                 transitive_callers: 0,
             }),
+            doc: None,
         }
     }
 

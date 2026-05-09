@@ -418,9 +418,65 @@ fn walk_node(
         _ => {}
     }
 
-    // Recurse
+    // Recurse with XML-doc tracking — runs of `///` lines (and `/** */`
+    // blocks) immediately before a declaration attach as that item's doc.
+    walk_csharp_children_with_docs(
+        node,
+        source,
+        file_path,
+        parent_ctx,
+        symbols,
+        texts,
+        references,
+        depth,
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn walk_csharp_children_with_docs(
+    node: Node,
+    source: &[u8],
+    file_path: &str,
+    parent_ctx: Option<&str>,
+    symbols: &mut Vec<SymbolEntry>,
+    texts: &mut Vec<TextEntry>,
+    references: &mut Vec<ReferenceEntry>,
+    depth: usize,
+) {
     let mut cursor = node.walk();
+    let mut pending_docs: Vec<String> = Vec::new();
     for child in node.children(&mut cursor) {
+        if child.kind() == "comment" {
+            if let Some(text) = csharp_doc_text(child, source) {
+                pending_docs.push(text);
+            } else {
+                pending_docs.clear();
+            }
+            walk_node(
+                child,
+                source,
+                file_path,
+                parent_ctx,
+                symbols,
+                texts,
+                references,
+                depth + 1,
+            );
+            continue;
+        }
+        if !pending_docs.is_empty() {
+            if let Some(item_name) = csharp_item_name(child, source, parent_ctx) {
+                texts.push(TextEntry {
+                    file: file_path.to_string(),
+                    kind: "docstring".to_string(),
+                    line: node_line_range(child),
+                    text: pending_docs.join("\n"),
+                    parent: Some(item_name),
+                    project: String::new(),
+                });
+            }
+            pending_docs.clear();
+        }
         walk_node(
             child,
             source,
@@ -431,6 +487,69 @@ fn walk_node(
             references,
             depth + 1,
         );
+    }
+}
+
+fn csharp_doc_text(node: Node, source: &[u8]) -> Option<String> {
+    let raw = node_text(node, source);
+    if raw.starts_with("///") {
+        let cleaned = raw
+            .lines()
+            .map(|l| {
+                let t = l.trim();
+                t.strip_prefix("///").unwrap_or(t).trim()
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+            .trim()
+            .to_string();
+        Some(cleaned)
+    } else if raw.starts_with("/**") {
+        Some(strip_block_comment(&raw))
+    } else {
+        None
+    }
+}
+
+fn csharp_item_name(node: Node, source: &[u8], parent_ctx: Option<&str>) -> Option<String> {
+    let kind = node.kind();
+    let qualify = |n: &str| match parent_ctx {
+        Some(p) => format!("{p}.{n}"),
+        None => n.to_string(),
+    };
+    match kind {
+        "class_declaration"
+        | "interface_declaration"
+        | "struct_declaration"
+        | "record_declaration"
+        | "enum_declaration"
+        | "method_declaration"
+        | "constructor_declaration"
+        | "property_declaration"
+        | "delegate_declaration"
+        | "namespace_declaration" => find_child_by_field(node, "name")
+            .map(|n| qualify(&node_text(n, source))),
+        "field_declaration" | "event_field_declaration" => {
+            let mut c = node.walk();
+            for ch in node.children(&mut c) {
+                if ch.kind() == "variable_declaration" {
+                    let mut dc = ch.walk();
+                    for d in ch.children(&mut dc) {
+                        if d.kind() == "variable_declarator"
+                            && let Some(n) = find_child_by_field(d, "name")
+                                .or_else(|| {
+                                    let mut x = d.walk();
+                                    d.children(&mut x).find(|n| n.kind() == "identifier")
+                                })
+                        {
+                            return Some(qualify(&node_text(n, source)));
+                        }
+                    }
+                }
+            }
+            None
+        }
+        _ => None,
     }
 }
 
@@ -654,21 +773,19 @@ fn extract_type_decl(
         Some(visibility),
     );
 
-    // Walk body
+    // Walk body with XML-doc tracking so `///` runs before each member
+    // attach as that member's doc.
     if let Some(body) = find_child_by_field(node, "body") {
-        let mut cursor = body.walk();
-        for child in body.children(&mut cursor) {
-            walk_node(
-                child,
-                source,
-                file_path,
-                Some(&full_name),
-                symbols,
-                texts,
-                references,
-                depth + 1,
-            );
-        }
+        walk_csharp_children_with_docs(
+            body,
+            source,
+            file_path,
+            Some(&full_name),
+            symbols,
+            texts,
+            references,
+            depth,
+        );
     }
 }
 
@@ -766,21 +883,18 @@ fn extract_namespace(
         Some("public".to_string()),
     );
 
-    // Walk namespace body
+    // Walk namespace body with XML-doc tracking.
     if let Some(body) = find_child_by_field(node, "body") {
-        let mut cursor = body.walk();
-        for child in body.children(&mut cursor) {
-            walk_node(
-                child,
-                source,
-                file_path,
-                Some(&full_name),
-                symbols,
-                texts,
-                references,
-                depth + 1,
-            );
-        }
+        walk_csharp_children_with_docs(
+            body,
+            source,
+            file_path,
+            Some(&full_name),
+            symbols,
+            texts,
+            references,
+            depth,
+        );
     }
 
     // File-scoped namespace: declarations are siblings, not children of body
@@ -1008,17 +1122,42 @@ fn extract_field(
                     } else {
                         name
                     };
-                    push_symbol(
-                        symbols,
-                        file_path,
-                        full_name,
-                        kind,
+                    // C# constant initializer: `const int X = 42` or
+                    // `static readonly string V = "1.0"`. tree-sitter-c-sharp
+                    // doesn't expose a "value" field on variable_declarator,
+                    // so we walk children for the first non-`=` expression.
+                    let sig = if kind == "constant" {
+                        let mut c = decl_child.walk();
+                        let mut saw_eq = false;
+                        let mut found: Option<String> = None;
+                        for n in decl_child.children(&mut c) {
+                            if !saw_eq {
+                                if n.kind() == "=" {
+                                    saw_eq = true;
+                                }
+                                continue;
+                            }
+                            if n.is_named() {
+                                found = Some(truncate_sig(&node_text(n, source)));
+                                break;
+                            }
+                        }
+                        found
+                    } else {
+                        None
+                    };
+                    symbols.push(SymbolEntry {
+                        file: file_path.to_string(),
+                        name: full_name,
+                        kind: kind.to_string(),
                         line,
-                        parent_ctx,
-                        None,
-                        None,
-                        Some(visibility.clone()),
-                    );
+                        parent: parent_ctx.map(String::from),
+                        tokens: None,
+                        alias: None,
+                        visibility: Some(visibility.clone()),
+                        sig,
+                        project: String::new(),
+                    });
                 }
             }
         }

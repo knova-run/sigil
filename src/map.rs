@@ -21,7 +21,7 @@ use std::path::Path;
 use anyhow::{Context, Result};
 use serde::Serialize;
 
-use crate::entity::Entity;
+use crate::entity::{Entity, Reference};
 use crate::query::index::Index;
 use crate::rank::RankManifest;
 
@@ -54,6 +54,13 @@ pub struct MapOptions {
     /// shown files by cluster. Defaults on — cheap to compute and high
     /// orientation value on repos with more than a handful of files.
     pub clusters: bool,
+    /// When > 0, attach a `top_entities` list to each subsystem with that
+    /// many highest-impact entities (full `code.context`-shaped bundle:
+    /// callers, callees, related types). 0 = preserve legacy shape, no
+    /// `top_entities` field emitted. The flag exists to collapse the
+    /// downstream "list subsystem files → list entities → call code.context
+    /// per entity" N+1 pattern into a single map call.
+    pub top_entities_per_subsystem: usize,
 }
 
 impl Default for MapOptions {
@@ -65,6 +72,7 @@ impl Default for MapOptions {
             focus_boost: 2.0,
             exclude_tests: false,
             clusters: true,
+            top_entities_per_subsystem: 0,
         }
     }
 }
@@ -111,6 +119,51 @@ pub struct MapSubsystem {
     /// Files in this cluster, sorted by rank desc (only those shown in
     /// the map — truncated files don't appear here).
     pub top_files: Vec<String>,
+    /// Top-K highest-impact entities in this subsystem (any file, not just
+    /// shown ones), with full `code.context`-shaped fields. Populated only
+    /// when `MapOptions::top_entities_per_subsystem > 0`. Empty otherwise,
+    /// elided from JSON output via `skip_serializing_if`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub top_entities: Vec<TopEntity>,
+}
+
+/// Reference edge (caller / callee / type usage) inside a `TopEntity`.
+/// Mirrors the shape `code.context` uses so consumers can drop in the
+/// same renderer logic.
+#[derive(Debug, Clone, Serialize)]
+pub struct TopEntityEdge {
+    pub file: String,
+    pub line: u32,
+    pub symbol: String,
+    pub kind: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub caller: Option<String>,
+}
+
+/// One entity surfaced as a "load-bearing thing in this subsystem."
+/// Field shape mirrors `code.context`'s output so an N+1 query pattern
+/// (`map → context per entity`) collapses into a single `map` call.
+#[derive(Debug, Clone, Serialize)]
+pub struct TopEntity {
+    pub name: String,
+    pub kind: String,
+    pub file: String,
+    pub line_start: u32,
+    pub line_end: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parent: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sig: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub visibility: Option<String>,
+    /// Author-provided description (Python docstring, Rust ///, godoc,
+    /// JSDoc, Javadoc, XML-doc, Doxygen). Mirrors `Entity.doc`. Skipped
+    /// from JSON when None — entities without docs stay byte-identical.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub doc: Option<String>,
+    pub callers: Vec<TopEntityEdge>,
+    pub callees: Vec<TopEntityEdge>,
+    pub related_types: Vec<TopEntityEdge>,
 }
 
 /// Full map output.
@@ -240,7 +293,7 @@ pub fn build_map(idx: &Index, rank: &RankManifest, opts: &MapOptions) -> Map {
     // file list, though; subsystems of purely truncated files are not
     // interesting to the agent consumer.
     let subsystems = if opts.clusters {
-        attach_subsystems(&mut out_files, &idx.entities, &idx.references)
+        attach_subsystems(&mut out_files, idx, opts.top_entities_per_subsystem)
     } else {
         Vec::new()
     };
@@ -265,12 +318,15 @@ pub fn build_map(idx: &Index, rank: &RankManifest, opts: &MapOptions) -> Map {
 /// return the summary list for rendering. Subsystems that contain only
 /// truncated files are elided from the summary but remain discoverable
 /// by re-running `sigil map` with a larger `--tokens` budget.
+///
+/// When `top_entities_n > 0`, each subsystem is also enriched with up to
+/// `top_entities_n` highest-impact entities — see `build_top_entities`.
 fn attach_subsystems(
     files: &mut [MapFile],
-    entities: &[crate::entity::Entity],
-    references: &[crate::entity::Reference],
+    idx: &Index,
+    top_entities_n: usize,
 ) -> Vec<MapSubsystem> {
-    let communities = crate::community::detect_file_communities(entities, references);
+    let communities = crate::community::detect_file_communities(&idx.entities, &idx.references);
     // For each shown file, record its community id.
     for f in files.iter_mut() {
         f.subsystem = communities.get(&f.path).copied();
@@ -293,11 +349,25 @@ fn attach_subsystems(
             });
             let paths: Vec<&str> = fs.iter().map(|f| f.path.as_str()).collect();
             let label = crate::community::subsystem_label(&paths);
+            // For top_entities, scope to ALL files in the community (not just
+            // shown ones) — truncating-by-budget shouldn't hide load-bearing
+            // entities that just happened to live in a low-rank file.
+            let community_files: std::collections::HashSet<&str> = communities
+                .iter()
+                .filter(|(_, cid)| **cid == id)
+                .map(|(p, _)| p.as_str())
+                .collect();
+            let top_entities = if top_entities_n > 0 {
+                build_top_entities(idx, &community_files, top_entities_n)
+            } else {
+                Vec::new()
+            };
             MapSubsystem {
                 id,
                 label,
                 file_count: fs.len(),
                 top_files: fs.iter().take(5).map(|f| f.path.clone()).collect(),
+                top_entities,
             }
         })
         .collect();
@@ -306,6 +376,113 @@ fn attach_subsystems(
     // first" signal the file list already uses.
     out.sort_by(|a, b| b.file_count.cmp(&a.file_count).then_with(|| a.label.cmp(&b.label)));
     out
+}
+
+/// Pick the top-K entities living in `community_files`, ordered by
+/// `transitive_callers` desc, then `direct_callers` desc, then `name` asc.
+/// For each, build a `TopEntity` with callers/callees/related_types
+/// resolved against the index — same shape `code.context` returns.
+///
+/// Imports and tests are skipped — neither is the kind of thing a "what
+/// is this subsystem about" question wants surfaced.
+fn build_top_entities(
+    idx: &Index,
+    community_files: &std::collections::HashSet<&str>,
+    n: usize,
+) -> Vec<TopEntity> {
+    let mut candidates: Vec<&Entity> = idx
+        .entities
+        .iter()
+        .filter(|e| community_files.contains(e.file.as_str()))
+        .filter(|e| e.kind != "import")
+        .filter(|e| !crate::entity::is_test_path(&e.file))
+        .collect();
+    candidates.sort_by(|a, b| {
+        let a_br = a.blast_radius.as_ref();
+        let b_br = b.blast_radius.as_ref();
+        let a_t = a_br.map(|x| x.transitive_callers).unwrap_or(0);
+        let b_t = b_br.map(|x| x.transitive_callers).unwrap_or(0);
+        let a_d = a_br.map(|x| x.direct_callers).unwrap_or(0);
+        let b_d = b_br.map(|x| x.direct_callers).unwrap_or(0);
+        b_t.cmp(&a_t)
+            .then(b_d.cmp(&a_d))
+            .then(a.name.cmp(&b.name))
+    });
+    candidates
+        .into_iter()
+        .take(n)
+        .map(|e| build_top_entity(idx, e))
+        .collect()
+}
+
+fn build_top_entity(idx: &Index, e: &Entity) -> TopEntity {
+    // Cap caller/callee/related lists to keep payloads tractable. 10 mirrors
+    // the default `code.context --depth`. Consumers wanting unbounded data
+    // can call `code.context <name>` on the entity directly.
+    const EDGE_CAP: usize = 10;
+
+    let mut seen: std::collections::HashSet<(String, u32)> = std::collections::HashSet::new();
+    let callers: Vec<TopEntityEdge> = idx
+        .refs_to(&e.name)
+        .filter(|r| seen.insert((r.file.clone(), r.line)))
+        .take(EDGE_CAP)
+        .map(top_caller_edge)
+        .collect();
+
+    let mut seen: std::collections::HashSet<(String, u32, String)> =
+        std::collections::HashSet::new();
+    let from_self: Vec<&Reference> = idx
+        .refs_from(&e.name)
+        .filter(|r| seen.insert((r.file.clone(), r.line, r.name.clone())))
+        .collect();
+    let (type_refs, call_refs): (Vec<&&Reference>, Vec<&&Reference>) = from_self
+        .iter()
+        .partition(|r| r.ref_kind == "type_annotation");
+    let callees: Vec<TopEntityEdge> = call_refs
+        .iter()
+        .take(EDGE_CAP)
+        .map(|r| top_callee_edge(r))
+        .collect();
+    let related_types: Vec<TopEntityEdge> = type_refs
+        .iter()
+        .take(EDGE_CAP)
+        .map(|r| top_callee_edge(r))
+        .collect();
+
+    TopEntity {
+        name: e.name.clone(),
+        kind: e.kind.clone(),
+        file: e.file.clone(),
+        line_start: e.line_start,
+        line_end: e.line_end,
+        parent: e.parent.clone(),
+        sig: e.sig.clone(),
+        visibility: e.visibility.clone(),
+        doc: e.doc.clone(),
+        callers,
+        callees,
+        related_types,
+    }
+}
+
+fn top_caller_edge(r: &Reference) -> TopEntityEdge {
+    TopEntityEdge {
+        file: r.file.clone(),
+        line: r.line,
+        symbol: r.name.clone(),
+        kind: r.ref_kind.clone(),
+        caller: r.caller.clone(),
+    }
+}
+
+fn top_callee_edge(r: &Reference) -> TopEntityEdge {
+    TopEntityEdge {
+        file: r.file.clone(),
+        line: r.line,
+        symbol: r.name.clone(),
+        kind: r.ref_kind.clone(),
+        caller: r.caller.clone(),
+    }
 }
 
 /// Per-entity sort key: `direct_files` as the primary axis, nudged upward
@@ -366,6 +543,23 @@ pub fn render_markdown(m: &Map) -> String {
                     .collect::<Vec<_>>()
                     .join(", ")
             ));
+            if !s.top_entities.is_empty() {
+                // Tight, no-frills "Top Entities" line per subsystem — name,
+                // kind, file:line, sig. Keeps the section scannable; full
+                // bundle (callers/callees/related) lives in the JSON form.
+                out.push_str("  - top entities:\n");
+                for te in &s.top_entities {
+                    let sig_part = te
+                        .sig
+                        .as_deref()
+                        .map(|s| format!(" — `{}`", s.trim()))
+                        .unwrap_or_default();
+                    out.push_str(&format!(
+                        "    - {} `{}` ({}:{}){}\n",
+                        te.kind, te.name, te.file, te.line_start, sig_part
+                    ));
+                }
+            }
         }
         out.push('\n');
     }
@@ -483,7 +677,6 @@ mod tests {
     use super::*;
     use crate::entity::{BlastRadius, Entity};
     use crate::query::index::Index;
-    use std::collections::HashMap;
 
     fn ent(file: &str, name: &str, kind: &str, blast_files: u32, blast_callers: u32) -> Entity {
         Entity {
@@ -505,6 +698,7 @@ mod tests {
                 direct_files: blast_files,
                 transitive_callers: 0,
             }),
+            doc: None,
         }
     }
 
@@ -521,6 +715,116 @@ mod tests {
                 .map(|(f, r)| (f.to_string(), *r))
                 .collect(),
         }
+    }
+
+    #[test]
+    fn top_entities_per_subsystem_zero_preserves_legacy_shape() {
+        // Default (N = 0) must NOT change the wire shape — existing
+        // consumers of `subsystems[]` should see no `top_entities` field.
+        let idx = Index::build(
+            vec![
+                ent("a.rs", "foo", "function", 5, 10),
+                ent("b.rs", "bar", "function", 5, 10),
+            ],
+            vec![],
+        );
+        let r = manifest(&[("a.rs", 0.5), ("b.rs", 0.4)]);
+        let m = build_map(&idx, &r, &MapOptions::default());
+        let json = serde_json::to_string(&m).unwrap();
+        assert!(
+            !json.contains("top_entities"),
+            "default N=0 must not emit top_entities key"
+        );
+    }
+
+    #[test]
+    fn top_entities_per_subsystem_populates_when_enabled() {
+        // When N > 0, every subsystem with member files gets a top_entities
+        // list ordered by transitive_callers desc, direct_callers desc, name asc.
+        let mut e_huge = ent("a.rs", "huge", "function", 50, 200);
+        e_huge.blast_radius = Some(BlastRadius {
+            direct_files: 50,
+            direct_callers: 200,
+            transitive_callers: 500,
+        });
+        let mut e_med = ent("a.rs", "medium", "function", 10, 30);
+        e_med.blast_radius = Some(BlastRadius {
+            direct_files: 10,
+            direct_callers: 30,
+            transitive_callers: 100,
+        });
+        let mut e_small = ent("a.rs", "small", "function", 1, 1);
+        e_small.blast_radius = Some(BlastRadius {
+            direct_files: 1,
+            direct_callers: 1,
+            transitive_callers: 5,
+        });
+
+        let idx = Index::build(vec![e_huge, e_med, e_small], vec![]);
+        let r = manifest(&[("a.rs", 0.5)]);
+        let m = build_map(
+            &idx,
+            &r,
+            &MapOptions {
+                tokens: 0,
+                top_entities_per_subsystem: 2,
+                ..MapOptions::default()
+            },
+        );
+        // One subsystem covering a.rs.
+        assert_eq!(m.subsystems.len(), 1);
+        let s = &m.subsystems[0];
+        assert_eq!(s.top_entities.len(), 2, "should respect N=2 cap");
+        assert_eq!(s.top_entities[0].name, "huge", "highest transitive first");
+        assert_eq!(s.top_entities[1].name, "medium");
+    }
+
+    #[test]
+    fn top_entities_carry_context_shaped_fields() {
+        let mut e = ent("a.rs", "foo", "function", 5, 10);
+        e.sig = Some("fn foo()".to_string());
+        e.parent = None;
+        e.blast_radius = Some(BlastRadius {
+            direct_files: 5,
+            direct_callers: 10,
+            transitive_callers: 20,
+        });
+        let idx = Index::build(
+            vec![e],
+            vec![
+                crate::entity::Reference {
+                    file: "b.rs".to_string(),
+                    caller: Some("main".to_string()),
+                    name: "foo".to_string(),
+                    ref_kind: "call".to_string(),
+                    line: 42,
+                },
+            ],
+        );
+        let r = manifest(&[("a.rs", 1.0), ("b.rs", 0.5)]);
+        let m = build_map(
+            &idx,
+            &r,
+            &MapOptions {
+                tokens: 0,
+                top_entities_per_subsystem: 5,
+                ..MapOptions::default()
+            },
+        );
+        let te = m
+            .subsystems
+            .iter()
+            .flat_map(|s| s.top_entities.iter())
+            .find(|t| t.name == "foo")
+            .expect("foo must appear in top_entities");
+        assert_eq!(te.kind, "function");
+        assert_eq!(te.file, "a.rs");
+        assert_eq!(te.sig.as_deref(), Some("fn foo()"));
+        // Caller from b.rs is surfaced in `callers`.
+        assert!(
+            te.callers.iter().any(|c| c.file == "b.rs" && c.line == 42),
+            "b.rs:42 caller missing from top_entities[0].callers"
+        );
     }
 
     #[test]
@@ -661,6 +965,42 @@ mod tests {
             },
         );
         assert_eq!(focused.files[0].path, "core/a.rs");
+    }
+
+    #[test]
+    fn render_markdown_includes_top_entities_when_enabled() {
+        let mut e = ent("a.rs", "load_bearing", "function", 50, 200);
+        e.sig = Some("fn load_bearing()".to_string());
+        e.blast_radius = Some(BlastRadius {
+            direct_files: 50,
+            direct_callers: 200,
+            transitive_callers: 500,
+        });
+        let idx = Index::build(vec![e], vec![]);
+        let r = manifest(&[("a.rs", 0.5)]);
+        let md = render_markdown(&build_map(
+            &idx,
+            &r,
+            &MapOptions {
+                tokens: 0,
+                top_entities_per_subsystem: 3,
+                ..MapOptions::default()
+            },
+        ));
+        assert!(md.contains("top entities:"), "missing top entities line: {md}");
+        assert!(md.contains("load_bearing"), "missing entity name: {md}");
+        assert!(md.contains("fn load_bearing()"), "missing sig: {md}");
+    }
+
+    #[test]
+    fn render_markdown_omits_top_entities_when_disabled() {
+        let idx = Index::build(vec![ent("a.rs", "foo", "function", 5, 10)], vec![]);
+        let r = manifest(&[("a.rs", 0.5)]);
+        let md = render_markdown(&build_map(&idx, &r, &MapOptions::default()));
+        assert!(
+            !md.contains("top entities:"),
+            "default N=0 must not render top entities block"
+        );
     }
 
     #[test]

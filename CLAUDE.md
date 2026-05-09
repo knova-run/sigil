@@ -132,6 +132,9 @@ evals/
 - Incremental indexing: only re-parses changed files
 - `sigil diff` shells out to git (no git2 dependency)
 - `sigil diff` always exits 0 on success (error handling exits non-zero via `std::process::exit(3)`)
+- `kind: "constant"` covers Python ALL_CAPS module/class assignments, Rust `const`/`static`, Go `const`/package-level `var`, TS/JS top-level `const NAME`, Java `static final`, C# `const`/`static readonly`, C++ `constexpr`/`#define`. `Entity.sig` is the literal RHS value text (truncated at 256 chars with `…`). Lowercase Python/JS variables stay `kind: "variable"` with the same sig wiring.
+- `sigil where` includes constants in `DEFINITION_KINDS` — module-level tunables resolve like functions; variables and imports stay excluded.
+- `Entity.doc` carries the author-provided description (Python docstring first-statement, Rust `///` / `/** */`, godoc, JSDoc `/** */` for JS/TS, Javadoc for Java, XML-doc `///` for C#, Doxygen `///` / `//!` / `/** */` / `/*! */` for C++) when present, truncated at 1024 chars. Surfaced in `code.context` markdown as a `## Doc` section between Signature and Body, and in the agent JSON view under short key `d`.
 - JSON diff: parent-aware matching `(file, parent, name)` prevents cross-matching (e.g., `body.text` vs `header.text`)
 - JSON diff: `_`-prefixed fields are marked as derived and suppressed from output
 - JSON diff: array items expanded with identity key heuristic (`id` > `key` > `name` > `text` > `type`), positional fallback
@@ -156,7 +159,8 @@ sigil diff HEAD~1 --summary --group --lines --context 5
 
 # Agent-facing (Phase 1)
 sigil map --tokens 2000 [--write]          # codebase digest → .sigil/SIGIL_MAP.md
-sigil context Entity --budget 1000         # minimum-viable symbol context
+sigil map --top-entities-per-subsystem 5   # adds top_entities[] to each subsystem
+sigil context Entity --budget 1000         # minimum-viable symbol context (incl. doc)
 sigil review HEAD~3..HEAD [--markdown]     # diff + blast + co-change
 sigil blast Entity --depth 5               # impact summary
 sigil benchmark --tokenizer o200k_base     # BPE-accurate token reduction

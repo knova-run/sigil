@@ -325,6 +325,7 @@ fn extract_mapping_entities(
             visibility: None,
             rank: None,
             blast_radius: None,
+            doc: None,
         });
 
         // Recurse into nested mappings

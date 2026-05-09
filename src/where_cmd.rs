@@ -23,9 +23,13 @@ use serde::Serialize;
 use crate::entity::Entity;
 use crate::query::index::Index;
 
-/// Kinds that count as "a place where something is defined." Variables,
-/// imports, and constants are excluded — they're not what a `sigil where`
-/// consumer is usually looking for.
+/// Kinds that count as "a place where something is defined." Variables and
+/// imports stay excluded — a freshly-bound local or an import alias isn't
+/// what a `sigil where` consumer is usually after. **Constants** are
+/// included: load-bearing module-level tunables (`RETRY_TIMEOUT = 60`,
+/// `ANTHROPIC_BETA_HEADER = "..."`) carry the same "where is X" question
+/// shape as functions, and downstream tools (Knova wiki renderer, agent
+/// context-packs) need to be able to resolve them.
 const DEFINITION_KINDS: &[&str] = &[
     "class",
     "struct",
@@ -37,6 +41,7 @@ const DEFINITION_KINDS: &[&str] = &[
     "method",
     "type_alias",
     "module",
+    "constant",
 ];
 
 /// Default cap on rows returned — tuned to keep the common case one-glance
@@ -330,6 +335,7 @@ mod tests {
             visibility: Some("public".into()),
             rank: None,
             blast_radius: Some(BlastRadius::default()),
+            doc: None,
         }
     }
 
@@ -540,6 +546,29 @@ mod tests {
         let report = find_definitions(&idx, "foo", &WhereFilters::default(), DEFAULT_LIMIT);
         assert_eq!(report.definitions.len(), 1);
         assert_eq!(report.definitions[0].kind, "function");
+    }
+
+    #[test]
+    fn where_finds_constants() {
+        // Module-level constants (e.g. `RETRY_TIMEOUT = 60`) are valid
+        // "where is X defined" answers — agents asking about a load-bearing
+        // tunable should find it without falling back to a grep.
+        let idx = Index::build(
+            vec![
+                ent("config.py", "RETRY_TIMEOUT", "constant", None, 5),
+                ent("other.py", "RETRY_TIMEOUT", "variable", None, 9),
+            ],
+            vec![],
+        );
+        let report = find_definitions(
+            &idx,
+            "RETRY_TIMEOUT",
+            &WhereFilters::default(),
+            DEFAULT_LIMIT,
+        );
+        assert_eq!(report.definitions.len(), 1);
+        assert_eq!(report.definitions[0].kind, "constant");
+        assert_eq!(report.definitions[0].file, "config.py");
     }
 
     // Silence "unused" warning on Reference — kept here for future
