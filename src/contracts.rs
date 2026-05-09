@@ -69,6 +69,7 @@ fn walk(root: &Path, dir: &Path, out: &mut Vec<ContractRow>) {
             "js" | "jsx" | "ts" | "tsx" | "mjs" | "cjs" => {
                 out.extend(scan_js_ts(&rel, &text, ext))
             }
+            "proto" => out.extend(scan_proto(&rel, &text)),
             _ => {}
         }
     }
@@ -159,6 +160,61 @@ fn scan_js_ts(file: &str, text: &str, ext: &str) -> Vec<ContractRow> {
     out
 }
 
+fn proto_service_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(r#"^\s*service\s+([A-Za-z_][A-Za-z0-9_]*)\s*\{?"#).unwrap())
+}
+
+fn proto_rpc_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(r#"^\s*rpc\s+([A-Za-z_][A-Za-z0-9_]*)\s*\("#).unwrap())
+}
+
+fn scan_proto(file: &str, text: &str) -> Vec<ContractRow> {
+    let mut out = Vec::new();
+    let mut current_service: Option<String> = None;
+    for (i, line) in text.lines().enumerate() {
+        if let Some(caps) = proto_service_re().captures(line) {
+            current_service = Some(caps[1].to_string());
+            continue;
+        }
+        // Naive close-brace tracking — fine for the common one-service-per-file
+        // case. For multi-service files the caller can split the proto.
+        if line.trim() == "}" {
+            current_service = None;
+        }
+        if let Some(svc) = current_service.as_deref() {
+            if let Some(caps) = proto_rpc_re().captures(line) {
+                out.push(ContractRow {
+                    kind: "grpc".to_string(),
+                    role: "provider".to_string(),
+                    method: None,
+                    path: Some(format!("{svc}/{}", &caps[1])),
+                    topic: None,
+                    file: file.to_string(),
+                    line: (i + 1) as u32,
+                    language: "proto".to_string(),
+                    framework: "grpc".to_string(),
+                });
+            }
+        }
+    }
+    out
+}
+
+fn kafka_send_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // Matches `<producer>.send('topic', ...)`. Distinguishing from HTTP
+        // verbs is by the bare `.send(` shape with a string literal first
+        // arg — typical of Kafka/NATS publisher idioms.
+        Regex::new(
+            r#"\b[A-Za-z_][A-Za-z0-9_]*\.send\(\s*['"]([A-Za-z_][\w./:\-]*)['"]"#,
+        )
+        .unwrap()
+    })
+}
+
 fn scan_python(file: &str, text: &str) -> Vec<ContractRow> {
     let mut out = Vec::new();
     for (i, line) in text.lines().enumerate() {
@@ -173,6 +229,20 @@ fn scan_python(file: &str, text: &str) -> Vec<ContractRow> {
                 line: (i + 1) as u32,
                 language: "python".to_string(),
                 framework: "fastapi".to_string(),
+            });
+            continue;
+        }
+        if let Some(caps) = kafka_send_re().captures(line) {
+            out.push(ContractRow {
+                kind: "topic".to_string(),
+                role: "publisher".to_string(),
+                method: None,
+                path: None,
+                topic: Some(caps[1].to_string()),
+                file: file.to_string(),
+                line: (i + 1) as u32,
+                language: "python".to_string(),
+                framework: "kafka".to_string(),
             });
         }
     }

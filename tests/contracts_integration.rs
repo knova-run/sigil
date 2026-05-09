@@ -32,6 +32,61 @@ fn parse(stdout: &str) -> Vec<serde_json::Value> {
 }
 
 #[test]
+fn detects_kafka_publisher_topic() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("worker.py"),
+        r#"from kafka import KafkaProducer
+producer = KafkaProducer(bootstrap_servers='broker:9092')
+
+def emit(event):
+    producer.send('notifications-events', value=event)
+"#,
+    )
+    .unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let topics: Vec<&serde_json::Value> = rows.iter().filter(|r| r["kind"] == "topic").collect();
+    assert!(
+        topics.iter().any(|r| r["topic"] == "notifications-events" && r["role"] == "publisher"),
+        "expected notifications-events publisher, got {topics:?}"
+    );
+}
+
+#[test]
+fn detects_grpc_service_and_rpc_methods_from_proto() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("notify.proto"),
+        r#"syntax = "proto3";
+package notify.v1;
+
+service NotifyService {
+  rpc SendEmail(SendEmailRequest) returns (SendEmailResponse);
+  rpc SendSms(SendSmsRequest) returns (SendSmsResponse);
+}
+
+message SendEmailRequest { string to = 1; }
+message SendEmailResponse { string id = 1; }
+"#,
+    )
+    .unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let grpc: Vec<&serde_json::Value> = rows.iter().filter(|r| r["kind"] == "grpc").collect();
+    assert!(
+        grpc.iter().any(|r| r["path"] == "NotifyService/SendEmail" && r["role"] == "provider"),
+        "expected NotifyService/SendEmail provider, got {grpc:?}"
+    );
+    assert!(
+        grpc.iter().any(|r| r["path"] == "NotifyService/SendSms"),
+        "expected NotifyService/SendSms, got {grpc:?}"
+    );
+}
+
+#[test]
 fn detects_express_route_provider_and_axios_consumer() {
     let tmp = TempDir::new().unwrap();
     fs::write(

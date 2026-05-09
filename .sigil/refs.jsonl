@@ -1980,65 +1980,109 @@
 {"file":"src/contracts.rs","caller":"walk","name":"scan_python","kind":"call","line":68}
 {"file":"src/contracts.rs","caller":"walk","name":"out.extend","kind":"call","line":70}
 {"file":"src/contracts.rs","caller":"walk","name":"scan_js_ts","kind":"call","line":70}
-{"file":"src/contracts.rs","caller":"is_skipped_dir","name":"Path","kind":"type_annotation","line":77}
-{"file":"src/contracts.rs","caller":"is_skipped_dir","name":"path.file_name","kind":"call","line":78}
-{"file":"src/contracts.rs","caller":"is_skipped_dir","name":"n.to_string_lossy","kind":"call","line":79}
-{"file":"src/contracts.rs","caller":"fastapi_re","name":"Regex","kind":"type_annotation","line":88}
-{"file":"src/contracts.rs","caller":"fastapi_re","name":"OnceLock::new","kind":"call","line":89}
-{"file":"src/contracts.rs","caller":"fastapi_re","name":"RE.get_or_init","kind":"call","line":90}
-{"file":"src/contracts.rs","caller":"fastapi_re","name":"Regex::new(\n            r#\"@\\s*[A-Za-z_][A-Za-z0-9_]*\\.(get|post|put|delete|patch|options|head)\\(\\s*['\"]([^'\"]+)['\"]\"#,\n        )\n        .unwrap","kind":"call","line":93}
-{"file":"src/contracts.rs","caller":"fastapi_re","name":"Regex::new","kind":"call","line":93}
-{"file":"src/contracts.rs","caller":"express_re","name":"Regex","kind":"type_annotation","line":100}
-{"file":"src/contracts.rs","caller":"express_re","name":"OnceLock::new","kind":"call","line":101}
-{"file":"src/contracts.rs","caller":"express_re","name":"RE.get_or_init","kind":"call","line":102}
-{"file":"src/contracts.rs","caller":"express_re","name":"Regex::new(\n            r#\"\\b[A-Za-z_][A-Za-z0-9_]*\\.(get|post|put|delete|patch|options|head|all)\\(\\s*['\"`]([^'\"`]+)['\"`]\"#,\n        )\n        .unwrap","kind":"call","line":105}
-{"file":"src/contracts.rs","caller":"express_re","name":"Regex::new","kind":"call","line":105}
-{"file":"src/contracts.rs","caller":"axios_re","name":"Regex","kind":"type_annotation","line":112}
-{"file":"src/contracts.rs","caller":"axios_re","name":"OnceLock::new","kind":"call","line":113}
-{"file":"src/contracts.rs","caller":"axios_re","name":"RE.get_or_init","kind":"call","line":114}
-{"file":"src/contracts.rs","caller":"axios_re","name":"Regex::new(\n            r#\"\\baxios\\.(get|post|put|delete|patch|options|head)\\(\\s*['\"`]([^'\"`]+)['\"`]\"#,\n        )\n        .unwrap","kind":"call","line":118}
-{"file":"src/contracts.rs","caller":"axios_re","name":"Regex::new","kind":"call","line":118}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"Vec","kind":"type_annotation","line":125}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"ContractRow","kind":"type_annotation","line":125}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"ext.starts_with","kind":"call","line":126}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"Vec::new","kind":"call","line":127}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"text.lines().enumerate","kind":"call","line":128}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"text.lines","kind":"call","line":128}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"axios_re().captures","kind":"call","line":131}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"axios_re","kind":"call","line":131}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"out.push","kind":"call","line":132}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"\"http\".to_string","kind":"call","line":133}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"\"consumer\".to_string","kind":"call","line":134}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"caps[1].to_uppercase","kind":"call","line":135}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"caps[2].to_string","kind":"call","line":136}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"file.to_string","kind":"call","line":138}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"language.to_string","kind":"call","line":140}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"\"axios\".to_string","kind":"call","line":141}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"express_re().captures","kind":"call","line":145}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"express_re","kind":"call","line":145}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"out.push","kind":"call","line":146}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"\"http\".to_string","kind":"call","line":147}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"\"provider\".to_string","kind":"call","line":148}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"caps[1].to_uppercase","kind":"call","line":149}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"caps[2].to_string","kind":"call","line":150}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"file.to_string","kind":"call","line":152}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"language.to_string","kind":"call","line":154}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"\"express\".to_string","kind":"call","line":155}
-{"file":"src/contracts.rs","caller":"scan_python","name":"Vec","kind":"type_annotation","line":162}
-{"file":"src/contracts.rs","caller":"scan_python","name":"ContractRow","kind":"type_annotation","line":162}
-{"file":"src/contracts.rs","caller":"scan_python","name":"Vec::new","kind":"call","line":163}
-{"file":"src/contracts.rs","caller":"scan_python","name":"text.lines().enumerate","kind":"call","line":164}
-{"file":"src/contracts.rs","caller":"scan_python","name":"text.lines","kind":"call","line":164}
-{"file":"src/contracts.rs","caller":"scan_python","name":"fastapi_re().captures","kind":"call","line":165}
-{"file":"src/contracts.rs","caller":"scan_python","name":"fastapi_re","kind":"call","line":165}
-{"file":"src/contracts.rs","caller":"scan_python","name":"out.push","kind":"call","line":166}
-{"file":"src/contracts.rs","caller":"scan_python","name":"\"http\".to_string","kind":"call","line":167}
-{"file":"src/contracts.rs","caller":"scan_python","name":"\"provider\".to_string","kind":"call","line":168}
-{"file":"src/contracts.rs","caller":"scan_python","name":"caps[1].to_uppercase","kind":"call","line":169}
-{"file":"src/contracts.rs","caller":"scan_python","name":"caps[2].to_string","kind":"call","line":170}
-{"file":"src/contracts.rs","caller":"scan_python","name":"file.to_string","kind":"call","line":172}
-{"file":"src/contracts.rs","caller":"scan_python","name":"\"python\".to_string","kind":"call","line":174}
-{"file":"src/contracts.rs","caller":"scan_python","name":"\"fastapi\".to_string","kind":"call","line":175}
+{"file":"src/contracts.rs","caller":"walk","name":"out.extend","kind":"call","line":72}
+{"file":"src/contracts.rs","caller":"walk","name":"scan_proto","kind":"call","line":72}
+{"file":"src/contracts.rs","caller":"is_skipped_dir","name":"Path","kind":"type_annotation","line":78}
+{"file":"src/contracts.rs","caller":"is_skipped_dir","name":"path.file_name","kind":"call","line":79}
+{"file":"src/contracts.rs","caller":"is_skipped_dir","name":"n.to_string_lossy","kind":"call","line":80}
+{"file":"src/contracts.rs","caller":"fastapi_re","name":"Regex","kind":"type_annotation","line":89}
+{"file":"src/contracts.rs","caller":"fastapi_re","name":"OnceLock::new","kind":"call","line":90}
+{"file":"src/contracts.rs","caller":"fastapi_re","name":"RE.get_or_init","kind":"call","line":91}
+{"file":"src/contracts.rs","caller":"fastapi_re","name":"Regex::new(\n            r#\"@\\s*[A-Za-z_][A-Za-z0-9_]*\\.(get|post|put|delete|patch|options|head)\\(\\s*['\"]([^'\"]+)['\"]\"#,\n        )\n        .unwrap","kind":"call","line":94}
+{"file":"src/contracts.rs","caller":"fastapi_re","name":"Regex::new","kind":"call","line":94}
+{"file":"src/contracts.rs","caller":"express_re","name":"Regex","kind":"type_annotation","line":101}
+{"file":"src/contracts.rs","caller":"express_re","name":"OnceLock::new","kind":"call","line":102}
+{"file":"src/contracts.rs","caller":"express_re","name":"RE.get_or_init","kind":"call","line":103}
+{"file":"src/contracts.rs","caller":"express_re","name":"Regex::new(\n            r#\"\\b[A-Za-z_][A-Za-z0-9_]*\\.(get|post|put|delete|patch|options|head|all)\\(\\s*['\"`]([^'\"`]+)['\"`]\"#,\n        )\n        .unwrap","kind":"call","line":106}
+{"file":"src/contracts.rs","caller":"express_re","name":"Regex::new","kind":"call","line":106}
+{"file":"src/contracts.rs","caller":"axios_re","name":"Regex","kind":"type_annotation","line":113}
+{"file":"src/contracts.rs","caller":"axios_re","name":"OnceLock::new","kind":"call","line":114}
+{"file":"src/contracts.rs","caller":"axios_re","name":"RE.get_or_init","kind":"call","line":115}
+{"file":"src/contracts.rs","caller":"axios_re","name":"Regex::new(\n            r#\"\\baxios\\.(get|post|put|delete|patch|options|head)\\(\\s*['\"`]([^'\"`]+)['\"`]\"#,\n        )\n        .unwrap","kind":"call","line":119}
+{"file":"src/contracts.rs","caller":"axios_re","name":"Regex::new","kind":"call","line":119}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"Vec","kind":"type_annotation","line":126}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"ContractRow","kind":"type_annotation","line":126}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"ext.starts_with","kind":"call","line":127}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"Vec::new","kind":"call","line":128}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"text.lines().enumerate","kind":"call","line":129}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"text.lines","kind":"call","line":129}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"axios_re().captures","kind":"call","line":132}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"axios_re","kind":"call","line":132}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"out.push","kind":"call","line":133}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"\"http\".to_string","kind":"call","line":134}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"\"consumer\".to_string","kind":"call","line":135}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"caps[1].to_uppercase","kind":"call","line":136}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"caps[2].to_string","kind":"call","line":137}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"file.to_string","kind":"call","line":139}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"language.to_string","kind":"call","line":141}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"\"axios\".to_string","kind":"call","line":142}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"express_re().captures","kind":"call","line":146}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"express_re","kind":"call","line":146}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"out.push","kind":"call","line":147}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"\"http\".to_string","kind":"call","line":148}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"\"provider\".to_string","kind":"call","line":149}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"caps[1].to_uppercase","kind":"call","line":150}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"caps[2].to_string","kind":"call","line":151}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"file.to_string","kind":"call","line":153}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"language.to_string","kind":"call","line":155}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"\"express\".to_string","kind":"call","line":156}
+{"file":"src/contracts.rs","caller":"proto_service_re","name":"Regex","kind":"type_annotation","line":163}
+{"file":"src/contracts.rs","caller":"proto_service_re","name":"OnceLock::new","kind":"call","line":164}
+{"file":"src/contracts.rs","caller":"proto_service_re","name":"RE.get_or_init","kind":"call","line":165}
+{"file":"src/contracts.rs","caller":"proto_service_re","name":"Regex::new(r#\"^\\s*service\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*\\{?\"#).unwrap","kind":"call","line":165}
+{"file":"src/contracts.rs","caller":"proto_service_re","name":"Regex::new","kind":"call","line":165}
+{"file":"src/contracts.rs","caller":"proto_rpc_re","name":"Regex","kind":"type_annotation","line":168}
+{"file":"src/contracts.rs","caller":"proto_rpc_re","name":"OnceLock::new","kind":"call","line":169}
+{"file":"src/contracts.rs","caller":"proto_rpc_re","name":"RE.get_or_init","kind":"call","line":170}
+{"file":"src/contracts.rs","caller":"proto_rpc_re","name":"Regex::new(r#\"^\\s*rpc\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*\\(\"#).unwrap","kind":"call","line":170}
+{"file":"src/contracts.rs","caller":"proto_rpc_re","name":"Regex::new","kind":"call","line":170}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"Vec","kind":"type_annotation","line":173}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"ContractRow","kind":"type_annotation","line":173}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"Vec::new","kind":"call","line":174}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"text.lines().enumerate","kind":"call","line":176}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"text.lines","kind":"call","line":176}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"proto_service_re().captures","kind":"call","line":177}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"proto_service_re","kind":"call","line":177}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"caps[1].to_string","kind":"call","line":178}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"line.trim","kind":"call","line":183}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"current_service.as_deref","kind":"call","line":186}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"proto_rpc_re().captures","kind":"call","line":187}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"proto_rpc_re","kind":"call","line":187}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"out.push","kind":"call","line":188}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"\"grpc\".to_string","kind":"call","line":189}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"\"provider\".to_string","kind":"call","line":190}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"file.to_string","kind":"call","line":194}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"\"proto\".to_string","kind":"call","line":196}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"\"grpc\".to_string","kind":"call","line":197}
+{"file":"src/contracts.rs","caller":"kafka_send_re","name":"Regex","kind":"type_annotation","line":205}
+{"file":"src/contracts.rs","caller":"kafka_send_re","name":"OnceLock::new","kind":"call","line":206}
+{"file":"src/contracts.rs","caller":"kafka_send_re","name":"RE.get_or_init","kind":"call","line":207}
+{"file":"src/contracts.rs","caller":"kafka_send_re","name":"Regex::new(\n            r#\"\\b[A-Za-z_][A-Za-z0-9_]*\\.send\\(\\s*['\"]([A-Za-z_][\\w./:\\-]*)['\"]\"#,\n        )\n        .unwrap","kind":"call","line":211}
+{"file":"src/contracts.rs","caller":"kafka_send_re","name":"Regex::new","kind":"call","line":211}
+{"file":"src/contracts.rs","caller":"scan_python","name":"Vec","kind":"type_annotation","line":218}
+{"file":"src/contracts.rs","caller":"scan_python","name":"ContractRow","kind":"type_annotation","line":218}
+{"file":"src/contracts.rs","caller":"scan_python","name":"Vec::new","kind":"call","line":219}
+{"file":"src/contracts.rs","caller":"scan_python","name":"text.lines().enumerate","kind":"call","line":220}
+{"file":"src/contracts.rs","caller":"scan_python","name":"text.lines","kind":"call","line":220}
+{"file":"src/contracts.rs","caller":"scan_python","name":"fastapi_re().captures","kind":"call","line":221}
+{"file":"src/contracts.rs","caller":"scan_python","name":"fastapi_re","kind":"call","line":221}
+{"file":"src/contracts.rs","caller":"scan_python","name":"out.push","kind":"call","line":222}
+{"file":"src/contracts.rs","caller":"scan_python","name":"\"http\".to_string","kind":"call","line":223}
+{"file":"src/contracts.rs","caller":"scan_python","name":"\"provider\".to_string","kind":"call","line":224}
+{"file":"src/contracts.rs","caller":"scan_python","name":"caps[1].to_uppercase","kind":"call","line":225}
+{"file":"src/contracts.rs","caller":"scan_python","name":"caps[2].to_string","kind":"call","line":226}
+{"file":"src/contracts.rs","caller":"scan_python","name":"file.to_string","kind":"call","line":228}
+{"file":"src/contracts.rs","caller":"scan_python","name":"\"python\".to_string","kind":"call","line":230}
+{"file":"src/contracts.rs","caller":"scan_python","name":"\"fastapi\".to_string","kind":"call","line":231}
+{"file":"src/contracts.rs","caller":"scan_python","name":"kafka_send_re().captures","kind":"call","line":235}
+{"file":"src/contracts.rs","caller":"scan_python","name":"kafka_send_re","kind":"call","line":235}
+{"file":"src/contracts.rs","caller":"scan_python","name":"out.push","kind":"call","line":236}
+{"file":"src/contracts.rs","caller":"scan_python","name":"\"topic\".to_string","kind":"call","line":237}
+{"file":"src/contracts.rs","caller":"scan_python","name":"\"publisher\".to_string","kind":"call","line":238}
+{"file":"src/contracts.rs","caller":"scan_python","name":"caps[1].to_string","kind":"call","line":241}
+{"file":"src/contracts.rs","caller":"scan_python","name":"file.to_string","kind":"call","line":242}
+{"file":"src/contracts.rs","caller":"scan_python","name":"\"python\".to_string","kind":"call","line":244}
+{"file":"src/contracts.rs","caller":"scan_python","name":"\"kafka\".to_string","kind":"call","line":245}
 {"file":"src/cross_repo_cochange.rs","name":"anyhow::{Context, Result}","kind":"import","line":11}
 {"file":"src/cross_repo_cochange.rs","name":"serde::Serialize","kind":"import","line":12}
 {"file":"src/cross_repo_cochange.rs","name":"std::path::{Path, PathBuf}","kind":"import","line":13}
@@ -16111,34 +16155,56 @@
 {"file":"tests/contracts_integration.rs","caller":"parse","name":"l.is_empty","kind":"call","line":29}
 {"file":"tests/contracts_integration.rs","caller":"parse","name":"serde_json::from_str(l).expect","kind":"call","line":30}
 {"file":"tests/contracts_integration.rs","caller":"parse","name":"serde_json::from_str","kind":"call","line":30}
-{"file":"tests/contracts_integration.rs","caller":"detects_express_route_provider_and_axios_consumer","name":"TempDir::new().unwrap","kind":"call","line":36}
-{"file":"tests/contracts_integration.rs","caller":"detects_express_route_provider_and_axios_consumer","name":"TempDir::new","kind":"call","line":36}
-{"file":"tests/contracts_integration.rs","caller":"detects_express_route_provider_and_axios_consumer","name":"fs::write(\n        tmp.path().join(\"server.js\"),\n        r#\"const express = require('express');\nconst app = express();\napp.get('/users/:id', (req, res) => res.json({}));\napp.post('/users', (req, res) => res.json({}));\n\"#,\n    )\n    .unwrap","kind":"call","line":37}
-{"file":"tests/contracts_integration.rs","caller":"detects_express_route_provider_and_axios_consumer","name":"tmp.path().join","kind":"call","line":38}
-{"file":"tests/contracts_integration.rs","caller":"detects_express_route_provider_and_axios_consumer","name":"tmp.path","kind":"call","line":38}
-{"file":"tests/contracts_integration.rs","caller":"detects_express_route_provider_and_axios_consumer","name":"fs::write(\n        tmp.path().join(\"client.ts\"),\n        r#\"import axios from 'axios';\nasync function fetchUser(id: string) {\n    return await axios.get(`/api/users/${id}`);\n}\nasync function createUser() {\n    return await axios.post('/api/users', { name: 'x' });\n}\n\"#,\n    )\n    .unwrap","kind":"call","line":46}
-{"file":"tests/contracts_integration.rs","caller":"detects_express_route_provider_and_axios_consumer","name":"tmp.path().join","kind":"call","line":47}
-{"file":"tests/contracts_integration.rs","caller":"detects_express_route_provider_and_axios_consumer","name":"tmp.path","kind":"call","line":47}
-{"file":"tests/contracts_integration.rs","caller":"detects_express_route_provider_and_axios_consumer","name":"run_contracts","kind":"call","line":58}
-{"file":"tests/contracts_integration.rs","caller":"detects_express_route_provider_and_axios_consumer","name":"tmp.path","kind":"call","line":58}
-{"file":"tests/contracts_integration.rs","caller":"detects_express_route_provider_and_axios_consumer","name":"parse","kind":"call","line":60}
-{"file":"tests/contracts_integration.rs","caller":"detects_express_route_provider_and_axios_consumer","name":"rows.iter().filter(|r| r[\"role\"] == \"provider\").collect","kind":"call","line":61}
-{"file":"tests/contracts_integration.rs","caller":"detects_express_route_provider_and_axios_consumer","name":"rows.iter().filter","kind":"call","line":61}
-{"file":"tests/contracts_integration.rs","caller":"detects_express_route_provider_and_axios_consumer","name":"rows.iter","kind":"call","line":61}
-{"file":"tests/contracts_integration.rs","caller":"detects_express_route_provider_and_axios_consumer","name":"rows.iter().filter(|r| r[\"role\"] == \"consumer\").collect","kind":"call","line":66}
-{"file":"tests/contracts_integration.rs","caller":"detects_express_route_provider_and_axios_consumer","name":"rows.iter().filter","kind":"call","line":66}
-{"file":"tests/contracts_integration.rs","caller":"detects_express_route_provider_and_axios_consumer","name":"rows.iter","kind":"call","line":66}
-{"file":"tests/contracts_integration.rs","caller":"detects_fastapi_route_provider","name":"TempDir::new().unwrap","kind":"call","line":75}
-{"file":"tests/contracts_integration.rs","caller":"detects_fastapi_route_provider","name":"TempDir::new","kind":"call","line":75}
-{"file":"tests/contracts_integration.rs","caller":"detects_fastapi_route_provider","name":"fs::write(\n        tmp.path().join(\"api.py\"),\n        r#\"from fastapi import FastAPI\napp = FastAPI()\n\n@app.get(\"/users/{user_id}\")\ndef get_user(user_id: int):\n    return {}\n\n@app.post(\"/users\")\ndef create_user():\n    return {}\n\"#,\n    )\n    .unwrap","kind":"call","line":76}
-{"file":"tests/contracts_integration.rs","caller":"detects_fastapi_route_provider","name":"tmp.path().join","kind":"call","line":77}
-{"file":"tests/contracts_integration.rs","caller":"detects_fastapi_route_provider","name":"tmp.path","kind":"call","line":77}
-{"file":"tests/contracts_integration.rs","caller":"detects_fastapi_route_provider","name":"run_contracts","kind":"call","line":91}
-{"file":"tests/contracts_integration.rs","caller":"detects_fastapi_route_provider","name":"tmp.path","kind":"call","line":91}
-{"file":"tests/contracts_integration.rs","caller":"detects_fastapi_route_provider","name":"parse","kind":"call","line":93}
-{"file":"tests/contracts_integration.rs","caller":"detects_fastapi_route_provider","name":"rows.iter().filter(|r| r[\"role\"] == \"provider\").collect","kind":"call","line":94}
-{"file":"tests/contracts_integration.rs","caller":"detects_fastapi_route_provider","name":"rows.iter().filter","kind":"call","line":94}
-{"file":"tests/contracts_integration.rs","caller":"detects_fastapi_route_provider","name":"rows.iter","kind":"call","line":94}
+{"file":"tests/contracts_integration.rs","caller":"detects_kafka_publisher_topic","name":"TempDir::new().unwrap","kind":"call","line":36}
+{"file":"tests/contracts_integration.rs","caller":"detects_kafka_publisher_topic","name":"TempDir::new","kind":"call","line":36}
+{"file":"tests/contracts_integration.rs","caller":"detects_kafka_publisher_topic","name":"fs::write(\n        tmp.path().join(\"worker.py\"),\n        r#\"from kafka import KafkaProducer\nproducer = KafkaProducer(bootstrap_servers='broker:9092')\n\ndef emit(event):\n    producer.send('notifications-events', value=event)\n\"#,\n    )\n    .unwrap","kind":"call","line":37}
+{"file":"tests/contracts_integration.rs","caller":"detects_kafka_publisher_topic","name":"tmp.path().join","kind":"call","line":38}
+{"file":"tests/contracts_integration.rs","caller":"detects_kafka_publisher_topic","name":"tmp.path","kind":"call","line":38}
+{"file":"tests/contracts_integration.rs","caller":"detects_kafka_publisher_topic","name":"run_contracts","kind":"call","line":47}
+{"file":"tests/contracts_integration.rs","caller":"detects_kafka_publisher_topic","name":"tmp.path","kind":"call","line":47}
+{"file":"tests/contracts_integration.rs","caller":"detects_kafka_publisher_topic","name":"parse","kind":"call","line":49}
+{"file":"tests/contracts_integration.rs","caller":"detects_kafka_publisher_topic","name":"rows.iter().filter(|r| r[\"kind\"] == \"topic\").collect","kind":"call","line":50}
+{"file":"tests/contracts_integration.rs","caller":"detects_kafka_publisher_topic","name":"rows.iter().filter","kind":"call","line":50}
+{"file":"tests/contracts_integration.rs","caller":"detects_kafka_publisher_topic","name":"rows.iter","kind":"call","line":50}
+{"file":"tests/contracts_integration.rs","caller":"detects_grpc_service_and_rpc_methods_from_proto","name":"TempDir::new().unwrap","kind":"call","line":59}
+{"file":"tests/contracts_integration.rs","caller":"detects_grpc_service_and_rpc_methods_from_proto","name":"TempDir::new","kind":"call","line":59}
+{"file":"tests/contracts_integration.rs","caller":"detects_grpc_service_and_rpc_methods_from_proto","name":"fs::write(\n        tmp.path().join(\"notify.proto\"),\n        r#\"syntax = \"proto3\";\npackage notify.v1;\n\nservice NotifyService {\n  rpc SendEmail(SendEmailRequest) returns (SendEmailResponse);\n  rpc SendSms(SendSmsRequest) returns (SendSmsResponse);\n}\n\nmessage SendEmailRequest { string to = 1; }\nmessage SendEmailResponse { string id = 1; }\n\"#,\n    )\n    .unwrap","kind":"call","line":60}
+{"file":"tests/contracts_integration.rs","caller":"detects_grpc_service_and_rpc_methods_from_proto","name":"tmp.path().join","kind":"call","line":61}
+{"file":"tests/contracts_integration.rs","caller":"detects_grpc_service_and_rpc_methods_from_proto","name":"tmp.path","kind":"call","line":61}
+{"file":"tests/contracts_integration.rs","caller":"detects_grpc_service_and_rpc_methods_from_proto","name":"run_contracts","kind":"call","line":75}
+{"file":"tests/contracts_integration.rs","caller":"detects_grpc_service_and_rpc_methods_from_proto","name":"tmp.path","kind":"call","line":75}
+{"file":"tests/contracts_integration.rs","caller":"detects_grpc_service_and_rpc_methods_from_proto","name":"parse","kind":"call","line":77}
+{"file":"tests/contracts_integration.rs","caller":"detects_grpc_service_and_rpc_methods_from_proto","name":"rows.iter().filter(|r| r[\"kind\"] == \"grpc\").collect","kind":"call","line":78}
+{"file":"tests/contracts_integration.rs","caller":"detects_grpc_service_and_rpc_methods_from_proto","name":"rows.iter().filter","kind":"call","line":78}
+{"file":"tests/contracts_integration.rs","caller":"detects_grpc_service_and_rpc_methods_from_proto","name":"rows.iter","kind":"call","line":78}
+{"file":"tests/contracts_integration.rs","caller":"detects_express_route_provider_and_axios_consumer","name":"TempDir::new().unwrap","kind":"call","line":91}
+{"file":"tests/contracts_integration.rs","caller":"detects_express_route_provider_and_axios_consumer","name":"TempDir::new","kind":"call","line":91}
+{"file":"tests/contracts_integration.rs","caller":"detects_express_route_provider_and_axios_consumer","name":"fs::write(\n        tmp.path().join(\"server.js\"),\n        r#\"const express = require('express');\nconst app = express();\napp.get('/users/:id', (req, res) => res.json({}));\napp.post('/users', (req, res) => res.json({}));\n\"#,\n    )\n    .unwrap","kind":"call","line":92}
+{"file":"tests/contracts_integration.rs","caller":"detects_express_route_provider_and_axios_consumer","name":"tmp.path().join","kind":"call","line":93}
+{"file":"tests/contracts_integration.rs","caller":"detects_express_route_provider_and_axios_consumer","name":"tmp.path","kind":"call","line":93}
+{"file":"tests/contracts_integration.rs","caller":"detects_express_route_provider_and_axios_consumer","name":"fs::write(\n        tmp.path().join(\"client.ts\"),\n        r#\"import axios from 'axios';\nasync function fetchUser(id: string) {\n    return await axios.get(`/api/users/${id}`);\n}\nasync function createUser() {\n    return await axios.post('/api/users', { name: 'x' });\n}\n\"#,\n    )\n    .unwrap","kind":"call","line":101}
+{"file":"tests/contracts_integration.rs","caller":"detects_express_route_provider_and_axios_consumer","name":"tmp.path().join","kind":"call","line":102}
+{"file":"tests/contracts_integration.rs","caller":"detects_express_route_provider_and_axios_consumer","name":"tmp.path","kind":"call","line":102}
+{"file":"tests/contracts_integration.rs","caller":"detects_express_route_provider_and_axios_consumer","name":"run_contracts","kind":"call","line":113}
+{"file":"tests/contracts_integration.rs","caller":"detects_express_route_provider_and_axios_consumer","name":"tmp.path","kind":"call","line":113}
+{"file":"tests/contracts_integration.rs","caller":"detects_express_route_provider_and_axios_consumer","name":"parse","kind":"call","line":115}
+{"file":"tests/contracts_integration.rs","caller":"detects_express_route_provider_and_axios_consumer","name":"rows.iter().filter(|r| r[\"role\"] == \"provider\").collect","kind":"call","line":116}
+{"file":"tests/contracts_integration.rs","caller":"detects_express_route_provider_and_axios_consumer","name":"rows.iter().filter","kind":"call","line":116}
+{"file":"tests/contracts_integration.rs","caller":"detects_express_route_provider_and_axios_consumer","name":"rows.iter","kind":"call","line":116}
+{"file":"tests/contracts_integration.rs","caller":"detects_express_route_provider_and_axios_consumer","name":"rows.iter().filter(|r| r[\"role\"] == \"consumer\").collect","kind":"call","line":121}
+{"file":"tests/contracts_integration.rs","caller":"detects_express_route_provider_and_axios_consumer","name":"rows.iter().filter","kind":"call","line":121}
+{"file":"tests/contracts_integration.rs","caller":"detects_express_route_provider_and_axios_consumer","name":"rows.iter","kind":"call","line":121}
+{"file":"tests/contracts_integration.rs","caller":"detects_fastapi_route_provider","name":"TempDir::new().unwrap","kind":"call","line":130}
+{"file":"tests/contracts_integration.rs","caller":"detects_fastapi_route_provider","name":"TempDir::new","kind":"call","line":130}
+{"file":"tests/contracts_integration.rs","caller":"detects_fastapi_route_provider","name":"fs::write(\n        tmp.path().join(\"api.py\"),\n        r#\"from fastapi import FastAPI\napp = FastAPI()\n\n@app.get(\"/users/{user_id}\")\ndef get_user(user_id: int):\n    return {}\n\n@app.post(\"/users\")\ndef create_user():\n    return {}\n\"#,\n    )\n    .unwrap","kind":"call","line":131}
+{"file":"tests/contracts_integration.rs","caller":"detects_fastapi_route_provider","name":"tmp.path().join","kind":"call","line":132}
+{"file":"tests/contracts_integration.rs","caller":"detects_fastapi_route_provider","name":"tmp.path","kind":"call","line":132}
+{"file":"tests/contracts_integration.rs","caller":"detects_fastapi_route_provider","name":"run_contracts","kind":"call","line":146}
+{"file":"tests/contracts_integration.rs","caller":"detects_fastapi_route_provider","name":"tmp.path","kind":"call","line":146}
+{"file":"tests/contracts_integration.rs","caller":"detects_fastapi_route_provider","name":"parse","kind":"call","line":148}
+{"file":"tests/contracts_integration.rs","caller":"detects_fastapi_route_provider","name":"rows.iter().filter(|r| r[\"role\"] == \"provider\").collect","kind":"call","line":149}
+{"file":"tests/contracts_integration.rs","caller":"detects_fastapi_route_provider","name":"rows.iter().filter","kind":"call","line":149}
+{"file":"tests/contracts_integration.rs","caller":"detects_fastapi_route_provider","name":"rows.iter","kind":"call","line":149}
 {"file":"tests/cross_repo_cochange_integration.rs","name":"std::fs","kind":"import","line":4}
 {"file":"tests/cross_repo_cochange_integration.rs","name":"std::process::Command","kind":"import","line":5}
 {"file":"tests/cross_repo_cochange_integration.rs","name":"tempfile::TempDir","kind":"import","line":6}
