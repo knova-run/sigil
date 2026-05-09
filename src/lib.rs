@@ -40,4 +40,5 @@ pub mod review;
 pub mod signature;
 pub mod tokens;
 pub mod where_cmd;
+pub mod workspace;
 pub mod writer;

@@ -717,6 +717,24 @@ enum Cli {
         #[arg(short, long, default_value = ".")]
         root: PathBuf,
     },
+    /// Coordinator over multiple git repos under a parent directory.
+    Workspace {
+        #[command(subcommand)]
+        action: WorkspaceAction,
+    },
+}
+
+#[derive(Subcommand)]
+enum WorkspaceAction {
+    /// List child git repos under the workspace root. Emits one JSONL row
+    /// per repo with { repo, path }. Used by callers that iterate the
+    /// workspace and run per-repo primitives (decisions, contracts,
+    /// package-deps, ...).
+    Scan {
+        /// Workspace root directory (parent of the child git repos)
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
+    },
 }
 
 #[derive(Subcommand)]
@@ -1665,6 +1683,19 @@ fn main() {
                 }
             }
         }
+        Cli::Workspace { action } => match action {
+            WorkspaceAction::Scan { root } => {
+                for entry in sigil::workspace::scan(&root) {
+                    match serde_json::to_string(&entry) {
+                        Ok(s) => println!("{}", s),
+                        Err(e) => {
+                            eprintln!("workspace scan: failed to serialize: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+            }
+        },
     }
 }
 
