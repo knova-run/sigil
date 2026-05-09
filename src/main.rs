@@ -662,6 +662,17 @@ enum Cli {
     },
     /// Update sigil to the latest release
     Update,
+    /// Extract symbol-shaped identifiers from arbitrary text.
+    ///
+    /// Deterministic regex-based extractor for CamelCase, snake_case, and
+    /// dotted-path tokens (e.g. `NearestCentroid`, `_local_density`,
+    /// `Class::method`). Used by retrieval pipelines that want to join a
+    /// natural-language question against indexed entity names. JSON array
+    /// of strings on stdout.
+    Identifiers {
+        /// Source text. Pass on the command line or via stdin (use `-`).
+        text: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -1536,6 +1547,16 @@ fn main() {
                 }
                 Err(e) => {
                     eprintln!("Update failed: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+        Cli::Identifiers { text } => {
+            let ids = sigil::identifiers::extract(&text);
+            match serde_json::to_string(&ids) {
+                Ok(s) => println!("{}", s),
+                Err(e) => {
+                    eprintln!("identifiers: failed to serialize: {}", e);
                     std::process::exit(1);
                 }
             }
