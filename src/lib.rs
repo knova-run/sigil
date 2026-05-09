@@ -30,6 +30,7 @@ pub mod decisions;
 pub mod map;
 pub mod outline;
 pub mod output;
+pub mod package_deps;
 pub mod parser;
 pub mod query;
 pub mod rank;

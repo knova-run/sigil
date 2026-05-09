@@ -684,6 +684,17 @@ enum Cli {
         #[arg(short, long, default_value = ".")]
         root: PathBuf,
     },
+    /// Extract package dependency edges from manifest files.
+    ///
+    /// Currently supports `go.mod`. Emits one JSONL row per (manifest,
+    /// dependency, version) edge. Used by workspace-mode tooling to
+    /// detect cross-repo dependency relationships without an LLM call.
+    #[command(name = "package-deps")]
+    PackageDeps {
+        /// Project root directory
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
+    },
 }
 
 #[derive(Subcommand)]
@@ -1578,6 +1589,17 @@ fn main() {
                     Ok(s) => println!("{}", s),
                     Err(e) => {
                         eprintln!("decisions: failed to serialize: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+        }
+        Cli::PackageDeps { root } => {
+            for edge in sigil::package_deps::extract_from_root(&root) {
+                match serde_json::to_string(&edge) {
+                    Ok(s) => println!("{}", s),
+                    Err(e) => {
+                        eprintln!("package-deps: failed to serialize: {}", e);
                         std::process::exit(1);
                     }
                 }
