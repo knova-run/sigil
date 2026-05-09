@@ -22,6 +22,40 @@ pub struct CrossRepoEdge {
     pub strength: f64,
     pub frequency: u32,
     pub last_unix: i64,
+    /// ISO `yyyy-mm-dd` form of `last_unix` — matches repowise's
+    /// `CrossRepoCoChange.last_date` so the schemas interoperate
+    /// without conversion.
+    pub last_date: String,
+}
+
+fn unix_to_iso_date(unix: i64) -> String {
+    // Compute year-month-day from epoch seconds, UTC. Avoids pulling in a
+    // full chrono dep for one date format.
+    // Algorithm: days since 1970-01-01, walk year/month boundaries.
+    let mut days = unix.div_euclid(86_400);
+    let mut year: i64 = 1970;
+    loop {
+        let leap = is_leap(year);
+        let yd = if leap { 366 } else { 365 };
+        if days < yd { break; }
+        days -= yd;
+        year += 1;
+    }
+    let months_normal = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    let mut month = 1;
+    let mut day_of_year_remaining = days;
+    for (i, m) in months_normal.iter().enumerate() {
+        let len = if i == 1 && is_leap(year) { 29 } else { *m };
+        if day_of_year_remaining < len { break; }
+        day_of_year_remaining -= len;
+        month += 1;
+    }
+    let day = day_of_year_remaining + 1;
+    format!("{year:04}-{month:02}-{day:02}")
+}
+
+fn is_leap(year: i64) -> bool {
+    (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)
 }
 
 #[derive(Debug, Clone)]
@@ -160,6 +194,7 @@ fn correlate(events: Vec<ChangeEvent>, cfg: &CrossRepoConfig) -> Vec<CrossRepoEd
                 strength,
                 frequency: freq,
                 last_unix,
+                last_date: unix_to_iso_date(last_unix),
             }
         })
         .filter(|e| e.strength >= cfg.min_strength)

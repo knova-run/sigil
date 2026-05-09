@@ -25,7 +25,11 @@ pub struct DecisionMarker {
     pub text: String,
 }
 
-const MARKERS: &[&str] = &["DECISION", "WHY", "RATIONALE", "TRADEOFF"];
+// Marker set matches repowise's MARKER_RE so the same source produces an
+// identical decision-row set under either extractor.
+const MARKERS: &[&str] = &[
+    "DECISION", "WHY", "RATIONALE", "TRADEOFF", "ADR", "REJECTED",
+];
 
 /// Extract decision markers from a single file's source text.
 pub fn extract_from_text(file_label: &str, source: &str) -> Vec<DecisionMarker> {

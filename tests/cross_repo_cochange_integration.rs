@@ -92,4 +92,12 @@ fn detects_cross_repo_pair_for_temporally_correlated_commits() {
         pair == ("backend", "frontend") || pair == ("frontend", "backend"),
         "expected backend/frontend pair, got {pair:?}"
     );
+    // Repowise's CrossRepoCoChange surfaces last_date as ISO yyyy-mm-dd.
+    // We expose both forms (last_unix epoch + last_date ISO) so consumers
+    // matching the repowise schema don't have to convert.
+    let last_date = row["last_date"].as_str().expect("last_date should be present");
+    assert!(
+        last_date.len() == 10 && &last_date[4..5] == "-" && &last_date[7..8] == "-",
+        "expected ISO yyyy-mm-dd last_date, got {last_date}"
+    );
 }

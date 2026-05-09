@@ -24,6 +24,36 @@ fn run_decisions(root: &std::path::Path) -> (String, String, bool) {
 }
 
 #[test]
+fn recognizes_adr_and_rejected_markers_repowise_compatible() {
+    // Repowise's MARKER_RE recognizes WHY|DECISION|TRADEOFF|ADR|RATIONALE|REJECTED.
+    // Our extractor must accept the same set so the same source code produces
+    // the same set of decision rows under either tool.
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("auth.py"),
+        "# ADR: split auth into its own service\n# REJECTED: in-process auth\n",
+    )
+    .unwrap();
+    let (stdout, stderr, ok) = run_decisions(tmp.path());
+    assert!(ok, "stderr: {stderr}");
+    let markers: Vec<String> = stdout
+        .lines()
+        .filter(|l| !l.is_empty())
+        .map(|l| {
+            serde_json::from_str::<serde_json::Value>(l).unwrap()["marker"]
+                .as_str()
+                .unwrap()
+                .to_string()
+        })
+        .collect();
+    assert!(markers.contains(&"ADR".to_string()), "expected ADR in {markers:?}");
+    assert!(
+        markers.contains(&"REJECTED".to_string()),
+        "expected REJECTED in {markers:?}"
+    );
+}
+
+#[test]
 fn ignores_non_marker_comments_and_skips_dependency_dirs() {
     let tmp = TempDir::new().unwrap();
     // ordinary comments — no marker, must be skipped

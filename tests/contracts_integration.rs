@@ -32,6 +32,37 @@ fn parse(stdout: &str) -> Vec<serde_json::Value> {
 }
 
 #[test]
+fn http_paths_are_normalized_to_match_repowise_form() {
+    // Match repowise's normalize_http_path: path-style params (`:id`,
+    // `{userId}`, `[id]`) collapse to `{param}`; query strings and trailing
+    // slashes are stripped; case is lowered. The contract_id field is the
+    // canonical join key for cross-repo matching.
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("api.py"),
+        r#"@app.get("/Api/Users/{user_id}/")
+def get_user(user_id: int): pass
+
+@app.post("/api/items?page=1")
+def list_items(): pass
+"#,
+    )
+    .unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let ids: Vec<&str> = rows.iter().map(|r| r["contract_id"].as_str().unwrap()).collect();
+    assert!(
+        ids.contains(&"http::GET::/api/users/{param}"),
+        "expected normalized id 'http::GET::/api/users/{{param}}', got {ids:?}"
+    );
+    assert!(
+        ids.contains(&"http::POST::/api/items"),
+        "expected normalized id 'http::POST::/api/items', got {ids:?}"
+    );
+}
+
+#[test]
 fn detects_kafka_publisher_topic() {
     let tmp = TempDir::new().unwrap();
     fs::write(
@@ -115,13 +146,13 @@ async function createUser() {
     let rows = parse(&stdout);
     let providers: Vec<&serde_json::Value> = rows.iter().filter(|r| r["role"] == "provider").collect();
     assert!(
-        providers.iter().any(|r| r["method"] == "GET" && r["path"] == "/users/:id"),
-        "expected GET /users/:id provider, got {providers:?}"
+        providers.iter().any(|r| r["contract_id"] == "http::GET::/users/{param}"),
+        "expected GET /users/{{param}} provider contract_id, got {providers:?}"
     );
     let consumers: Vec<&serde_json::Value> = rows.iter().filter(|r| r["role"] == "consumer").collect();
     assert!(
-        consumers.iter().any(|r| r["method"] == "POST" && r["path"] == "/api/users"),
-        "expected POST /api/users consumer, got {consumers:?}"
+        consumers.iter().any(|r| r["contract_id"] == "http::POST::/api/users"),
+        "expected POST /api/users consumer contract_id, got {consumers:?}"
     );
 }
 
@@ -147,12 +178,14 @@ def create_user():
     assert!(ok, "stderr: {stderr}");
     let rows = parse(&stdout);
     let providers: Vec<&serde_json::Value> = rows.iter().filter(|r| r["role"] == "provider").collect();
+    // path is the normalized form ({user_id} → {param}); the original raw
+    // form is preserved in the framework signature on disk if needed.
     assert!(
-        providers.iter().any(|r| r["method"] == "GET" && r["path"] == "/users/{user_id}"),
-        "expected GET /users/{{user_id}}, got {providers:?}"
+        providers.iter().any(|r| r["contract_id"] == "http::GET::/users/{param}"),
+        "expected GET /users/{{param}} contract_id, got {providers:?}"
     );
     assert!(
-        providers.iter().any(|r| r["method"] == "POST" && r["path"] == "/users"),
-        "expected POST /users, got {providers:?}"
+        providers.iter().any(|r| r["contract_id"] == "http::POST::/users"),
+        "expected POST /users contract_id, got {providers:?}"
     );
 }

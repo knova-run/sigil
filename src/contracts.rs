@@ -22,8 +22,16 @@ use std::sync::OnceLock;
 
 #[derive(Debug, Serialize, PartialEq)]
 pub struct ContractRow {
+    /// Composite join key matching repowise's contract_id form:
+    ///   - HTTP:  `http::<METHOD>::<NORMALIZED_PATH>`
+    ///   - gRPC:  `grpc::<Service>/<Method>`
+    ///   - Topic: `topic::<topic-name>`
+    /// Path-style params (`:id`, `{userId}`, `[id]`) are normalized to
+    /// `{param}` so the same contract from different framework conventions
+    /// produces an identical id — required for cross-repo matching.
+    pub contract_id: String,
     pub kind: String,         // "http" | "grpc" | "topic"
-    pub role: String,         // "provider" | "consumer"
+    pub role: String,         // "provider" | "consumer" | "publisher" | "subscriber"
     #[serde(skip_serializing_if = "Option::is_none")]
     pub method: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -34,6 +42,32 @@ pub struct ContractRow {
     pub line: u32,
     pub language: String,
     pub framework: String,
+}
+
+/// Normalize an HTTP path so paths from different framework conventions
+/// produce an identical canonical form. Mirrors repowise's normalize_http_path:
+///
+///   - strip query string
+///   - strip trailing slash (preserve root `/`)
+///   - lowercase
+///   - collapse `:param`, `{name}`, `[name]` → `{param}`
+pub fn normalize_http_path(path: &str) -> String {
+    let no_query = match path.split_once('?') {
+        Some((head, _)) => head,
+        None => path,
+    };
+    let lower = no_query.to_ascii_lowercase();
+    let trimmed: String = if lower.len() > 1 && lower.ends_with('/') {
+        lower.trim_end_matches('/').to_string()
+    } else {
+        lower
+    };
+    // Collapse all three param styles to {param} via a single regex pass.
+    static PARAM_RE: OnceLock<Regex> = OnceLock::new();
+    let re = PARAM_RE.get_or_init(|| {
+        Regex::new(r":[A-Za-z_][A-Za-z0-9_]*|\{[^}]+\}|\[[^\]]+\]").unwrap()
+    });
+    re.replace_all(&trimmed, "{param}").into_owned()
 }
 
 /// Walk `root` and return all contract rows discovered.
@@ -130,11 +164,14 @@ fn scan_js_ts(file: &str, text: &str, ext: &str) -> Vec<ContractRow> {
         // axios consumer first — `axios.<verb>` would also match the express
         // regex (it's a method-call shape), so check axios specifically.
         if let Some(caps) = axios_re().captures(line) {
+            let method = caps[1].to_uppercase();
+            let normalized = normalize_http_path(&caps[2]);
             out.push(ContractRow {
+                contract_id: format!("http::{method}::{normalized}"),
                 kind: "http".to_string(),
                 role: "consumer".to_string(),
-                method: Some(caps[1].to_uppercase()),
-                path: Some(caps[2].to_string()),
+                method: Some(method),
+                path: Some(normalized),
                 topic: None,
                 file: file.to_string(),
                 line: (i + 1) as u32,
@@ -144,11 +181,14 @@ fn scan_js_ts(file: &str, text: &str, ext: &str) -> Vec<ContractRow> {
             continue;
         }
         if let Some(caps) = express_re().captures(line) {
+            let method = caps[1].to_uppercase();
+            let normalized = normalize_http_path(&caps[2]);
             out.push(ContractRow {
+                contract_id: format!("http::{method}::{normalized}"),
                 kind: "http".to_string(),
                 role: "provider".to_string(),
-                method: Some(caps[1].to_uppercase()),
-                path: Some(caps[2].to_string()),
+                method: Some(method),
+                path: Some(normalized),
                 topic: None,
                 file: file.to_string(),
                 line: (i + 1) as u32,
@@ -185,11 +225,13 @@ fn scan_proto(file: &str, text: &str) -> Vec<ContractRow> {
         }
         if let Some(svc) = current_service.as_deref() {
             if let Some(caps) = proto_rpc_re().captures(line) {
+                let path = format!("{svc}/{}", &caps[1]);
                 out.push(ContractRow {
+                    contract_id: format!("grpc::{path}"),
                     kind: "grpc".to_string(),
                     role: "provider".to_string(),
                     method: None,
-                    path: Some(format!("{svc}/{}", &caps[1])),
+                    path: Some(path),
                     topic: None,
                     file: file.to_string(),
                     line: (i + 1) as u32,
@@ -219,11 +261,14 @@ fn scan_python(file: &str, text: &str) -> Vec<ContractRow> {
     let mut out = Vec::new();
     for (i, line) in text.lines().enumerate() {
         if let Some(caps) = fastapi_re().captures(line) {
+            let method = caps[1].to_uppercase();
+            let normalized = normalize_http_path(&caps[2]);
             out.push(ContractRow {
+                contract_id: format!("http::{method}::{normalized}"),
                 kind: "http".to_string(),
                 role: "provider".to_string(),
-                method: Some(caps[1].to_uppercase()),
-                path: Some(caps[2].to_string()),
+                method: Some(method),
+                path: Some(normalized),
                 topic: None,
                 file: file.to_string(),
                 line: (i + 1) as u32,
@@ -233,12 +278,14 @@ fn scan_python(file: &str, text: &str) -> Vec<ContractRow> {
             continue;
         }
         if let Some(caps) = kafka_send_re().captures(line) {
+            let topic = caps[1].to_string();
             out.push(ContractRow {
+                contract_id: format!("topic::{topic}"),
                 kind: "topic".to_string(),
                 role: "publisher".to_string(),
                 method: None,
                 path: None,
-                topic: Some(caps[1].to_string()),
+                topic: Some(topic),
                 file: file.to_string(),
                 line: (i + 1) as u32,
                 language: "python".to_string(),
