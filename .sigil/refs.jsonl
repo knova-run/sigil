@@ -2217,44 +2217,42 @@
 {"file":"src/decisions.rs","caller":"scan_line","name":"stripped.strip_prefix","kind":"call","line":55}
 {"file":"src/decisions.rs","caller":"scan_line","name":"stripped.strip_prefix","kind":"call","line":57}
 {"file":"src/decisions.rs","caller":"scan_line","name":"after_prefix.trim_start","kind":"call","line":62}
-{"file":"src/decisions.rs","caller":"scan_line","name":"trimmed.len","kind":"call","line":65}
+{"file":"src/decisions.rs","caller":"scan_line","name":"trimmed.as_bytes","kind":"call","line":63}
 {"file":"src/decisions.rs","caller":"scan_line","name":"marker.len","kind":"call","line":65}
-{"file":"src/decisions.rs","caller":"scan_line","name":"marker.len","kind":"call","line":66}
-{"file":"src/decisions.rs","caller":"scan_line","name":"head.eq_ignore_ascii_case","kind":"call","line":67}
-{"file":"src/decisions.rs","caller":"scan_line","name":"trimmed.as_bytes","kind":"call","line":68}
-{"file":"src/decisions.rs","caller":"scan_line","name":"marker.len","kind":"call","line":68}
-{"file":"src/decisions.rs","caller":"scan_line","name":"trimmed[marker.len() + 1..].trim","kind":"call","line":70}
-{"file":"src/decisions.rs","caller":"scan_line","name":"marker.len","kind":"call","line":70}
-{"file":"src/decisions.rs","caller":"scan_line","name":"body.is_empty","kind":"call","line":71}
-{"file":"src/decisions.rs","caller":"extract_from_root","name":"Path","kind":"type_annotation","line":82}
-{"file":"src/decisions.rs","caller":"extract_from_root","name":"Vec","kind":"type_annotation","line":82}
-{"file":"src/decisions.rs","caller":"extract_from_root","name":"DecisionMarker","kind":"type_annotation","line":82}
-{"file":"src/decisions.rs","caller":"extract_from_root","name":"Vec::new","kind":"call","line":83}
-{"file":"src/decisions.rs","caller":"extract_from_root","name":"walk","kind":"call","line":84}
-{"file":"src/decisions.rs","caller":"walk","name":"Vec","kind":"type_annotation","line":88}
-{"file":"src/decisions.rs","caller":"walk","name":"DecisionMarker","kind":"type_annotation","line":88}
-{"file":"src/decisions.rs","caller":"walk","name":"Path","kind":"type_annotation","line":88}
-{"file":"src/decisions.rs","caller":"walk","name":"Path","kind":"type_annotation","line":88}
-{"file":"src/decisions.rs","caller":"walk","name":"std::fs::read_dir","kind":"call","line":89}
-{"file":"src/decisions.rs","caller":"walk","name":"entries.flatten","kind":"call","line":93}
-{"file":"src/decisions.rs","caller":"walk","name":"entry.path","kind":"call","line":94}
-{"file":"src/decisions.rs","caller":"walk","name":"path.is_dir","kind":"call","line":95}
-{"file":"src/decisions.rs","caller":"walk","name":"is_skipped_dir","kind":"call","line":96}
-{"file":"src/decisions.rs","caller":"walk","name":"walk","kind":"call","line":99}
-{"file":"src/decisions.rs","caller":"walk","name":"is_scanned_file","kind":"call","line":102}
-{"file":"src/decisions.rs","caller":"walk","name":"std::fs::read_to_string","kind":"call","line":105}
-{"file":"src/decisions.rs","caller":"walk","name":"path.strip_prefix(root).unwrap_or(&path).to_string_lossy().to_string","kind":"call","line":108}
-{"file":"src/decisions.rs","caller":"walk","name":"path.strip_prefix(root).unwrap_or(&path).to_string_lossy","kind":"call","line":108}
-{"file":"src/decisions.rs","caller":"walk","name":"path.strip_prefix(root).unwrap_or","kind":"call","line":108}
-{"file":"src/decisions.rs","caller":"walk","name":"path.strip_prefix","kind":"call","line":108}
-{"file":"src/decisions.rs","caller":"walk","name":"out.extend","kind":"call","line":109}
-{"file":"src/decisions.rs","caller":"walk","name":"extract_from_text","kind":"call","line":109}
-{"file":"src/decisions.rs","caller":"is_skipped_dir","name":"Path","kind":"type_annotation","line":113}
-{"file":"src/decisions.rs","caller":"is_skipped_dir","name":"path.file_name","kind":"call","line":114}
-{"file":"src/decisions.rs","caller":"is_skipped_dir","name":"n.to_string_lossy","kind":"call","line":115}
-{"file":"src/decisions.rs","caller":"is_scanned_file","name":"Path","kind":"type_annotation","line":134}
-{"file":"src/decisions.rs","caller":"_phantom","name":"PathBuf","kind":"type_annotation","line":146}
-{"file":"src/decisions.rs","caller":"_phantom","name":"PathBuf::new","kind":"call","line":147}
+{"file":"src/decisions.rs","caller":"scan_line","name":"bytes.len","kind":"call","line":66}
+{"file":"src/decisions.rs","caller":"scan_line","name":"bytes[..m_len].is_ascii","kind":"call","line":72}
+{"file":"src/decisions.rs","caller":"scan_line","name":"head.eq_ignore_ascii_case","kind":"call","line":76}
+{"file":"src/decisions.rs","caller":"scan_line","name":"trimmed[m_len + 1..].trim","kind":"call","line":78}
+{"file":"src/decisions.rs","caller":"scan_line","name":"body.is_empty","kind":"call","line":79}
+{"file":"src/decisions.rs","caller":"extract_from_root","name":"Path","kind":"type_annotation","line":89}
+{"file":"src/decisions.rs","caller":"extract_from_root","name":"Vec","kind":"type_annotation","line":89}
+{"file":"src/decisions.rs","caller":"extract_from_root","name":"DecisionMarker","kind":"type_annotation","line":89}
+{"file":"src/decisions.rs","caller":"extract_from_root","name":"Vec::new","kind":"call","line":90}
+{"file":"src/decisions.rs","caller":"extract_from_root","name":"walk","kind":"call","line":91}
+{"file":"src/decisions.rs","caller":"walk","name":"Vec","kind":"type_annotation","line":95}
+{"file":"src/decisions.rs","caller":"walk","name":"DecisionMarker","kind":"type_annotation","line":95}
+{"file":"src/decisions.rs","caller":"walk","name":"Path","kind":"type_annotation","line":95}
+{"file":"src/decisions.rs","caller":"walk","name":"Path","kind":"type_annotation","line":95}
+{"file":"src/decisions.rs","caller":"walk","name":"std::fs::read_dir","kind":"call","line":96}
+{"file":"src/decisions.rs","caller":"walk","name":"entries.flatten","kind":"call","line":100}
+{"file":"src/decisions.rs","caller":"walk","name":"entry.path","kind":"call","line":101}
+{"file":"src/decisions.rs","caller":"walk","name":"path.is_dir","kind":"call","line":102}
+{"file":"src/decisions.rs","caller":"walk","name":"is_skipped_dir","kind":"call","line":103}
+{"file":"src/decisions.rs","caller":"walk","name":"walk","kind":"call","line":106}
+{"file":"src/decisions.rs","caller":"walk","name":"is_scanned_file","kind":"call","line":109}
+{"file":"src/decisions.rs","caller":"walk","name":"std::fs::read_to_string","kind":"call","line":112}
+{"file":"src/decisions.rs","caller":"walk","name":"path.strip_prefix(root).unwrap_or(&path).to_string_lossy().to_string","kind":"call","line":115}
+{"file":"src/decisions.rs","caller":"walk","name":"path.strip_prefix(root).unwrap_or(&path).to_string_lossy","kind":"call","line":115}
+{"file":"src/decisions.rs","caller":"walk","name":"path.strip_prefix(root).unwrap_or","kind":"call","line":115}
+{"file":"src/decisions.rs","caller":"walk","name":"path.strip_prefix","kind":"call","line":115}
+{"file":"src/decisions.rs","caller":"walk","name":"out.extend","kind":"call","line":116}
+{"file":"src/decisions.rs","caller":"walk","name":"extract_from_text","kind":"call","line":116}
+{"file":"src/decisions.rs","caller":"is_skipped_dir","name":"Path","kind":"type_annotation","line":120}
+{"file":"src/decisions.rs","caller":"is_skipped_dir","name":"path.file_name","kind":"call","line":121}
+{"file":"src/decisions.rs","caller":"is_skipped_dir","name":"n.to_string_lossy","kind":"call","line":122}
+{"file":"src/decisions.rs","caller":"is_scanned_file","name":"Path","kind":"type_annotation","line":141}
+{"file":"src/decisions.rs","caller":"_phantom","name":"PathBuf","kind":"type_annotation","line":153}
+{"file":"src/decisions.rs","caller":"_phantom","name":"PathBuf::new","kind":"call","line":154}
 {"file":"src/diff.rs","name":"std::collections::HashMap","kind":"import","line":1}
 {"file":"src/diff.rs","name":"std::path::Path","kind":"import","line":2}
 {"file":"src/diff.rs","name":"crate::diff_json::{DiffResult, EntityDiff}","kind":"import","line":4}
@@ -16505,77 +16503,91 @@
 {"file":"tests/decisions_integration.rs","caller":"run_decisions","name":"String::from_utf8_lossy(&output.stderr).to_string","kind":"call","line":21}
 {"file":"tests/decisions_integration.rs","caller":"run_decisions","name":"String::from_utf8_lossy","kind":"call","line":21}
 {"file":"tests/decisions_integration.rs","caller":"run_decisions","name":"output.status.success","kind":"call","line":22}
-{"file":"tests/decisions_integration.rs","caller":"recognizes_adr_and_rejected_markers_repowise_compatible","name":"TempDir::new().unwrap","kind":"call","line":31}
-{"file":"tests/decisions_integration.rs","caller":"recognizes_adr_and_rejected_markers_repowise_compatible","name":"TempDir::new","kind":"call","line":31}
-{"file":"tests/decisions_integration.rs","caller":"recognizes_adr_and_rejected_markers_repowise_compatible","name":"fs::write(\n        tmp.path().join(\"auth.py\"),\n        \"# ADR: split auth into its own service\\n# REJECTED: in-process auth\\n\",\n    )\n    .unwrap","kind":"call","line":32}
-{"file":"tests/decisions_integration.rs","caller":"recognizes_adr_and_rejected_markers_repowise_compatible","name":"tmp.path().join","kind":"call","line":33}
-{"file":"tests/decisions_integration.rs","caller":"recognizes_adr_and_rejected_markers_repowise_compatible","name":"tmp.path","kind":"call","line":33}
-{"file":"tests/decisions_integration.rs","caller":"recognizes_adr_and_rejected_markers_repowise_compatible","name":"run_decisions","kind":"call","line":37}
-{"file":"tests/decisions_integration.rs","caller":"recognizes_adr_and_rejected_markers_repowise_compatible","name":"tmp.path","kind":"call","line":37}
-{"file":"tests/decisions_integration.rs","caller":"recognizes_adr_and_rejected_markers_repowise_compatible","name":"stdout\n        .lines()\n        .filter(|l| !l.is_empty())\n        .map(|l| {\n            serde_json::from_str::<serde_json::Value>(l).unwrap()[\"marker\"]\n                .as_str()\n                .unwrap()\n                .to_string()\n        })\n        .collect","kind":"call","line":39}
-{"file":"tests/decisions_integration.rs","caller":"recognizes_adr_and_rejected_markers_repowise_compatible","name":"stdout\n        .lines()\n        .filter(|l| !l.is_empty())\n        .map","kind":"call","line":39}
-{"file":"tests/decisions_integration.rs","caller":"recognizes_adr_and_rejected_markers_repowise_compatible","name":"stdout\n        .lines()\n        .filter","kind":"call","line":39}
-{"file":"tests/decisions_integration.rs","caller":"recognizes_adr_and_rejected_markers_repowise_compatible","name":"stdout\n        .lines","kind":"call","line":39}
-{"file":"tests/decisions_integration.rs","caller":"recognizes_adr_and_rejected_markers_repowise_compatible","name":"l.is_empty","kind":"call","line":41}
-{"file":"tests/decisions_integration.rs","caller":"recognizes_adr_and_rejected_markers_repowise_compatible","name":"serde_json::from_str::<serde_json::Value>(l).unwrap()[\"marker\"]\n                .as_str()\n                .unwrap()\n                .to_string","kind":"call","line":43}
-{"file":"tests/decisions_integration.rs","caller":"recognizes_adr_and_rejected_markers_repowise_compatible","name":"serde_json::from_str::<serde_json::Value>(l).unwrap()[\"marker\"]\n                .as_str()\n                .unwrap","kind":"call","line":43}
-{"file":"tests/decisions_integration.rs","caller":"recognizes_adr_and_rejected_markers_repowise_compatible","name":"serde_json::from_str::<serde_json::Value>(l).unwrap()[\"marker\"]\n                .as_str","kind":"call","line":43}
-{"file":"tests/decisions_integration.rs","caller":"recognizes_adr_and_rejected_markers_repowise_compatible","name":"serde_json::from_str::<serde_json::Value>(l).unwrap","kind":"call","line":43}
-{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"TempDir::new().unwrap","kind":"call","line":58}
-{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"TempDir::new","kind":"call","line":58}
-{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"fs::write(\n        tmp.path().join(\"noise.py\"),\n        \"# just a regular comment\\n# TODO: not a decision\\nx = 1\\n\",\n    )\n    .unwrap","kind":"call","line":60}
-{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"tmp.path().join","kind":"call","line":61}
-{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"tmp.path","kind":"call","line":61}
-{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"fs::write(\n        tmp.path().join(\"real.py\"),\n        \"# WHY: legacy v1 callers depend on this shape\\n\",\n    )\n    .unwrap","kind":"call","line":66}
-{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"tmp.path().join","kind":"call","line":67}
-{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"tmp.path","kind":"call","line":67}
-{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"tmp.path().join","kind":"call","line":72}
-{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"tmp.path","kind":"call","line":72}
-{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"fs::create_dir(&buried).unwrap","kind":"call","line":73}
-{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"fs::create_dir","kind":"call","line":73}
-{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"fs::write(\n        buried.join(\"ignored.js\"),\n        \"// DECISION: should not be reported\\n\",\n    )\n    .unwrap","kind":"call","line":74}
-{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"buried.join","kind":"call","line":75}
-{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"tmp.path().join","kind":"call","line":79}
-{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"tmp.path","kind":"call","line":79}
-{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"fs::create_dir(&target).unwrap","kind":"call","line":80}
-{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"fs::create_dir","kind":"call","line":80}
-{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"fs::write(\n        target.join(\"ignored.rs\"),\n        \"// RATIONALE: should not be reported\\n\",\n    )\n    .unwrap","kind":"call","line":81}
-{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"target.join","kind":"call","line":82}
-{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"run_decisions","kind":"call","line":87}
-{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"tmp.path","kind":"call","line":87}
-{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"stdout\n        .lines()\n        .filter(|l| !l.is_empty())\n        .map(|l| serde_json::from_str(l).unwrap())\n        .collect","kind":"call","line":89}
-{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"stdout\n        .lines()\n        .filter(|l| !l.is_empty())\n        .map","kind":"call","line":89}
-{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"stdout\n        .lines()\n        .filter","kind":"call","line":89}
-{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"stdout\n        .lines","kind":"call","line":89}
-{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"l.is_empty","kind":"call","line":91}
-{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"serde_json::from_str(l).unwrap","kind":"call","line":92}
-{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"serde_json::from_str","kind":"call","line":92}
-{"file":"tests/decisions_integration.rs","caller":"extracts_marker_from_rust_double_slash_comment","name":"TempDir::new().unwrap","kind":"call","line":100}
-{"file":"tests/decisions_integration.rs","caller":"extracts_marker_from_rust_double_slash_comment","name":"TempDir::new","kind":"call","line":100}
-{"file":"tests/decisions_integration.rs","caller":"extracts_marker_from_rust_double_slash_comment","name":"fs::write(\n        tmp.path().join(\"main.rs\"),\n        \"// TRADEOFF: accepted eventual consistency for write throughput\\n\\\n         fn main() {}\\n\",\n    )\n    .unwrap","kind":"call","line":101}
-{"file":"tests/decisions_integration.rs","caller":"extracts_marker_from_rust_double_slash_comment","name":"tmp.path().join","kind":"call","line":102}
-{"file":"tests/decisions_integration.rs","caller":"extracts_marker_from_rust_double_slash_comment","name":"tmp.path","kind":"call","line":102}
-{"file":"tests/decisions_integration.rs","caller":"extracts_marker_from_rust_double_slash_comment","name":"run_decisions","kind":"call","line":107}
-{"file":"tests/decisions_integration.rs","caller":"extracts_marker_from_rust_double_slash_comment","name":"tmp.path","kind":"call","line":107}
-{"file":"tests/decisions_integration.rs","caller":"extracts_marker_from_rust_double_slash_comment","name":"serde_json::from_str(stdout.lines().next().unwrap())\n        .expect","kind":"call","line":109}
-{"file":"tests/decisions_integration.rs","caller":"extracts_marker_from_rust_double_slash_comment","name":"serde_json::from_str","kind":"call","line":109}
-{"file":"tests/decisions_integration.rs","caller":"extracts_marker_from_rust_double_slash_comment","name":"stdout.lines().next().unwrap","kind":"call","line":109}
-{"file":"tests/decisions_integration.rs","caller":"extracts_marker_from_rust_double_slash_comment","name":"stdout.lines().next","kind":"call","line":109}
-{"file":"tests/decisions_integration.rs","caller":"extracts_marker_from_rust_double_slash_comment","name":"stdout.lines","kind":"call","line":109}
-{"file":"tests/decisions_integration.rs","caller":"extracts_decision_marker_from_python_comment","name":"TempDir::new().unwrap","kind":"call","line":119}
-{"file":"tests/decisions_integration.rs","caller":"extracts_decision_marker_from_python_comment","name":"TempDir::new","kind":"call","line":119}
-{"file":"tests/decisions_integration.rs","caller":"extracts_decision_marker_from_python_comment","name":"tmp.path().join","kind":"call","line":120}
-{"file":"tests/decisions_integration.rs","caller":"extracts_decision_marker_from_python_comment","name":"tmp.path","kind":"call","line":120}
-{"file":"tests/decisions_integration.rs","caller":"extracts_decision_marker_from_python_comment","name":"fs::write(\n        &path,\n        \"# DECISION: JWT chosen over sessions for stateless k8s scaling\\n\\\n         def authenticate():\\n    pass\\n\",\n    )\n    .unwrap","kind":"call","line":121}
-{"file":"tests/decisions_integration.rs","caller":"extracts_decision_marker_from_python_comment","name":"run_decisions","kind":"call","line":127}
-{"file":"tests/decisions_integration.rs","caller":"extracts_decision_marker_from_python_comment","name":"tmp.path","kind":"call","line":127}
-{"file":"tests/decisions_integration.rs","caller":"extracts_decision_marker_from_python_comment","name":"stdout\n        .lines()\n        .filter(|l| !l.is_empty())\n        .map(|l| serde_json::from_str(l).expect(\"each line should be JSON\"))\n        .collect","kind":"call","line":129}
-{"file":"tests/decisions_integration.rs","caller":"extracts_decision_marker_from_python_comment","name":"stdout\n        .lines()\n        .filter(|l| !l.is_empty())\n        .map","kind":"call","line":129}
-{"file":"tests/decisions_integration.rs","caller":"extracts_decision_marker_from_python_comment","name":"stdout\n        .lines()\n        .filter","kind":"call","line":129}
-{"file":"tests/decisions_integration.rs","caller":"extracts_decision_marker_from_python_comment","name":"stdout\n        .lines","kind":"call","line":129}
-{"file":"tests/decisions_integration.rs","caller":"extracts_decision_marker_from_python_comment","name":"l.is_empty","kind":"call","line":131}
-{"file":"tests/decisions_integration.rs","caller":"extracts_decision_marker_from_python_comment","name":"serde_json::from_str(l).expect","kind":"call","line":132}
-{"file":"tests/decisions_integration.rs","caller":"extracts_decision_marker_from_python_comment","name":"serde_json::from_str","kind":"call","line":132}
+{"file":"tests/decisions_integration.rs","caller":"does_not_panic_on_non_ascii_comment_prefixes","name":"TempDir::new().unwrap","kind":"call","line":30}
+{"file":"tests/decisions_integration.rs","caller":"does_not_panic_on_non_ascii_comment_prefixes","name":"TempDir::new","kind":"call","line":30}
+{"file":"tests/decisions_integration.rs","caller":"does_not_panic_on_non_ascii_comment_prefixes","name":"fs::write(\n        tmp.path().join(\"doc.rs\"),\n        \"/// sigil — Structural code fingerprinting\\n// DECISION: keep it pure-rust\\n\",\n    )\n    .unwrap","kind":"call","line":31}
+{"file":"tests/decisions_integration.rs","caller":"does_not_panic_on_non_ascii_comment_prefixes","name":"tmp.path().join","kind":"call","line":32}
+{"file":"tests/decisions_integration.rs","caller":"does_not_panic_on_non_ascii_comment_prefixes","name":"tmp.path","kind":"call","line":32}
+{"file":"tests/decisions_integration.rs","caller":"does_not_panic_on_non_ascii_comment_prefixes","name":"run_decisions","kind":"call","line":36}
+{"file":"tests/decisions_integration.rs","caller":"does_not_panic_on_non_ascii_comment_prefixes","name":"tmp.path","kind":"call","line":36}
+{"file":"tests/decisions_integration.rs","caller":"does_not_panic_on_non_ascii_comment_prefixes","name":"stdout\n        .lines()\n        .filter(|l| !l.is_empty())\n        .map(|l| serde_json::from_str(l).unwrap())\n        .collect","kind":"call","line":38}
+{"file":"tests/decisions_integration.rs","caller":"does_not_panic_on_non_ascii_comment_prefixes","name":"stdout\n        .lines()\n        .filter(|l| !l.is_empty())\n        .map","kind":"call","line":38}
+{"file":"tests/decisions_integration.rs","caller":"does_not_panic_on_non_ascii_comment_prefixes","name":"stdout\n        .lines()\n        .filter","kind":"call","line":38}
+{"file":"tests/decisions_integration.rs","caller":"does_not_panic_on_non_ascii_comment_prefixes","name":"stdout\n        .lines","kind":"call","line":38}
+{"file":"tests/decisions_integration.rs","caller":"does_not_panic_on_non_ascii_comment_prefixes","name":"l.is_empty","kind":"call","line":40}
+{"file":"tests/decisions_integration.rs","caller":"does_not_panic_on_non_ascii_comment_prefixes","name":"serde_json::from_str(l).unwrap","kind":"call","line":41}
+{"file":"tests/decisions_integration.rs","caller":"does_not_panic_on_non_ascii_comment_prefixes","name":"serde_json::from_str","kind":"call","line":41}
+{"file":"tests/decisions_integration.rs","caller":"recognizes_adr_and_rejected_markers_repowise_compatible","name":"TempDir::new().unwrap","kind":"call","line":54}
+{"file":"tests/decisions_integration.rs","caller":"recognizes_adr_and_rejected_markers_repowise_compatible","name":"TempDir::new","kind":"call","line":54}
+{"file":"tests/decisions_integration.rs","caller":"recognizes_adr_and_rejected_markers_repowise_compatible","name":"fs::write(\n        tmp.path().join(\"auth.py\"),\n        \"# ADR: split auth into its own service\\n# REJECTED: in-process auth\\n\",\n    )\n    .unwrap","kind":"call","line":55}
+{"file":"tests/decisions_integration.rs","caller":"recognizes_adr_and_rejected_markers_repowise_compatible","name":"tmp.path().join","kind":"call","line":56}
+{"file":"tests/decisions_integration.rs","caller":"recognizes_adr_and_rejected_markers_repowise_compatible","name":"tmp.path","kind":"call","line":56}
+{"file":"tests/decisions_integration.rs","caller":"recognizes_adr_and_rejected_markers_repowise_compatible","name":"run_decisions","kind":"call","line":60}
+{"file":"tests/decisions_integration.rs","caller":"recognizes_adr_and_rejected_markers_repowise_compatible","name":"tmp.path","kind":"call","line":60}
+{"file":"tests/decisions_integration.rs","caller":"recognizes_adr_and_rejected_markers_repowise_compatible","name":"stdout\n        .lines()\n        .filter(|l| !l.is_empty())\n        .map(|l| {\n            serde_json::from_str::<serde_json::Value>(l).unwrap()[\"marker\"]\n                .as_str()\n                .unwrap()\n                .to_string()\n        })\n        .collect","kind":"call","line":62}
+{"file":"tests/decisions_integration.rs","caller":"recognizes_adr_and_rejected_markers_repowise_compatible","name":"stdout\n        .lines()\n        .filter(|l| !l.is_empty())\n        .map","kind":"call","line":62}
+{"file":"tests/decisions_integration.rs","caller":"recognizes_adr_and_rejected_markers_repowise_compatible","name":"stdout\n        .lines()\n        .filter","kind":"call","line":62}
+{"file":"tests/decisions_integration.rs","caller":"recognizes_adr_and_rejected_markers_repowise_compatible","name":"stdout\n        .lines","kind":"call","line":62}
+{"file":"tests/decisions_integration.rs","caller":"recognizes_adr_and_rejected_markers_repowise_compatible","name":"l.is_empty","kind":"call","line":64}
+{"file":"tests/decisions_integration.rs","caller":"recognizes_adr_and_rejected_markers_repowise_compatible","name":"serde_json::from_str::<serde_json::Value>(l).unwrap()[\"marker\"]\n                .as_str()\n                .unwrap()\n                .to_string","kind":"call","line":66}
+{"file":"tests/decisions_integration.rs","caller":"recognizes_adr_and_rejected_markers_repowise_compatible","name":"serde_json::from_str::<serde_json::Value>(l).unwrap()[\"marker\"]\n                .as_str()\n                .unwrap","kind":"call","line":66}
+{"file":"tests/decisions_integration.rs","caller":"recognizes_adr_and_rejected_markers_repowise_compatible","name":"serde_json::from_str::<serde_json::Value>(l).unwrap()[\"marker\"]\n                .as_str","kind":"call","line":66}
+{"file":"tests/decisions_integration.rs","caller":"recognizes_adr_and_rejected_markers_repowise_compatible","name":"serde_json::from_str::<serde_json::Value>(l).unwrap","kind":"call","line":66}
+{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"TempDir::new().unwrap","kind":"call","line":81}
+{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"TempDir::new","kind":"call","line":81}
+{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"fs::write(\n        tmp.path().join(\"noise.py\"),\n        \"# just a regular comment\\n# TODO: not a decision\\nx = 1\\n\",\n    )\n    .unwrap","kind":"call","line":83}
+{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"tmp.path().join","kind":"call","line":84}
+{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"tmp.path","kind":"call","line":84}
+{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"fs::write(\n        tmp.path().join(\"real.py\"),\n        \"# WHY: legacy v1 callers depend on this shape\\n\",\n    )\n    .unwrap","kind":"call","line":89}
+{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"tmp.path().join","kind":"call","line":90}
+{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"tmp.path","kind":"call","line":90}
+{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"tmp.path().join","kind":"call","line":95}
+{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"tmp.path","kind":"call","line":95}
+{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"fs::create_dir(&buried).unwrap","kind":"call","line":96}
+{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"fs::create_dir","kind":"call","line":96}
+{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"fs::write(\n        buried.join(\"ignored.js\"),\n        \"// DECISION: should not be reported\\n\",\n    )\n    .unwrap","kind":"call","line":97}
+{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"buried.join","kind":"call","line":98}
+{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"tmp.path().join","kind":"call","line":102}
+{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"tmp.path","kind":"call","line":102}
+{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"fs::create_dir(&target).unwrap","kind":"call","line":103}
+{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"fs::create_dir","kind":"call","line":103}
+{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"fs::write(\n        target.join(\"ignored.rs\"),\n        \"// RATIONALE: should not be reported\\n\",\n    )\n    .unwrap","kind":"call","line":104}
+{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"target.join","kind":"call","line":105}
+{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"run_decisions","kind":"call","line":110}
+{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"tmp.path","kind":"call","line":110}
+{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"stdout\n        .lines()\n        .filter(|l| !l.is_empty())\n        .map(|l| serde_json::from_str(l).unwrap())\n        .collect","kind":"call","line":112}
+{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"stdout\n        .lines()\n        .filter(|l| !l.is_empty())\n        .map","kind":"call","line":112}
+{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"stdout\n        .lines()\n        .filter","kind":"call","line":112}
+{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"stdout\n        .lines","kind":"call","line":112}
+{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"l.is_empty","kind":"call","line":114}
+{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"serde_json::from_str(l).unwrap","kind":"call","line":115}
+{"file":"tests/decisions_integration.rs","caller":"ignores_non_marker_comments_and_skips_dependency_dirs","name":"serde_json::from_str","kind":"call","line":115}
+{"file":"tests/decisions_integration.rs","caller":"extracts_marker_from_rust_double_slash_comment","name":"TempDir::new().unwrap","kind":"call","line":123}
+{"file":"tests/decisions_integration.rs","caller":"extracts_marker_from_rust_double_slash_comment","name":"TempDir::new","kind":"call","line":123}
+{"file":"tests/decisions_integration.rs","caller":"extracts_marker_from_rust_double_slash_comment","name":"fs::write(\n        tmp.path().join(\"main.rs\"),\n        \"// TRADEOFF: accepted eventual consistency for write throughput\\n\\\n         fn main() {}\\n\",\n    )\n    .unwrap","kind":"call","line":124}
+{"file":"tests/decisions_integration.rs","caller":"extracts_marker_from_rust_double_slash_comment","name":"tmp.path().join","kind":"call","line":125}
+{"file":"tests/decisions_integration.rs","caller":"extracts_marker_from_rust_double_slash_comment","name":"tmp.path","kind":"call","line":125}
+{"file":"tests/decisions_integration.rs","caller":"extracts_marker_from_rust_double_slash_comment","name":"run_decisions","kind":"call","line":130}
+{"file":"tests/decisions_integration.rs","caller":"extracts_marker_from_rust_double_slash_comment","name":"tmp.path","kind":"call","line":130}
+{"file":"tests/decisions_integration.rs","caller":"extracts_marker_from_rust_double_slash_comment","name":"serde_json::from_str(stdout.lines().next().unwrap())\n        .expect","kind":"call","line":132}
+{"file":"tests/decisions_integration.rs","caller":"extracts_marker_from_rust_double_slash_comment","name":"serde_json::from_str","kind":"call","line":132}
+{"file":"tests/decisions_integration.rs","caller":"extracts_marker_from_rust_double_slash_comment","name":"stdout.lines().next().unwrap","kind":"call","line":132}
+{"file":"tests/decisions_integration.rs","caller":"extracts_marker_from_rust_double_slash_comment","name":"stdout.lines().next","kind":"call","line":132}
+{"file":"tests/decisions_integration.rs","caller":"extracts_marker_from_rust_double_slash_comment","name":"stdout.lines","kind":"call","line":132}
+{"file":"tests/decisions_integration.rs","caller":"extracts_decision_marker_from_python_comment","name":"TempDir::new().unwrap","kind":"call","line":142}
+{"file":"tests/decisions_integration.rs","caller":"extracts_decision_marker_from_python_comment","name":"TempDir::new","kind":"call","line":142}
+{"file":"tests/decisions_integration.rs","caller":"extracts_decision_marker_from_python_comment","name":"tmp.path().join","kind":"call","line":143}
+{"file":"tests/decisions_integration.rs","caller":"extracts_decision_marker_from_python_comment","name":"tmp.path","kind":"call","line":143}
+{"file":"tests/decisions_integration.rs","caller":"extracts_decision_marker_from_python_comment","name":"fs::write(\n        &path,\n        \"# DECISION: JWT chosen over sessions for stateless k8s scaling\\n\\\n         def authenticate():\\n    pass\\n\",\n    )\n    .unwrap","kind":"call","line":144}
+{"file":"tests/decisions_integration.rs","caller":"extracts_decision_marker_from_python_comment","name":"run_decisions","kind":"call","line":150}
+{"file":"tests/decisions_integration.rs","caller":"extracts_decision_marker_from_python_comment","name":"tmp.path","kind":"call","line":150}
+{"file":"tests/decisions_integration.rs","caller":"extracts_decision_marker_from_python_comment","name":"stdout\n        .lines()\n        .filter(|l| !l.is_empty())\n        .map(|l| serde_json::from_str(l).expect(\"each line should be JSON\"))\n        .collect","kind":"call","line":152}
+{"file":"tests/decisions_integration.rs","caller":"extracts_decision_marker_from_python_comment","name":"stdout\n        .lines()\n        .filter(|l| !l.is_empty())\n        .map","kind":"call","line":152}
+{"file":"tests/decisions_integration.rs","caller":"extracts_decision_marker_from_python_comment","name":"stdout\n        .lines()\n        .filter","kind":"call","line":152}
+{"file":"tests/decisions_integration.rs","caller":"extracts_decision_marker_from_python_comment","name":"stdout\n        .lines","kind":"call","line":152}
+{"file":"tests/decisions_integration.rs","caller":"extracts_decision_marker_from_python_comment","name":"l.is_empty","kind":"call","line":154}
+{"file":"tests/decisions_integration.rs","caller":"extracts_decision_marker_from_python_comment","name":"serde_json::from_str(l).expect","kind":"call","line":155}
+{"file":"tests/decisions_integration.rs","caller":"extracts_decision_marker_from_python_comment","name":"serde_json::from_str","kind":"call","line":155}
 {"file":"tests/diff_integration.rs","name":"std::process::Command","kind":"import","line":1}
 {"file":"tests/diff_integration.rs","name":"std::path::PathBuf","kind":"import","line":2}
 {"file":"tests/diff_integration.rs","caller":"run_git","name":"std::path::Path","kind":"type_annotation","line":4}

@@ -24,6 +24,29 @@ fn run_decisions(root: &std::path::Path) -> (String, String, bool) {
 }
 
 #[test]
+fn does_not_panic_on_non_ascii_comment_prefixes() {
+    // Real-world regression: ' / sigil — Structural code fingerprinting'
+    // (the em-dash starts at byte 9) caused byte-index slicing to panic.
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("doc.rs"),
+        "/// sigil — Structural code fingerprinting\n// DECISION: keep it pure-rust\n",
+    )
+    .unwrap();
+    let (stdout, stderr, ok) = run_decisions(tmp.path());
+    assert!(ok, "must not panic on em-dash prefix; stderr: {stderr}");
+    let rows: Vec<serde_json::Value> = stdout
+        .lines()
+        .filter(|l| !l.is_empty())
+        .map(|l| serde_json::from_str(l).unwrap())
+        .collect();
+    assert!(
+        rows.iter().any(|r| r["marker"] == "DECISION"),
+        "expected DECISION row to still extract, got {rows:?}"
+    );
+}
+
+#[test]
 fn recognizes_adr_and_rejected_markers_repowise_compatible() {
     // Repowise's MARKER_RE recognizes WHY|DECISION|TRADEOFF|ADR|RATIONALE|REJECTED.
     // Our extractor must accept the same set so the same source code produces

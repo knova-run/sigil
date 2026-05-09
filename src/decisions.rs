@@ -60,17 +60,24 @@ fn scan_line(line: &str) -> Option<(&'static str, &str)> {
         return None;
     };
     let trimmed = after_prefix.trim_start();
+    let bytes = trimmed.as_bytes();
     for marker in MARKERS {
-        // Accept "MARKER:" (case-insensitive).
-        if trimmed.len() >= marker.len() + 1 {
-            let head = &trimmed[..marker.len()];
-            if head.eq_ignore_ascii_case(marker)
-                && trimmed.as_bytes()[marker.len()] == b':'
-            {
-                let body = trimmed[marker.len() + 1..].trim();
-                if !body.is_empty() {
-                    return Some((marker, body));
-                }
+        let m_len = marker.len();
+        if bytes.len() < m_len + 1 {
+            continue;
+        }
+        // Markers are ASCII; if the prefix bytes aren't ASCII, the head can't
+        // match. Bail before any &str slicing — that would panic on a UTF-8
+        // boundary (e.g. an em-dash in a doc comment).
+        if !bytes[..m_len].is_ascii() {
+            continue;
+        }
+        let head = &trimmed[..m_len];
+        if head.eq_ignore_ascii_case(marker) && bytes[m_len] == b':' {
+            // Safe: m_len + 1 is past an ASCII byte, so on a char boundary.
+            let body = trimmed[m_len + 1..].trim();
+            if !body.is_empty() {
+                return Some((marker, body));
             }
         }
     }
