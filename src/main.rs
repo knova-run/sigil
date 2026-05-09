@@ -705,6 +705,18 @@ enum Cli {
         #[arg(short, long, default_value = ".")]
         root: PathBuf,
     },
+    /// Extract HTTP / gRPC / queue contract entries (providers + consumers)
+    /// from source code.
+    ///
+    /// Used by workspace-mode tooling to match a route handler in one repo
+    /// against the HTTP client that calls it in another, without an LLM
+    /// call. MVP covers FastAPI HTTP providers; more frameworks land
+    /// incrementally.
+    Contracts {
+        /// Project root directory
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
+    },
 }
 
 #[derive(Subcommand)]
@@ -1637,6 +1649,17 @@ fn main() {
                     Ok(s) => println!("{}", s),
                     Err(e) => {
                         eprintln!("package-deps: failed to serialize: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+        }
+        Cli::Contracts { root } => {
+            for row in sigil::contracts::extract_from_root(&root) {
+                match serde_json::to_string(&row) {
+                    Ok(s) => println!("{}", s),
+                    Err(e) => {
+                        eprintln!("contracts: failed to serialize: {}", e);
                         std::process::exit(1);
                     }
                 }

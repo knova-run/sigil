@@ -27,6 +27,7 @@ pub mod cochange;
 pub mod community;
 pub mod cross_repo_cochange;
 pub mod context;
+pub mod contracts;
 pub mod decisions;
 pub mod map;
 pub mod outline;
