@@ -78,9 +78,62 @@ fn walk_node(
         _ => {}
     }
 
-    // Recurse
+    // Recurse, threading a "pending docs" buffer across siblings to support
+    // godoc — a `//` comment block immediately preceding a declaration with
+    // no blank line in between is treated as that declaration's doc.
     let mut cursor = node.walk();
+    let mut pending_docs: Vec<String> = Vec::new();
+    let mut last_comment_end_line: Option<u32> = None;
     for child in node.children(&mut cursor) {
+        if child.kind() == "comment" {
+            let raw = node_text(child, source);
+            // godoc: line comments only (`/* */` block comments aren't the
+            // godoc convention and downstream tooling rarely renders them).
+            if raw.starts_with("//") {
+                let cleaned = raw.strip_prefix("//").unwrap_or(&raw).trim().to_string();
+                let line = node_line_range(child);
+                // If there's a gap (blank line) since the previous comment,
+                // the previous block belongs to nothing — discard and start
+                // a new run with this line.
+                if let Some(prev_end) = last_comment_end_line {
+                    if line[0] > prev_end + 1 {
+                        pending_docs.clear();
+                    }
+                }
+                pending_docs.push(cleaned);
+                last_comment_end_line = Some(line[1]);
+            }
+            // Still emit the raw comment as a TextEntry so consumers that
+            // query texts directly continue to see them — the godoc
+            // attachment above only adds the parent linkage, it doesn't
+            // replace the regular comment stream.
+            extract_go_comment(child, source, file_path, parent_ctx, texts);
+            continue;
+        }
+        // Anything not a comment: maybe attach pending docs, then reset.
+        if !pending_docs.is_empty() {
+            let item_line = node_line_range(child)[0];
+            // Blank-line check: if the most recent comment isn't on the line
+            // immediately above the declaration, godoc rules drop the doc.
+            let attached = match last_comment_end_line {
+                Some(end) if item_line == end + 1 => true,
+                _ => false,
+            };
+            if attached {
+                if let Some(item_name) = go_item_name(child, source) {
+                    texts.push(TextEntry {
+                        file: file_path.to_string(),
+                        kind: "docstring".to_string(),
+                        line: node_line_range(child),
+                        text: pending_docs.join("\n"),
+                        parent: Some(item_name),
+                        project: String::new(),
+                    });
+                }
+            }
+            pending_docs.clear();
+            last_comment_end_line = None;
+        }
         walk_node(
             child,
             source,
@@ -91,6 +144,58 @@ fn walk_node(
             references,
             depth + 1,
         );
+    }
+}
+
+/// Match the qualified entity name a Go declaration would produce so the
+/// `kind="docstring"` TextEntry's `parent` matches the entity's `name`
+/// after the SymbolEntry → Entity translation in `index.rs`.
+fn go_item_name(node: Node, source: &[u8]) -> Option<String> {
+    match node.kind() {
+        "function_declaration" => {
+            find_child_by_field(node, "name").map(|n| node_text(n, source))
+        }
+        "method_declaration" => {
+            let name = node_text(find_child_by_field(node, "name")?, source);
+            // Mirror extract_method's receiver parsing.
+            let receiver = find_child_by_field(node, "receiver").map(|recv| {
+                node_text(recv, source)
+                    .trim_matches(|c: char| c == '(' || c == ')' || c.is_whitespace())
+                    .split_whitespace()
+                    .last()
+                    .unwrap_or("")
+                    .trim_start_matches('*')
+                    .to_string()
+            });
+            match receiver {
+                Some(r) if !r.is_empty() => Some(format!("{r}.{name}")),
+                _ => Some(name),
+            }
+        }
+        "type_declaration" => {
+            // type Foo ... or type ( ... ) — only the simple form gets a doc.
+            let mut c = node.walk();
+            for child in node.children(&mut c) {
+                if child.kind() == "type_spec"
+                    && let Some(n) = find_child_by_field(child, "name")
+                {
+                    return Some(node_text(n, source));
+                }
+            }
+            None
+        }
+        "var_declaration" | "const_declaration" => {
+            let mut c = node.walk();
+            for child in node.children(&mut c) {
+                if matches!(child.kind(), "var_spec" | "const_spec")
+                    && let Some(n) = find_child_by_field(child, "name")
+                {
+                    return Some(node_text(n, source));
+                }
+            }
+            None
+        }
+        _ => None,
     }
 }
 
@@ -392,22 +497,36 @@ fn extract_var_const(
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         if child.kind() == "var_spec" || child.kind() == "const_spec" {
+            // The "value" field on a (var|const)_spec is an expression_list:
+            // `var a, b = 1, 2`. We capture only the first expression for now;
+            // multi-name specs are rare in const blocks where this matters most
+            // (RETRY_TIMEOUT, ANTHROPIC_BETA_HEADER style).
+            let value_text = find_child_by_field(child, "value")
+                .and_then(|v| {
+                    let mut c = v.walk();
+                    v.children(&mut c)
+                        .find(|n| !matches!(n.kind(), "," | "(" | ")"))
+                        .or(Some(v))
+                })
+                .map(|n| truncate_sig(&node_text(n, source)));
+
             if let Some(name_node) = find_child_by_field(child, "name") {
                 let name = node_text(name_node, source);
                 let line = node_line_range(child);
                 let visibility = go_visibility(&name);
 
-                push_symbol(
-                    symbols,
-                    file_path,
+                symbols.push(SymbolEntry {
+                    file: file_path.to_string(),
                     name,
-                    kind,
+                    kind: kind.to_string(),
                     line,
-                    parent_ctx,
-                    None,
-                    None,
-                    Some(visibility),
-                );
+                    parent: parent_ctx.map(String::from),
+                    tokens: None,
+                    alias: None,
+                    visibility: Some(visibility),
+                    sig: value_text.clone(),
+                    project: String::new(),
+                });
             }
             // Handle multiple names in one spec: `var a, b, c int`
             let mut spec_cursor = child.walk();
@@ -423,17 +542,18 @@ fn extract_var_const(
                     let extra_name = node_text(spec_child, source);
                     let extra_line = node_line_range(spec_child);
                     let extra_vis = go_visibility(&extra_name);
-                    push_symbol(
-                        symbols,
-                        file_path,
-                        extra_name,
-                        kind,
-                        extra_line,
-                        parent_ctx,
-                        None,
-                        None,
-                        Some(extra_vis),
-                    );
+                    symbols.push(SymbolEntry {
+                        file: file_path.to_string(),
+                        name: extra_name,
+                        kind: kind.to_string(),
+                        line: extra_line,
+                        parent: parent_ctx.map(String::from),
+                        tokens: None,
+                        alias: None,
+                        visibility: Some(extra_vis),
+                        sig: value_text.clone(),
+                        project: String::new(),
+                    });
                 }
             }
         }

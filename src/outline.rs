@@ -150,6 +150,7 @@ mod tests {
             visibility: Some("public".into()),
             rank: None,
             blast_radius: Some(BlastRadius::default()),
+            doc: None,
         }
     }
 

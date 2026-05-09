@@ -22,6 +22,12 @@ pub struct SymbolEntry {
     pub alias: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub visibility: Option<String>,
+    /// Parser-provided signature text. When `Some`, `index.rs` uses this
+    /// verbatim instead of running its own line-range signature extractor —
+    /// useful for entities like constants where the "signature" is the
+    /// literal RHS value, not the surrounding declaration.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sig: Option<String>,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub project: String,
 }

@@ -412,6 +412,7 @@ fn extract_table_entities(
             visibility: None,
             rank: None,
             blast_radius: None,
+            doc: None,
         });
 
         // Recurse into nested tables

@@ -605,6 +605,13 @@ enum Cli {
         /// `## Subsystems` section in the markdown output.
         #[arg(long)]
         no_clusters: bool,
+        /// When > 0, attach this many top entities (full `code.context`
+        /// bundle) to each subsystem in the JSON / Markdown output.
+        /// Collapses the "list subsystem files → list entities → call
+        /// `code.context` per entity" N+1 pattern into a single map call.
+        /// 0 (default) preserves the legacy shape.
+        #[arg(long, default_value = "0")]
+        top_entities_per_subsystem: usize,
     },
     /// Install or uninstall the Claude Code integration
     /// (CLAUDE.md capability block + PreToolUse hint hook).
@@ -1331,7 +1338,7 @@ fn main() {
                 }
             }
         }
-        Cli::Map { root, tokens, focus, depth, format, write, exclude_tests, no_clusters } => {
+        Cli::Map { root, tokens, focus, depth, format, write, exclude_tests, no_clusters, top_entities_per_subsystem } => {
             let idx = query::load(&root)
                 .unwrap_or_else(|e| { eprintln!("error: {}", e); std::process::exit(1); });
             let rank_manifest = sigil::map::load_rank_manifest(&root)
@@ -1347,6 +1354,7 @@ fn main() {
                 depth,
                 exclude_tests,
                 clusters: !no_clusters,
+                top_entities_per_subsystem,
                 ..sigil::map::MapOptions::default()
             };
             let map = sigil::map::build_map(&idx, &rank_manifest, &opts);

@@ -331,9 +331,60 @@ fn walk_node(
         _ => {}
     }
 
-    // Recurse
+    // Recurse with Javadoc tracking — `/** … */` blocks immediately
+    // preceding a class/method/field declaration attach as that item's doc.
+    walk_children_with_docs(node, source, file_path, parent_ctx, symbols, texts, references, depth);
+}
+
+/// Iterate `node.children` while tracking preceding Javadoc-style block
+/// comments. Each contiguous run of `/** … */` (or `/*! … */`) blocks is
+/// attached to the next declaration as a kind="docstring" TextEntry.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn walk_children_with_docs(
+    node: Node,
+    source: &[u8],
+    file_path: &str,
+    parent_ctx: Option<&str>,
+    symbols: &mut Vec<SymbolEntry>,
+    texts: &mut Vec<TextEntry>,
+    references: &mut Vec<ReferenceEntry>,
+    depth: usize,
+) {
     let mut cursor = node.walk();
+    let mut pending_docs: Vec<String> = Vec::new();
     for child in node.children(&mut cursor) {
+        let child_kind = child.kind();
+        if matches!(child_kind, "line_comment" | "block_comment") {
+            if let Some(text) = java_javadoc_text(child, source) {
+                pending_docs.push(text);
+            } else {
+                pending_docs.clear();
+            }
+            walk_node(
+                child,
+                source,
+                file_path,
+                parent_ctx,
+                symbols,
+                texts,
+                references,
+                depth + 1,
+            );
+            continue;
+        }
+        if !pending_docs.is_empty() {
+            if let Some(item_name) = java_item_name(child, source, parent_ctx) {
+                texts.push(TextEntry {
+                    file: file_path.to_string(),
+                    kind: "docstring".to_string(),
+                    line: node_line_range(child),
+                    text: pending_docs.join("\n"),
+                    parent: Some(item_name),
+                    project: String::new(),
+                });
+            }
+            pending_docs.clear();
+        }
         walk_node(
             child,
             source,
@@ -344,6 +395,50 @@ fn walk_node(
             references,
             depth + 1,
         );
+    }
+}
+
+fn java_javadoc_text(node: Node, source: &[u8]) -> Option<String> {
+    let raw = node_text(node, source);
+    if raw.starts_with("/**") || raw.starts_with("/*!") {
+        Some(strip_block_comment(&raw))
+    } else {
+        None
+    }
+}
+
+/// Return the entity name a Java declaration would emit, mirroring the
+/// names produced by extract_class / extract_method / extract_field /
+/// extract_constructor so the docstring TextEntry's `parent` field joins
+/// on equality with the resulting Entity's `name`.
+fn java_item_name(node: Node, source: &[u8], parent_ctx: Option<&str>) -> Option<String> {
+    let kind = node.kind();
+    let qualify = |n: &str| match parent_ctx {
+        Some(p) => format!("{p}.{n}"),
+        None => n.to_string(),
+    };
+    match kind {
+        "class_declaration"
+        | "interface_declaration"
+        | "enum_declaration"
+        | "annotation_type_declaration"
+        | "record_declaration"
+        | "method_declaration"
+        | "constructor_declaration" => find_child_by_field(node, "name")
+            .map(|n| qualify(&node_text(n, source))),
+        "field_declaration" => {
+            // Walk into the variable_declarator for the first name.
+            let mut c = node.walk();
+            for ch in node.children(&mut c) {
+                if ch.kind() == "variable_declarator"
+                    && let Some(n) = find_child_by_field(ch, "name")
+                {
+                    return Some(qualify(&node_text(n, source)));
+                }
+            }
+            None
+        }
+        _ => None,
     }
 }
 
@@ -547,21 +642,19 @@ fn extract_class(
         Some(visibility),
     );
 
-    // Walk class body
+    // Walk class body with Javadoc tracking so that `/** … */` blocks before
+    // each method/field attach as that member's doc.
     if let Some(body) = find_child_by_field(node, "body") {
-        let mut cursor = body.walk();
-        for child in body.children(&mut cursor) {
-            walk_node(
-                child,
-                source,
-                file_path,
-                Some(&full_name),
-                symbols,
-                texts,
-                references,
-                depth + 1,
-            );
-        }
+        walk_children_with_docs(
+            body,
+            source,
+            file_path,
+            Some(&full_name),
+            symbols,
+            texts,
+            references,
+            depth,
+        );
     }
 }
 
@@ -714,17 +807,29 @@ fn extract_field(
                 name
             };
 
-            push_symbol(
-                symbols,
-                file_path,
-                full_name,
-                kind,
+            // For static final fields (constants), surface the initializer as
+            // sig so `code.context FOO` can return the literal value inline.
+            // Plain fields (kind=property) skip this — the type already lives
+            // in the surrounding declaration captured by signature.rs.
+            let sig = if kind == "constant" {
+                find_child_by_field(child, "value")
+                    .map(|v| truncate_sig(&node_text(v, source)))
+            } else {
+                None
+            };
+
+            symbols.push(SymbolEntry {
+                file: file_path.to_string(),
+                name: full_name,
+                kind: kind.to_string(),
                 line,
-                parent_ctx,
-                None,
-                None,
-                Some(visibility.clone()),
-            );
+                parent: parent_ctx.map(String::from),
+                tokens: None,
+                alias: None,
+                visibility: Some(visibility.clone()),
+                sig,
+                project: String::new(),
+            });
         }
     }
 }

@@ -58,11 +58,8 @@ fn walk_node(
         "mod_item" => {
             extract_named_symbol(node, source, file_path, "module", parent_ctx, symbols);
         }
-        "const_item" => {
-            extract_named_symbol(node, source, file_path, "constant", parent_ctx, symbols);
-        }
-        "static_item" => {
-            extract_named_symbol(node, source, file_path, "constant", parent_ctx, symbols);
+        "const_item" | "static_item" => {
+            extract_rust_const(node, source, file_path, parent_ctx, symbols);
         }
         "use_declaration" => {
             extract_use(node, source, file_path, symbols, references);
@@ -92,19 +89,97 @@ fn walk_node(
         _ => {}
     }
 
-    // Recurse into children
+    // Recurse into children, threading a "pending docs" buffer across siblings
+    // so that contiguous `///` / `//!` / `/** */` doc-comments immediately
+    // preceding an item can be attached as that item's doc TextEntry.
     let mut cursor = node.walk();
+    let mut pending_docs: Vec<String> = Vec::new();
     for child in node.children(&mut cursor) {
-        walk_node(
-            child,
-            source,
-            file_path,
-            parent_ctx,
-            symbols,
-            texts,
-            references,
-            depth + 1,
-        );
+        let child_kind = child.kind();
+        if matches!(child_kind, "line_comment" | "block_comment") {
+            if let Some(line) = rust_doc_comment_text(child, source) {
+                pending_docs.push(line);
+                // Doc-comments still get emitted as TextEntry rows by
+                // `extract_rust_comment` (kind="docstring") for consumers
+                // querying texts directly.
+                extract_rust_comment(child, source, file_path, parent_ctx, texts);
+            } else {
+                // Regular non-doc comment severs the chain but still goes
+                // through the regular comment extraction so kind="comment"
+                // TextEntries continue to be emitted.
+                pending_docs.clear();
+                extract_rust_comment(child, source, file_path, parent_ctx, texts);
+            }
+        } else {
+            if !pending_docs.is_empty() {
+                if let Some(item_name) = rust_item_name(child, source, parent_ctx) {
+                    texts.push(TextEntry {
+                        file: file_path.to_string(),
+                        kind: "docstring".to_string(),
+                        line: node_line_range(child),
+                        text: pending_docs.join("\n"),
+                        parent: Some(item_name),
+                        project: String::new(),
+                    });
+                }
+                pending_docs.clear();
+            }
+            walk_node(
+                child,
+                source,
+                file_path,
+                parent_ctx,
+                symbols,
+                texts,
+                references,
+                depth + 1,
+            );
+        }
+    }
+}
+
+/// Return the cleaned doc-comment body when `node` is a `///`, `//!`,
+/// `/**`, or `/*!` comment. Returns `None` for plain `//` and `/*`
+/// comments — they aren't doc-comments and shouldn't be attached to
+/// the next item.
+fn rust_doc_comment_text(node: Node, source: &[u8]) -> Option<String> {
+    let raw = node_text(node, source);
+    if raw.starts_with("///") || raw.starts_with("//!") {
+        Some(strip_doc_comment_prefix(&raw))
+    } else if raw.starts_with("/**") || raw.starts_with("/*!") {
+        Some(strip_block_comment(&raw))
+    } else {
+        None
+    }
+}
+
+/// Return the qualified entity name a Rust item AST node would emit,
+/// matching the names produced by `extract_function`, `extract_struct`,
+/// `extract_named_symbol`, `extract_rust_const`, and `extract_impl`.
+/// `None` for nodes that don't produce an entity row.
+fn rust_item_name(node: Node, source: &[u8], parent_ctx: Option<&str>) -> Option<String> {
+    let kind = node.kind();
+    match kind {
+        "function_item"
+        | "struct_item"
+        | "enum_item"
+        | "trait_item"
+        | "type_item"
+        | "mod_item"
+        | "const_item"
+        | "static_item" => {
+            let name = node_text(find_child_by_field(node, "name")?, source);
+            // Methods/inner items inherit a parent context — match the
+            // qualified name produced by extract_function in that case.
+            if matches!(kind, "function_item") {
+                if let Some(parent) = parent_ctx {
+                    return Some(format!("{parent}.{name}"));
+                }
+            }
+            Some(name)
+        }
+        "impl_item" => Some(extract_impl_type_name(node, source)),
+        _ => None,
     }
 }
 
@@ -182,6 +257,41 @@ fn extract_function(
             );
         }
     }
+}
+
+/// Extract a `const_item` or `static_item` with its RHS value as the sig.
+/// Same kind ("constant") for both — agents asking "what does X equal" don't
+/// care about the static/const distinction, and rolling them together keeps
+/// the entity surface tight.
+fn extract_rust_const(
+    node: Node,
+    source: &[u8],
+    file_path: &str,
+    parent_ctx: Option<&str>,
+    symbols: &mut Vec<SymbolEntry>,
+) {
+    let name = match find_child_by_field(node, "name") {
+        Some(n) => node_text(n, source),
+        None => return,
+    };
+
+    let visibility = extract_visibility(node, source);
+    let line = node_line_range(node);
+    let sig = find_child_by_field(node, "value")
+        .map(|v| truncate_sig(&node_text(v, source)));
+
+    symbols.push(SymbolEntry {
+        file: file_path.to_string(),
+        name,
+        kind: "constant".to_string(),
+        line,
+        parent: parent_ctx.map(String::from),
+        tokens: None,
+        alias: None,
+        visibility: Some(visibility),
+        sig,
+        project: String::new(),
+    });
 }
 
 fn extract_named_symbol(
@@ -282,11 +392,43 @@ fn extract_impl(
         Some(visibility),
     );
 
-    // Walk children of the body to find methods
+    // Walk children of the body to find methods. Same doc-comment
+    // attachment as in `walk_node` — `///` / `/** */` lines immediately
+    // preceding a method are emitted as a docstring TextEntry parented
+    // to the method's qualified name.
     if let Some(body) = find_child_by_field(node, "body") {
         let mut cursor = body.walk();
+        let mut pending_docs: Vec<String> = Vec::new();
         for child in body.children(&mut cursor) {
-            match child.kind() {
+            let child_kind = child.kind();
+            if matches!(child_kind, "line_comment" | "block_comment") {
+                if let Some(line) = rust_doc_comment_text(child, source) {
+                    pending_docs.push(line);
+                } else {
+                    pending_docs.clear();
+                }
+                // Both doc and non-doc comments inside an impl flow through
+                // extract_rust_comment so the existing TextEntry stream is
+                // unchanged for consumers that query texts directly.
+                extract_rust_comment(child, source, file_path, Some(&impl_type_name), texts);
+                continue;
+            }
+            if !pending_docs.is_empty() {
+                if let Some(item_name) =
+                    rust_item_name(child, source, Some(&impl_type_name))
+                {
+                    texts.push(TextEntry {
+                        file: file_path.to_string(),
+                        kind: "docstring".to_string(),
+                        line: node_line_range(child),
+                        text: pending_docs.join("\n"),
+                        parent: Some(item_name),
+                        project: String::new(),
+                    });
+                }
+                pending_docs.clear();
+            }
+            match child_kind {
                 "function_item" => {
                     extract_function(
                         child,
@@ -300,11 +442,10 @@ fn extract_impl(
                     );
                 }
                 "const_item" => {
-                    extract_named_symbol(
+                    extract_rust_const(
                         child,
                         source,
                         file_path,
-                        "constant",
                         Some(&impl_type_name),
                         symbols,
                     );

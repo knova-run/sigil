@@ -58,6 +58,7 @@ fn close_headings(
                 visibility: None,
                 rank: None,
                 blast_radius: None,
+                doc: None,
             });
         } else {
             break;
@@ -106,6 +107,7 @@ fn flush_accumulator(
         visibility: None,
         rank: None,
         blast_radius: None,
+        doc: None,
     });
 
     acc_kind.clear();
@@ -290,6 +292,7 @@ pub fn parse_markdown_file(
                 visibility: None,
                 rank: None,
                 blast_radius: None,
+                doc: None,
             });
 
             // Delegate YAML parsing
@@ -499,6 +502,7 @@ pub fn parse_markdown_file(
                         visibility: None,
                         rank: None,
                         blast_radius: None,
+                        doc: None,
                     });
 
                     state = State::Normal;
@@ -542,6 +546,7 @@ pub fn parse_markdown_file(
                         visibility: None,
                         rank: None,
                         blast_radius: None,
+                        doc: None,
                     });
 
                     state = State::Normal;
@@ -590,6 +595,7 @@ pub fn parse_markdown_file(
             visibility: None,
             rank: None,
             blast_radius: None,
+            doc: None,
         });
     }
 
@@ -619,6 +625,7 @@ pub fn parse_markdown_file(
             visibility: None,
             rank: None,
             blast_radius: None,
+            doc: None,
         });
     }
 

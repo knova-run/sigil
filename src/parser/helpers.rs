@@ -306,8 +306,26 @@ pub fn push_symbol(
         tokens,
         alias,
         visibility,
+        sig: None,
         project: String::new(),
     });
+}
+
+/// Cap on the length of parser-provided sig text (constants/variables RHS).
+/// Beyond this, we truncate with `…`. Tuned to keep `code.context` payloads
+/// for collection literals readable without flooding agent prompts.
+pub const SIG_MAX_LEN: usize = 256;
+
+/// Truncate a sig string to `SIG_MAX_LEN` chars, appending `…` if cut.
+/// Operates on chars (not bytes) so it never lands mid-codepoint.
+pub fn truncate_sig(s: &str) -> String {
+    let collapsed = collapse_whitespace(s.trim());
+    if collapsed.chars().count() <= SIG_MAX_LEN {
+        return collapsed;
+    }
+    let mut out: String = collapsed.chars().take(SIG_MAX_LEN).collect();
+    out.push('…');
+    out
 }
 
 /// Extract a function/method signature: everything from start to opening `{` or `:`.

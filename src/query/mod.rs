@@ -769,6 +769,7 @@ mod json_emit_tests {
                 direct_files: 1,
                 transitive_callers: 7,
             }),
+            doc: None,
         }
     }
 
@@ -788,6 +789,7 @@ mod json_emit_tests {
             visibility: Some("private".into()),
             rank: None,
             blast_radius: Some(BlastRadius::default()), // all zeros
+            doc: None,
         }
     }
 

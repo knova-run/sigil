@@ -95,6 +95,12 @@ pub struct SymbolRef {
     pub visibility: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub blast_radius: Option<BlastRadius>,
+    /// Author-provided description of the entity, when available — see
+    /// `Entity::doc`. Surfaced in `code.context` markdown as a `## Doc`
+    /// section so an LLM consumer doesn't need a follow-up file read to
+    /// learn what this entity is for.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub doc: Option<String>,
 }
 
 impl SymbolRef {
@@ -109,6 +115,7 @@ impl SymbolRef {
             sig: e.sig.clone(),
             visibility: e.visibility.clone(),
             blast_radius: e.blast_radius,
+            doc: e.doc.clone(),
         }
     }
 }
@@ -514,6 +521,16 @@ pub fn render_markdown(ctx: &Context) -> String {
         out.push_str("\n```\n\n");
     }
 
+    // Author-provided description (Python docstring, Rust /// block, godoc).
+    // Sits between Signature and Body so the natural reading order is:
+    // "what is this signature → what does the author say it does → here
+    // are the actual lines (when --with-body is set) → who calls it."
+    if let Some(doc) = &c.doc {
+        out.push_str("## Doc\n\n");
+        out.push_str(doc.trim());
+        out.push_str("\n\n");
+    }
+
     if let Some(body) = &ctx.body {
         out.push_str("## Body\n\n");
         out.push_str("```\n");
@@ -648,6 +665,12 @@ struct AgentView<'a> {
     p: Option<&'a str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     s: Option<&'a str>,
+    /// Author-provided description (Python docstring, Rust ///, godoc).
+    /// Distinct from `s` (the literal signature) — short-keyed `d` keeps
+    /// it cheap when present, and `skip_serializing_if` keeps the wire
+    /// shape unchanged for entities without a doc.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    d: Option<&'a str>,
     /// Source body, emitted only when the caller asked for `--with-body`.
     #[serde(skip_serializing_if = "Option::is_none")]
     b: Option<&'a str>,
@@ -696,6 +719,7 @@ pub fn render_agent_json(ctx: &Context) -> String {
         l: [ctx.chosen.line_start, ctx.chosen.line_end],
         p: ctx.chosen.parent.as_deref(),
         s: ctx.chosen.sig.as_deref(),
+        d: ctx.chosen.doc.as_deref(),
         b: ctx.body.as_deref(),
         v: ctx.chosen.visibility.as_deref(),
         br,
@@ -749,6 +773,7 @@ mod tests {
                 direct_files: blast_files,
                 transitive_callers: blast_files * 5,
             }),
+            doc: None,
         }
     }
 
@@ -959,6 +984,84 @@ mod tests {
         assert!(md.contains("## Related types"));
         assert!(md.contains("public"));
         assert!(md.contains("b.rs"));
+    }
+
+    #[test]
+    fn context_renders_doc_section_when_entity_has_docstring() {
+        // Issue #12: the docstring is the cleanest "what does X do" signal
+        // a source provides; agents should see it without a follow-up read.
+        let mut e = ent_full(
+            "repomap.py",
+            "tags_cache_error",
+            "function",
+            None,
+            Some("def tags_cache_error(self, original_error=None):"),
+            Some("public"),
+            1,
+        );
+        e.doc = Some(
+            "Handle SQLite errors by trying to recreate cache, falling back to dict if needed"
+                .to_string(),
+        );
+        let idx = Index::build(vec![e], vec![]);
+        let ctx = build_context(
+            &idx,
+            "tags_cache_error",
+            &ContextOptions {
+                budget: 0,
+                depth: 10,
+                format: ContextFormat::Markdown,
+                exclude_tests: false,
+                ..ContextOptions::default()
+            },
+        )
+        .unwrap();
+        let md = render_markdown(&ctx);
+        assert!(md.contains("## Doc"), "Doc section missing: {md}");
+        assert!(
+            md.contains("Handle SQLite errors"),
+            "doc body missing: {md}"
+        );
+        // And the agent JSON exposes it as `d`.
+        let agent = render_agent_json(&ctx);
+        assert!(agent.contains("\"d\":"), "agent view missing `d` key: {agent}");
+    }
+
+    #[test]
+    fn context_for_constant_includes_literal_value_in_signature() {
+        // Regression: `code.context RETRY_TIMEOUT` must surface the value
+        // (sig text) so downstream consumers don't have to do a follow-up
+        // file read just to learn that RETRY_TIMEOUT == 60.
+        let idx = Index::build(
+            vec![ent_full(
+                "config.py",
+                "RETRY_TIMEOUT",
+                "constant",
+                None,
+                Some("60"),
+                Some("public"),
+                1,
+            )],
+            vec![],
+        );
+        let ctx = build_context(
+            &idx,
+            "RETRY_TIMEOUT",
+            &ContextOptions {
+                budget: 0,
+                depth: 10,
+                format: ContextFormat::Markdown,
+                exclude_tests: false,
+                ..ContextOptions::default()
+            },
+        )
+        .unwrap();
+        let md = render_markdown(&ctx);
+        assert!(md.contains("## Signature"), "signature block missing: {md}");
+        assert!(
+            md.contains("60"),
+            "literal value 60 missing from constant context: {md}"
+        );
     }
 
     #[test]

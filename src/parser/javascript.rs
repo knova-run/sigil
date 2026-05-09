@@ -272,23 +272,6 @@ fn walk_node(
         "lexical_declaration" | "variable_declaration" => {
             extract_variable_decl(node, source, file_path, parent_ctx, symbols);
         }
-        "export_statement" => {
-            // Recurse into the exported declaration
-            let mut cursor = node.walk();
-            for child in node.children(&mut cursor) {
-                walk_node(
-                    child,
-                    source,
-                    file_path,
-                    parent_ctx,
-                    symbols,
-                    texts,
-                    references,
-                    depth + 1,
-                );
-            }
-            return;
-        }
         "import_statement" => {
             extract_import(node, source, file_path, symbols, references);
         }
@@ -312,9 +295,45 @@ fn walk_node(
         _ => {}
     }
 
-    // Recurse into children
+    // Recurse into children, threading pending JSDoc across siblings so that
+    // a `/** … */` block immediately before a function/class/const declaration
+    // (or an export_statement wrapping one) attaches as that item's doc.
     let mut cursor = node.walk();
+    let mut pending_docs: Vec<String> = Vec::new();
     for child in node.children(&mut cursor) {
+        if child.kind() == "comment" {
+            if let Some(text) = jsdoc_text(child, source) {
+                pending_docs.push(text);
+            } else {
+                // Non-JSDoc comment severs the doc chain; the regular comment
+                // emission still happens via walk_node below.
+                pending_docs.clear();
+            }
+            walk_node(
+                child,
+                source,
+                file_path,
+                parent_ctx,
+                symbols,
+                texts,
+                references,
+                depth + 1,
+            );
+            continue;
+        }
+        if !pending_docs.is_empty() {
+            if let Some(item_name) = js_item_name(child, source, parent_ctx) {
+                texts.push(TextEntry {
+                    file: file_path.to_string(),
+                    kind: "docstring".to_string(),
+                    line: node_line_range(child),
+                    text: pending_docs.join("\n"),
+                    parent: Some(item_name),
+                    project: String::new(),
+                });
+            }
+            pending_docs.clear();
+        }
         walk_node(
             child,
             source,
@@ -325,6 +344,67 @@ fn walk_node(
             references,
             depth + 1,
         );
+    }
+}
+
+/// Return the cleaned body of a JSDoc block-comment (`/** … */`), or None
+/// for plain `//` and `/* */` comments. Tree-sitter-javascript uses a
+/// single `comment` kind for both, so we discriminate on the prefix.
+fn jsdoc_text(node: Node, source: &[u8]) -> Option<String> {
+    let raw = node_text(node, source);
+    if raw.starts_with("/**") || raw.starts_with("/*!") {
+        Some(strip_block_comment(&raw))
+    } else {
+        None
+    }
+}
+
+/// Resolve the entity name a JS declaration would emit, matching the names
+/// produced by extract_function_decl / extract_class / extract_variable_decl
+/// so the docstring TextEntry's `parent` joins on equality with the
+/// resulting Entity's `name`.
+fn js_item_name(node: Node, source: &[u8], parent_ctx: Option<&str>) -> Option<String> {
+    let kind = node.kind();
+    match kind {
+        "function_declaration"
+        | "generator_function_declaration"
+        | "class_declaration"
+        | "method_definition" => {
+            let name = node_text(find_child_by_field(node, "name")?, source);
+            Some(qualify(parent_ctx, &name))
+        }
+        "lexical_declaration" | "variable_declaration" => {
+            let mut c = node.walk();
+            for ch in node.children(&mut c) {
+                if ch.kind() == "variable_declarator" {
+                    let n = find_child_by_field(ch, "name")?;
+                    if n.kind() != "identifier" {
+                        return None;
+                    }
+                    return Some(qualify(parent_ctx, &node_text(n, source)));
+                }
+            }
+            None
+        }
+        "export_statement" => {
+            // Drill into the exported declaration so a JSDoc above
+            // `export const FOO = 42` still resolves to FOO.
+            let mut c = node.walk();
+            for ch in node.children(&mut c) {
+                if let Some(name) = js_item_name(ch, source, parent_ctx) {
+                    return Some(name);
+                }
+            }
+            None
+        }
+        _ => None,
+    }
+}
+
+fn qualify(parent_ctx: Option<&str>, name: &str) -> String {
+    match parent_ctx {
+        Some(p) => format!("{p}.{name}"),
+        None => name.to_string(),
     }
 }
 
@@ -782,17 +862,28 @@ fn extract_variable_decl(
                 // Extract tokens from variable value (for arrow functions etc.)
                 let tokens = value_node.and_then(|v| filter_js_tokens(extract_tokens(v, source)));
 
-                push_symbol(
-                    symbols,
-                    file_path,
-                    full_name,
-                    kind,
+                // For constants/plain variables, capture the RHS literal as
+                // the sig so `code.context FOO` can return what FOO equals
+                // without a follow-up file read. Functions keep the
+                // signature-from-source path (set later in index.rs).
+                let sig = if is_func {
+                    None
+                } else {
+                    value_node.map(|v| truncate_sig(&node_text(v, source)))
+                };
+
+                symbols.push(SymbolEntry {
+                    file: file_path.to_string(),
+                    name: full_name,
+                    kind: kind.to_string(),
                     line,
-                    parent_ctx,
+                    parent: parent_ctx.map(String::from),
                     tokens,
-                    None,
-                    Some(visibility.clone()),
-                );
+                    alias: None,
+                    visibility: Some(visibility.clone()),
+                    sig,
+                    project: String::new(),
+                });
             }
         }
     }
