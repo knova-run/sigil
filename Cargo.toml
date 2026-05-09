@@ -89,6 +89,9 @@ tokenizer = ["dep:tiktoken-rs"]
 # DuckDB sources). Xcode CLT / build-essential / MSVC as appropriate.
 db = ["dep:duckdb"]
 
+[dev-dependencies]
+tempfile = "3"
+
 # The profile that 'dist' will build with
 [profile.dist]
 inherits = "release"

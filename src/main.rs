@@ -673,6 +673,17 @@ enum Cli {
         /// Source text. Pass on the command line or via stdin (use `-`).
         text: String,
     },
+    /// Extract architectural-decision markers from source-file comments.
+    ///
+    /// Scans for `# DECISION:`, `# WHY:`, `# RATIONALE:`, `# TRADEOFF:`
+    /// (and `//` / `--` comment-style equivalents) anchors in source. Emits
+    /// one JSONL row per match — designed to feed the Knova runner's
+    /// decision intelligence layer.
+    Decisions {
+        /// Project root directory
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
+    },
 }
 
 #[derive(Subcommand)]
@@ -1558,6 +1569,17 @@ fn main() {
                 Err(e) => {
                     eprintln!("identifiers: failed to serialize: {}", e);
                     std::process::exit(1);
+                }
+            }
+        }
+        Cli::Decisions { root } => {
+            for marker in sigil::decisions::extract_from_root(&root) {
+                match serde_json::to_string(&marker) {
+                    Ok(s) => println!("{}", s),
+                    Err(e) => {
+                        eprintln!("decisions: failed to serialize: {}", e);
+                        std::process::exit(1);
+                    }
                 }
             }
         }

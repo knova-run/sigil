@@ -2510,6 +2510,7 @@ dependencies = [
  "serde_json",
  "serde_yml",
  "similar",
+ "tempfile",
  "tiktoken-rs",
  "toml",
  "tree-sitter",

@@ -26,6 +26,7 @@ pub mod meta;
 pub mod cochange;
 pub mod community;
 pub mod context;
+pub mod decisions;
 pub mod map;
 pub mod outline;
 pub mod output;
