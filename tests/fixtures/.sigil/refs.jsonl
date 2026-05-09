@@ -1,19 +1,4 @@
-{"file":"sample.go","caller":null,"name":"fmt","ref_kind":"import","line":3}
-{"file":"sample.go","caller":"NewConfig","name":"Config","ref_kind":"type_annotation","line":10}
-{"file":"sample.go","caller":"Config.Validate","name":"fmt.Errorf","ref_kind":"call","line":16}
-{"file":"sample.py","caller":null,"name":"os","ref_kind":"import","line":1}
-{"file":"sample.py","caller":null,"name":"typing.Optional","ref_kind":"import","line":2}
-{"file":"sample.py","caller":"UserService.get_user","name":"self.db.find","ref_kind":"call","line":11}
-{"file":"sample.py","caller":"UserService.delete_user","name":"self.db.remove","ref_kind":"call","line":14}
-{"file":"sample.rs","caller":null,"name":"std::fmt","ref_kind":"import","line":1}
-{"file":"sample.rs","caller":"Config","name":"String","ref_kind":"type_annotation","line":5}
-{"file":"sample.rs","caller":"Config.new","name":"\"localhost\".into","ref_kind":"call","line":11}
-{"file":"sample.rs","caller":"Config.fmt","name":"fmt::Formatter","ref_kind":"type_annotation","line":16}
-{"file":"sample.rs","caller":"Config.fmt","name":"fmt::Result","ref_kind":"type_annotation","line":16}
-{"file":"sample.rs","caller":"validate_port","name":"Result","ref_kind":"type_annotation","line":21}
-{"file":"sample.rs","caller":"validate_port","name":"String","ref_kind":"type_annotation","line":21}
-{"file":"sample.rs","caller":"validate_port","name":"\"port cannot be zero\".into","ref_kind":"call","line":23}
-{"file":"sample.ts","caller":null,"name":"express.Request","ref_kind":"import","line":1}
-{"file":"sample.ts","caller":null,"name":"express.Response","ref_kind":"import","line":1}
-{"file":"sample.ts","caller":"UserService.getUser","name":"db.findById","ref_kind":"call","line":16}
-{"file":"sample.ts","caller":null,"name":"res.json","ref_kind":"call","line":21}
+{"file":"sample.py","name":"os","kind":"import","line":1}
+{"file":"sample.py","name":"typing.Optional","kind":"import","line":2}
+{"file":"sample.py","caller":"UserService.get_user","name":"self.db.find","kind":"call","line":11}
+{"file":"sample.py","caller":"UserService.delete_user","name":"self.db.remove","kind":"call","line":14}

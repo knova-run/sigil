@@ -757,6 +757,7 @@ mod json_emit_tests {
             line_start: 10,
             line_end: 20,
             parent: None,
+            qualified_name: None,
             sig: Some("pub struct Foo".into()),
             meta: Some(vec!["Debug".into(), "Clone".into()]),
             body_hash: Some("abc".into()),
@@ -781,6 +782,7 @@ mod json_emit_tests {
             line_start: 1,
             line_end: 1,
             parent: None,
+            qualified_name: None,
             sig: None,
             meta: Some(vec![]), // parser emits empty vec often
             body_hash: None,

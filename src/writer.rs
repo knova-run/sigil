@@ -88,6 +88,7 @@ mod tests {
             line_start: 1,
             line_end: 3,
             parent: None,
+            qualified_name: None,
             sig: Some("def foo(x: int):".to_string()),
             meta: None,
             body_hash: Some("abcdef1234567890".to_string()),

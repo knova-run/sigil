@@ -761,6 +761,7 @@ mod tests {
             line_start: 10,
             line_end: 20,
             parent: parent.map(str::to_string),
+            qualified_name: None,
             sig: sig.map(str::to_string),
             meta: None,
             body_hash: None,

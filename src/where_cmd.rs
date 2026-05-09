@@ -327,6 +327,7 @@ mod tests {
             line_start: line,
             line_end: line + 2,
             parent: parent.map(String::from),
+            qualified_name: None,
             sig: Some(format!("sig of {name}")),
             meta: None,
             body_hash: None,

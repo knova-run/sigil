@@ -742,6 +742,7 @@ mod tests {
             line_start,
             line_end,
             parent: None,
+            qualified_name: None,
             sig: Some(format!("def {}():", name)),
             meta: None,
             body_hash: Some("bh1".to_string()),

@@ -128,6 +128,7 @@ mod tests {
         Entity {
             file: "a.py".into(), name: "foo".into(), kind: "function".into(),
             line_start: 1, line_end: 5, parent: None,
+            qualified_name: None,
             sig: Some("def foo():".into()), meta: None,
             body_hash: body_hash.map(|s| s.into()),
             sig_hash: sig_hash.map(|s| s.into()),

@@ -39,6 +39,28 @@ fn indexes_python_fixture() {
 }
 
 #[test]
+fn methods_carry_qualified_name_with_parent_prefix() {
+    let output = run_sigil_index(
+        &fixture_path(),
+        &["--files", &format!("{}/sample.py", fixture_path())],
+    );
+    let entities: Vec<serde_json::Value> = output
+        .lines()
+        .map(|l| serde_json::from_str(l).unwrap())
+        .collect();
+    let get_user = entities
+        .iter()
+        .find(|e| e["name"] == "UserService.get_user")
+        .expect("expected UserService.get_user method in fixture");
+    assert_eq!(
+        get_user["qualified_name"].as_str(),
+        Some("UserService::get_user"),
+        "qualified_name should be Class::method (`::` form), got {:?}",
+        get_user.get("qualified_name")
+    );
+}
+
+#[test]
 fn indexes_rust_fixture() {
     let output = run_sigil_index(&fixture_path(), &["--files", &format!("{}/sample.rs", fixture_path())]);
     let entities: Vec<serde_json::Value> = output.lines()
