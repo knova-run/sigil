@@ -722,6 +722,34 @@ enum Cli {
         #[command(subcommand)]
         action: WorkspaceAction,
     },
+    /// Rank files by commit-count churn × line-count complexity.
+    /// JSONL on stdout: { file, churn, lines, hotspot_score } sorted desc.
+    Hotspots {
+        /// Project root (must be a git repo)
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
+        /// How many recent commits to consider for churn.
+        #[arg(long, default_value = "500")]
+        commits: usize,
+    },
+    /// Per-file ownership from git log. JSONL on stdout:
+    /// { file, primary_owner, ownership_pct, author_count, commit_count }.
+    Ownership {
+        /// Project root (must be a git repo)
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
+        /// How many recent commits to walk.
+        #[arg(long, default_value = "500")]
+        commits: usize,
+    },
+    /// Regex-based security signal scan. JSONL on stdout:
+    /// { file, line, kind, severity }.
+    #[command(name = "security-scan")]
+    SecurityScan {
+        /// Project root directory
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
+    },
 }
 
 #[derive(Subcommand)]
@@ -1694,6 +1722,51 @@ fn main() {
                         }
                     }
                 }
+            }
+        },
+        Cli::Hotspots { root, commits } => match sigil::hotspots::mine(&root, commits) {
+            Ok(rows) => {
+                for row in rows {
+                    match serde_json::to_string(&row) {
+                        Ok(s) => println!("{}", s),
+                        Err(e) => {
+                            eprintln!("hotspots: failed to serialize: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("hotspots: {}", e);
+                std::process::exit(1);
+            }
+        },
+        Cli::SecurityScan { root } => {
+            for finding in sigil::security_scan::scan_root(&root) {
+                match serde_json::to_string(&finding) {
+                    Ok(s) => println!("{}", s),
+                    Err(e) => {
+                        eprintln!("security-scan: failed to serialize: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+        }
+        Cli::Ownership { root, commits } => match sigil::ownership::mine(&root, commits) {
+            Ok(rows) => {
+                for row in rows {
+                    match serde_json::to_string(&row) {
+                        Ok(s) => println!("{}", s),
+                        Err(e) => {
+                            eprintln!("ownership: failed to serialize: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("ownership: {}", e);
+                std::process::exit(1);
             }
         },
     }
