@@ -4,6 +4,64 @@ All notable changes to sigil are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] — 2026-05-09 — module-level constants, entity docstrings, top-K subsystem entities
+
+### Added
+
+- **`kind: "constant"` entity** across all 8 supported tree-sitter languages
+  (Python, Rust, Go, TypeScript, JavaScript, Java, C#, C++). The literal RHS
+  is captured directly from the AST as `Entity.sig` (truncated to 256 chars
+  with `…`), so `code.context RETRY_TIMEOUT` returns "60" inline instead
+  of forcing a follow-up file read. Covers Python `NAME = …` (UPPER →
+  constant, else variable, class-level too), Rust `const` / `static`,
+  Go `const` blocks + package-level `var`, TS/JS top-level `const`, Java
+  `static final`, C# `const` / `static readonly`, and C++ `constexpr`,
+  top-level `const`, and `#define`.
+- **`Entity.doc: Option<String>`** populated from each language's leading
+  doc-comment / docstring convention: Python `"""…"""` first-statement,
+  Rust `///` / `/** */`, Go godoc `//` (blank-line-aware), JSDoc `/** */`
+  for JS/TS (drilling through `export_statement` so `/** … */ export const
+  FOO = …` attaches to `FOO`), Javadoc, C# XML-doc `///`, and Doxygen for
+  C++ (`///`, `//!`, `/** */`, `/*! */`). Truncated to 1024 chars. Surfaced
+  in `code.context` markdown as a `## Doc` section between Signature and
+  Body, in the agent JSON view under short key `d`.
+- **`sigil map --top-entities-per-subsystem N`** (default 0, additive)
+  attaches a `top_entities[]` list to each subsystem with full
+  code.context-shaped fields (callers, callees, related types, doc),
+  collapsing the downstream `subsystems → files → entities → context`
+  N+1 query into a single map call. Markdown form mirrors with a tight
+  per-subsystem block.
+- **`sigil where` resolves constants** alongside functions / classes /
+  methods. Module-level tunables (`RETRY_TIMEOUT`, `ANTHROPIC_BETA_HEADER`)
+  now answer "where is this defined" the same way functions do; variables
+  and imports remain excluded.
+
+### Fixed
+
+- The Python `extract_class` walker was dropping the first class-body
+  statement when it wasn't a docstring, so a class whose first member was a
+  constant assignment (`class Config: CACHE_VERSION = 3`) silently lost
+  the constant from the index. Surfaced while writing the class-level
+  constant tests.
+
+### Compatibility
+
+Both new fields (`Entity.sig` for constants, `Entity.doc`) are
+`Option<...>` with `skip_serializing_if = "Option::is_none"`. Existing
+`entities.jsonl` rows for symbols without a sig/doc value remain
+byte-identical. `top_entities[]` only appears when
+`--top-entities-per-subsystem > 0`. `--format json` of `code.context`
+includes `"doc"` only when populated.
+
+### CI
+
+- Replaced `actions/cache` with `Swatinem/rust-cache@v2` for per-crate
+  cache keys + target/ pruning + incremental restore.
+- Dropped the redundant `cargo build` step (`cargo test` already compiles
+  the lib + test targets).
+- Added `concurrency` group with `cancel-in-progress` so back-to-back
+  pushes don't burn runner minutes on superseded runs.
+
 ## [0.4.2] — 2026-05-09 — first npm release (fix for 0.4.1 CI break)
 
 Functionally identical to 0.4.1. The 0.4.1 release pipeline produced
