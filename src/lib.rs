@@ -25,6 +25,7 @@ pub mod matcher;
 pub mod meta;
 pub mod cochange;
 pub mod community;
+pub mod cross_repo_cochange;
 pub mod context;
 pub mod decisions;
 pub mod map;

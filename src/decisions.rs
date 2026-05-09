@@ -3,10 +3,12 @@
 //! Scans source files for architectural-decision anchors written as
 //! line comments. Recognizes the canonical markers:
 //!
-//!     # DECISION: <text>
-//!     # WHY: <text>
-//!     # RATIONALE: <text>
-//!     # TRADEOFF: <text>
+//! ```text
+//! # DECISION: <text>
+//! # WHY: <text>
+//! # RATIONALE: <text>
+//! # TRADEOFF: <text>
+//! ```
 //!
 //! and the same forms with `//` (Rust/Go/JS/TS/Java/C/C++/C#) and `--` (Lua/SQL).
 //! Output is JSONL — one row per match — designed to be ingested into the

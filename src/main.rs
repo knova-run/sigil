@@ -542,6 +542,16 @@ enum Cli {
         /// Pretty-print the JSON output.
         #[arg(long)]
         pretty: bool,
+        /// Workspace mode: scan this parent directory for child git repos
+        /// and emit cross-repo file pairs that change in the same time
+        /// window. JSONL on stdout (one edge per row). Bypasses the
+        /// per-repo `.sigil/cochange.json` cache.
+        #[arg(long)]
+        workspace: Option<PathBuf>,
+        /// Workspace mode: max seconds between two commits for them to
+        /// count as temporally-correlated.
+        #[arg(long, default_value = "86400")]
+        workspace_window_secs: i64,
     },
     /// Minimum-viable context for a symbol — signature, callers, callees,
     /// related types. One call replaces the read-6-files orientation loop.
@@ -1317,7 +1327,34 @@ fn main() {
                 }
             }
         }
-        Cli::Cochange { root, commits, min_support, max_files_per_commit, pretty } => {
+        Cli::Cochange { root, commits, min_support, max_files_per_commit, pretty, workspace, workspace_window_secs } => {
+            // Workspace mode short-circuits the per-repo path: cross-repo
+            // edges over child git repos under `workspace`, JSONL on stdout.
+            if let Some(parent) = workspace {
+                let cfg = sigil::cross_repo_cochange::CrossRepoConfig {
+                    window_secs: workspace_window_secs,
+                    commits_per_repo: commits as usize,
+                    min_strength: 0.0,
+                };
+                match sigil::cross_repo_cochange::mine(&parent, &cfg) {
+                    Ok(edges) => {
+                        for edge in edges {
+                            match serde_json::to_string(&edge) {
+                                Ok(s) => println!("{}", s),
+                                Err(e) => {
+                                    eprintln!("cochange: failed to serialize: {}", e);
+                                    std::process::exit(1);
+                                }
+                            }
+                        }
+                        return;
+                    }
+                    Err(e) => {
+                        eprintln!("cochange --workspace: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
             let cfg = sigil::cochange::CochangeConfig { commits, min_support, max_files_per_commit };
             match sigil::cochange::mine(&root, &cfg) {
                 Ok(manifest) => {
