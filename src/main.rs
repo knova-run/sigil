@@ -44,7 +44,7 @@ sigil groups commands into two tiers:
     hotspots      File churn × line count risk score
     ownership     Per-file primary author from git history
     security-scan Lightweight regex security-signal extractor
-    communities   Louvain modularity clustering over the file graph
+    communities   Leiden/Louvain modularity clustering over the file graph
 
   INSTALLERS (platform integrations, all idempotent):
     claude · cursor · codex · gemini · opencode · aider · copilot · hook
@@ -763,22 +763,23 @@ enum Cli {
     /// NDJSON on stdout, one cluster per line:
     /// `{cluster_id, size, members, representative, label}`.
     ///
-    /// MVP ships Louvain (--algorithm louvain, the default). Leiden's
-    /// refinement step is a planned follow-up; the --algorithm flag exists
-    /// so future code can opt in without breaking callers.
+    /// Default: `--algorithm leiden`. Leiden's refinement step guarantees
+    /// every output community is internally connected (Louvain doesn't).
+    /// `--algorithm louvain` remains available for users who want the
+    /// classic Blondel et al. partition without the refinement pass.
     Communities {
         /// Project root directory (must contain a `.sigil/` index — run
         /// `sigil index` first).
         #[arg(short, long, default_value = ".")]
         root: PathBuf,
-        /// Modularity resolution. 1.0 = vanilla Louvain. >1 → more, smaller
-        /// clusters. <1 → fewer, larger clusters.
+        /// Modularity resolution. 1.0 = vanilla modularity. >1 → more,
+        /// smaller clusters. <1 → fewer, larger clusters.
         #[arg(long, default_value = "1.0")]
         resolution: f64,
-        /// Clustering algorithm. Currently only `louvain` is implemented;
-        /// `leiden` is reserved for a follow-up that layers the refinement
-        /// step on top of the Louvain output.
-        #[arg(long, default_value = "louvain")]
+        /// Clustering algorithm. `leiden` (default) adds a connectivity
+        /// refinement pass on top of Louvain's local-moving phase so every
+        /// output community is internally connected; `louvain` skips it.
+        #[arg(long, default_value = "leiden")]
         algorithm: String,
         /// Pretty-print as a JSON array instead of streaming NDJSON.
         #[arg(long)]
@@ -1804,18 +1805,7 @@ fn main() {
             }
         },
         Cli::Communities { root, resolution, algorithm, pretty } => {
-            // MVP only implements Louvain; surface a clear error if the
-            // caller asks for something else so the failure mode is
-            // diagnostic, not a silent fallback.
             let algo = algorithm.to_lowercase();
-            if algo != "louvain" {
-                eprintln!(
-                    "communities: --algorithm {} is not yet implemented. \
-                     Only `louvain` is supported in this release; `leiden` is planned.",
-                    algorithm
-                );
-                std::process::exit(2);
-            }
             let idx = match sigil::query::index::Index::load(&root) {
                 Ok(i) => i,
                 Err(e) => {
@@ -1825,16 +1815,40 @@ fn main() {
                 }
             };
             let rank_manifest = sigil::map::load_rank_manifest(&root).unwrap_or_default();
-            let cfg = sigil::communities::LouvainConfig {
-                resolution,
-                ..sigil::communities::LouvainConfig::default()
+            let clusters = match algo.as_str() {
+                "leiden" => {
+                    let cfg = sigil::communities::LeidenConfig {
+                        resolution,
+                        ..sigil::communities::LeidenConfig::default()
+                    };
+                    sigil::communities::detect_leiden(
+                        &idx.entities,
+                        &idx.references,
+                        &rank_manifest.file_rank,
+                        &cfg,
+                    )
+                }
+                "louvain" => {
+                    let cfg = sigil::communities::LouvainConfig {
+                        resolution,
+                        ..sigil::communities::LouvainConfig::default()
+                    };
+                    sigil::communities::detect(
+                        &idx.entities,
+                        &idx.references,
+                        &rank_manifest.file_rank,
+                        &cfg,
+                    )
+                }
+                other => {
+                    eprintln!(
+                        "communities: --algorithm {} is not recognized. \
+                         Supported algorithms: `leiden` (default), `louvain`.",
+                        other
+                    );
+                    std::process::exit(2);
+                }
             };
-            let clusters = sigil::communities::detect(
-                &idx.entities,
-                &idx.references,
-                &rank_manifest.file_rank,
-                &cfg,
-            );
             if pretty {
                 match serde_json::to_string_pretty(&clusters) {
                     Ok(s) => println!("{}", s),

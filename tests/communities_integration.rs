@@ -10,7 +10,7 @@
 
 use std::collections::HashMap;
 
-use sigil::communities::{detect, LouvainConfig};
+use sigil::communities::{detect, detect_leiden, LeidenConfig, LouvainConfig};
 use sigil::entity::{Entity, Reference};
 
 fn ent(file: &str, name: &str) -> Entity {
@@ -253,6 +253,36 @@ fn ndjson_serialization_round_trips() {
         // fixture every cluster has members under a common root ".", so we
         // don't pin its presence here (covered explicitly by other tests).
     }
+}
+
+#[test]
+fn leiden_finds_two_clusters_on_8_file_synthetic_graph() {
+    // Headline behavior: Leiden produces the same obvious partition as
+    // Louvain on a clean two-clique fixture, just with the connectivity
+    // guarantee. Confirms the public `detect_leiden` API works end-to-end.
+    let (entities, refs) = two_cluster_fixture();
+    let clusters = detect_leiden(&entities, &refs, &HashMap::new(), &LeidenConfig::default());
+    assert_eq!(
+        clusters.len(),
+        2,
+        "expected exactly two clusters under Leiden, got {:?}",
+        clusters.iter().map(|c| (c.cluster_id, &c.members)).collect::<Vec<_>>()
+    );
+    let sizes: Vec<usize> = clusters.iter().map(|c| c.size).collect();
+    assert_eq!(sizes, vec![4, 4]);
+}
+
+#[test]
+fn leiden_is_deterministic_across_runs() {
+    // Same input + same seed → byte-identical output. Required so cluster
+    // ids stay stable across `sigil communities` invocations and downstream
+    // consumers can cache against them.
+    let (entities, refs) = two_cluster_fixture();
+    let first = detect_leiden(&entities, &refs, &HashMap::new(), &LeidenConfig::default());
+    let second = detect_leiden(&entities, &refs, &HashMap::new(), &LeidenConfig::default());
+    let third = detect_leiden(&entities, &refs, &HashMap::new(), &LeidenConfig::default());
+    assert_eq!(first, second);
+    assert_eq!(second, third);
 }
 
 #[test]

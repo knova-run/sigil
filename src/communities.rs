@@ -1,12 +1,21 @@
-//! File-level community detection via **Louvain modularity optimization**.
+//! File-level community detection via **Leiden modularity optimization**
+//! (issue #17), with Louvain available as an explicit fallback.
 //!
-//! Issue #17 asked for Leiden specifically. This module ships Louvain as the
-//! MVP — it's the predecessor to Leiden, ~150 LoC of pure Rust, and produces
-//! the same kind of modularity-maximizing partition on the file-graph
-//! workloads sigil cares about. Leiden's refinement step (which guarantees
-//! every community is internally connected and tends to lift modularity by
-//! 1–3% on dense graphs) is a clean follow-up that can layer on top of the
-//! Louvain output here without breaking the wire shape.
+//! `detect_leiden` is the public entry point used by `sigil communities`
+//! when called without `--algorithm`. It runs Louvain's local-moving phase
+//! and follows it with a connectivity refinement pass that BFS-splits any
+//! internally-disconnected community before aggregation. Every output
+//! community is therefore guaranteed connected — the headline guarantee
+//! Traag et al. (2019) flag as missing from vanilla Louvain.
+//!
+//! `detect` (Louvain only) stays public for callers that explicitly want
+//! the unrefined Blondel et al. (2008) partition; passing `--algorithm
+//! louvain` to the CLI uses it.
+//!
+//! The randomized well-connected refinement variant from the Leiden paper
+//! (which can also tighten modularity by 1–3% on dense graphs) is a clean
+//! follow-up — the connectivity-component refinement here addresses the
+//! invariant the issue calls out without requiring a randomized pass.
 //!
 //! ## Difference vs `community.rs`
 //!
@@ -104,16 +113,28 @@ pub fn detect(
     file_rank: &HashMap<String, f64>,
     cfg: &LouvainConfig,
 ) -> Vec<Cluster> {
+    let Some((nodes, adj)) = build_graph(entities, references) else {
+        return Vec::new();
+    };
+    let community_of_node = louvain(&adj, cfg);
+    clusters_from_partition(community_of_node, &nodes, file_rank)
+}
+
+/// Build the file-graph used by both `detect` and `detect_leiden`. Returns
+/// the deterministic node list and the symmetric adjacency, or `None` when
+/// the input has no files at all (callers shortcut to an empty cluster set).
+fn build_graph(
+    entities: &[Entity],
+    references: &[Reference],
+) -> Option<(Vec<String>, Vec<BTreeMap<usize, f64>>)> {
     let name_index = build_name_index(entities);
     let edges = build_file_edges(references, &name_index);
     let nodes = collect_nodes(entities, references);
     if nodes.is_empty() {
-        return Vec::new();
+        return None;
     }
-
     let file_to_id: HashMap<&str, usize> =
         nodes.iter().enumerate().map(|(i, n)| (n.as_str(), i)).collect();
-
     // Adjacency: id → BTreeMap<neighbor_id, weight>. BTreeMap so iteration
     // order is deterministic.
     let mut adj: Vec<BTreeMap<usize, f64>> = vec![BTreeMap::new(); nodes.len()];
@@ -128,23 +149,93 @@ pub fn detect(
             *adj[ib].entry(ia).or_insert(0.0) += *w;
         }
     }
+    Some((nodes, adj))
+}
 
-    let community_of_node = louvain(&adj, cfg);
+// ─────────────────────────────────────────────────────────────────────────
+// Leiden surface (issue #17). Same `Cluster` output shape as `detect`; the
+// algorithmic upgrade Leiden brings is the refinement step that guarantees
+// every output community is internally connected. Configuration mirrors
+// Louvain's plus a `theta` parameter that tunes the refinement step.
+// ─────────────────────────────────────────────────────────────────────────
 
-    // Bucket files by their final community id, then re-number to compact
-    // 0..K so output `cluster_id`s are stable and contiguous.
+#[derive(Debug, Clone)]
+pub struct LeidenConfig {
+    pub resolution: f64,
+    pub max_passes: u32,
+    pub max_moves_per_pass: u32,
+    pub seed: u64,
+    /// Refinement randomness knob. 0.01 is the value Traag et al. (2019)
+    /// recommend; higher values bias the refinement toward more aggressive
+    /// re-partitioning. Currently a placeholder — wired in once the
+    /// refinement step lands. Kept on the public type so adding it later
+    /// doesn't break callers.
+    pub theta: f64,
+}
+
+impl Default for LeidenConfig {
+    fn default() -> Self {
+        Self {
+            resolution: 1.0,
+            max_passes: 16,
+            max_moves_per_pass: 100_000,
+            seed: 0xC0FFEE,
+            theta: 0.01,
+        }
+    }
+}
+
+impl From<&LeidenConfig> for LouvainConfig {
+    fn from(c: &LeidenConfig) -> Self {
+        LouvainConfig {
+            resolution: c.resolution,
+            max_passes: c.max_passes,
+            max_moves_per_pass: c.max_moves_per_pass,
+            seed: c.seed,
+        }
+    }
+}
+
+/// Leiden modularity clustering. Same shape as `detect`; differs in the
+/// algorithmic guarantees of the partition: every cluster is internally
+/// connected (Louvain doesn't guarantee this).
+///
+/// Implementation: Louvain's local-moving phase produces an initial
+/// partition; a refinement phase splits any internally-disconnected
+/// community into its connected components; aggregation uses the
+/// refined partition. Repeated multi-level. The randomized
+/// well-connected refinement variant from Traag et al. (2019) is a
+/// follow-up.
+pub fn detect_leiden(
+    entities: &[Entity],
+    references: &[Reference],
+    file_rank: &HashMap<String, f64>,
+    cfg: &LeidenConfig,
+) -> Vec<Cluster> {
+    let Some((nodes, adj)) = build_graph(entities, references) else {
+        return Vec::new();
+    };
+    let community_of_node = leiden(&adj, cfg);
+    clusters_from_partition(community_of_node, &nodes, file_rank)
+}
+
+/// Bucket files by community id, decorate with representative + label,
+/// and renumber cluster ids to a stable 0..K. Shared by `detect` (Louvain)
+/// and `detect_leiden`.
+fn clusters_from_partition(
+    community_of_node: Vec<usize>,
+    nodes: &[String],
+    file_rank: &HashMap<String, f64>,
+) -> Vec<Cluster> {
     let mut buckets: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
     for (node, &comm) in community_of_node.iter().enumerate() {
         buckets.entry(comm).or_default().push(node);
     }
-    // Sort buckets by their first (lowest) file id so reruns produce the
-    // same cluster_id assignment.
     let mut bucket_list: Vec<Vec<usize>> = buckets.into_values().collect();
     for b in &mut bucket_list {
         b.sort();
     }
     bucket_list.sort_by_key(|b| b[0]);
-
     bucket_list
         .into_iter()
         .enumerate()
@@ -162,6 +253,100 @@ pub fn detect(
             }
         })
         .collect()
+}
+
+/// Leiden multi-level loop: Louvain local-moving + connectivity refinement
+/// + aggregation, until convergence. Returns `community_of_node[i]` =
+/// final community id of node `i` at the finest (input) level.
+fn leiden(adj: &[BTreeMap<usize, f64>], cfg: &LeidenConfig) -> Vec<usize> {
+    let louvain_cfg: LouvainConfig = cfg.into();
+    let mut levels: Vec<Vec<usize>> = Vec::new();
+    let mut current = adj.to_vec();
+
+    for _ in 0..cfg.max_passes {
+        let raw_partition = local_moving(&current, &louvain_cfg);
+        let louvain_compact = compact_in_node_order(&raw_partition);
+        // Refinement: split any internally-disconnected community into its
+        // connected components. This is the Leiden guarantee that Louvain
+        // lacks — every refined community grows by BFS through actual edges.
+        let refined = refine_to_connected_components(&current, &louvain_compact);
+        let refined_compact = compact_in_node_order(&refined);
+        let distinct = refined_compact.iter().copied().max().map(|m| m + 1).unwrap_or(0);
+        if distinct == current.len() {
+            levels.push(refined_compact);
+            break;
+        }
+        levels.push(refined_compact.clone());
+        let aggregated = aggregate(&current, &refined_compact);
+        if aggregated.len() >= current.len() {
+            break;
+        }
+        current = aggregated;
+    }
+
+    let n = adj.len();
+    let mut result: Vec<usize> = (0..n).collect();
+    for partition in &levels {
+        for slot in result.iter_mut() {
+            *slot = partition[*slot];
+        }
+    }
+    let mut compact: HashMap<usize, usize> = HashMap::new();
+    let mut next_id: usize = 0;
+    for slot in result.iter_mut() {
+        let id = *compact.entry(*slot).or_insert_with(|| {
+            let id = next_id;
+            next_id += 1;
+            id
+        });
+        *slot = id;
+    }
+    result
+}
+
+/// For each Louvain community, BFS through the community's induced subgraph
+/// and assign each connected component its own refined id. Trivially
+/// guarantees that every refined community is internally connected — the
+/// invariant Louvain occasionally violates and Leiden patches.
+fn refine_to_connected_components(
+    adj: &[BTreeMap<usize, f64>],
+    louvain_partition: &[usize],
+) -> Vec<usize> {
+    let n = adj.len();
+    // Group nodes by Louvain community in deterministic order.
+    let mut by_community: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
+    for (i, &c) in louvain_partition.iter().enumerate() {
+        by_community.entry(c).or_default().push(i);
+    }
+    let mut refined: Vec<usize> = vec![0; n];
+    let mut next_id: usize = 0;
+    for (_louvain_comm, nodes) in by_community {
+        let node_set: BTreeSet<usize> = nodes.iter().copied().collect();
+        let mut visited: BTreeSet<usize> = BTreeSet::new();
+        // Iterate node entry order (lowest-first via BTreeMap of community)
+        // so refined ids are deterministic across runs.
+        for &start in &nodes {
+            if visited.contains(&start) {
+                continue;
+            }
+            let component_id = next_id;
+            next_id += 1;
+            // BFS through edges that stay inside this Louvain community.
+            let mut queue: Vec<usize> = vec![start];
+            while let Some(node) = queue.pop() {
+                if !visited.insert(node) {
+                    continue;
+                }
+                refined[node] = component_id;
+                for (&j, _) in &adj[node] {
+                    if node_set.contains(&j) && !visited.contains(&j) {
+                        queue.push(j);
+                    }
+                }
+            }
+        }
+    }
+    refined
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -553,6 +738,139 @@ mod tests {
         let r = HashMap::new();
         let out = detect(&[], &[], &r, &LouvainConfig::default());
         assert!(out.is_empty());
+    }
+
+    /// BFS-based check: every member of the cluster is reachable from
+    /// `members[0]` along edges that connect two cluster members under
+    /// the same edge rule the algorithm uses (`build_name_index` +
+    /// `build_file_edges`). Used to enforce the Leiden internal-connectivity
+    /// contract from `detect_leiden` output.
+    fn cluster_is_internally_connected(
+        members: &[String],
+        entities: &[Entity],
+        references: &[Reference],
+    ) -> bool {
+        if members.len() <= 1 {
+            return true;
+        }
+        let member_set: BTreeSet<&str> = members.iter().map(|s| s.as_str()).collect();
+        let name_index = build_name_index(entities);
+        let mut adj: HashMap<&str, BTreeSet<&str>> = HashMap::new();
+        for r in references {
+            if !member_set.contains(r.file.as_str()) {
+                continue;
+            }
+            let Some(targets) = name_index.get(r.name.as_str()) else {
+                continue;
+            };
+            for &t in targets {
+                if t == r.file.as_str() {
+                    continue;
+                }
+                if member_set.contains(t) {
+                    adj.entry(r.file.as_str()).or_default().insert(t);
+                    adj.entry(t).or_default().insert(r.file.as_str());
+                }
+            }
+        }
+        let mut visited: BTreeSet<&str> = BTreeSet::new();
+        let mut queue: Vec<&str> = vec![members[0].as_str()];
+        while let Some(node) = queue.pop() {
+            if !visited.insert(node) {
+                continue;
+            }
+            if let Some(nbrs) = adj.get(node) {
+                for &n in nbrs {
+                    if !visited.contains(n) {
+                        queue.push(n);
+                    }
+                }
+            }
+        }
+        members.iter().all(|m| visited.contains(m.as_str()))
+    }
+
+    #[test]
+    fn leiden_clusters_are_internally_connected() {
+        // Leiden's headline guarantee over Louvain: every output community
+        // is internally connected. We assert this on a fixture deliberately
+        // shaped to stress Louvain's disconnection failure mode — a "ring
+        // of weakly-bridged cliques" where greedy local moves can group
+        // non-adjacent cliques into a single community. Even if Louvain
+        // happens to satisfy connectivity here, the assertion locks the
+        // invariant for any future refactor.
+        //
+        // Layout:
+        //   3 cliques of 3 nodes each: {a1,a2,a3}, {b1,b2,b3}, {c1,c2,c3}.
+        //   Single bridge edges: a3↔b1, b3↔c1, c3↔a1.
+        let entities: Vec<Entity> = ["a1","a2","a3","b1","b2","b3","c1","c2","c3"]
+            .iter()
+            .map(|n| ent(&format!("{n}.rs"), &format!("f_{n}")))
+            .collect();
+        let mut refs = Vec::new();
+        // Intra-clique dense refs (each node references the other two in its clique).
+        for clique in [["a1","a2","a3"], ["b1","b2","b3"], ["c1","c2","c3"]] {
+            for src in &clique {
+                for dst in &clique {
+                    if src != dst {
+                        refs.push(refr(&format!("{src}.rs"), Some("c"), &format!("f_{dst}")));
+                    }
+                }
+            }
+        }
+        // Bridges: single edge between adjacent cliques.
+        refs.push(refr("a3.rs", Some("c"), "f_b1"));
+        refs.push(refr("b3.rs", Some("c"), "f_c1"));
+        refs.push(refr("c3.rs", Some("c"), "f_a1"));
+        let clusters = detect_leiden(&entities, &refs, &HashMap::new(), &LeidenConfig::default());
+        assert!(!clusters.is_empty(), "expected at least one cluster");
+        for cluster in &clusters {
+            assert!(
+                cluster_is_internally_connected(&cluster.members, &entities, &refs),
+                "Leiden returned an internally disconnected cluster: {:?}",
+                cluster.members,
+            );
+        }
+    }
+
+    #[test]
+    fn leiden_detect_partitions_two_cliques() {
+        // Tracer bullet for the Leiden surface: same two-clique fixture used
+        // for Louvain. Confirms `detect_leiden` exists, returns the public
+        // `Cluster` shape, and produces the obvious partition. Behavioral
+        // correctness across the algorithmic difference (connectivity) is
+        // covered in a separate test.
+        let entities = vec![
+            ent("x1.rs", "f1"),
+            ent("x2.rs", "f2"),
+            ent("x3.rs", "f3"),
+            ent("x4.rs", "f4"),
+            ent("y1.rs", "g1"),
+            ent("y2.rs", "g2"),
+            ent("y3.rs", "g3"),
+            ent("y4.rs", "g4"),
+        ];
+        let xs = ["x1.rs", "x2.rs", "x3.rs", "x4.rs"];
+        let ys = ["y1.rs", "y2.rs", "y3.rs", "y4.rs"];
+        let mut refs = Vec::new();
+        for (i, src) in xs.iter().enumerate() {
+            for (j, _) in xs.iter().enumerate() {
+                if i != j {
+                    refs.push(refr(src, Some("c"), &format!("f{}", j + 1)));
+                }
+            }
+        }
+        for (i, src) in ys.iter().enumerate() {
+            for (j, _) in ys.iter().enumerate() {
+                if i != j {
+                    refs.push(refr(src, Some("c"), &format!("g{}", j + 1)));
+                }
+            }
+        }
+        let out = detect_leiden(&entities, &refs, &HashMap::new(), &LeidenConfig::default());
+        assert_eq!(out.len(), 2, "leiden should detect the two cliques: {:?}", out);
+        let sizes: Vec<usize> = out.iter().map(|c| c.size).collect();
+        assert_eq!(sizes, vec![4, 4]);
     }
 
     #[test]
