@@ -26,7 +26,8 @@ src/
                       Script-facing: search, symbols, children, callers, callees,
                                      explore, duplicates, cochange, query, diff, index,
                                      identifiers, decisions, package-deps, contracts,
-                                     workspace, hotspots, ownership, security-scan
+                                     workspace, hotspots, ownership, bus-factor, log,
+                                     security-scan
                       Installers:    claude, cursor, codex, gemini, opencode, aider,
                                      copilot, hook
   entity.rs        — Entity + Reference structs (serde); visibility, rank,
@@ -74,6 +75,8 @@ src/
   cross_repo_cochange.rs — `sigil cochange --workspace` — cross-repo file-pair mining
   hotspots.rs           — `sigil hotspots` — file churn × line count risk score
   ownership.rs          — `sigil ownership` — per-file primary author from git log
+  bus_factor.rs         — `sigil bus-factor` — per-file knowledge-concentration risk
+  log_significant.rs    — `sigil log --significant` — intent-filtered git log per file
   security_scan.rs      — `sigil security-scan` — regex security-signal extractor
 
   query/
