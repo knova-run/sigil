@@ -408,7 +408,7 @@ The two backends serve identical APIs; the router picks based on index size or `
 
 ## Supported languages
 
-Tree-sitter grammars ship as cargo features. Default build includes all 11:
+Tree-sitter grammars ship as cargo features. Default build includes all 15:
 
 | Language | Extensions |
 |---|---|
@@ -418,6 +418,10 @@ Tree-sitter grammars ship as cargo features. Default build includes all 11:
 | TypeScript | `.ts` `.mts` `.cts` `.tsx` |
 | Go | `.go` |
 | Java | `.java` |
+| Kotlin | `.kt` `.kts` |
+| Swift | `.swift` |
+| Scala | `.scala` `.sc` |
+| PHP | `.php` `.phtml` `.phps` |
 | C / C++ | `.c` `.h` `.cpp` `.cc` `.cxx` `.hpp` `.hxx` |
 | Ruby | `.rb` `.rake` `.gemspec` |
 | C# | `.cs` |
@@ -482,7 +486,12 @@ Script-facing commands default to unbounded results and minified `--json` output
 | `sigil workspace scan [--root DIR]` | Discover child git repos under a parent directory. |
 | `sigil hotspots [--root DIR] [--commits N]` | File churn × line count risk score. |
 | `sigil ownership [--root DIR] [--commits N]` | Per-file primary author from git history. |
+| `sigil bus-factor [--root DIR] [--threshold 0.8] [--commits N]` | Per-file knowledge-concentration risk from git history. Emits `{path, primary_owner, primary_share, second_owner, second_share, risk}` where `risk` = high (>= threshold) / medium (>= 0.6) / low. |
+| `sigil log --significant <file> [--limit N] [--root DIR]` | Intent-filtered git log for a single file. Drops merges, noise-prefix subjects (chore/deps/fmt/lint/whitespace/Bump/dependabot/renovate), and subjects shorter than 30 chars. JSON per commit: `{sha, date, author, subject, body, paths}`. |
+| `sigil decisions [--root DIR] [--include-git-history]` (extended) | `--include-git-history` also scans git commit bodies for `Why:` / `Decision:` / `Tradeoff:` / `Refactor for:` / `Rationale:` lines and emits them as `source: "commit_message"` rows. Inline source-comment rows stay byte-stable (no `source` key). |
 | `sigil security-scan [--root DIR]` | Regex security-signal extractor (eval/exec, pickle.loads, hardcoded secrets, weak hashes, `verify=False`). Language-aware so Rust `cmd.exec(...)` doesn't false-positive. |
+| `sigil communities [--root DIR] [--resolution F] [--pretty]` | Leiden-modularity file clusters over the import/call graph. NDJSON one cluster per line: `{cluster_id, size, members, representative, label}`. Representative = highest-PageRank file in the cluster. The refinement pass guarantees every output community is internally connected (Traag et al. 2019). |
+| `sigil dead-code [--root DIR] [--safe-only] [--include-low-confidence] [--exclude-pattern RE] [--activity-window-days N]` | Framework-aware dead-code detection with confidence tiers. Walks `.sigil/` entities + refs; excludes Flask/FastAPI/Express/NestJS route files, Django `urls.py`/`views.py`, and Go chi/gin/echo handlers. Downgrades `*Handler`/`*Plugin`/`*Service`/... exports to 0.50 regardless of visibility. Emits `confidence` (1.00 dead file, 0.85 exported orphan, 0.70 internal helper, 0.50 dynamic-name) + optional `dynamic_name_match` / `recent_activity`. `--safe-only` filters to ≥ 0.70 for CI shipping. |
 
 ### Admin & data pipeline
 

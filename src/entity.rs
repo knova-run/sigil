@@ -87,13 +87,15 @@ pub fn compose_qualified_name(parent: Option<&str>, name: &str) -> Option<String
     if parent.is_empty() {
         return None;
     }
-    // Strip a leading `parent.` from the name if present (Python convention).
-    let prefix = format!("{parent}.");
-    let leaf = if let Some(rest) = name.strip_prefix(&prefix) {
-        rest
-    } else {
-        name
-    };
+    // Strip a leading `parent.` (Python / Kotlin / Scala / Swift / JS-TS
+    // convention) or `parent::` (PHP / C++ convention) from the name so
+    // the output never doubles up the parent prefix.
+    let dot_prefix = format!("{parent}.");
+    let cc_prefix = format!("{parent}::");
+    let leaf = name
+        .strip_prefix(&dot_prefix)
+        .or_else(|| name.strip_prefix(&cc_prefix))
+        .unwrap_or(name);
     Some(format!("{parent}::{leaf}"))
 }
 
@@ -227,6 +229,48 @@ pub fn is_test_path(file: &str) -> bool {
     }
 
     false
+}
+
+#[cfg(test)]
+mod compose_qualified_name_tests {
+    use super::compose_qualified_name;
+
+    #[test]
+    fn bare_leaf_joins_with_double_colon() {
+        assert_eq!(
+            compose_qualified_name(Some("Person"), "greet"),
+            Some("Person::greet".to_string()),
+        );
+    }
+
+    #[test]
+    fn strips_python_style_parent_dot_prefix() {
+        assert_eq!(
+            compose_qualified_name(Some("UserService"), "UserService.get_user"),
+            Some("UserService::get_user".to_string()),
+        );
+    }
+
+    #[test]
+    fn strips_php_style_parent_double_colon_prefix() {
+        // PHP source writes class members as `Person::greet`. Without
+        // stripping that prefix the composed form would double up to
+        // `Person::Person::greet`.
+        assert_eq!(
+            compose_qualified_name(Some("Person"), "Person::greet"),
+            Some("Person::greet".to_string()),
+        );
+        assert_eq!(
+            compose_qualified_name(Some("Person"), "Person::$name"),
+            Some("Person::$name".to_string()),
+        );
+    }
+
+    #[test]
+    fn returns_none_for_top_level_entities() {
+        assert_eq!(compose_qualified_name(None, "foo"), None);
+        assert_eq!(compose_qualified_name(Some(""), "foo"), None);
+    }
 }
 
 #[cfg(test)]

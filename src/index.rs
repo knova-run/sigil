@@ -46,6 +46,25 @@ pub fn parse_single_file(
         .filter(|t| t.kind == "docstring")
         .filter_map(|t| t.parent.as_deref().map(|p| (p, t.text.as_str())))
         .collect();
+    // Proximity fallback for extractors that don't set TextEntry.parent to
+    // the documented symbol's name. Builds a sorted list of docstrings by
+    // end-line per file; the entity loop below looks up the docstring
+    // whose end-line is closest-before the symbol's start-line (within a
+    // small gap). This wires KDoc / Scaladoc / Swift `///` / PHPDoc to
+    // their target declarations without needing a per-extractor refactor.
+    let mut docs_by_file_end_line: std::collections::HashMap<&str, Vec<(u32, &str)>> =
+        std::collections::HashMap::new();
+    for t in &texts {
+        if t.kind == "docstring" {
+            docs_by_file_end_line
+                .entry(t.file.as_str())
+                .or_default()
+                .push((t.line[1], t.text.as_str()));
+        }
+    }
+    for v in docs_by_file_end_line.values_mut() {
+        v.sort_by_key(|&(end, _)| end);
+    }
 
     let mut entities = Vec::new();
     let mut refs = Vec::new();
@@ -73,7 +92,9 @@ pub fn parse_single_file(
 
         let doc = docs_by_parent
             .get(sym.name.as_str())
-            .and_then(|raw| crate::entity::truncate_doc(raw));
+            .copied()
+            .or_else(|| nearest_doc_before(&docs_by_file_end_line, &sym.file, sym.line[0]))
+            .and_then(crate::entity::truncate_doc);
 
         let parent = sym.parent.clone();
         let qualified_name = crate::entity::compose_qualified_name(parent.as_deref(), &sym.name);
@@ -256,6 +277,36 @@ pub fn build_index(
 }
 
 /// Check if a parser-emitted entity kind represents an import.
+/// Look up a docstring that ends just before `symbol_line_start` on the
+/// same file. The doc must end within `MAX_GAP` lines of the symbol —
+/// allows for one blank separator (`/** */`-then-blank-then-`fn`) but
+/// rejects unrelated docstrings further upstream.
+///
+/// `docs_by_file` maps `file → sorted [(end_line, text)]` (sort by
+/// end_line ascending).
+fn nearest_doc_before<'a>(
+    docs_by_file: &'a std::collections::HashMap<&str, Vec<(u32, &'a str)>>,
+    file: &str,
+    symbol_line_start: u32,
+) -> Option<&'a str> {
+    const MAX_GAP: u32 = 2;
+    if symbol_line_start == 0 {
+        return None;
+    }
+    let docs = docs_by_file.get(file)?;
+    // Largest end_line strictly less than symbol_line_start.
+    let pos = docs.partition_point(|&(end, _)| end < symbol_line_start);
+    if pos == 0 {
+        return None;
+    }
+    let (end_line, text) = docs[pos - 1];
+    if symbol_line_start - end_line <= MAX_GAP {
+        Some(text)
+    } else {
+        None
+    }
+}
+
 fn is_import_kind(kind: &str) -> bool {
     kind == "import" || kind == "use" || kind == "package"
 }
@@ -269,7 +320,7 @@ fn find_decorator_start(source: &str, line_start: usize, lang: &str) -> usize {
         let is_decorator = match lang {
             "python" => prev_line.starts_with('@'),
             "rust" => prev_line.starts_with("#[") || prev_line.starts_with("#!["),
-            "java" | "csharp" => prev_line.starts_with('@'),
+            "java" | "csharp" | "kotlin" => prev_line.starts_with('@'),
             "typescript" | "javascript" | "tsx" => prev_line.starts_with('@'),
             _ => false,
         };
@@ -386,6 +437,58 @@ mod tests {
         let source = "pub fn bar(x: i32) -> bool {\n    true\n}\n";
         let (entities, _refs) = parse_single_file(source, "test.rs", "rust").unwrap();
         assert!(!entities.is_empty());
+    }
+
+    #[test]
+    fn parse_single_file_kotlin_doc_attaches_to_next_decl() {
+        // KDoc `/** ... */` immediately preceding a declaration should
+        // attach as the decl's `doc`. The new-language extractors emit
+        // doc-comment TextEntry rows with parent = enclosing scope, so
+        // attachment relies on a proximity-based fallback in index.rs.
+        let source = "/**\n * Greets the caller.\n */\nfun greet(name: String): String = \"hi $name\"\n";
+        let (entities, _) = parse_single_file(source, "t.kt", "kotlin").unwrap();
+        let g = entities.iter().find(|e| e.name == "greet").expect("greet");
+        assert!(
+            g.doc.as_deref().map(|d| d.contains("Greets the caller")).unwrap_or(false),
+            "Kotlin KDoc must attach to `greet`, got doc={:?}",
+            g.doc,
+        );
+    }
+
+    #[test]
+    fn parse_single_file_swift_doc_attaches_to_next_decl() {
+        let source = "/// Greets the caller.\nfunc greet(_ name: String) -> String { return \"hi \\(name)\" }\n";
+        let (entities, _) = parse_single_file(source, "t.swift", "swift").unwrap();
+        let g = entities.iter().find(|e| e.name == "greet").expect("greet");
+        assert!(
+            g.doc.as_deref().map(|d| d.contains("Greets the caller")).unwrap_or(false),
+            "Swift /// doc must attach to `greet`, got doc={:?}",
+            g.doc,
+        );
+    }
+
+    #[test]
+    fn parse_single_file_scala_doc_attaches_to_next_decl() {
+        let source = "/**\n * Greets the caller.\n */\ndef greet(name: String): String = s\"hi $name\"\n";
+        let (entities, _) = parse_single_file(source, "t.scala", "scala").unwrap();
+        let g = entities.iter().find(|e| e.name == "greet").expect("greet");
+        assert!(
+            g.doc.as_deref().map(|d| d.contains("Greets the caller")).unwrap_or(false),
+            "Scaladoc /** */ must attach to `greet`, got doc={:?}",
+            g.doc,
+        );
+    }
+
+    #[test]
+    fn parse_single_file_php_doc_attaches_to_next_decl() {
+        let source = "<?php\n/**\n * Greets the caller.\n */\nfunction greet(string $name): string { return \"hi $name\"; }\n";
+        let (entities, _) = parse_single_file(source, "t.php", "php").unwrap();
+        let g = entities.iter().find(|e| e.name == "greet").expect("greet");
+        assert!(
+            g.doc.as_deref().map(|d| d.contains("Greets the caller")).unwrap_or(false),
+            "PHPDoc /** */ must attach to `greet`, got doc={:?}",
+            g.doc,
+        );
     }
 
     #[test]

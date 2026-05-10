@@ -1,7 +1,7 @@
 //! Integration tests for `sigil decisions` — extract architectural
 //! decision markers from source-file comments.
 //!
-//! The MVP scans for `# DECISION:`, `# WHY:`, `# RATIONALE:`, `# TRADEOFF:`
+//! The MVP scans for `# DECISION:`, `# WHY:`, `# RATIONALE:`, `# TRADEOFF:`, `# ADR:`, `# REJECTED:`
 //! anchors in line-style comments across the supported languages and emits
 //! one JSONL row per match.
 
@@ -168,5 +168,115 @@ fn extracts_decision_marker_from_python_comment() {
         row["file"].as_str().unwrap().ends_with("auth.py"),
         "expected auth.py file, got {}",
         row["file"]
+    );
+}
+
+#[test]
+fn include_git_history_lifts_commit_message_markers() {
+    // Real-world archaeology: developers write `Why:` / `Decision:` in
+    // commit bodies more often than in code comments. The opt-in flag
+    // should surface those rows with `source: "commit_message"` while
+    // leaving the inline-source rows byte-stable (no `source` key on the
+    // wire — `skip_serializing_if = None`).
+    let tmp = TempDir::new().unwrap();
+    fs::create_dir_all(tmp.path()).unwrap();
+    // bootstrap git
+    let init = Command::new("git")
+        .args(["init", "-q"])
+        .current_dir(tmp.path())
+        .output()
+        .unwrap();
+    assert!(init.status.success());
+    Command::new("git")
+        .args(["config", "commit.gpgSign", "false"])
+        .current_dir(tmp.path())
+        .output()
+        .unwrap();
+
+    // An inline-source decision marker
+    fs::write(tmp.path().join("auth.py"), "# DECISION: keep JWT auth\n").unwrap();
+
+    // Commit with a body that contains a `Why:` and a `Decision:` line
+    Command::new("git")
+        .args(["add", "."])
+        .current_dir(tmp.path())
+        .output()
+        .unwrap();
+    let commit = Command::new("git")
+        .args([
+            "commit",
+            "-q",
+            "-m",
+            "feat: add auth module",
+            "-m",
+            "Why: legacy /v1 callers rely on the JWT shape\n\nDecision: keep the bearer-token path stable through v2",
+        ])
+        .env("GIT_AUTHOR_EMAIL", "test@x.com")
+        .env("GIT_COMMITTER_EMAIL", "test@x.com")
+        .env("GIT_AUTHOR_NAME", "Test")
+        .env("GIT_COMMITTER_NAME", "Test")
+        .current_dir(tmp.path())
+        .output()
+        .unwrap();
+    assert!(commit.status.success(), "commit failed: {}", String::from_utf8_lossy(&commit.stderr));
+
+    // 1. Without --include-git-history: only the inline row, no `source` key
+    let plain = Command::new(env!("CARGO_BIN_EXE_sigil"))
+        .args(["decisions", "--root"])
+        .arg(tmp.path())
+        .output()
+        .unwrap();
+    assert!(plain.status.success());
+    let plain_rows: Vec<serde_json::Value> = String::from_utf8_lossy(&plain.stdout)
+        .lines()
+        .filter(|l| !l.is_empty())
+        .map(|l| serde_json::from_str(l).unwrap())
+        .collect();
+    assert_eq!(plain_rows.len(), 1);
+    assert!(
+        plain_rows[0].get("source").is_none(),
+        "inline rows must not carry a `source` key (byte-stable old output): {plain_rows:?}"
+    );
+    assert_eq!(plain_rows[0]["marker"], "DECISION");
+
+    // 2. With --include-git-history: inline + commit-message rows
+    let extended = Command::new(env!("CARGO_BIN_EXE_sigil"))
+        .args(["decisions", "--include-git-history", "--root"])
+        .arg(tmp.path())
+        .output()
+        .unwrap();
+    assert!(
+        extended.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&extended.stderr)
+    );
+    let rows: Vec<serde_json::Value> = String::from_utf8_lossy(&extended.stdout)
+        .lines()
+        .filter(|l| !l.is_empty())
+        .map(|l| serde_json::from_str(l).unwrap())
+        .collect();
+    // We expect at least: 1 inline DECISION + 1 commit-message Why + 1 commit-message Decision
+    let commit_rows: Vec<&serde_json::Value> = rows
+        .iter()
+        .filter(|r| r.get("source").and_then(|v| v.as_str()) == Some("commit_message"))
+        .collect();
+    let why_count = commit_rows.iter().filter(|r| r["marker"] == "Why").count();
+    let decision_count = commit_rows
+        .iter()
+        .filter(|r| r["marker"] == "Decision")
+        .count();
+    assert!(why_count >= 1, "expected a Why: row from commit body, got {commit_rows:?}");
+    assert!(
+        decision_count >= 1,
+        "expected a Decision: row from commit body, got {commit_rows:?}"
+    );
+    // And the inline row still appears, still without a `source` key
+    let inline_rows: Vec<&serde_json::Value> = rows
+        .iter()
+        .filter(|r| r.get("source").is_none())
+        .collect();
+    assert!(
+        inline_rows.iter().any(|r| r["marker"] == "DECISION"),
+        "inline DECISION row should still be present: {inline_rows:?}"
     );
 }

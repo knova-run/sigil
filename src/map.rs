@@ -61,6 +61,11 @@ pub struct MapOptions {
     /// downstream "list subsystem files → list entities → call code.context
     /// per entity" N+1 pattern into a single map call.
     pub top_entities_per_subsystem: usize,
+    /// Run Leiden modularity clustering and tag each shown file with
+    /// `cluster_id`. Off by default — the field is opt-in so the default
+    /// `sigil map` JSON stays byte-identical for existing consumers. See
+    /// `sigil communities` for the standalone CLI.
+    pub leiden_clusters: bool,
 }
 
 impl Default for MapOptions {
@@ -73,6 +78,7 @@ impl Default for MapOptions {
             exclude_tests: false,
             clusters: true,
             top_entities_per_subsystem: 0,
+            leiden_clusters: false,
         }
     }
 }
@@ -108,6 +114,16 @@ pub struct MapFile {
     /// when clustering is disabled (see `MapOptions::clusters`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub subsystem: Option<u32>,
+    /// Cluster id assigned by `communities::detect_leiden` (Leiden
+    /// modularity optimization). Additive to `subsystem` (label
+    /// propagation) — the two fields can disagree; `cluster_id` is meant
+    /// to be the canonical modularity-optimal grouping, surfaced for
+    /// downstream consumers that want a stable clustering key without
+    /// re-running the algorithm. Populated when `MapOptions::leiden_clusters`
+    /// is true (default off to keep `sigil map` output byte-identical for
+    /// existing callers).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cluster_id: Option<u32>,
 }
 
 /// Human-readable summary for one community in the map output.
@@ -270,6 +286,7 @@ pub fn build_map(idx: &Index, rank: &RankManifest, opts: &MapOptions) -> Map {
             lang: lang_for(file).map(|s| s.to_string()),
             entities: rendered_entities,
             subsystem: None,
+            cluster_id: None,
         };
 
         // Budget check on the rendered file block.
@@ -297,6 +314,29 @@ pub fn build_map(idx: &Index, rank: &RankManifest, opts: &MapOptions) -> Map {
     } else {
         Vec::new()
     };
+
+    // Optional Leiden pass — populates MapFile.cluster_id when requested.
+    // Runs over the full index (same as the label-propagation pass above)
+    // so cluster assignments don't shift when `--tokens` truncates the
+    // shown file list.
+    if opts.leiden_clusters {
+        let clusters = crate::communities::detect_leiden(
+            &idx.entities,
+            &idx.references,
+            &rank.file_rank,
+            &crate::communities::LeidenConfig::default(),
+        );
+        let mut file_to_cluster: std::collections::HashMap<String, u32> =
+            std::collections::HashMap::new();
+        for c in &clusters {
+            for m in &c.members {
+                file_to_cluster.insert(m.clone(), c.cluster_id);
+            }
+        }
+        for f in out_files.iter_mut() {
+            f.cluster_id = file_to_cluster.get(&f.path).copied();
+        }
+    }
 
     Map {
         meta: MapMeta {
@@ -891,6 +931,67 @@ mod tests {
         let m = build_map(&idx, &r, &MapOptions { tokens: 0, depth: 5, ..MapOptions::default() });
         let names: Vec<&str> = m.files[0].entities.iter().map(|e| e.name.as_str()).collect();
         assert_eq!(names, vec!["huge", "medium", "small"]);
+    }
+
+    #[test]
+    fn leiden_clusters_populate_cluster_id_when_opted_in() {
+        // Behavior contract for issue #17 follow-up: when a caller sets
+        // MapOptions::leiden_clusters = true, MapFile.cluster_id must be
+        // populated for files that participate in a cluster. With the field
+        // false (default), cluster_id stays None — existing consumers see
+        // no schema change.
+        use crate::entity::Reference;
+        let entities = vec![
+            ent("a.rs", "fa", "function", 5, 10),
+            ent("b.rs", "fb", "function", 5, 10),
+        ];
+        let references = vec![
+            Reference {
+                file: "a.rs".to_string(),
+                caller: Some("main".to_string()),
+                name: "fb".to_string(),
+                ref_kind: "call".to_string(),
+                line: 1,
+            confidence: None,
+            },
+            Reference {
+                file: "b.rs".to_string(),
+                caller: Some("main".to_string()),
+                name: "fa".to_string(),
+                ref_kind: "call".to_string(),
+                line: 1,
+            confidence: None,
+            },
+        ];
+        let idx = Index::build(entities, references);
+        let r = manifest(&[("a.rs", 0.5), ("b.rs", 0.5)]);
+
+        // Default (off): cluster_id is None on every file.
+        let m_default = build_map(&idx, &r, &MapOptions::default());
+        for f in &m_default.files {
+            assert!(
+                f.cluster_id.is_none(),
+                "default leiden_clusters=false must leave cluster_id absent, got {:?} on {}",
+                f.cluster_id,
+                f.path,
+            );
+        }
+
+        // Opted in: at least one file should have a cluster_id assigned.
+        let m_with = build_map(
+            &idx,
+            &r,
+            &MapOptions {
+                leiden_clusters: true,
+                ..MapOptions::default()
+            },
+        );
+        let any_assigned = m_with.files.iter().any(|f| f.cluster_id.is_some());
+        assert!(
+            any_assigned,
+            "leiden_clusters=true must populate cluster_id on at least one file; got files={:?}",
+            m_with.files.iter().map(|f| (f.path.as_str(), f.cluster_id)).collect::<Vec<_>>(),
+        );
     }
 
     #[test]
