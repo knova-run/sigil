@@ -148,6 +148,16 @@ pub fn parse_file(
             &mut references,
         ),
 
+        #[cfg(feature = "lang-kotlin")]
+        "kotlin" => crate::parser::kotlin::extract(
+            &tree,
+            source,
+            file_path,
+            &mut symbols,
+            &mut texts,
+            &mut references,
+        ),
+
         _ => {
             // For unsupported languages, just extract comments and strings
             extract_texts_generic(&tree, source, file_path, &mut texts);

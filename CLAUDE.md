@@ -41,7 +41,7 @@ src/
   yaml_index.rs    — YAML parsing (sigil-native)
   toml_index.rs    — TOML parsing (sigil-native)
   markdown_index.rs — Markdown parsing (headings, code blocks, tables, lists, front matter)
-  parser/          — Vendored tree-sitter extractors for 11 languages; see parser/NOTICE
+  parser/          — Vendored tree-sitter extractors for 12 languages; see parser/NOTICE
   git.rs           — Git operations (changed_files, file_at_ref, git log for cochange)
   matcher.rs       — Entity matching across versions (exact/moved/renamed)
   classifier.rs    — Change classification (sig/body hash matrix)
@@ -123,7 +123,7 @@ evals/
   materialized index at `.sigil/index.duckdb`. Auto-engages over 5 MB of JSONL
   (override with `SIGIL_AUTO_ENGAGE_THRESHOLD_MB`; force with `SIGIL_BACKEND=db|memory`).
 - `tokenizer` — tiktoken-rs for BPE-accurate token counting in `sigil benchmark`.
-- Per-language grammars gated as `lang-<name>` flags; default enables all 11.
+- Per-language grammars gated as `lang-<name>` flags; default enables all 12.
 
 ## Key Dependencies
 

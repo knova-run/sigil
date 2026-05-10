@@ -258,7 +258,7 @@ fn find_decorator_start(source: &str, line_start: usize, lang: &str) -> usize {
         let is_decorator = match lang {
             "python" => prev_line.starts_with('@'),
             "rust" => prev_line.starts_with("#[") || prev_line.starts_with("#!["),
-            "java" | "csharp" => prev_line.starts_with('@'),
+            "java" | "csharp" | "kotlin" => prev_line.starts_with('@'),
             "typescript" | "javascript" | "tsx" => prev_line.starts_with('@'),
             _ => false,
         };

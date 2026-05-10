@@ -36,5 +36,8 @@ pub mod ruby;
 #[cfg(feature = "lang-csharp")]
 pub mod csharp;
 
+#[cfg(feature = "lang-kotlin")]
+pub mod kotlin;
+
 #[cfg(feature = "lang-markdown")]
 pub mod markdown;

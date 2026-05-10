@@ -42,6 +42,7 @@ tree-sitter-c          = { version = "0.24", optional = true }
 tree-sitter-cpp        = { version = "0.23", optional = true }
 tree-sitter-ruby       = { version = "0.23", optional = true }
 tree-sitter-c-sharp    = { version = "0.23", optional = true }
+tree-sitter-kotlin-sg  = { version = "0.4", optional = true }
 tree-sitter-md         = { version = "0.5", features = ["parser"], optional = true }
 
 # Optional: real BPE tokenizer for accurate token counting in `sigil
@@ -61,7 +62,7 @@ duckdb = { version = "1", features = ["bundled"], optional = true }
 default = [
     "lang-python", "lang-rust", "lang-javascript", "lang-typescript",
     "lang-go", "lang-java", "lang-c", "lang-cpp", "lang-ruby",
-    "lang-csharp", "lang-markdown",
+    "lang-csharp", "lang-kotlin", "lang-markdown",
     "db", "tokenizer",
 ]
 lang-python     = ["dep:tree-sitter-python"]
@@ -74,6 +75,7 @@ lang-c          = ["dep:tree-sitter-c"]
 lang-cpp        = ["dep:tree-sitter-cpp"]
 lang-ruby       = ["dep:tree-sitter-ruby"]
 lang-csharp     = ["dep:tree-sitter-c-sharp"]
+lang-kotlin     = ["dep:tree-sitter-kotlin-sg"]
 lang-markdown   = ["dep:tree-sitter-md"]
 
 # Accurate BPE token counting (adds ~1.5 MB to the binary). Opt-in via

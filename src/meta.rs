@@ -14,7 +14,7 @@ pub fn extract_markers(
     let markers = match language {
         "python" => extract_python_markers(entity_lines),
         "rust" => extract_rust_markers(entity_lines),
-        "java" | "csharp" => extract_annotation_markers(entity_lines, language),
+        "java" | "csharp" | "kotlin" => extract_annotation_markers(entity_lines, language),
         "typescript" | "javascript" | "tsx" => extract_annotation_markers(entity_lines, language),
         "ruby" => extract_ruby_markers(entity_lines),
         _ => vec![],

@@ -40,6 +40,9 @@ pub fn get_language(name: &str) -> Result<Language> {
         #[cfg(feature = "lang-csharp")]
         "csharp" => Ok(tree_sitter_c_sharp::LANGUAGE.into()),
 
+        #[cfg(feature = "lang-kotlin")]
+        "kotlin" => Ok(tree_sitter_kotlin_sg::LANGUAGE.into()),
+
         // Markdown uses custom parser (tree-sitter-md) with MarkdownParser,
         // but we still register the block language for consistency
         #[cfg(feature = "lang-markdown")]
@@ -63,6 +66,7 @@ pub fn detect_language(extension: &str) -> Option<&'static str> {
         "cpp" | "cc" | "cxx" | "hpp" | "hxx" | "hh" | "h++" => Some("cpp"),
         "rb" | "rake" | "gemspec" => Some("ruby"),
         "cs" => Some("csharp"),
+        "kt" | "kts" => Some("kotlin"),
         "html" | "htm" => Some("html"),
         "vue" => Some("vue"),
         "svelte" => Some("svelte"),
