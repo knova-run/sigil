@@ -60,20 +60,22 @@ const SWIFT_STOPWORDS: &[&str] = &[
     "convenience",
     "required",
     "import",
-    // Common Swift builtin types
-    "Int",
-    "Float",
-    "Double",
-    "Bool",
-    "String",
-    "Character",
-    "Optional",
-    "Array",
-    "Dictionary",
-    "Set",
-    "Void",
-    "Any",
-    "Self",
+    // Common Swift builtin types. Lowercase here because the filter
+    // calls `tok.to_lowercase()` before contains() — PascalCase entries
+    // would silently never match.
+    "int",
+    "float",
+    "double",
+    "bool",
+    "string",
+    "character",
+    "optional",
+    "array",
+    "dictionary",
+    "set",
+    "void",
+    "any",
+    "self",
 ];
 
 fn filter_swift_tokens(tokens: Option<String>) -> Option<String> {

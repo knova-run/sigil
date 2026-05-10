@@ -137,7 +137,7 @@ evals/
   materialized index at `.sigil/index.duckdb`. Auto-engages over 5 MB of JSONL
   (override with `SIGIL_AUTO_ENGAGE_THRESHOLD_MB`; force with `SIGIL_BACKEND=db|memory`).
 - `tokenizer` — tiktoken-rs for BPE-accurate token counting in `sigil benchmark`.
-- Per-language grammars gated as `lang-<name>` flags; default enables all 12.
+- Per-language grammars gated as `lang-<name>` flags; default enables all 15.
 
 ## Key Dependencies
 

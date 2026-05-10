@@ -1,7 +1,8 @@
 /// Languages where the body opens with `{`
 fn is_brace_language(language: &str) -> bool {
     matches!(language, "rust" | "go" | "java" | "typescript" | "tsx"
-        | "javascript" | "c" | "cpp" | "csharp" | "kotlin")
+        | "javascript" | "c" | "cpp" | "csharp" | "kotlin"
+        | "swift" | "scala" | "php")
 }
 
 /// Languages where the body opens with `:`
@@ -15,7 +16,9 @@ fn is_decorator_line(line: &str, language: &str) -> bool {
     match language {
         "python" => trimmed.starts_with('@'),
         "rust" => trimmed.starts_with("#[") || trimmed.starts_with("#!["),
-        "java" | "csharp" | "kotlin" => trimmed.starts_with('@'),
+        "java" | "csharp" | "kotlin" | "scala" => trimmed.starts_with('@'),
+        "swift" => trimmed.starts_with('@'),
+        "php" => trimmed.starts_with("#["),
         "typescript" | "javascript" | "tsx" => trimmed.starts_with('@'),
         _ => false,
     }

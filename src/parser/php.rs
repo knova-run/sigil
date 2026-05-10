@@ -314,7 +314,7 @@ fn extract_php_visibility(node: Node, source: &[u8]) -> String {
             let t = node_text(child, source);
             return match t.as_str() {
                 "private" => "private".to_string(),
-                "protected" => "protected".to_string(),
+                "protected" => "internal".to_string(),
                 _ => "public".to_string(),
             };
         }
@@ -759,6 +759,22 @@ mod tests {
         assert_eq!(h.visibility.as_deref(), Some("private"));
         let prop = find_sym(&symbols, "Person::$name");
         assert_eq!(prop.kind, "property");
+    }
+
+    #[test]
+    fn php_protected_maps_to_internal() {
+        // Sigil's schema has three visibility buckets — public / internal /
+        // private. PHP `protected` aligns with `internal` to match the
+        // mapping java / csharp / kotlin already establish.
+        let source = b"<?php\nclass Person {\n    protected function helper(): void {}\n}\n";
+        let (symbols, _, _) = parse_file(source, "php", "t.php").unwrap();
+        let h = find_sym(&symbols, "Person::helper");
+        assert_eq!(
+            h.visibility.as_deref(),
+            Some("internal"),
+            "PHP `protected` must map to the `internal` bucket, got {:?}",
+            h.visibility,
+        );
     }
 
     #[test]

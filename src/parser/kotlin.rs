@@ -45,26 +45,28 @@ const KOTLIN_STOPWORDS: &[&str] = &[
     "reified",
     "import",
     "package",
-    // Common Kotlin builtins
-    "Int",
-    "Long",
-    "Short",
-    "Byte",
-    "Float",
-    "Double",
-    "Boolean",
-    "Char",
-    "String",
-    "Unit",
-    "Any",
-    "Nothing",
-    "List",
-    "Map",
-    "Set",
-    "Array",
-    "MutableList",
-    "MutableMap",
-    "MutableSet",
+    // Common Kotlin builtins. Lowercase here because the filter calls
+    // `tok.to_lowercase()` before the contains() check — PascalCase
+    // entries would silently never match.
+    "int",
+    "long",
+    "short",
+    "byte",
+    "float",
+    "double",
+    "boolean",
+    "char",
+    "string",
+    "unit",
+    "any",
+    "nothing",
+    "list",
+    "map",
+    "set",
+    "array",
+    "mutablelist",
+    "mutablemap",
+    "mutableset",
 ];
 
 fn filter_kotlin_tokens(tokens: Option<String>) -> Option<String> {
@@ -687,6 +689,29 @@ mod tests {
             .find(|s| s.name == name)
             .unwrap_or_else(|| panic!("symbol not found: {name}\nhave: {:?}",
                 symbols.iter().map(|s| (&s.name, &s.kind)).collect::<Vec<_>>()))
+    }
+
+    #[test]
+    fn kotlin_stopwords_filter_pascal_case_types() {
+        // `to_lowercase()` is applied to each token before the contains()
+        // check, so the stopword list itself must be all-lowercase. A
+        // PascalCase entry like `"Int"` would never match. Regression test
+        // for that case-mismatch bug.
+        let out = filter_kotlin_tokens(Some(
+            "name Int Long Boolean myValue helperFn".to_string(),
+        ));
+        let out = out.expect("non-trivial filtered output");
+        assert!(
+            !out.split_whitespace().any(|t| t.eq_ignore_ascii_case("int")),
+            "`Int` must be filtered as a Kotlin builtin type token, got: {out}",
+        );
+        assert!(
+            !out.split_whitespace().any(|t| t.eq_ignore_ascii_case("long")),
+            "`Long` must be filtered, got: {out}",
+        );
+        // Non-stopword identifiers survive.
+        assert!(out.split_whitespace().any(|t| t == "myValue"));
+        assert!(out.split_whitespace().any(|t| t == "helperFn"));
     }
 
     #[test]

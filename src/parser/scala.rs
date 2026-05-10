@@ -43,27 +43,29 @@ const SCALA_STOPWORDS: &[&str] = &[
     "for",
     "yield",
     "return",
-    // Common Scala types / standard library names
-    "Int",
-    "Long",
-    "Short",
-    "Float",
-    "Double",
-    "Boolean",
-    "Char",
-    "String",
-    "Unit",
-    "Any",
-    "Nothing",
-    "Option",
-    "Some",
-    "None",
-    "List",
-    "Seq",
-    "Map",
-    "Set",
-    "Vector",
-    "Array",
+    // Common Scala types / standard library names. Lowercase here because
+    // the filter calls `tok.to_lowercase()` before contains() —
+    // PascalCase entries would silently never match.
+    "int",
+    "long",
+    "short",
+    "float",
+    "double",
+    "boolean",
+    "char",
+    "string",
+    "unit",
+    "any",
+    "nothing",
+    "option",
+    "some",
+    "none",
+    "list",
+    "seq",
+    "map",
+    "set",
+    "vector",
+    "array",
 ];
 
 fn filter_scala_tokens(tokens: Option<String>) -> Option<String> {
@@ -314,9 +316,13 @@ fn extract_package(
             Some("public".to_string()),
         );
 
-        // Optional body: chained `package a.b { ... }`. Treat the package
-        // as the parent for any nested declarations so qualified names
-        // surface consistently.
+        // Optional body: bracketed `package a.b { ... }` (Scala 2 form).
+        // Members inside the braces are package-scoped top-level
+        // declarations — `def`s are functions, not methods — so we walk
+        // with `parent_ctx = None` rather than forwarding the package
+        // name. The package itself is already surfaced as a `module`
+        // symbol above; the namespace is recoverable via the file path
+        // + the module entry.
         if let Some(body) = node.child_by_field_name("body") {
             let mut cursor = body.walk();
             for child in body.children(&mut cursor) {
@@ -324,7 +330,7 @@ fn extract_package(
                     child,
                     source,
                     file_path,
-                    Some(&name),
+                    None,
                     symbols,
                     texts,
                     references,
@@ -883,6 +889,27 @@ mod tests {
         let (symbols, _, _) = parse_file(source, "scala", "t.scala").unwrap();
         let pkg = symbols.iter().find(|s| s.kind == "module").unwrap();
         assert_eq!(pkg.name, "com.example.app");
+    }
+
+    #[test]
+    fn scala_bracketed_package_def_is_function_not_method() {
+        // Scala 2's bracketed `package a.b { def foo() = ... }` form:
+        // `def`s inside the braces are top-level package-scoped functions,
+        // not class members. They must classify as `function`. The bug
+        // was that the walker forwarded the package name as `parent_ctx`
+        // into `extract_function`, which then saw `parent_ctx.is_some()`
+        // and emitted `method`.
+        let source = b"package com.example {\n  def helper(): Int = 1\n}\n";
+        let (symbols, _, _) = parse_file(source, "scala", "t.scala").unwrap();
+        let h = symbols
+            .iter()
+            .find(|s| s.name == "helper")
+            .expect("helper symbol present");
+        assert_eq!(
+            h.kind, "function",
+            "package-scoped def must be a function, got {:?}",
+            h.kind,
+        );
     }
 
     #[test]
