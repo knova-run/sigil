@@ -44,6 +44,7 @@ sigil groups commands into two tiers:
     hotspots      File churn × line count risk score
     ownership     Per-file primary author from git history
     security-scan Lightweight regex security-signal extractor
+    communities   Louvain modularity clustering over the file graph
 
   INSTALLERS (platform integrations, all idempotent):
     claude · cursor · codex · gemini · opencode · aider · copilot · hook
@@ -757,6 +758,31 @@ enum Cli {
         /// Project root directory
         #[arg(short, long, default_value = ".")]
         root: PathBuf,
+    },
+    /// Modularity-optimized file clustering over the import/call graph.
+    /// NDJSON on stdout, one cluster per line:
+    /// `{cluster_id, size, members, representative, label}`.
+    ///
+    /// MVP ships Louvain (--algorithm louvain, the default). Leiden's
+    /// refinement step is a planned follow-up; the --algorithm flag exists
+    /// so future code can opt in without breaking callers.
+    Communities {
+        /// Project root directory (must contain a `.sigil/` index — run
+        /// `sigil index` first).
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
+        /// Modularity resolution. 1.0 = vanilla Louvain. >1 → more, smaller
+        /// clusters. <1 → fewer, larger clusters.
+        #[arg(long, default_value = "1.0")]
+        resolution: f64,
+        /// Clustering algorithm. Currently only `louvain` is implemented;
+        /// `leiden` is reserved for a follow-up that layers the refinement
+        /// step on top of the Louvain output.
+        #[arg(long, default_value = "louvain")]
+        algorithm: String,
+        /// Pretty-print as a JSON array instead of streaming NDJSON.
+        #[arg(long)]
+        pretty: bool,
     },
 }
 
@@ -1777,6 +1803,58 @@ fn main() {
                 std::process::exit(1);
             }
         },
+        Cli::Communities { root, resolution, algorithm, pretty } => {
+            // MVP only implements Louvain; surface a clear error if the
+            // caller asks for something else so the failure mode is
+            // diagnostic, not a silent fallback.
+            let algo = algorithm.to_lowercase();
+            if algo != "louvain" {
+                eprintln!(
+                    "communities: --algorithm {} is not yet implemented. \
+                     Only `louvain` is supported in this release; `leiden` is planned.",
+                    algorithm
+                );
+                std::process::exit(2);
+            }
+            let idx = match sigil::query::index::Index::load(&root) {
+                Ok(i) => i,
+                Err(e) => {
+                    eprintln!("communities: {}", e);
+                    eprintln!("hint: run `sigil index` first to populate .sigil/.");
+                    std::process::exit(1);
+                }
+            };
+            let rank_manifest = sigil::map::load_rank_manifest(&root).unwrap_or_default();
+            let cfg = sigil::communities::LouvainConfig {
+                resolution,
+                ..sigil::communities::LouvainConfig::default()
+            };
+            let clusters = sigil::communities::detect(
+                &idx.entities,
+                &idx.references,
+                &rank_manifest.file_rank,
+                &cfg,
+            );
+            if pretty {
+                match serde_json::to_string_pretty(&clusters) {
+                    Ok(s) => println!("{}", s),
+                    Err(e) => {
+                        eprintln!("communities: failed to serialize: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            } else {
+                for c in &clusters {
+                    match serde_json::to_string(c) {
+                        Ok(s) => println!("{}", s),
+                        Err(e) => {
+                            eprintln!("communities: failed to serialize: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
