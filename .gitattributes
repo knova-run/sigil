@@ -1,0 +1,8 @@
+# Mark sigil's own index as generated so GitHub's Linguist doesn't count
+# it toward the language bar, GitHub PR review collapses its diff by
+# default, and `git log -- .sigil/` is the canonical way to look at
+# its history. The post-commit hook regenerates these on every commit;
+# treating them as source code is misleading. See:
+# https://github.com/github-linguist/linguist/blob/master/docs/overrides.md
+.sigil/** linguist-generated
+.sigil/** linguist-vendored
