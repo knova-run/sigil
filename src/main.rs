@@ -44,6 +44,7 @@ sigil groups commands into two tiers:
     hotspots      File churn × line count risk score
     ownership     Per-file primary author from git history
     security-scan Lightweight regex security-signal extractor
+    communities   Leiden modularity clustering over the file graph
 
   INSTALLERS (platform integrations, all idempotent):
     claude · cursor · codex · gemini · opencode · aider · copilot · hook
@@ -630,6 +631,12 @@ enum Cli {
         /// 0 (default) preserves the legacy shape.
         #[arg(long, default_value = "0")]
         top_entities_per_subsystem: usize,
+        /// Run Leiden modularity clustering and tag each shown file with
+        /// `cluster_id` in the JSON output. Off by default — enabling adds
+        /// a new optional field to `MapFile` and runs the same pipeline as
+        /// `sigil communities` over the full index.
+        #[arg(long)]
+        with_clusters: bool,
     },
     /// Install or uninstall the Claude Code integration
     /// (CLAUDE.md capability block + PreToolUse hint hook).
@@ -757,6 +764,27 @@ enum Cli {
         /// Project root directory
         #[arg(short, long, default_value = ".")]
         root: PathBuf,
+    },
+    /// Leiden-modularity file clustering over the import/call graph.
+    /// NDJSON on stdout, one cluster per line:
+    /// `{cluster_id, size, members, representative, label}`.
+    ///
+    /// Every output community is guaranteed internally connected
+    /// (Traag et al. 2019) — modularity-greedy local moving plus a
+    /// refinement pass that BFS-splits any disconnected component before
+    /// aggregation.
+    Communities {
+        /// Project root directory (must contain a `.sigil/` index — run
+        /// `sigil index` first).
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
+        /// Modularity resolution. 1.0 = vanilla modularity. >1 → more,
+        /// smaller clusters. <1 → fewer, larger clusters.
+        #[arg(long, default_value = "1.0")]
+        resolution: f64,
+        /// Pretty-print as a JSON array instead of streaming NDJSON.
+        #[arg(long)]
+        pretty: bool,
     },
 }
 
@@ -1474,7 +1502,7 @@ fn main() {
                 }
             }
         }
-        Cli::Map { root, tokens, focus, depth, format, write, exclude_tests, no_clusters, top_entities_per_subsystem } => {
+        Cli::Map { root, tokens, focus, depth, format, write, exclude_tests, no_clusters, top_entities_per_subsystem, with_clusters } => {
             let idx = query::load(&root)
                 .unwrap_or_else(|e| { eprintln!("error: {}", e); std::process::exit(1); });
             let rank_manifest = sigil::map::load_rank_manifest(&root)
@@ -1491,6 +1519,7 @@ fn main() {
                 exclude_tests,
                 clusters: !no_clusters,
                 top_entities_per_subsystem,
+                leiden_clusters: with_clusters,
                 ..sigil::map::MapOptions::default()
             };
             let map = sigil::map::build_map(&idx, &rank_manifest, &opts);
@@ -1777,6 +1806,46 @@ fn main() {
                 std::process::exit(1);
             }
         },
+        Cli::Communities { root, resolution, pretty } => {
+            let idx = match sigil::query::index::Index::load(&root) {
+                Ok(i) => i,
+                Err(e) => {
+                    eprintln!("communities: {}", e);
+                    eprintln!("hint: run `sigil index` first to populate .sigil/.");
+                    std::process::exit(1);
+                }
+            };
+            let rank_manifest = sigil::map::load_rank_manifest(&root).unwrap_or_default();
+            let cfg = sigil::communities::LeidenConfig {
+                resolution,
+                ..sigil::communities::LeidenConfig::default()
+            };
+            let clusters = sigil::communities::detect_leiden(
+                &idx.entities,
+                &idx.references,
+                &rank_manifest.file_rank,
+                &cfg,
+            );
+            if pretty {
+                match serde_json::to_string_pretty(&clusters) {
+                    Ok(s) => println!("{}", s),
+                    Err(e) => {
+                        eprintln!("communities: failed to serialize: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            } else {
+                for c in &clusters {
+                    match serde_json::to_string(c) {
+                        Ok(s) => println!("{}", s),
+                        Err(e) => {
+                            eprintln!("communities: failed to serialize: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

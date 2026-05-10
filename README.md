@@ -482,6 +482,7 @@ Script-facing commands default to unbounded results and minified `--json` output
 | `sigil hotspots [--root DIR] [--commits N]` | File churn × line count risk score. |
 | `sigil ownership [--root DIR] [--commits N]` | Per-file primary author from git history. |
 | `sigil security-scan [--root DIR]` | Regex security-signal extractor (eval/exec, pickle.loads, hardcoded secrets, weak hashes, `verify=False`). Language-aware so Rust `cmd.exec(...)` doesn't false-positive. |
+| `sigil communities [--root DIR] [--resolution F] [--pretty]` | Leiden-modularity file clusters over the import/call graph. NDJSON one cluster per line: `{cluster_id, size, members, representative, label}`. Representative = highest-PageRank file in the cluster. The refinement pass guarantees every output community is internally connected (Traag et al. 2019). |
 
 ### Admin & data pipeline
 
