@@ -27,6 +27,7 @@ pub mod markdown_formatter;
 pub mod matcher;
 pub mod meta;
 pub mod cochange;
+pub mod communities;
 pub mod community;
 pub mod cross_repo_cochange;
 pub mod context;
