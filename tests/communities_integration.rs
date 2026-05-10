@@ -26,7 +26,7 @@ fn ent(file: &str, name: &str) -> Entity {
         meta: None,
         body_hash: None,
         sig_hash: None,
-        struct_hash: "deadbeef".to_string(),
+        struct_hash: "deadbeefcafef00d".to_string(),
         visibility: None,
         rank: None,
         blast_radius: None,

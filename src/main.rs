@@ -631,6 +631,12 @@ enum Cli {
         /// 0 (default) preserves the legacy shape.
         #[arg(long, default_value = "0")]
         top_entities_per_subsystem: usize,
+        /// Run Leiden modularity clustering and tag each shown file with
+        /// `cluster_id` in the JSON output. Off by default — enabling adds
+        /// a new optional field to `MapFile` and runs the same pipeline as
+        /// `sigil communities` over the full index.
+        #[arg(long)]
+        with_clusters: bool,
     },
     /// Install or uninstall the Claude Code integration
     /// (CLAUDE.md capability block + PreToolUse hint hook).
@@ -1496,7 +1502,7 @@ fn main() {
                 }
             }
         }
-        Cli::Map { root, tokens, focus, depth, format, write, exclude_tests, no_clusters, top_entities_per_subsystem } => {
+        Cli::Map { root, tokens, focus, depth, format, write, exclude_tests, no_clusters, top_entities_per_subsystem, with_clusters } => {
             let idx = query::load(&root)
                 .unwrap_or_else(|e| { eprintln!("error: {}", e); std::process::exit(1); });
             let rank_manifest = sigil::map::load_rank_manifest(&root)
@@ -1513,6 +1519,7 @@ fn main() {
                 exclude_tests,
                 clusters: !no_clusters,
                 top_entities_per_subsystem,
+                leiden_clusters: with_clusters,
                 ..sigil::map::MapOptions::default()
             };
             let map = sigil::map::build_map(&idx, &rank_manifest, &opts);

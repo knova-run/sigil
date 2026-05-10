@@ -932,6 +932,65 @@ mod tests {
     }
 
     #[test]
+    fn leiden_clusters_populate_cluster_id_when_opted_in() {
+        // Behavior contract for issue #17 follow-up: when a caller sets
+        // MapOptions::leiden_clusters = true, MapFile.cluster_id must be
+        // populated for files that participate in a cluster. With the field
+        // false (default), cluster_id stays None — existing consumers see
+        // no schema change.
+        use crate::entity::Reference;
+        let entities = vec![
+            ent("a.rs", "fa", "function", 5, 10),
+            ent("b.rs", "fb", "function", 5, 10),
+        ];
+        let references = vec![
+            Reference {
+                file: "a.rs".to_string(),
+                caller: Some("main".to_string()),
+                name: "fb".to_string(),
+                ref_kind: "call".to_string(),
+                line: 1,
+            },
+            Reference {
+                file: "b.rs".to_string(),
+                caller: Some("main".to_string()),
+                name: "fa".to_string(),
+                ref_kind: "call".to_string(),
+                line: 1,
+            },
+        ];
+        let idx = Index::build(entities, references);
+        let r = manifest(&[("a.rs", 0.5), ("b.rs", 0.5)]);
+
+        // Default (off): cluster_id is None on every file.
+        let m_default = build_map(&idx, &r, &MapOptions::default());
+        for f in &m_default.files {
+            assert!(
+                f.cluster_id.is_none(),
+                "default leiden_clusters=false must leave cluster_id absent, got {:?} on {}",
+                f.cluster_id,
+                f.path,
+            );
+        }
+
+        // Opted in: at least one file should have a cluster_id assigned.
+        let m_with = build_map(
+            &idx,
+            &r,
+            &MapOptions {
+                leiden_clusters: true,
+                ..MapOptions::default()
+            },
+        );
+        let any_assigned = m_with.files.iter().any(|f| f.cluster_id.is_some());
+        assert!(
+            any_assigned,
+            "leiden_clusters=true must populate cluster_id on at least one file; got files={:?}",
+            m_with.files.iter().map(|f| (f.path.as_str(), f.cluster_id)).collect::<Vec<_>>(),
+        );
+    }
+
+    #[test]
     fn import_kind_entities_excluded_from_map() {
         let idx = Index::build(
             vec![

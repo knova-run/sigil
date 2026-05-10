@@ -53,7 +53,7 @@
 //! connectivity-component refinement is itself deterministic, so the
 //! seed isn't consulted today.
 
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 
 use serde::Serialize;
 
@@ -281,15 +281,17 @@ fn refine_to_connected_components(
             let component_id = next_id;
             next_id += 1;
             // BFS through edges that stay inside this Louvain community.
-            let mut queue: Vec<usize> = vec![start];
-            while let Some(node) = queue.pop() {
+            // VecDeque + pop_front gives FIFO order, so traversal expands
+            // breadth-first like the doc says.
+            let mut queue: VecDeque<usize> = VecDeque::from([start]);
+            while let Some(node) = queue.pop_front() {
                 if !visited.insert(node) {
                     continue;
                 }
                 refined[node] = component_id;
                 for (&j, _) in &adj[node] {
                     if node_set.contains(&j) && !visited.contains(&j) {
-                        queue.push(j);
+                        queue.push_back(j);
                     }
                 }
             }
@@ -376,22 +378,31 @@ fn local_moving(adj: &[BTreeMap<usize, f64>], cfg: &LeidenConfig) -> Vec<usize> 
             // Score each candidate community c (neighbor communities ∪
             // {current}). Gain of joining c:
             //   ΔQ_join(c) = k_i_in[c] / m - γ * Σ_tot[c] * k_i / (2 m²)
-            let mut best_comm = current_comm;
-            let mut best_gain = 0.0;
-            // Evaluate current_comm explicitly so we have a baseline.
+            // The actual modularity change of moving from current to c is
+            //   ΔQ_move = ΔQ_join(c) − ΔQ_join(current) = gain(c) − baseline
+            // so we track the best `delta` (gain − baseline), not the best
+            // absolute `gain`. An earlier version compared `gain > 0`, which
+            // silently rejected moves where both `baseline` and `gain` were
+            // negative but `delta = gain − baseline > 0` (legitimate
+            // improvements at high resolution / dense communities).
             let baseline = {
                 let k_in = k_i_in.get(&current_comm).copied().unwrap_or(0.0);
-                k_in / m
-                    - resolution * sigma_tot[current_comm] * k_i / (2.0 * m * m)
+                k_in / m - resolution * sigma_tot[current_comm] * k_i / (2.0 * m * m)
             };
+            let mut best_comm = current_comm;
+            let mut best_delta = 0.0;
+            // BTreeMap iteration is in ascending key order, so when two
+            // candidates yield the same delta the lower community id wins —
+            // that's the deterministic tiebreak the previous comment
+            // referenced.
             for (&c, &k_in) in &k_i_in {
-                let gain = k_in / m
-                    - resolution * sigma_tot[c] * k_i / (2.0 * m * m);
-                // Strict > to enforce "must beat baseline by an epsilon"
-                // semantics, and lower-community-id tiebreak via the
-                // BTreeMap iteration order (lower c gets evaluated first).
-                if gain > baseline && gain > best_gain {
-                    best_gain = gain;
+                if c == current_comm {
+                    continue;
+                }
+                let gain = k_in / m - resolution * sigma_tot[c] * k_i / (2.0 * m * m);
+                let delta = gain - baseline;
+                if delta > best_delta {
+                    best_delta = delta;
                     best_comm = c;
                 }
             }
@@ -603,7 +614,7 @@ mod tests {
             meta: None,
             body_hash: None,
             sig_hash: None,
-            struct_hash: "d".to_string(),
+            struct_hash: "deadbeefcafef00d".to_string(),
             visibility: None,
             rank: None,
             blast_radius: None,
@@ -619,6 +630,125 @@ mod tests {
             ref_kind: "call".to_string(),
             line: 1,
         }
+    }
+
+    /// For every node in `adj`, confirm that under the partition `comm`,
+    /// no neighbor community offers a strictly-positive ΔQ relative to
+    /// the node's current community. This is the convergence invariant
+    /// `local_moving` is supposed to establish — if any positive delta
+    /// exists, the algorithm stopped early.
+    fn assert_no_beneficial_move(
+        adj: &[BTreeMap<usize, f64>],
+        comm: &[usize],
+        cfg: &LeidenConfig,
+    ) {
+        let n = adj.len();
+        // Recompute degrees and sigma_tot under the given partition.
+        let degree: Vec<f64> = adj
+            .iter()
+            .enumerate()
+            .map(|(i, nbrs)| {
+                let mut d = 0.0;
+                for (&j, &w) in nbrs {
+                    if j == i {
+                        d += 2.0 * w;
+                    } else {
+                        d += w;
+                    }
+                }
+                d
+            })
+            .collect();
+        let two_m: f64 = degree.iter().sum();
+        if two_m <= 0.0 {
+            return;
+        }
+        let m = two_m / 2.0;
+        let mut sigma_tot: Vec<f64> = vec![0.0; n];
+        for (i, &c) in comm.iter().enumerate() {
+            sigma_tot[c] += degree[i];
+        }
+        let resolution = cfg.resolution.max(0.0);
+
+        for i in 0..n {
+            let mut k_i_in: BTreeMap<usize, f64> = BTreeMap::new();
+            for (&j, &w) in &adj[i] {
+                if j == i {
+                    continue;
+                }
+                *k_i_in.entry(comm[j]).or_insert(0.0) += w;
+            }
+            let current_comm = comm[i];
+            let k_i = degree[i];
+            // Tentatively isolate i for evaluation.
+            let sigma_current = sigma_tot[current_comm] - k_i;
+            let k_in_current = k_i_in.get(&current_comm).copied().unwrap_or(0.0);
+            let baseline =
+                k_in_current / m - resolution * sigma_current * k_i / (2.0 * m * m);
+            for (&c, &k_in) in &k_i_in {
+                if c == current_comm {
+                    continue;
+                }
+                let gain = k_in / m - resolution * sigma_tot[c] * k_i / (2.0 * m * m);
+                let delta = gain - baseline;
+                assert!(
+                    delta <= 1e-9,
+                    "node {} stuck in comm {} has positive ΔQ to comm {}: \
+                     baseline={:.6}, gain={:.6}, delta={:.6}",
+                    i,
+                    current_comm,
+                    c,
+                    baseline,
+                    gain,
+                    delta,
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn local_moving_leaves_no_beneficial_move_unmade_at_high_resolution() {
+        // Convergence contract: after local_moving returns, no node has a
+        // strictly-positive ΔQ available to any of its neighbor
+        // communities. A floor-at-zero on `best_gain` (the previous
+        // implementation) could reject moves where gain(c) and baseline
+        // were both negative but gain(c) > baseline; this property test
+        // catches that exact failure mode.
+        //
+        // High resolution (γ = 4.0) magnifies the Σ_tot penalty so
+        // baseline drops below zero on dense communities, the regime
+        // where the floor bug bites hardest.
+        let entities: Vec<Entity> = (0..6)
+            .map(|i| ent(&format!("n{i}.rs"), &format!("f{i}")))
+            .collect();
+        let mut refs = Vec::new();
+        // Dense triangle {0,1,2} and dense triangle {3,4,5}, joined by a
+        // weak 0↔3 bridge — gives at least one node a sigma_tot-heavy
+        // current community at higher resolutions.
+        for clique in [[0, 1, 2], [3, 4, 5]] {
+            for &a in &clique {
+                for &b in &clique {
+                    if a != b {
+                        refs.push(refr(
+                            &format!("n{a}.rs"),
+                            Some("c"),
+                            &format!("f{b}"),
+                        ));
+                    }
+                }
+            }
+        }
+        refs.push(refr("n0.rs", Some("c"), "f3"));
+        refs.push(refr("n3.rs", Some("c"), "f0"));
+
+        let cfg = LeidenConfig {
+            resolution: 4.0,
+            ..LeidenConfig::default()
+        };
+        let (nodes, adj) = build_graph(&entities, &refs).unwrap();
+        let _ = nodes; // unused; assertion runs over adj indices
+        let comm = local_moving(&adj, &cfg);
+        assert_no_beneficial_move(&adj, &comm, &cfg);
     }
 
     #[test]
@@ -662,15 +792,15 @@ mod tests {
             }
         }
         let mut visited: BTreeSet<&str> = BTreeSet::new();
-        let mut queue: Vec<&str> = vec![members[0].as_str()];
-        while let Some(node) = queue.pop() {
+        let mut queue: VecDeque<&str> = VecDeque::from([members[0].as_str()]);
+        while let Some(node) = queue.pop_front() {
             if !visited.insert(node) {
                 continue;
             }
             if let Some(nbrs) = adj.get(node) {
                 for &n in nbrs {
                     if !visited.contains(n) {
-                        queue.push(n);
+                        queue.push_back(n);
                     }
                 }
             }
