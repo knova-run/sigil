@@ -831,7 +831,7 @@ enum Cli {
     },
     /// Framework-aware dead-code detection with confidence tiers.
     /// JSONL on stdout: { kind, file, name?, entity_kind?, line_start?,
-    /// confidence, framework_excluded?, dynamic_name_match?, recent_activity }.
+    /// confidence, dynamic_name_match?, recent_activity }.
     ///
     /// Confidence tiers:
     ///   1.00 = file with zero incoming graph edges AND not a framework entry point

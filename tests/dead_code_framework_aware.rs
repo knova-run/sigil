@@ -297,6 +297,108 @@ fn safe_only_drops_below_threshold() {
 }
 
 // ──────────────────────────────────────────────────────────────────────
+// Django convention: `urls.py` = framework entry point, `views.py` = view
+// definitions. Both must be excluded so view functions (which lack
+// AST-visible callers) aren't false-positively flagged as dead. A
+// non-Django Python file that happens to call a custom `path(...)`
+// helper must NOT be excluded — the previous bare-token regex misfired
+// on that.
+// ──────────────────────────────────────────────────────────────────────
+#[test]
+fn django_views_py_is_excluded_via_filename_convention() {
+    let tmp = TempDir::new().unwrap();
+    fs::create_dir_all(tmp.path().join("blog")).unwrap();
+    fs::write(
+        tmp.path().join("blog/views.py"),
+        "from django.http import HttpResponse\n\ndef index(request):\n    return HttpResponse('hi')\n",
+    )
+    .unwrap();
+    seed_sigil(
+        tmp.path(),
+        &[entity("blog/views.py", "index", "function", Some("public"))],
+        &[],
+    );
+    let (stdout, stderr, ok) = run_dead_code(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let names: Vec<&str> = rows
+        .iter()
+        .filter_map(|r| r.get("name").and_then(|v| v.as_str()))
+        .collect();
+    assert!(
+        !names.contains(&"index"),
+        "Django view `index` in blog/views.py must be framework-excluded; rows={rows:?}",
+    );
+}
+
+#[test]
+fn non_django_path_call_is_not_framework_excluded() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("loader.py"),
+        "def load_config():\n    return path('/etc/myapp/config.toml')\n",
+    )
+    .unwrap();
+    seed_sigil(
+        tmp.path(),
+        &[entity("loader.py", "load_config", "function", Some("public"))],
+        &[],
+    );
+    let (stdout, stderr, ok) = run_dead_code(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let names: Vec<&str> = rows
+        .iter()
+        .filter_map(|r| r.get("name").and_then(|v| v.as_str()))
+        .collect();
+    assert!(
+        names.contains(&"load_config"),
+        "loader.py uses a custom path(...) helper, not Django routing; \
+         must NOT be framework-excluded. rows={rows:?}",
+    );
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// File whose only external reference is to a non-callable entity
+// (constant / variable / import) must NOT be flagged dead. Earlier
+// implementations only tracked refs in the callable-kind branch of the
+// symbol sweep, so a constants-only module that other files import
+// would falsely surface at confidence 1.00.
+// ──────────────────────────────────────────────────────────────────────
+#[test]
+fn file_with_only_constant_export_is_not_flagged_when_referenced() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(tmp.path().join("settings.py"), "API_KEY = \"x\"\n").unwrap();
+    fs::write(
+        tmp.path().join("app.py"),
+        "from settings import API_KEY\ndef use(): return API_KEY\n",
+    )
+    .unwrap();
+    let consts = entity("settings.py", "API_KEY", "constant", Some("public"));
+    let user_fn = entity("app.py", "use", "function", Some("public"));
+    let api_key_ref = serde_json::json!({
+        "file": "app.py",
+        "name": "API_KEY",
+        "kind": "import",
+        "line": 1,
+    });
+    seed_sigil(tmp.path(), &[consts, user_fn], &[api_key_ref]);
+    let (stdout, stderr, ok) = run_dead_code(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let dead_files: Vec<&str> = rows
+        .iter()
+        .filter(|r| r["kind"] == "file")
+        .map(|r| r["file"].as_str().unwrap())
+        .collect();
+    assert!(
+        !dead_files.contains(&"settings.py"),
+        "settings.py is referenced via its API_KEY constant from app.py — \
+         must NOT be flagged as dead at confidence 1.00. dead_files={dead_files:?}",
+    );
+}
+
+// ──────────────────────────────────────────────────────────────────────
 // JSON shape backward-compatibility — the new fields are all optional;
 // when not populated, they must be absent from the JSON output.
 // ──────────────────────────────────────────────────────────────────────
@@ -317,9 +419,11 @@ fn optional_fields_omitted_when_none() {
     assert!(row.get("confidence").is_some());
     assert!(row.get("file").is_some());
     // Optional fields not populated → must be absent in JSON.
+    // `framework_excluded` was removed from the schema (was always None).
+    // `dynamic_name_match` is optional and absent for non-dynamic exports.
     assert!(
         row.get("framework_excluded").is_none(),
-        "framework_excluded should be omitted: {row:?}",
+        "framework_excluded was removed from the schema; got {row:?}",
     );
     assert!(
         row.get("dynamic_name_match").is_none(),

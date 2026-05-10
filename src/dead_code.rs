@@ -54,11 +54,6 @@ pub struct DeadCodeCandidate {
     pub line_start: Option<u32>,
     /// Confidence score: 1.0 (most confident) down to 0.0.
     pub confidence: f64,
-    /// Tag of the framework-route regex that excluded this candidate, if any.
-    /// Populated only when `framework_excluded` is the *reason* the
-    /// candidate is being downgraded or skipped.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub framework_excluded: Option<String>,
     /// The trailing suffix (Plugin / Handler / ...) that matched the
     /// dynamic-name list, if any.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -77,9 +72,9 @@ fn is_false(b: &bool) -> bool {
 /// symbol is a framework-registered entry point — i.e. it has incoming
 /// edges that the static call-graph doesn't capture.
 ///
-/// `tag` is a short stable identifier that gets surfaced in the JSON
-/// output via `framework_excluded` so consumers can attribute the
-/// exclusion to a specific framework rule.
+/// `tag` is a short stable identifier (`flask_route`, `fastapi_route`,
+/// `django_views`, ...) used internally and by tests to attribute a
+/// match to a specific framework rule.
 pub struct FrameworkPattern {
     pub language: &'static str,
     pub re: &'static Regex,
@@ -113,15 +108,13 @@ fn build_patterns() -> Vec<FrameworkPattern> {
             re: re(r#"@\s*[A-Za-z_][A-Za-z0-9_]*\.(get|post|put|delete|patch|options|head)\(\s*['"][^'"]+['"]"#),
             tag: "fastapi_route",
         },
-        // Django: path("foo/", view) inside a urlpatterns = [...] list.
-        // We match the registration call site; the file containing the
-        // import target gets the exclusion via the heuristic in
-        // `is_file_framework_entry_point`.
-        FrameworkPattern {
-            language: "python",
-            re: re(r#"\bpath\(\s*['"][^'"]*['"]"#),
-            tag: "django_url",
-        },
+        // Django routing is detected by filename convention rather than
+        // a regex over file contents — `urls.py` always carries
+        // urlpatterns and `views.py` always carries view functions, both
+        // by Django convention. A bare `\bpath\(...\)` regex misfires on
+        // any non-Django code that calls a custom `path()` helper, so
+        // pattern-based detection here would over-exclude. See
+        // `framework_filename_match` for the Django filename rule.
 
         // ── Go ──────────────────────────────────────────────────────
         // net/http: mux.HandleFunc("/path", handler) — also matches
@@ -214,7 +207,14 @@ fn file_ext(file: &str) -> Option<&str> {
 /// Errors reading the file map to None (the file just won't be marked
 /// as a framework entry point — safer than panicking on permission
 /// errors).
+///
+/// Filename-based rules (e.g. Django `urls.py` / `views.py`) are checked
+/// before file content; they're cheaper and avoid the false-positive
+/// regex problem of pattern-based detection.
 pub fn first_framework_match(file_path: &Path, language: &str) -> Option<&'static str> {
+    if let Some(tag) = framework_filename_match(file_path, language) {
+        return Some(tag);
+    }
     let text = std::fs::read_to_string(file_path).ok()?;
     for p in framework_route_patterns() {
         if p.language == language && p.re.is_match(&text) {
@@ -222,6 +222,25 @@ pub fn first_framework_match(file_path: &Path, language: &str) -> Option<&'stati
         }
     }
     None
+}
+
+/// Filename-convention framework detection. Used for cases where the
+/// file's role is unambiguous from its name alone:
+///
+/// - Django: `urls.py` (route table) and `views.py` (view functions)
+///   both qualify as framework entry points. Pattern-based detection
+///   over file contents would over-exclude legitimate non-Django code
+///   that happens to call a custom `path(...)` helper.
+fn framework_filename_match(file_path: &Path, language: &str) -> Option<&'static str> {
+    if language != "python" {
+        return None;
+    }
+    let name = file_path.file_name().and_then(|n| n.to_str())?;
+    match name {
+        "urls.py" => Some("django_urls"),
+        "views.py" => Some("django_views"),
+        _ => None,
+    }
 }
 
 /// In-text framework match without I/O — used by callers that already
@@ -244,7 +263,9 @@ pub struct DeadCodeConfig {
     /// Activity window for `recent_activity`, in days. Default 30.
     pub activity_window_days: u64,
     /// User-supplied regex patterns; any candidate whose `name` matches
-    /// any of these is excluded entirely (downgraded to dynamic-name).
+    /// is dropped from output entirely. Use this for project-specific
+    /// naming conventions that the built-in dynamic-name suffix list
+    /// (Plugin / Handler / Adapter / ...) doesn't cover.
     pub exclude_patterns: Vec<Regex>,
 }
 
@@ -261,12 +282,17 @@ impl Default for DeadCodeConfig {
 
 /// Walk the `.sigil/` index under `root` and return dead-code candidates.
 ///
-/// Lifts entities + refs via `query::load`. Two sweeps:
-///   1. **File sweep** — files with zero entities referenced from outside.
-///      Excluded if any line in the file matches a framework pattern.
-///   2. **Symbol sweep** — exported (and optionally internal) entities
-///      with zero callers. Excluded if the name matches a dynamic-name
-///      suffix or a user-supplied `--exclude-pattern`.
+/// Lifts entities + refs via `query::load`. Three passes:
+///   1. **Reference pre-pass** — record which files have at least one
+///      entity (any kind) referenced from outside. Used by the file
+///      sweep below.
+///   2. **Symbol sweep** — exported (and optionally internal) callable
+///      entities with zero callers. Excluded if the name matches a
+///      dynamic-name suffix or a user-supplied `--exclude-pattern`.
+///   3. **File sweep** — files with zero entries in the pre-pass set
+///      and not flagged as a framework entry-point file (Django
+///      `urls.py` / `views.py`, Flask / FastAPI / Express / NestJS /
+///      Go chi/gin/echo route registrations).
 pub fn find_dead_code(root: &Path, cfg: &DeadCodeConfig) -> Result<Vec<DeadCodeCandidate>> {
     let idx = query::load(root)?;
     Ok(find_dead_code_in_index(root, &idx, cfg))
@@ -306,11 +332,27 @@ pub fn find_dead_code_in_index(
         v
     };
 
-    // ── Symbol sweep ────────────────────────────────────────────────
-    // Track which files have at least one referenced symbol — used by
-    // the file sweep below.
+    // ── Reference pre-pass ──────────────────────────────────────────
+    // Track which files contain at least one entity that something else
+    // references — independent of entity kind, so a constants-only module
+    // imported by another file isn't later flagged as a dead file just
+    // because the symbol sweep skips non-callable kinds.
     let mut files_with_referenced_symbols: HashSet<String> = HashSet::new();
+    for entity in &idx.entities {
+        let leaf_used = idx.refs_to(&entity.name).next().is_some();
+        let qualified_used = entity
+            .qualified_name
+            .as_deref()
+            .map(|q| idx.refs_to(q).next().is_some())
+            .unwrap_or(false);
+        if leaf_used || qualified_used {
+            files_with_referenced_symbols.insert(entity.file.clone());
+        }
+    }
 
+    // ── Symbol sweep ────────────────────────────────────────────────
+    // Emit per-entity candidates for callable kinds only. The file
+    // pre-pass above is used by the file sweep below regardless of kind.
     for entity in &idx.entities {
         if !is_callable_kind(&entity.kind) {
             continue;
@@ -319,14 +361,12 @@ pub fn find_dead_code_in_index(
         // segment, so a plain `refs_to(name)` here matches both forms.
         let has_callers = idx.refs_to(&entity.name).next().is_some();
         if has_callers {
-            files_with_referenced_symbols.insert(entity.file.clone());
             continue;
         }
         // Also check the qualified name when present — Rust method refs
         // can land under `Struct::method` rather than the bare leaf.
         if let Some(q) = &entity.qualified_name {
             if idx.refs_to(q).next().is_some() {
-                files_with_referenced_symbols.insert(entity.file.clone());
                 continue;
             }
         }
@@ -378,7 +418,6 @@ pub fn find_dead_code_in_index(
             entity_kind: Some(entity.kind.clone()),
             line_start: Some(entity.line_start),
             confidence,
-            framework_excluded: None,
             dynamic_name_match: dynamic.map(|s| s.to_string()),
             recent_activity: activity_for(&entity.file),
         });
@@ -422,17 +461,18 @@ pub fn find_dead_code_in_index(
             entity_kind: None,
             line_start: None,
             confidence,
-            framework_excluded: None,
             dynamic_name_match: None,
             recent_activity: activity_for(&entity.file),
         });
     }
 
-    // Stable order for deterministic CLI output: file asc, kind ("file" first), line.
+    // CLAUDE.md convention: sort by (file, line_start) for deterministic
+    // output. File-scope candidates (`line_start = None`) sort before any
+    // line-numbered symbol candidates on the same file because Rust's
+    // `Option::None < Some(_)` ordering gives that for free.
     out.sort_by(|a, b| {
         a.file
             .cmp(&b.file)
-            .then_with(|| a.kind.cmp(&b.kind))
             .then_with(|| a.line_start.cmp(&b.line_start))
     });
     out
@@ -487,13 +527,14 @@ fn classify_symbol_confidence(exported: bool, dynamic_name: bool, framework: boo
         // but if a caller reaches this fn directly they get 0.0.
         return 0.0;
     }
-    if exported && !dynamic_name {
-        return 0.85;
-    }
-    if exported && dynamic_name {
-        // Dynamic-name match → low-confidence tier; emit only when the
-        // user asks for `--include-low-confidence`.
+    if dynamic_name {
+        // Dynamic-name match → low-confidence tier regardless of
+        // visibility. A private `_serviceImpl` is just as plugin-shaped
+        // as an exported one and shouldn't leak through `--safe-only`.
         return 0.50;
+    }
+    if exported {
+        return 0.85;
     }
     // Internal helper with no callers.
     0.70
@@ -530,10 +571,9 @@ fn file_recent_activity(root: &Path, file: &str, window_days: u64) -> bool {
     ts >= cutoff
 }
 
-/// Reference is used internally for unit tests of the symbol-confidence
-/// classifier. Keeping it `pub(crate)` lets the integration test file
-/// (which links the library) inspect tier boundaries without us having
-/// to expose every internal helper publicly.
+/// Test-only re-export of the symbol-confidence classifier so the
+/// integration test crate (which links the library) can pin tier
+/// boundaries without us exposing every internal helper.
 #[doc(hidden)]
 pub fn _classify_for_test(exported: bool, dynamic_name: bool, framework: bool) -> f64 {
     classify_symbol_confidence(exported, dynamic_name, framework)
@@ -570,6 +610,15 @@ mod tests {
         assert!((classify_symbol_confidence(false, false, false) - 0.70).abs() < 1e-9);
         // Exported + dynamic-name → 0.50 (low-confidence tier)
         assert!((classify_symbol_confidence(true, true, false) - 0.50).abs() < 1e-9);
+        // Private + dynamic-name → 0.50 too — dynamic-name is the
+        // signal regardless of visibility, so a private `_serviceImpl`
+        // also drops below the safe-only threshold instead of leaking
+        // through at 0.70.
+        assert!(
+            (classify_symbol_confidence(false, true, false) - 0.50).abs() < 1e-9,
+            "private dynamic-name match must be 0.50 (low-confidence), got {}",
+            classify_symbol_confidence(false, true, false),
+        );
         // Framework match → 0.0
         assert!(classify_symbol_confidence(true, false, true).abs() < 1e-9);
     }
