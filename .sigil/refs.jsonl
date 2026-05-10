@@ -12270,8 +12270,11 @@
 {"file":"src/parser/languages.rs","caller":"get_language","name":"tree_sitter_ruby::LANGUAGE.into","kind":"call","line":38}
 {"file":"src/parser/languages.rs","caller":"get_language","name":"tree_sitter_c_sharp::LANGUAGE.into","kind":"call","line":41}
 {"file":"src/parser/languages.rs","caller":"get_language","name":"tree_sitter_kotlin_sg::LANGUAGE.into","kind":"call","line":44}
-{"file":"src/parser/languages.rs","caller":"get_language","name":"tree_sitter_md::LANGUAGE.into","kind":"call","line":49}
-{"file":"src/parser/languages.rs","caller":"detect_language","name":"Option","kind":"type_annotation","line":56}
+{"file":"src/parser/languages.rs","caller":"get_language","name":"tree_sitter_swift::LANGUAGE.into","kind":"call","line":47}
+{"file":"src/parser/languages.rs","caller":"get_language","name":"tree_sitter_scala::LANGUAGE.into","kind":"call","line":50}
+{"file":"src/parser/languages.rs","caller":"get_language","name":"tree_sitter_php::LANGUAGE_PHP.into","kind":"call","line":53}
+{"file":"src/parser/languages.rs","caller":"get_language","name":"tree_sitter_md::LANGUAGE.into","kind":"call","line":58}
+{"file":"src/parser/languages.rs","caller":"detect_language","name":"Option","kind":"type_annotation","line":65}
 {"file":"src/parser/markdown.rs","name":"anyhow::Result","kind":"import","line":10}
 {"file":"src/parser/markdown.rs","name":"tree_sitter::Node","kind":"import","line":11}
 {"file":"src/parser/markdown.rs","name":"tree_sitter_md::MarkdownParser","kind":"import","line":12}
@@ -12860,6 +12863,320 @@
 {"file":"src/parser/metadata.rs","caller":"test_yaml_frontmatter","name":"extract_yaml_frontmatter(text).unwrap","kind":"call","line":720}
 {"file":"src/parser/metadata.rs","caller":"test_yaml_frontmatter","name":"extract_yaml_frontmatter","kind":"call","line":720}
 {"file":"src/parser/metadata.rs","caller":"test_markdown_heading_fallback","name":"extract_markdown_metadata","kind":"call","line":729}
+{"file":"src/parser/php.rs","name":"tree_sitter::{Node, Tree}","kind":"import","line":19}
+{"file":"src/parser/php.rs","name":"crate::parser::format::{ReferenceEntry, SymbolEntry, TextEntry}","kind":"import","line":21}
+{"file":"src/parser/php.rs","name":"crate::parser::helpers::*","kind":"import","line":22}
+{"file":"src/parser/php.rs","name":"crate::parser::treesitter::MAX_DEPTH","kind":"import","line":23}
+{"file":"src/parser/php.rs","caller":"filter_php_tokens","name":"Option","kind":"type_annotation","line":67}
+{"file":"src/parser/php.rs","caller":"filter_php_tokens","name":"String","kind":"type_annotation","line":67}
+{"file":"src/parser/php.rs","caller":"filter_php_tokens","name":"Option","kind":"type_annotation","line":67}
+{"file":"src/parser/php.rs","caller":"filter_php_tokens","name":"String","kind":"type_annotation","line":67}
+{"file":"src/parser/php.rs","caller":"filter_php_tokens","name":"tokens.and_then","kind":"call","line":68}
+{"file":"src/parser/php.rs","caller":"filter_php_tokens","name":"t\n            .split_whitespace()\n            .filter(|tok| !PHP_STOPWORDS.contains(&tok.to_lowercase().as_str()))\n            .collect","kind":"call","line":69}
+{"file":"src/parser/php.rs","caller":"filter_php_tokens","name":"t\n            .split_whitespace()\n            .filter","kind":"call","line":69}
+{"file":"src/parser/php.rs","caller":"filter_php_tokens","name":"t\n            .split_whitespace","kind":"call","line":69}
+{"file":"src/parser/php.rs","caller":"filter_php_tokens","name":"PHP_STOPWORDS.contains","kind":"call","line":71}
+{"file":"src/parser/php.rs","caller":"filter_php_tokens","name":"tok.to_lowercase().as_str","kind":"call","line":71}
+{"file":"src/parser/php.rs","caller":"filter_php_tokens","name":"tok.to_lowercase","kind":"call","line":71}
+{"file":"src/parser/php.rs","caller":"filter_php_tokens","name":"filtered.is_empty","kind":"call","line":73}
+{"file":"src/parser/php.rs","caller":"filter_php_tokens","name":"filtered.join","kind":"call","line":76}
+{"file":"src/parser/php.rs","caller":"extract","name":"Tree","kind":"type_annotation","line":113}
+{"file":"src/parser/php.rs","caller":"extract","name":"Vec","kind":"type_annotation","line":116}
+{"file":"src/parser/php.rs","caller":"extract","name":"SymbolEntry","kind":"type_annotation","line":116}
+{"file":"src/parser/php.rs","caller":"extract","name":"Vec","kind":"type_annotation","line":117}
+{"file":"src/parser/php.rs","caller":"extract","name":"TextEntry","kind":"type_annotation","line":117}
+{"file":"src/parser/php.rs","caller":"extract","name":"Vec","kind":"type_annotation","line":118}
+{"file":"src/parser/php.rs","caller":"extract","name":"ReferenceEntry","kind":"type_annotation","line":118}
+{"file":"src/parser/php.rs","caller":"extract","name":"tree.root_node","kind":"call","line":120}
+{"file":"src/parser/php.rs","caller":"extract","name":"walk_node","kind":"call","line":121}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"Node","kind":"type_annotation","line":126}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"Option","kind":"type_annotation","line":129}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"Vec","kind":"type_annotation","line":130}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"SymbolEntry","kind":"type_annotation","line":130}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"Vec","kind":"type_annotation","line":131}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"TextEntry","kind":"type_annotation","line":131}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"Vec","kind":"type_annotation","line":132}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"ReferenceEntry","kind":"type_annotation","line":132}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"node.kind","kind":"call","line":139}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"extract_namespace","kind":"call","line":143}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"node.child_by_field_name","kind":"call","line":148}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"body.walk","kind":"call","line":149}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"body.children","kind":"call","line":150}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"walk_node","kind":"call","line":151}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"extract_use","kind":"call","line":166}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"extract_function","kind":"call","line":170}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"node.child_by_field_name","kind":"call","line":172}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"field_name_text(node, source).unwrap_or_default","kind":"call","line":173}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"field_name_text","kind":"call","line":173}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"qualify","kind":"call","line":174}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"body.walk","kind":"call","line":175}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"body.children","kind":"call","line":176}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"walk_node","kind":"call","line":177}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"extract_method","kind":"call","line":192}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"node.child_by_field_name","kind":"call","line":193}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"field_name_text(node, source).unwrap_or_default","kind":"call","line":194}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"field_name_text","kind":"call","line":194}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"qualify_member","kind":"call","line":195}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"body.walk","kind":"call","line":196}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"body.children","kind":"call","line":197}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"walk_node","kind":"call","line":198}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"extract_class_like","kind":"call","line":213}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"extract_class_like","kind":"call","line":219}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"extract_class_like","kind":"call","line":227}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"extract_class_like","kind":"call","line":235}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"extract_property","kind":"call","line":241}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"extract_const","kind":"call","line":245}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"extract_php_comment","kind":"call","line":249}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"extract_string","kind":"call","line":253}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"extract_call_ref","kind":"call","line":257}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"node.walk","kind":"call","line":264}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"node.children","kind":"call","line":265}
+{"file":"src/parser/php.rs","caller":"walk_node","name":"walk_node","kind":"call","line":266}
+{"file":"src/parser/php.rs","caller":"field_name_text","name":"Node","kind":"type_annotation","line":284}
+{"file":"src/parser/php.rs","caller":"field_name_text","name":"Option","kind":"type_annotation","line":284}
+{"file":"src/parser/php.rs","caller":"field_name_text","name":"String","kind":"type_annotation","line":284}
+{"file":"src/parser/php.rs","caller":"field_name_text","name":"node.child_by_field_name(\"name\").map","kind":"call","line":285}
+{"file":"src/parser/php.rs","caller":"field_name_text","name":"node.child_by_field_name","kind":"call","line":285}
+{"file":"src/parser/php.rs","caller":"field_name_text","name":"node_text","kind":"call","line":285}
+{"file":"src/parser/php.rs","caller":"qualify","name":"Option","kind":"type_annotation","line":290}
+{"file":"src/parser/php.rs","caller":"qualify","name":"String","kind":"type_annotation","line":290}
+{"file":"src/parser/php.rs","caller":"qualify","name":"p.is_empty","kind":"call","line":292}
+{"file":"src/parser/php.rs","caller":"qualify","name":"name.to_string","kind":"call","line":293}
+{"file":"src/parser/php.rs","caller":"qualify_member","name":"Option","kind":"type_annotation","line":300}
+{"file":"src/parser/php.rs","caller":"qualify_member","name":"String","kind":"type_annotation","line":300}
+{"file":"src/parser/php.rs","caller":"qualify_member","name":"p.is_empty","kind":"call","line":302}
+{"file":"src/parser/php.rs","caller":"qualify_member","name":"name.to_string","kind":"call","line":303}
+{"file":"src/parser/php.rs","caller":"extract_php_visibility","name":"Node","kind":"type_annotation","line":310}
+{"file":"src/parser/php.rs","caller":"extract_php_visibility","name":"String","kind":"type_annotation","line":310}
+{"file":"src/parser/php.rs","caller":"extract_php_visibility","name":"node.walk","kind":"call","line":311}
+{"file":"src/parser/php.rs","caller":"extract_php_visibility","name":"node.children","kind":"call","line":312}
+{"file":"src/parser/php.rs","caller":"extract_php_visibility","name":"child.kind","kind":"call","line":313}
+{"file":"src/parser/php.rs","caller":"extract_php_visibility","name":"node_text","kind":"call","line":314}
+{"file":"src/parser/php.rs","caller":"extract_php_visibility","name":"t.as_str","kind":"call","line":315}
+{"file":"src/parser/php.rs","caller":"extract_php_visibility","name":"\"private\".to_string","kind":"call","line":316}
+{"file":"src/parser/php.rs","caller":"extract_php_visibility","name":"\"protected\".to_string","kind":"call","line":317}
+{"file":"src/parser/php.rs","caller":"extract_php_visibility","name":"\"public\".to_string","kind":"call","line":318}
+{"file":"src/parser/php.rs","caller":"extract_php_visibility","name":"\"public\".to_string","kind":"call","line":322}
+{"file":"src/parser/php.rs","caller":"extract_namespace","name":"Vec","kind":"type_annotation","line":329}
+{"file":"src/parser/php.rs","caller":"extract_namespace","name":"SymbolEntry","kind":"type_annotation","line":329}
+{"file":"src/parser/php.rs","caller":"extract_namespace","name":"Node","kind":"type_annotation","line":329}
+{"file":"src/parser/php.rs","caller":"extract_namespace","name":"node.child_by_field_name","kind":"call","line":330}
+{"file":"src/parser/php.rs","caller":"extract_namespace","name":"node_text","kind":"call","line":333}
+{"file":"src/parser/php.rs","caller":"extract_namespace","name":"node_line_range","kind":"call","line":334}
+{"file":"src/parser/php.rs","caller":"extract_namespace","name":"push_symbol","kind":"call","line":335}
+{"file":"src/parser/php.rs","caller":"extract_namespace","name":"\"public\".to_string","kind":"call","line":344}
+{"file":"src/parser/php.rs","caller":"extract_use","name":"Node","kind":"type_annotation","line":349}
+{"file":"src/parser/php.rs","caller":"extract_use","name":"Vec","kind":"type_annotation","line":352}
+{"file":"src/parser/php.rs","caller":"extract_use","name":"SymbolEntry","kind":"type_annotation","line":352}
+{"file":"src/parser/php.rs","caller":"extract_use","name":"Vec","kind":"type_annotation","line":353}
+{"file":"src/parser/php.rs","caller":"extract_use","name":"ReferenceEntry","kind":"type_annotation","line":353}
+{"file":"src/parser/php.rs","caller":"extract_use","name":"node_line_range","kind":"call","line":355}
+{"file":"src/parser/php.rs","caller":"extract_use","name":"node.walk","kind":"call","line":361}
+{"file":"src/parser/php.rs","caller":"extract_use","name":"node.children","kind":"call","line":365}
+{"file":"src/parser/php.rs","caller":"extract_use","name":"child.kind","kind":"call","line":366}
+{"file":"src/parser/php.rs","caller":"extract_use","name":"child.walk","kind":"call","line":371}
+{"file":"src/parser/php.rs","caller":"extract_use","name":"child.children","kind":"call","line":372}
+{"file":"src/parser/php.rs","caller":"extract_use","name":"sub.kind","kind":"call","line":373}
+{"file":"src/parser/php.rs","caller":"extract_use","name":"name.is_none","kind":"call","line":375}
+{"file":"src/parser/php.rs","caller":"extract_use","name":"node_text","kind":"call","line":376}
+{"file":"src/parser/php.rs","caller":"extract_use","name":"child.child_by_field_name","kind":"call","line":383}
+{"file":"src/parser/php.rs","caller":"extract_use","name":"node_text","kind":"call","line":384}
+{"file":"src/parser/php.rs","caller":"extract_use","name":"push_use_symbol","kind":"call","line":387}
+{"file":"src/parser/php.rs","caller":"extract_use","name":"direct_name.is_none","kind":"call","line":391}
+{"file":"src/parser/php.rs","caller":"extract_use","name":"node_text","kind":"call","line":392}
+{"file":"src/parser/php.rs","caller":"extract_use","name":"push_use_symbol","kind":"call","line":401}
+{"file":"src/parser/php.rs","caller":"push_use_symbol","name":"Vec","kind":"type_annotation","line":407}
+{"file":"src/parser/php.rs","caller":"push_use_symbol","name":"SymbolEntry","kind":"type_annotation","line":407}
+{"file":"src/parser/php.rs","caller":"push_use_symbol","name":"Vec","kind":"type_annotation","line":408}
+{"file":"src/parser/php.rs","caller":"push_use_symbol","name":"ReferenceEntry","kind":"type_annotation","line":408}
+{"file":"src/parser/php.rs","caller":"push_use_symbol","name":"String","kind":"type_annotation","line":410}
+{"file":"src/parser/php.rs","caller":"push_use_symbol","name":"Option","kind":"type_annotation","line":411}
+{"file":"src/parser/php.rs","caller":"push_use_symbol","name":"String","kind":"type_annotation","line":411}
+{"file":"src/parser/php.rs","caller":"push_use_symbol","name":"push_symbol","kind":"call","line":414}
+{"file":"src/parser/php.rs","caller":"push_use_symbol","name":"name.clone","kind":"call","line":417}
+{"file":"src/parser/php.rs","caller":"push_use_symbol","name":"\"private\".to_string","kind":"call","line":423}
+{"file":"src/parser/php.rs","caller":"push_use_symbol","name":"references.push","kind":"call","line":425}
+{"file":"src/parser/php.rs","caller":"push_use_symbol","name":"file_path.to_string","kind":"call","line":426}
+{"file":"src/parser/php.rs","caller":"push_use_symbol","name":"\"import\".to_string","kind":"call","line":428}
+{"file":"src/parser/php.rs","caller":"push_use_symbol","name":"String::new","kind":"call","line":431}
+{"file":"src/parser/php.rs","caller":"extract_class_like","name":"Node","kind":"type_annotation","line":437}
+{"file":"src/parser/php.rs","caller":"extract_class_like","name":"Option","kind":"type_annotation","line":440}
+{"file":"src/parser/php.rs","caller":"extract_class_like","name":"Vec","kind":"type_annotation","line":442}
+{"file":"src/parser/php.rs","caller":"extract_class_like","name":"SymbolEntry","kind":"type_annotation","line":442}
+{"file":"src/parser/php.rs","caller":"extract_class_like","name":"Vec","kind":"type_annotation","line":443}
+{"file":"src/parser/php.rs","caller":"extract_class_like","name":"TextEntry","kind":"type_annotation","line":443}
+{"file":"src/parser/php.rs","caller":"extract_class_like","name":"Vec","kind":"type_annotation","line":444}
+{"file":"src/parser/php.rs","caller":"extract_class_like","name":"ReferenceEntry","kind":"type_annotation","line":444}
+{"file":"src/parser/php.rs","caller":"extract_class_like","name":"field_name_text","kind":"call","line":447}
+{"file":"src/parser/php.rs","caller":"extract_class_like","name":"node_line_range","kind":"call","line":450}
+{"file":"src/parser/php.rs","caller":"extract_class_like","name":"qualify","kind":"call","line":451}
+{"file":"src/parser/php.rs","caller":"extract_class_like","name":"\"public\".to_string","kind":"call","line":456}
+{"file":"src/parser/php.rs","caller":"extract_class_like","name":"node\n        .child_by_field_name(\"body\")\n        .and_then","kind":"call","line":458}
+{"file":"src/parser/php.rs","caller":"extract_class_like","name":"node\n        .child_by_field_name","kind":"call","line":458}
+{"file":"src/parser/php.rs","caller":"extract_class_like","name":"filter_php_tokens","kind":"call","line":460}
+{"file":"src/parser/php.rs","caller":"extract_class_like","name":"extract_tokens","kind":"call","line":460}
+{"file":"src/parser/php.rs","caller":"extract_class_like","name":"push_symbol","kind":"call","line":462}
+{"file":"src/parser/php.rs","caller":"extract_class_like","name":"full_name.clone","kind":"call","line":465}
+{"file":"src/parser/php.rs","caller":"extract_class_like","name":"node.child_by_field_name","kind":"call","line":474}
+{"file":"src/parser/php.rs","caller":"extract_class_like","name":"body.walk","kind":"call","line":475}
+{"file":"src/parser/php.rs","caller":"extract_class_like","name":"body.children","kind":"call","line":476}
+{"file":"src/parser/php.rs","caller":"extract_class_like","name":"walk_node","kind":"call","line":477}
+{"file":"src/parser/php.rs","caller":"extract_function","name":"Node","kind":"type_annotation","line":492}
+{"file":"src/parser/php.rs","caller":"extract_function","name":"Option","kind":"type_annotation","line":495}
+{"file":"src/parser/php.rs","caller":"extract_function","name":"Vec","kind":"type_annotation","line":496}
+{"file":"src/parser/php.rs","caller":"extract_function","name":"SymbolEntry","kind":"type_annotation","line":496}
+{"file":"src/parser/php.rs","caller":"extract_function","name":"field_name_text","kind":"call","line":498}
+{"file":"src/parser/php.rs","caller":"extract_function","name":"node_line_range","kind":"call","line":501}
+{"file":"src/parser/php.rs","caller":"extract_function","name":"\"public\".to_string","kind":"call","line":503}
+{"file":"src/parser/php.rs","caller":"extract_function","name":"qualify","kind":"call","line":509}
+{"file":"src/parser/php.rs","caller":"extract_function","name":"node\n        .child_by_field_name(\"body\")\n        .and_then","kind":"call","line":510}
+{"file":"src/parser/php.rs","caller":"extract_function","name":"node\n        .child_by_field_name","kind":"call","line":510}
+{"file":"src/parser/php.rs","caller":"extract_function","name":"filter_php_tokens","kind":"call","line":512}
+{"file":"src/parser/php.rs","caller":"extract_function","name":"extract_tokens","kind":"call","line":512}
+{"file":"src/parser/php.rs","caller":"extract_function","name":"push_symbol","kind":"call","line":514}
+{"file":"src/parser/php.rs","caller":"extract_method","name":"Node","kind":"type_annotation","line":528}
+{"file":"src/parser/php.rs","caller":"extract_method","name":"Option","kind":"type_annotation","line":531}
+{"file":"src/parser/php.rs","caller":"extract_method","name":"Vec","kind":"type_annotation","line":532}
+{"file":"src/parser/php.rs","caller":"extract_method","name":"SymbolEntry","kind":"type_annotation","line":532}
+{"file":"src/parser/php.rs","caller":"extract_method","name":"field_name_text","kind":"call","line":534}
+{"file":"src/parser/php.rs","caller":"extract_method","name":"node_line_range","kind":"call","line":537}
+{"file":"src/parser/php.rs","caller":"extract_method","name":"extract_php_visibility","kind":"call","line":538}
+{"file":"src/parser/php.rs","caller":"extract_method","name":"qualify_member","kind":"call","line":539}
+{"file":"src/parser/php.rs","caller":"extract_method","name":"node\n        .child_by_field_name(\"body\")\n        .and_then","kind":"call","line":541}
+{"file":"src/parser/php.rs","caller":"extract_method","name":"node\n        .child_by_field_name","kind":"call","line":541}
+{"file":"src/parser/php.rs","caller":"extract_method","name":"filter_php_tokens","kind":"call","line":543}
+{"file":"src/parser/php.rs","caller":"extract_method","name":"extract_tokens","kind":"call","line":543}
+{"file":"src/parser/php.rs","caller":"extract_method","name":"push_symbol","kind":"call","line":545}
+{"file":"src/parser/php.rs","caller":"extract_property","name":"Node","kind":"type_annotation","line":559}
+{"file":"src/parser/php.rs","caller":"extract_property","name":"Option","kind":"type_annotation","line":562}
+{"file":"src/parser/php.rs","caller":"extract_property","name":"Vec","kind":"type_annotation","line":563}
+{"file":"src/parser/php.rs","caller":"extract_property","name":"SymbolEntry","kind":"type_annotation","line":563}
+{"file":"src/parser/php.rs","caller":"extract_property","name":"node_line_range","kind":"call","line":565}
+{"file":"src/parser/php.rs","caller":"extract_property","name":"extract_php_visibility","kind":"call","line":566}
+{"file":"src/parser/php.rs","caller":"extract_property","name":"node.walk","kind":"call","line":571}
+{"file":"src/parser/php.rs","caller":"extract_property","name":"node.children","kind":"call","line":572}
+{"file":"src/parser/php.rs","caller":"extract_property","name":"child.kind","kind":"call","line":573}
+{"file":"src/parser/php.rs","caller":"extract_property","name":"child.child_by_field_name","kind":"call","line":576}
+{"file":"src/parser/php.rs","caller":"extract_property","name":"node_text","kind":"call","line":583}
+{"file":"src/parser/php.rs","caller":"extract_property","name":"raw.strip_prefix('$').unwrap_or(&raw).to_string","kind":"call","line":584}
+{"file":"src/parser/php.rs","caller":"extract_property","name":"raw.strip_prefix('$').unwrap_or","kind":"call","line":584}
+{"file":"src/parser/php.rs","caller":"extract_property","name":"raw.strip_prefix","kind":"call","line":584}
+{"file":"src/parser/php.rs","caller":"extract_property","name":"bare.is_empty","kind":"call","line":585}
+{"file":"src/parser/php.rs","caller":"extract_property","name":"qualify_member","kind":"call","line":588}
+{"file":"src/parser/php.rs","caller":"extract_property","name":"child\n            .child_by_field_name(\"default_value\")\n            .map","kind":"call","line":590}
+{"file":"src/parser/php.rs","caller":"extract_property","name":"child\n            .child_by_field_name","kind":"call","line":590}
+{"file":"src/parser/php.rs","caller":"extract_property","name":"truncate_sig","kind":"call","line":592}
+{"file":"src/parser/php.rs","caller":"extract_property","name":"node_text","kind":"call","line":592}
+{"file":"src/parser/php.rs","caller":"extract_property","name":"symbols.push","kind":"call","line":594}
+{"file":"src/parser/php.rs","caller":"extract_property","name":"file_path.to_string","kind":"call","line":595}
+{"file":"src/parser/php.rs","caller":"extract_property","name":"\"property\".to_string","kind":"call","line":597}
+{"file":"src/parser/php.rs","caller":"extract_property","name":"parent_ctx.map","kind":"call","line":599}
+{"file":"src/parser/php.rs","caller":"extract_property","name":"visibility.clone","kind":"call","line":602}
+{"file":"src/parser/php.rs","caller":"extract_property","name":"String::new","kind":"call","line":604}
+{"file":"src/parser/php.rs","caller":"extract_const","name":"Node","kind":"type_annotation","line":610}
+{"file":"src/parser/php.rs","caller":"extract_const","name":"Option","kind":"type_annotation","line":613}
+{"file":"src/parser/php.rs","caller":"extract_const","name":"Vec","kind":"type_annotation","line":614}
+{"file":"src/parser/php.rs","caller":"extract_const","name":"SymbolEntry","kind":"type_annotation","line":614}
+{"file":"src/parser/php.rs","caller":"extract_const","name":"node_line_range","kind":"call","line":616}
+{"file":"src/parser/php.rs","caller":"extract_const","name":"parent_ctx.is_some","kind":"call","line":617}
+{"file":"src/parser/php.rs","caller":"extract_const","name":"extract_php_visibility","kind":"call","line":618}
+{"file":"src/parser/php.rs","caller":"extract_const","name":"\"public\".to_string","kind":"call","line":621}
+{"file":"src/parser/php.rs","caller":"extract_const","name":"node.walk","kind":"call","line":626}
+{"file":"src/parser/php.rs","caller":"extract_const","name":"node.children","kind":"call","line":627}
+{"file":"src/parser/php.rs","caller":"extract_const","name":"child.kind","kind":"call","line":628}
+{"file":"src/parser/php.rs","caller":"extract_const","name":"child.walk","kind":"call","line":635}
+{"file":"src/parser/php.rs","caller":"extract_const","name":"child.children","kind":"call","line":636}
+{"file":"src/parser/php.rs","caller":"extract_const","name":"sub.is_named","kind":"call","line":637}
+{"file":"src/parser/php.rs","caller":"extract_const","name":"sub.kind","kind":"call","line":640}
+{"file":"src/parser/php.rs","caller":"extract_const","name":"name.is_none","kind":"call","line":640}
+{"file":"src/parser/php.rs","caller":"extract_const","name":"node_text","kind":"call","line":641}
+{"file":"src/parser/php.rs","caller":"extract_const","name":"name.is_some","kind":"call","line":642}
+{"file":"src/parser/php.rs","caller":"extract_const","name":"rhs.is_none","kind":"call","line":642}
+{"file":"src/parser/php.rs","caller":"extract_const","name":"node_text","kind":"call","line":643}
+{"file":"src/parser/php.rs","caller":"extract_const","name":"parent_ctx.is_some","kind":"call","line":647}
+{"file":"src/parser/php.rs","caller":"extract_const","name":"qualify_member","kind":"call","line":648}
+{"file":"src/parser/php.rs","caller":"extract_const","name":"rhs.map","kind":"call","line":652}
+{"file":"src/parser/php.rs","caller":"extract_const","name":"truncate_sig","kind":"call","line":652}
+{"file":"src/parser/php.rs","caller":"extract_const","name":"symbols.push","kind":"call","line":654}
+{"file":"src/parser/php.rs","caller":"extract_const","name":"file_path.to_string","kind":"call","line":655}
+{"file":"src/parser/php.rs","caller":"extract_const","name":"\"constant\".to_string","kind":"call","line":657}
+{"file":"src/parser/php.rs","caller":"extract_const","name":"parent_ctx.map","kind":"call","line":659}
+{"file":"src/parser/php.rs","caller":"extract_const","name":"visibility.clone","kind":"call","line":662}
+{"file":"src/parser/php.rs","caller":"extract_const","name":"String::new","kind":"call","line":664}
+{"file":"src/parser/php.rs","caller":"extract_call_ref","name":"Node","kind":"type_annotation","line":674}
+{"file":"src/parser/php.rs","caller":"extract_call_ref","name":"Option","kind":"type_annotation","line":677}
+{"file":"src/parser/php.rs","caller":"extract_call_ref","name":"Vec","kind":"type_annotation","line":678}
+{"file":"src/parser/php.rs","caller":"extract_call_ref","name":"ReferenceEntry","kind":"type_annotation","line":678}
+{"file":"src/parser/php.rs","caller":"extract_call_ref","name":"node.child_by_field_name","kind":"call","line":680}
+{"file":"src/parser/php.rs","caller":"extract_call_ref","name":"callee.kind","kind":"call","line":686}
+{"file":"src/parser/php.rs","caller":"extract_call_ref","name":"node_text","kind":"call","line":687}
+{"file":"src/parser/php.rs","caller":"extract_call_ref","name":"node_text","kind":"call","line":688}
+{"file":"src/parser/php.rs","caller":"extract_call_ref","name":"name.is_empty","kind":"call","line":691}
+{"file":"src/parser/php.rs","caller":"extract_call_ref","name":"name.rsplit('\\\\').next().unwrap_or","kind":"call","line":695}
+{"file":"src/parser/php.rs","caller":"extract_call_ref","name":"name.rsplit('\\\\').next","kind":"call","line":695}
+{"file":"src/parser/php.rs","caller":"extract_call_ref","name":"name.rsplit","kind":"call","line":695}
+{"file":"src/parser/php.rs","caller":"extract_call_ref","name":"is_php_builtin","kind":"call","line":696}
+{"file":"src/parser/php.rs","caller":"extract_call_ref","name":"references.push","kind":"call","line":700}
+{"file":"src/parser/php.rs","caller":"extract_call_ref","name":"file_path.to_string","kind":"call","line":701}
+{"file":"src/parser/php.rs","caller":"extract_call_ref","name":"\"call\".to_string","kind":"call","line":703}
+{"file":"src/parser/php.rs","caller":"extract_call_ref","name":"node_line_range","kind":"call","line":704}
+{"file":"src/parser/php.rs","caller":"extract_call_ref","name":"parent_ctx.map","kind":"call","line":705}
+{"file":"src/parser/php.rs","caller":"extract_call_ref","name":"String::new","kind":"call","line":706}
+{"file":"src/parser/php.rs","caller":"extract_php_comment","name":"Node","kind":"type_annotation","line":715}
+{"file":"src/parser/php.rs","caller":"extract_php_comment","name":"Option","kind":"type_annotation","line":718}
+{"file":"src/parser/php.rs","caller":"extract_php_comment","name":"Vec","kind":"type_annotation","line":719}
+{"file":"src/parser/php.rs","caller":"extract_php_comment","name":"TextEntry","kind":"type_annotation","line":719}
+{"file":"src/parser/php.rs","caller":"extract_php_comment","name":"extract_comment","kind":"call","line":723}
+{"file":"src/parser/php.rs","name":"super::*","kind":"import","line":728}
+{"file":"src/parser/php.rs","name":"crate::parser::treesitter::parse_file","kind":"import","line":729}
+{"file":"src/parser/php.rs","caller":"find_sym","name":"SymbolEntry","kind":"type_annotation","line":731}
+{"file":"src/parser/php.rs","caller":"find_sym","name":"SymbolEntry","kind":"type_annotation","line":731}
+{"file":"src/parser/php.rs","caller":"find_sym","name":"symbols.iter().find(|s| s.name == name).unwrap_or_else","kind":"call","line":732}
+{"file":"src/parser/php.rs","caller":"find_sym","name":"symbols.iter().find","kind":"call","line":732}
+{"file":"src/parser/php.rs","caller":"find_sym","name":"symbols.iter","kind":"call","line":732}
+{"file":"src/parser/php.rs","caller":"php_top_level_function","name":"parse_file(source, \"php\", \"t.php\").unwrap","kind":"call","line":743}
+{"file":"src/parser/php.rs","caller":"php_top_level_function","name":"parse_file","kind":"call","line":743}
+{"file":"src/parser/php.rs","caller":"php_top_level_function","name":"find_sym","kind":"call","line":744}
+{"file":"src/parser/php.rs","caller":"php_class_with_method","name":"parse_file(source, \"php\", \"t.php\").unwrap","kind":"call","line":752}
+{"file":"src/parser/php.rs","caller":"php_class_with_method","name":"parse_file","kind":"call","line":752}
+{"file":"src/parser/php.rs","caller":"php_class_with_method","name":"find_sym","kind":"call","line":753}
+{"file":"src/parser/php.rs","caller":"php_class_with_method","name":"find_sym","kind":"call","line":755}
+{"file":"src/parser/php.rs","caller":"php_class_with_method","name":"find_sym","kind":"call","line":758}
+{"file":"src/parser/php.rs","caller":"php_class_with_method","name":"find_sym","kind":"call","line":760}
+{"file":"src/parser/php.rs","caller":"php_interface","name":"parse_file(source, \"php\", \"t.php\").unwrap","kind":"call","line":767}
+{"file":"src/parser/php.rs","caller":"php_interface","name":"parse_file","kind":"call","line":767}
+{"file":"src/parser/php.rs","caller":"php_interface","name":"find_sym","kind":"call","line":768}
+{"file":"src/parser/php.rs","caller":"php_trait","name":"parse_file(source, \"php\", \"t.php\").unwrap","kind":"call","line":775}
+{"file":"src/parser/php.rs","caller":"php_trait","name":"parse_file","kind":"call","line":775}
+{"file":"src/parser/php.rs","caller":"php_trait","name":"find_sym","kind":"call","line":776}
+{"file":"src/parser/php.rs","caller":"php_trait","name":"find_sym","kind":"call","line":779}
+{"file":"src/parser/php.rs","caller":"php_enum","name":"parse_file(source, \"php\", \"t.php\").unwrap","kind":"call","line":786}
+{"file":"src/parser/php.rs","caller":"php_enum","name":"parse_file","kind":"call","line":786}
+{"file":"src/parser/php.rs","caller":"php_enum","name":"find_sym","kind":"call","line":787}
+{"file":"src/parser/php.rs","caller":"php_namespace_and_use","name":"parse_file(source, \"php\", \"t.php\").unwrap","kind":"call","line":794}
+{"file":"src/parser/php.rs","caller":"php_namespace_and_use","name":"parse_file","kind":"call","line":794}
+{"file":"src/parser/php.rs","caller":"php_namespace_and_use","name":"symbols.iter().find(|s| s.kind == \"module\").unwrap","kind":"call","line":795}
+{"file":"src/parser/php.rs","caller":"php_namespace_and_use","name":"symbols.iter().find","kind":"call","line":795}
+{"file":"src/parser/php.rs","caller":"php_namespace_and_use","name":"symbols.iter","kind":"call","line":795}
+{"file":"src/parser/php.rs","caller":"php_namespace_and_use","name":"symbols.iter().filter(|s| s.kind == \"import\").collect","kind":"call","line":797}
+{"file":"src/parser/php.rs","caller":"php_namespace_and_use","name":"symbols.iter().filter","kind":"call","line":797}
+{"file":"src/parser/php.rs","caller":"php_namespace_and_use","name":"symbols.iter","kind":"call","line":797}
+{"file":"src/parser/php.rs","caller":"php_namespace_and_use","name":"refs.iter().filter(|r| r.kind == \"import\").collect","kind":"call","line":801}
+{"file":"src/parser/php.rs","caller":"php_namespace_and_use","name":"refs.iter().filter","kind":"call","line":801}
+{"file":"src/parser/php.rs","caller":"php_namespace_and_use","name":"refs.iter","kind":"call","line":801}
+{"file":"src/parser/php.rs","caller":"php_top_level_const","name":"parse_file(source, \"php\", \"t.php\").unwrap","kind":"call","line":808}
+{"file":"src/parser/php.rs","caller":"php_top_level_const","name":"parse_file","kind":"call","line":808}
+{"file":"src/parser/php.rs","caller":"php_top_level_const","name":"find_sym","kind":"call","line":809}
+{"file":"src/parser/php.rs","caller":"php_class_const","name":"parse_file(source, \"php\", \"t.php\").unwrap","kind":"call","line":817}
+{"file":"src/parser/php.rs","caller":"php_class_const","name":"parse_file","kind":"call","line":817}
+{"file":"src/parser/php.rs","caller":"php_class_const","name":"find_sym","kind":"call","line":818}
+{"file":"src/parser/php.rs","caller":"php_call_ref_filters_builtins","name":"parse_file(source, \"php\", \"t.php\").unwrap","kind":"call","line":825}
+{"file":"src/parser/php.rs","caller":"php_call_ref_filters_builtins","name":"parse_file","kind":"call","line":825}
+{"file":"src/parser/php.rs","caller":"php_call_ref_filters_builtins","name":"refs\n            .iter()\n            .filter(|r| r.kind == \"call\")\n            .map(|r| r.name.as_str())\n            .collect","kind":"call","line":826}
+{"file":"src/parser/php.rs","caller":"php_call_ref_filters_builtins","name":"refs\n            .iter()\n            .filter(|r| r.kind == \"call\")\n            .map","kind":"call","line":826}
+{"file":"src/parser/php.rs","caller":"php_call_ref_filters_builtins","name":"refs\n            .iter()\n            .filter","kind":"call","line":826}
+{"file":"src/parser/php.rs","caller":"php_call_ref_filters_builtins","name":"refs\n            .iter","kind":"call","line":826}
+{"file":"src/parser/php.rs","caller":"php_call_ref_filters_builtins","name":"r.name.as_str","kind":"call","line":829}
 {"file":"src/parser/python.rs","name":"std::collections::HashSet","kind":"import","line":3}
 {"file":"src/parser/python.rs","name":"tree_sitter::{Node, Tree}","kind":"import","line":5}
 {"file":"src/parser/python.rs","name":"crate::parser::format::{ReferenceEntry, SymbolEntry, TextEntry}","kind":"import","line":7}
@@ -13944,6 +14261,346 @@
 {"file":"src/parser/rust_lang.rs","caller":"test_rust_macro_body_parsing","name":"symbols.iter().find","kind":"call","line":1212}
 {"file":"src/parser/rust_lang.rs","caller":"test_rust_macro_body_parsing","name":"symbols.iter","kind":"call","line":1212}
 {"file":"src/parser/rust_lang.rs","caller":"test_rust_macro_body_parsing","name":"find_sym","kind":"call","line":1217}
+{"file":"src/parser/scala.rs","name":"tree_sitter::{Node, Tree}","kind":"import","line":11}
+{"file":"src/parser/scala.rs","name":"crate::parser::format::{ReferenceEntry, SymbolEntry, TextEntry}","kind":"import","line":13}
+{"file":"src/parser/scala.rs","name":"crate::parser::helpers::*","kind":"import","line":14}
+{"file":"src/parser/scala.rs","name":"crate::parser::treesitter::MAX_DEPTH","kind":"import","line":15}
+{"file":"src/parser/scala.rs","caller":"filter_scala_tokens","name":"Option","kind":"type_annotation","line":69}
+{"file":"src/parser/scala.rs","caller":"filter_scala_tokens","name":"String","kind":"type_annotation","line":69}
+{"file":"src/parser/scala.rs","caller":"filter_scala_tokens","name":"Option","kind":"type_annotation","line":69}
+{"file":"src/parser/scala.rs","caller":"filter_scala_tokens","name":"String","kind":"type_annotation","line":69}
+{"file":"src/parser/scala.rs","caller":"filter_scala_tokens","name":"tokens.and_then","kind":"call","line":70}
+{"file":"src/parser/scala.rs","caller":"filter_scala_tokens","name":"t\n            .split_whitespace()\n            .filter(|tok| !SCALA_STOPWORDS.contains(&tok.to_lowercase().as_str()))\n            .filter(|tok| !tok.chars().all(|c| c.is_uppercase() || c == '_'))\n            .collect","kind":"call","line":71}
+{"file":"src/parser/scala.rs","caller":"filter_scala_tokens","name":"t\n            .split_whitespace()\n            .filter(|tok| !SCALA_STOPWORDS.contains(&tok.to_lowercase().as_str()))\n            .filter","kind":"call","line":71}
+{"file":"src/parser/scala.rs","caller":"filter_scala_tokens","name":"t\n            .split_whitespace()\n            .filter","kind":"call","line":71}
+{"file":"src/parser/scala.rs","caller":"filter_scala_tokens","name":"t\n            .split_whitespace","kind":"call","line":71}
+{"file":"src/parser/scala.rs","caller":"filter_scala_tokens","name":"SCALA_STOPWORDS.contains","kind":"call","line":73}
+{"file":"src/parser/scala.rs","caller":"filter_scala_tokens","name":"tok.to_lowercase().as_str","kind":"call","line":73}
+{"file":"src/parser/scala.rs","caller":"filter_scala_tokens","name":"tok.to_lowercase","kind":"call","line":73}
+{"file":"src/parser/scala.rs","caller":"filter_scala_tokens","name":"tok.chars().all","kind":"call","line":74}
+{"file":"src/parser/scala.rs","caller":"filter_scala_tokens","name":"tok.chars","kind":"call","line":74}
+{"file":"src/parser/scala.rs","caller":"filter_scala_tokens","name":"c.is_uppercase","kind":"call","line":74}
+{"file":"src/parser/scala.rs","caller":"filter_scala_tokens","name":"filtered.is_empty","kind":"call","line":76}
+{"file":"src/parser/scala.rs","caller":"filter_scala_tokens","name":"filtered.join","kind":"call","line":79}
+{"file":"src/parser/scala.rs","caller":"extract","name":"Tree","kind":"type_annotation","line":100}
+{"file":"src/parser/scala.rs","caller":"extract","name":"Vec","kind":"type_annotation","line":103}
+{"file":"src/parser/scala.rs","caller":"extract","name":"SymbolEntry","kind":"type_annotation","line":103}
+{"file":"src/parser/scala.rs","caller":"extract","name":"Vec","kind":"type_annotation","line":104}
+{"file":"src/parser/scala.rs","caller":"extract","name":"TextEntry","kind":"type_annotation","line":104}
+{"file":"src/parser/scala.rs","caller":"extract","name":"Vec","kind":"type_annotation","line":105}
+{"file":"src/parser/scala.rs","caller":"extract","name":"ReferenceEntry","kind":"type_annotation","line":105}
+{"file":"src/parser/scala.rs","caller":"extract","name":"tree.root_node","kind":"call","line":107}
+{"file":"src/parser/scala.rs","caller":"extract","name":"walk_node","kind":"call","line":108}
+{"file":"src/parser/scala.rs","caller":"walk_node","name":"Node","kind":"type_annotation","line":113}
+{"file":"src/parser/scala.rs","caller":"walk_node","name":"Option","kind":"type_annotation","line":116}
+{"file":"src/parser/scala.rs","caller":"walk_node","name":"Vec","kind":"type_annotation","line":117}
+{"file":"src/parser/scala.rs","caller":"walk_node","name":"SymbolEntry","kind":"type_annotation","line":117}
+{"file":"src/parser/scala.rs","caller":"walk_node","name":"Vec","kind":"type_annotation","line":118}
+{"file":"src/parser/scala.rs","caller":"walk_node","name":"TextEntry","kind":"type_annotation","line":118}
+{"file":"src/parser/scala.rs","caller":"walk_node","name":"Vec","kind":"type_annotation","line":119}
+{"file":"src/parser/scala.rs","caller":"walk_node","name":"ReferenceEntry","kind":"type_annotation","line":119}
+{"file":"src/parser/scala.rs","caller":"walk_node","name":"node.kind","kind":"call","line":126}
+{"file":"src/parser/scala.rs","caller":"walk_node","name":"extract_package","kind":"call","line":130}
+{"file":"src/parser/scala.rs","caller":"walk_node","name":"extract_import","kind":"call","line":134}
+{"file":"src/parser/scala.rs","caller":"walk_node","name":"extract_class_like","kind":"call","line":138}
+{"file":"src/parser/scala.rs","caller":"walk_node","name":"extract_class_like","kind":"call","line":144}
+{"file":"src/parser/scala.rs","caller":"walk_node","name":"extract_class_like","kind":"call","line":150}
+{"file":"src/parser/scala.rs","caller":"walk_node","name":"extract_function","kind":"call","line":156}
+{"file":"src/parser/scala.rs","caller":"walk_node","name":"node.child_by_field_name","kind":"call","line":158}
+{"file":"src/parser/scala.rs","caller":"walk_node","name":"function_name(node, source).unwrap_or_default","kind":"call","line":159}
+{"file":"src/parser/scala.rs","caller":"walk_node","name":"function_name","kind":"call","line":159}
+{"file":"src/parser/scala.rs","caller":"walk_node","name":"qualify","kind":"call","line":160}
+{"file":"src/parser/scala.rs","caller":"walk_node","name":"body.walk","kind":"call","line":161}
+{"file":"src/parser/scala.rs","caller":"walk_node","name":"body.children","kind":"call","line":162}
+{"file":"src/parser/scala.rs","caller":"walk_node","name":"walk_node","kind":"call","line":163}
+{"file":"src/parser/scala.rs","caller":"walk_node","name":"extract_value","kind":"call","line":178}
+{"file":"src/parser/scala.rs","caller":"walk_node","name":"node.child_by_field_name","kind":"call","line":180}
+{"file":"src/parser/scala.rs","caller":"walk_node","name":"val_expr.walk","kind":"call","line":181}
+{"file":"src/parser/scala.rs","caller":"walk_node","name":"val_expr.children","kind":"call","line":182}
+{"file":"src/parser/scala.rs","caller":"walk_node","name":"walk_node","kind":"call","line":183}
+{"file":"src/parser/scala.rs","caller":"walk_node","name":"extract_scala_comment","kind":"call","line":198}
+{"file":"src/parser/scala.rs","caller":"walk_node","name":"extract_string","kind":"call","line":202}
+{"file":"src/parser/scala.rs","caller":"walk_node","name":"extract_call_ref","kind":"call","line":206}
+{"file":"src/parser/scala.rs","caller":"walk_node","name":"node.walk","kind":"call","line":212}
+{"file":"src/parser/scala.rs","caller":"walk_node","name":"node.children","kind":"call","line":213}
+{"file":"src/parser/scala.rs","caller":"walk_node","name":"walk_node","kind":"call","line":214}
+{"file":"src/parser/scala.rs","caller":"first_child_of_kind","name":"Node","kind":"type_annotation","line":231}
+{"file":"src/parser/scala.rs","caller":"first_child_of_kind","name":"Option","kind":"type_annotation","line":231}
+{"file":"src/parser/scala.rs","caller":"first_child_of_kind","name":"Node","kind":"type_annotation","line":231}
+{"file":"src/parser/scala.rs","caller":"first_child_of_kind","name":"node.walk","kind":"call","line":232}
+{"file":"src/parser/scala.rs","caller":"first_child_of_kind","name":"node.children","kind":"call","line":233}
+{"file":"src/parser/scala.rs","caller":"first_child_of_kind","name":"child.kind","kind":"call","line":234}
+{"file":"src/parser/scala.rs","caller":"qualify","name":"Option","kind":"type_annotation","line":241}
+{"file":"src/parser/scala.rs","caller":"qualify","name":"String","kind":"type_annotation","line":241}
+{"file":"src/parser/scala.rs","caller":"qualify","name":"p.is_empty","kind":"call","line":243}
+{"file":"src/parser/scala.rs","caller":"qualify","name":"name.to_string","kind":"call","line":244}
+{"file":"src/parser/scala.rs","caller":"extract_scala_visibility","name":"Node","kind":"type_annotation","line":252}
+{"file":"src/parser/scala.rs","caller":"extract_scala_visibility","name":"String","kind":"type_annotation","line":252}
+{"file":"src/parser/scala.rs","caller":"extract_scala_visibility","name":"first_child_of_kind","kind":"call","line":253}
+{"file":"src/parser/scala.rs","caller":"extract_scala_visibility","name":"mods.walk","kind":"call","line":254}
+{"file":"src/parser/scala.rs","caller":"extract_scala_visibility","name":"mods.children","kind":"call","line":255}
+{"file":"src/parser/scala.rs","caller":"extract_scala_visibility","name":"child.kind","kind":"call","line":256}
+{"file":"src/parser/scala.rs","caller":"extract_scala_visibility","name":"node_text","kind":"call","line":257}
+{"file":"src/parser/scala.rs","caller":"extract_scala_visibility","name":"raw.trim_start","kind":"call","line":258}
+{"file":"src/parser/scala.rs","caller":"extract_scala_visibility","name":"trimmed.starts_with","kind":"call","line":259}
+{"file":"src/parser/scala.rs","caller":"extract_scala_visibility","name":"trimmed.starts_with","kind":"call","line":259}
+{"file":"src/parser/scala.rs","caller":"extract_scala_visibility","name":"\"private\".to_string","kind":"call","line":260}
+{"file":"src/parser/scala.rs","caller":"extract_scala_visibility","name":"\"public\".to_string","kind":"call","line":265}
+{"file":"src/parser/scala.rs","caller":"has_modifier_token","name":"Node","kind":"type_annotation","line":270}
+{"file":"src/parser/scala.rs","caller":"has_modifier_token","name":"first_child_of_kind","kind":"call","line":271}
+{"file":"src/parser/scala.rs","caller":"has_modifier_token","name":"mods.walk","kind":"call","line":272}
+{"file":"src/parser/scala.rs","caller":"has_modifier_token","name":"mods.children","kind":"call","line":273}
+{"file":"src/parser/scala.rs","caller":"has_modifier_token","name":"child.is_named","kind":"call","line":275}
+{"file":"src/parser/scala.rs","caller":"has_modifier_token","name":"node_text","kind":"call","line":275}
+{"file":"src/parser/scala.rs","caller":"extract_package","name":"Node","kind":"type_annotation","line":289}
+{"file":"src/parser/scala.rs","caller":"extract_package","name":"Option","kind":"type_annotation","line":292}
+{"file":"src/parser/scala.rs","caller":"extract_package","name":"Vec","kind":"type_annotation","line":293}
+{"file":"src/parser/scala.rs","caller":"extract_package","name":"SymbolEntry","kind":"type_annotation","line":293}
+{"file":"src/parser/scala.rs","caller":"extract_package","name":"Vec","kind":"type_annotation","line":294}
+{"file":"src/parser/scala.rs","caller":"extract_package","name":"TextEntry","kind":"type_annotation","line":294}
+{"file":"src/parser/scala.rs","caller":"extract_package","name":"Vec","kind":"type_annotation","line":295}
+{"file":"src/parser/scala.rs","caller":"extract_package","name":"ReferenceEntry","kind":"type_annotation","line":295}
+{"file":"src/parser/scala.rs","caller":"extract_package","name":"node.child_by_field_name","kind":"call","line":302}
+{"file":"src/parser/scala.rs","caller":"extract_package","name":"node_text","kind":"call","line":303}
+{"file":"src/parser/scala.rs","caller":"extract_package","name":"node_line_range","kind":"call","line":304}
+{"file":"src/parser/scala.rs","caller":"extract_package","name":"push_symbol","kind":"call","line":305}
+{"file":"src/parser/scala.rs","caller":"extract_package","name":"name.clone","kind":"call","line":308}
+{"file":"src/parser/scala.rs","caller":"extract_package","name":"\"public\".to_string","kind":"call","line":314}
+{"file":"src/parser/scala.rs","caller":"extract_package","name":"node.child_by_field_name","kind":"call","line":320}
+{"file":"src/parser/scala.rs","caller":"extract_package","name":"body.walk","kind":"call","line":321}
+{"file":"src/parser/scala.rs","caller":"extract_package","name":"body.children","kind":"call","line":322}
+{"file":"src/parser/scala.rs","caller":"extract_package","name":"walk_node","kind":"call","line":323}
+{"file":"src/parser/scala.rs","caller":"extract_package","name":"node.walk","kind":"call","line":339}
+{"file":"src/parser/scala.rs","caller":"extract_package","name":"node.children","kind":"call","line":340}
+{"file":"src/parser/scala.rs","caller":"extract_package","name":"walk_node","kind":"call","line":341}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"Node","kind":"type_annotation","line":355}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"Vec","kind":"type_annotation","line":358}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"SymbolEntry","kind":"type_annotation","line":358}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"Vec","kind":"type_annotation","line":359}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"ReferenceEntry","kind":"type_annotation","line":359}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"node_line_range","kind":"call","line":361}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"collect_import_path","kind":"call","line":372}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"node.walk","kind":"call","line":377}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"node.children","kind":"call","line":378}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"child.kind","kind":"call","line":379}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"child.walk","kind":"call","line":381}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"child.children","kind":"call","line":382}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"sel.is_named","kind":"call","line":383}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"selector_name_and_alias","kind":"call","line":386}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"path_text.is_empty","kind":"call","line":388}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"push_symbol","kind":"call","line":393}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"full.clone","kind":"call","line":396}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"\"private\".to_string","kind":"call","line":402}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"references.push","kind":"call","line":404}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"file_path.to_string","kind":"call","line":405}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"\"import\".to_string","kind":"call","line":407}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"String::new","kind":"call","line":410}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"path_text.is_empty","kind":"call","line":416}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"\"_\".to_string","kind":"call","line":417}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"push_symbol","kind":"call","line":421}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"full.clone","kind":"call","line":424}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"\"private\".to_string","kind":"call","line":430}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"references.push","kind":"call","line":432}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"file_path.to_string","kind":"call","line":433}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"\"import\".to_string","kind":"call","line":435}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"String::new","kind":"call","line":438}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"child.child_by_field_name","kind":"call","line":444}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"child.child_by_field_name","kind":"call","line":445}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"name_node.map(|n| node_text(n, source)).unwrap_or_default","kind":"call","line":446}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"name_node.map","kind":"call","line":446}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"node_text","kind":"call","line":446}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"alias_node.map","kind":"call","line":447}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"node_text","kind":"call","line":447}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"path_text.is_empty","kind":"call","line":448}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"name.is_empty","kind":"call","line":450}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"path_text.clone","kind":"call","line":451}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"push_symbol","kind":"call","line":455}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"full.clone","kind":"call","line":458}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"\"private\".to_string","kind":"call","line":464}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"references.push","kind":"call","line":466}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"file_path.to_string","kind":"call","line":467}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"\"import\".to_string","kind":"call","line":469}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"String::new","kind":"call","line":472}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"path_text.is_empty","kind":"call","line":481}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"push_symbol","kind":"call","line":484}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"path_text.clone","kind":"call","line":487}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"\"private\".to_string","kind":"call","line":493}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"references.push","kind":"call","line":495}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"file_path.to_string","kind":"call","line":496}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"\"import\".to_string","kind":"call","line":498}
+{"file":"src/parser/scala.rs","caller":"extract_import","name":"String::new","kind":"call","line":501}
+{"file":"src/parser/scala.rs","caller":"collect_import_path","name":"Node","kind":"type_annotation","line":510}
+{"file":"src/parser/scala.rs","caller":"collect_import_path","name":"String","kind":"type_annotation","line":510}
+{"file":"src/parser/scala.rs","caller":"collect_import_path","name":"Vec::new","kind":"call","line":511}
+{"file":"src/parser/scala.rs","caller":"collect_import_path","name":"node.walk","kind":"call","line":512}
+{"file":"src/parser/scala.rs","caller":"collect_import_path","name":"node.children_by_field_name","kind":"call","line":513}
+{"file":"src/parser/scala.rs","caller":"collect_import_path","name":"child.is_named","kind":"call","line":514}
+{"file":"src/parser/scala.rs","caller":"collect_import_path","name":"node_text","kind":"call","line":515}
+{"file":"src/parser/scala.rs","caller":"collect_import_path","name":"t.is_empty","kind":"call","line":516}
+{"file":"src/parser/scala.rs","caller":"collect_import_path","name":"parts.push","kind":"call","line":517}
+{"file":"src/parser/scala.rs","caller":"collect_import_path","name":"parts.join","kind":"call","line":521}
+{"file":"src/parser/scala.rs","caller":"selector_name_and_alias","name":"Node","kind":"type_annotation","line":527}
+{"file":"src/parser/scala.rs","caller":"selector_name_and_alias","name":"Option","kind":"type_annotation","line":527}
+{"file":"src/parser/scala.rs","caller":"selector_name_and_alias","name":"String","kind":"type_annotation","line":527}
+{"file":"src/parser/scala.rs","caller":"selector_name_and_alias","name":"Option","kind":"type_annotation","line":527}
+{"file":"src/parser/scala.rs","caller":"selector_name_and_alias","name":"String","kind":"type_annotation","line":527}
+{"file":"src/parser/scala.rs","caller":"selector_name_and_alias","name":"node.kind","kind":"call","line":528}
+{"file":"src/parser/scala.rs","caller":"selector_name_and_alias","name":"node_text","kind":"call","line":530}
+{"file":"src/parser/scala.rs","caller":"selector_name_and_alias","name":"node\n                .child_by_field_name(\"name\")\n                .map","kind":"call","line":533}
+{"file":"src/parser/scala.rs","caller":"selector_name_and_alias","name":"node\n                .child_by_field_name","kind":"call","line":533}
+{"file":"src/parser/scala.rs","caller":"selector_name_and_alias","name":"node_text","kind":"call","line":535}
+{"file":"src/parser/scala.rs","caller":"selector_name_and_alias","name":"node\n                .child_by_field_name(\"alias\")\n                .map","kind":"call","line":536}
+{"file":"src/parser/scala.rs","caller":"selector_name_and_alias","name":"node\n                .child_by_field_name","kind":"call","line":536}
+{"file":"src/parser/scala.rs","caller":"selector_name_and_alias","name":"node_text","kind":"call","line":538}
+{"file":"src/parser/scala.rs","caller":"selector_name_and_alias","name":"\"_\".to_string","kind":"call","line":541}
+{"file":"src/parser/scala.rs","caller":"extract_class_like","name":"Node","kind":"type_annotation","line":548}
+{"file":"src/parser/scala.rs","caller":"extract_class_like","name":"Option","kind":"type_annotation","line":551}
+{"file":"src/parser/scala.rs","caller":"extract_class_like","name":"Vec","kind":"type_annotation","line":553}
+{"file":"src/parser/scala.rs","caller":"extract_class_like","name":"SymbolEntry","kind":"type_annotation","line":553}
+{"file":"src/parser/scala.rs","caller":"extract_class_like","name":"Vec","kind":"type_annotation","line":554}
+{"file":"src/parser/scala.rs","caller":"extract_class_like","name":"TextEntry","kind":"type_annotation","line":554}
+{"file":"src/parser/scala.rs","caller":"extract_class_like","name":"Vec","kind":"type_annotation","line":555}
+{"file":"src/parser/scala.rs","caller":"extract_class_like","name":"ReferenceEntry","kind":"type_annotation","line":555}
+{"file":"src/parser/scala.rs","caller":"extract_class_like","name":"node.child_by_field_name","kind":"call","line":558}
+{"file":"src/parser/scala.rs","caller":"extract_class_like","name":"node_text","kind":"call","line":559}
+{"file":"src/parser/scala.rs","caller":"extract_class_like","name":"node_line_range","kind":"call","line":563}
+{"file":"src/parser/scala.rs","caller":"extract_class_like","name":"extract_scala_visibility","kind":"call","line":564}
+{"file":"src/parser/scala.rs","caller":"extract_class_like","name":"qualify","kind":"call","line":565}
+{"file":"src/parser/scala.rs","caller":"extract_class_like","name":"node\n        .child_by_field_name(\"body\")\n        .and_then","kind":"call","line":567}
+{"file":"src/parser/scala.rs","caller":"extract_class_like","name":"node\n        .child_by_field_name","kind":"call","line":567}
+{"file":"src/parser/scala.rs","caller":"extract_class_like","name":"filter_scala_tokens","kind":"call","line":569}
+{"file":"src/parser/scala.rs","caller":"extract_class_like","name":"extract_tokens","kind":"call","line":569}
+{"file":"src/parser/scala.rs","caller":"extract_class_like","name":"push_symbol","kind":"call","line":571}
+{"file":"src/parser/scala.rs","caller":"extract_class_like","name":"full_name.clone","kind":"call","line":574}
+{"file":"src/parser/scala.rs","caller":"extract_class_like","name":"node.child_by_field_name","kind":"call","line":583}
+{"file":"src/parser/scala.rs","caller":"extract_class_like","name":"body.walk","kind":"call","line":584}
+{"file":"src/parser/scala.rs","caller":"extract_class_like","name":"body.children","kind":"call","line":585}
+{"file":"src/parser/scala.rs","caller":"extract_class_like","name":"walk_node","kind":"call","line":586}
+{"file":"src/parser/scala.rs","caller":"function_name","name":"Node","kind":"type_annotation","line":600}
+{"file":"src/parser/scala.rs","caller":"function_name","name":"Option","kind":"type_annotation","line":600}
+{"file":"src/parser/scala.rs","caller":"function_name","name":"String","kind":"type_annotation","line":600}
+{"file":"src/parser/scala.rs","caller":"function_name","name":"node.child_by_field_name(\"name\").map","kind":"call","line":601}
+{"file":"src/parser/scala.rs","caller":"function_name","name":"node.child_by_field_name","kind":"call","line":601}
+{"file":"src/parser/scala.rs","caller":"function_name","name":"node_text","kind":"call","line":601}
+{"file":"src/parser/scala.rs","caller":"extract_function","name":"Node","kind":"type_annotation","line":605}
+{"file":"src/parser/scala.rs","caller":"extract_function","name":"Option","kind":"type_annotation","line":608}
+{"file":"src/parser/scala.rs","caller":"extract_function","name":"Vec","kind":"type_annotation","line":609}
+{"file":"src/parser/scala.rs","caller":"extract_function","name":"SymbolEntry","kind":"type_annotation","line":609}
+{"file":"src/parser/scala.rs","caller":"extract_function","name":"function_name","kind":"call","line":611}
+{"file":"src/parser/scala.rs","caller":"extract_function","name":"node_line_range","kind":"call","line":616}
+{"file":"src/parser/scala.rs","caller":"extract_function","name":"extract_scala_visibility","kind":"call","line":617}
+{"file":"src/parser/scala.rs","caller":"extract_function","name":"qualify","kind":"call","line":618}
+{"file":"src/parser/scala.rs","caller":"extract_function","name":"parent_ctx.is_some","kind":"call","line":623}
+{"file":"src/parser/scala.rs","caller":"extract_function","name":"node\n        .child_by_field_name(\"body\")\n        .and_then","kind":"call","line":625}
+{"file":"src/parser/scala.rs","caller":"extract_function","name":"node\n        .child_by_field_name","kind":"call","line":625}
+{"file":"src/parser/scala.rs","caller":"extract_function","name":"filter_scala_tokens","kind":"call","line":627}
+{"file":"src/parser/scala.rs","caller":"extract_function","name":"extract_tokens","kind":"call","line":627}
+{"file":"src/parser/scala.rs","caller":"extract_function","name":"push_symbol","kind":"call","line":629}
+{"file":"src/parser/scala.rs","caller":"extract_value","name":"Node","kind":"type_annotation","line":643}
+{"file":"src/parser/scala.rs","caller":"extract_value","name":"Option","kind":"type_annotation","line":646}
+{"file":"src/parser/scala.rs","caller":"extract_value","name":"Vec","kind":"type_annotation","line":647}
+{"file":"src/parser/scala.rs","caller":"extract_value","name":"SymbolEntry","kind":"type_annotation","line":647}
+{"file":"src/parser/scala.rs","caller":"extract_value","name":"node_line_range","kind":"call","line":649}
+{"file":"src/parser/scala.rs","caller":"extract_value","name":"extract_scala_visibility","kind":"call","line":650}
+{"file":"src/parser/scala.rs","caller":"extract_value","name":"node.kind","kind":"call","line":651}
+{"file":"src/parser/scala.rs","caller":"extract_value","name":"has_modifier_token","kind":"call","line":652}
+{"file":"src/parser/scala.rs","caller":"extract_value","name":"node.child_by_field_name","kind":"call","line":659}
+{"file":"src/parser/scala.rs","caller":"extract_value","name":"Vec::new","kind":"call","line":664}
+{"file":"src/parser/scala.rs","caller":"extract_value","name":"collect_pattern_names","kind":"call","line":665}
+{"file":"src/parser/scala.rs","caller":"extract_value","name":"names.is_empty","kind":"call","line":666}
+{"file":"src/parser/scala.rs","caller":"extract_value","name":"node\n        .child_by_field_name(\"value\")\n        .map","kind":"call","line":672}
+{"file":"src/parser/scala.rs","caller":"extract_value","name":"node\n        .child_by_field_name","kind":"call","line":672}
+{"file":"src/parser/scala.rs","caller":"extract_value","name":"node_text","kind":"call","line":674}
+{"file":"src/parser/scala.rs","caller":"extract_value","name":"name.is_empty","kind":"call","line":677}
+{"file":"src/parser/scala.rs","caller":"extract_value","name":"name\n                .chars()\n                .all","kind":"call","line":678}
+{"file":"src/parser/scala.rs","caller":"extract_value","name":"name\n                .chars","kind":"call","line":678}
+{"file":"src/parser/scala.rs","caller":"extract_value","name":"c.is_ascii_uppercase","kind":"call","line":680}
+{"file":"src/parser/scala.rs","caller":"extract_value","name":"c.is_ascii_digit","kind":"call","line":680}
+{"file":"src/parser/scala.rs","caller":"extract_value","name":"parent_ctx.is_some","kind":"call","line":687}
+{"file":"src/parser/scala.rs","caller":"extract_value","name":"parent_ctx.is_some","kind":"call","line":694}
+{"file":"src/parser/scala.rs","caller":"extract_value","name":"value_text.as_deref().map","kind":"call","line":701}
+{"file":"src/parser/scala.rs","caller":"extract_value","name":"value_text.as_deref","kind":"call","line":701}
+{"file":"src/parser/scala.rs","caller":"extract_value","name":"qualify","kind":"call","line":706}
+{"file":"src/parser/scala.rs","caller":"extract_value","name":"symbols.push","kind":"call","line":707}
+{"file":"src/parser/scala.rs","caller":"extract_value","name":"file_path.to_string","kind":"call","line":708}
+{"file":"src/parser/scala.rs","caller":"extract_value","name":"kind.to_string","kind":"call","line":710}
+{"file":"src/parser/scala.rs","caller":"extract_value","name":"parent_ctx.map","kind":"call","line":712}
+{"file":"src/parser/scala.rs","caller":"extract_value","name":"visibility.clone","kind":"call","line":715}
+{"file":"src/parser/scala.rs","caller":"extract_value","name":"String::new","kind":"call","line":717}
+{"file":"src/parser/scala.rs","caller":"collect_pattern_names","name":"Vec","kind":"type_annotation","line":726}
+{"file":"src/parser/scala.rs","caller":"collect_pattern_names","name":"String","kind":"type_annotation","line":726}
+{"file":"src/parser/scala.rs","caller":"collect_pattern_names","name":"Node","kind":"type_annotation","line":726}
+{"file":"src/parser/scala.rs","caller":"collect_pattern_names","name":"node.kind","kind":"call","line":727}
+{"file":"src/parser/scala.rs","caller":"collect_pattern_names","name":"out.push","kind":"call","line":728}
+{"file":"src/parser/scala.rs","caller":"collect_pattern_names","name":"node_text","kind":"call","line":728}
+{"file":"src/parser/scala.rs","caller":"collect_pattern_names","name":"node.walk","kind":"call","line":730}
+{"file":"src/parser/scala.rs","caller":"collect_pattern_names","name":"node.children","kind":"call","line":731}
+{"file":"src/parser/scala.rs","caller":"collect_pattern_names","name":"child.kind","kind":"call","line":732}
+{"file":"src/parser/scala.rs","caller":"collect_pattern_names","name":"out.push","kind":"call","line":733}
+{"file":"src/parser/scala.rs","caller":"collect_pattern_names","name":"node_text","kind":"call","line":733}
+{"file":"src/parser/scala.rs","caller":"collect_pattern_names","name":"node.walk","kind":"call","line":739}
+{"file":"src/parser/scala.rs","caller":"collect_pattern_names","name":"node.children","kind":"call","line":740}
+{"file":"src/parser/scala.rs","caller":"collect_pattern_names","name":"child.is_named","kind":"call","line":741}
+{"file":"src/parser/scala.rs","caller":"collect_pattern_names","name":"collect_pattern_names","kind":"call","line":742}
+{"file":"src/parser/scala.rs","caller":"extract_call_ref","name":"Node","kind":"type_annotation","line":754}
+{"file":"src/parser/scala.rs","caller":"extract_call_ref","name":"Option","kind":"type_annotation","line":757}
+{"file":"src/parser/scala.rs","caller":"extract_call_ref","name":"Vec","kind":"type_annotation","line":758}
+{"file":"src/parser/scala.rs","caller":"extract_call_ref","name":"ReferenceEntry","kind":"type_annotation","line":758}
+{"file":"src/parser/scala.rs","caller":"extract_call_ref","name":"node.child_by_field_name","kind":"call","line":762}
+{"file":"src/parser/scala.rs","caller":"extract_call_ref","name":"function.kind","kind":"call","line":766}
+{"file":"src/parser/scala.rs","caller":"extract_call_ref","name":"node_text","kind":"call","line":768}
+{"file":"src/parser/scala.rs","caller":"extract_call_ref","name":"node_text","kind":"call","line":770}
+{"file":"src/parser/scala.rs","caller":"extract_call_ref","name":"name.is_empty","kind":"call","line":772}
+{"file":"src/parser/scala.rs","caller":"extract_call_ref","name":"name.rsplit('.').next().unwrap_or","kind":"call","line":776}
+{"file":"src/parser/scala.rs","caller":"extract_call_ref","name":"name.rsplit('.').next","kind":"call","line":776}
+{"file":"src/parser/scala.rs","caller":"extract_call_ref","name":"name.rsplit","kind":"call","line":776}
+{"file":"src/parser/scala.rs","caller":"extract_call_ref","name":"is_scala_builtin","kind":"call","line":777}
+{"file":"src/parser/scala.rs","caller":"extract_call_ref","name":"is_scala_primitive","kind":"call","line":777}
+{"file":"src/parser/scala.rs","caller":"extract_call_ref","name":"references.push","kind":"call","line":781}
+{"file":"src/parser/scala.rs","caller":"extract_call_ref","name":"file_path.to_string","kind":"call","line":782}
+{"file":"src/parser/scala.rs","caller":"extract_call_ref","name":"\"call\".to_string","kind":"call","line":784}
+{"file":"src/parser/scala.rs","caller":"extract_call_ref","name":"node_line_range","kind":"call","line":785}
+{"file":"src/parser/scala.rs","caller":"extract_call_ref","name":"parent_ctx.map","kind":"call","line":786}
+{"file":"src/parser/scala.rs","caller":"extract_call_ref","name":"String::new","kind":"call","line":787}
+{"file":"src/parser/scala.rs","caller":"extract_scala_comment","name":"Node","kind":"type_annotation","line":796}
+{"file":"src/parser/scala.rs","caller":"extract_scala_comment","name":"Option","kind":"type_annotation","line":799}
+{"file":"src/parser/scala.rs","caller":"extract_scala_comment","name":"Vec","kind":"type_annotation","line":800}
+{"file":"src/parser/scala.rs","caller":"extract_scala_comment","name":"TextEntry","kind":"type_annotation","line":800}
+{"file":"src/parser/scala.rs","caller":"extract_scala_comment","name":"extract_comment","kind":"call","line":803}
+{"file":"src/parser/scala.rs","name":"super::*","kind":"import","line":808}
+{"file":"src/parser/scala.rs","name":"crate::parser::treesitter::parse_file","kind":"import","line":809}
+{"file":"src/parser/scala.rs","caller":"find_sym","name":"SymbolEntry","kind":"type_annotation","line":811}
+{"file":"src/parser/scala.rs","caller":"find_sym","name":"SymbolEntry","kind":"type_annotation","line":811}
+{"file":"src/parser/scala.rs","caller":"find_sym","name":"symbols\n            .iter()\n            .find(|s| s.name == name)\n            .unwrap_or_else","kind":"call","line":812}
+{"file":"src/parser/scala.rs","caller":"find_sym","name":"symbols\n            .iter()\n            .find","kind":"call","line":812}
+{"file":"src/parser/scala.rs","caller":"find_sym","name":"symbols\n            .iter","kind":"call","line":812}
+{"file":"src/parser/scala.rs","caller":"scala_top_level_function","name":"parse_file(source, \"scala\", \"t.scala\").unwrap","kind":"call","line":826}
+{"file":"src/parser/scala.rs","caller":"scala_top_level_function","name":"parse_file","kind":"call","line":826}
+{"file":"src/parser/scala.rs","caller":"scala_top_level_function","name":"find_sym","kind":"call","line":827}
+{"file":"src/parser/scala.rs","caller":"scala_class_with_method","name":"parse_file(source, \"scala\", \"t.scala\").unwrap","kind":"call","line":835}
+{"file":"src/parser/scala.rs","caller":"scala_class_with_method","name":"parse_file","kind":"call","line":835}
+{"file":"src/parser/scala.rs","caller":"scala_class_with_method","name":"find_sym","kind":"call","line":836}
+{"file":"src/parser/scala.rs","caller":"scala_class_with_method","name":"find_sym","kind":"call","line":838}
+{"file":"src/parser/scala.rs","caller":"scala_trait","name":"parse_file(source, \"scala\", \"t.scala\").unwrap","kind":"call","line":845}
+{"file":"src/parser/scala.rs","caller":"scala_trait","name":"parse_file","kind":"call","line":845}
+{"file":"src/parser/scala.rs","caller":"scala_trait","name":"find_sym","kind":"call","line":846}
+{"file":"src/parser/scala.rs","caller":"scala_object","name":"parse_file(source, \"scala\", \"t.scala\").unwrap","kind":"call","line":853}
+{"file":"src/parser/scala.rs","caller":"scala_object","name":"parse_file","kind":"call","line":853}
+{"file":"src/parser/scala.rs","caller":"scala_object","name":"find_sym","kind":"call","line":854}
+{"file":"src/parser/scala.rs","caller":"scala_object","name":"find_sym","kind":"call","line":856}
+{"file":"src/parser/scala.rs","caller":"scala_top_level_const","name":"parse_file(source, \"scala\", \"t.scala\").unwrap","kind":"call","line":864}
+{"file":"src/parser/scala.rs","caller":"scala_top_level_const","name":"parse_file","kind":"call","line":864}
+{"file":"src/parser/scala.rs","caller":"scala_top_level_const","name":"find_sym","kind":"call","line":865}
+{"file":"src/parser/scala.rs","caller":"scala_visibility","name":"parse_file(source, \"scala\", \"t.scala\").unwrap","kind":"call","line":874}
+{"file":"src/parser/scala.rs","caller":"scala_visibility","name":"parse_file","kind":"call","line":874}
+{"file":"src/parser/scala.rs","caller":"scala_package","name":"parse_file(source, \"scala\", \"t.scala\").unwrap","kind":"call","line":883}
+{"file":"src/parser/scala.rs","caller":"scala_package","name":"parse_file","kind":"call","line":883}
+{"file":"src/parser/scala.rs","caller":"scala_package","name":"symbols.iter().find(|s| s.kind == \"module\").unwrap","kind":"call","line":884}
+{"file":"src/parser/scala.rs","caller":"scala_package","name":"symbols.iter().find","kind":"call","line":884}
+{"file":"src/parser/scala.rs","caller":"scala_package","name":"symbols.iter","kind":"call","line":884}
+{"file":"src/parser/scala.rs","caller":"scala_sealed_class","name":"parse_file(source, \"scala\", \"t.scala\").unwrap","kind":"call","line":891}
+{"file":"src/parser/scala.rs","caller":"scala_sealed_class","name":"parse_file","kind":"call","line":891}
+{"file":"src/parser/scala.rs","caller":"scala_sealed_class","name":"find_sym","kind":"call","line":892}
 {"file":"src/parser/sfc.rs","caller":"ScriptBlock","name":"Vec","kind":"type_annotation","line":11}
 {"file":"src/parser/sfc.rs","caller":"extract_script_blocks","name":"Vec","kind":"type_annotation","line":22}
 {"file":"src/parser/sfc.rs","caller":"extract_script_blocks","name":"ScriptBlock","kind":"type_annotation","line":22}
@@ -14038,6 +14695,340 @@
 {"file":"src/parser/sfc.rs","caller":"test_html_script_extraction","name":"String::from_utf8_lossy","kind":"call","line":294}
 {"file":"src/parser/sfc.rs","caller":"test_html_no_script","name":"extract_script_blocks","kind":"call","line":301}
 {"file":"src/parser/sfc.rs","caller":"test_html_typescript_script","name":"extract_script_blocks","kind":"call","line":308}
+{"file":"src/parser/swift.rs","name":"tree_sitter::{Node, Tree}","kind":"import","line":30}
+{"file":"src/parser/swift.rs","name":"crate::parser::format::{ReferenceEntry, SymbolEntry, TextEntry}","kind":"import","line":32}
+{"file":"src/parser/swift.rs","name":"crate::parser::helpers::*","kind":"import","line":33}
+{"file":"src/parser/swift.rs","name":"crate::parser::treesitter::MAX_DEPTH","kind":"import","line":34}
+{"file":"src/parser/swift.rs","caller":"filter_swift_tokens","name":"Option","kind":"type_annotation","line":79}
+{"file":"src/parser/swift.rs","caller":"filter_swift_tokens","name":"String","kind":"type_annotation","line":79}
+{"file":"src/parser/swift.rs","caller":"filter_swift_tokens","name":"Option","kind":"type_annotation","line":79}
+{"file":"src/parser/swift.rs","caller":"filter_swift_tokens","name":"String","kind":"type_annotation","line":79}
+{"file":"src/parser/swift.rs","caller":"filter_swift_tokens","name":"tokens.and_then","kind":"call","line":80}
+{"file":"src/parser/swift.rs","caller":"filter_swift_tokens","name":"t\n            .split_whitespace()\n            .filter(|tok| !SWIFT_STOPWORDS.contains(&tok.to_lowercase().as_str()))\n            // Drop ALL-CAPS shouting (likely macros / constants used as\n            // configuration switches, not interesting search tokens).\n            .filter(|tok| !tok.chars().all(|c| c.is_uppercase() || c == '_'))\n            .collect","kind":"call","line":81}
+{"file":"src/parser/swift.rs","caller":"filter_swift_tokens","name":"t\n            .split_whitespace()\n            .filter(|tok| !SWIFT_STOPWORDS.contains(&tok.to_lowercase().as_str()))\n            // Drop ALL-CAPS shouting (likely macros / constants used as\n            // configuration switches, not interesting search tokens).\n            .filter","kind":"call","line":81}
+{"file":"src/parser/swift.rs","caller":"filter_swift_tokens","name":"t\n            .split_whitespace()\n            .filter","kind":"call","line":81}
+{"file":"src/parser/swift.rs","caller":"filter_swift_tokens","name":"t\n            .split_whitespace","kind":"call","line":81}
+{"file":"src/parser/swift.rs","caller":"filter_swift_tokens","name":"SWIFT_STOPWORDS.contains","kind":"call","line":83}
+{"file":"src/parser/swift.rs","caller":"filter_swift_tokens","name":"tok.to_lowercase().as_str","kind":"call","line":83}
+{"file":"src/parser/swift.rs","caller":"filter_swift_tokens","name":"tok.to_lowercase","kind":"call","line":83}
+{"file":"src/parser/swift.rs","caller":"filter_swift_tokens","name":"tok.chars().all","kind":"call","line":86}
+{"file":"src/parser/swift.rs","caller":"filter_swift_tokens","name":"tok.chars","kind":"call","line":86}
+{"file":"src/parser/swift.rs","caller":"filter_swift_tokens","name":"c.is_uppercase","kind":"call","line":86}
+{"file":"src/parser/swift.rs","caller":"filter_swift_tokens","name":"filtered.is_empty","kind":"call","line":88}
+{"file":"src/parser/swift.rs","caller":"filter_swift_tokens","name":"filtered.join","kind":"call","line":91}
+{"file":"src/parser/swift.rs","caller":"extract","name":"Tree","kind":"type_annotation","line":124}
+{"file":"src/parser/swift.rs","caller":"extract","name":"Vec","kind":"type_annotation","line":127}
+{"file":"src/parser/swift.rs","caller":"extract","name":"SymbolEntry","kind":"type_annotation","line":127}
+{"file":"src/parser/swift.rs","caller":"extract","name":"Vec","kind":"type_annotation","line":128}
+{"file":"src/parser/swift.rs","caller":"extract","name":"TextEntry","kind":"type_annotation","line":128}
+{"file":"src/parser/swift.rs","caller":"extract","name":"Vec","kind":"type_annotation","line":129}
+{"file":"src/parser/swift.rs","caller":"extract","name":"ReferenceEntry","kind":"type_annotation","line":129}
+{"file":"src/parser/swift.rs","caller":"extract","name":"tree.root_node","kind":"call","line":131}
+{"file":"src/parser/swift.rs","caller":"extract","name":"walk_node","kind":"call","line":132}
+{"file":"src/parser/swift.rs","caller":"walk_node","name":"Node","kind":"type_annotation","line":137}
+{"file":"src/parser/swift.rs","caller":"walk_node","name":"Option","kind":"type_annotation","line":140}
+{"file":"src/parser/swift.rs","caller":"walk_node","name":"Vec","kind":"type_annotation","line":141}
+{"file":"src/parser/swift.rs","caller":"walk_node","name":"SymbolEntry","kind":"type_annotation","line":141}
+{"file":"src/parser/swift.rs","caller":"walk_node","name":"Vec","kind":"type_annotation","line":142}
+{"file":"src/parser/swift.rs","caller":"walk_node","name":"TextEntry","kind":"type_annotation","line":142}
+{"file":"src/parser/swift.rs","caller":"walk_node","name":"Vec","kind":"type_annotation","line":143}
+{"file":"src/parser/swift.rs","caller":"walk_node","name":"ReferenceEntry","kind":"type_annotation","line":143}
+{"file":"src/parser/swift.rs","caller":"walk_node","name":"node.kind","kind":"call","line":150}
+{"file":"src/parser/swift.rs","caller":"walk_node","name":"extract_import","kind":"call","line":154}
+{"file":"src/parser/swift.rs","caller":"walk_node","name":"first_anonymous_keyword","kind":"call","line":160}
+{"file":"src/parser/swift.rs","caller":"walk_node","name":"decl_kw.as_deref","kind":"call","line":161}
+{"file":"src/parser/swift.rs","caller":"walk_node","name":"extract_class_like","kind":"call","line":167}
+{"file":"src/parser/swift.rs","caller":"walk_node","name":"extract_protocol","kind":"call","line":173}
+{"file":"src/parser/swift.rs","caller":"walk_node","name":"extract_function","kind":"call","line":179}
+{"file":"src/parser/swift.rs","caller":"walk_node","name":"first_child_of_kind","kind":"call","line":181}
+{"file":"src/parser/swift.rs","caller":"walk_node","name":"function_name(node, source).unwrap_or_default","kind":"call","line":182}
+{"file":"src/parser/swift.rs","caller":"walk_node","name":"function_name","kind":"call","line":182}
+{"file":"src/parser/swift.rs","caller":"walk_node","name":"qualify","kind":"call","line":183}
+{"file":"src/parser/swift.rs","caller":"walk_node","name":"body.walk","kind":"call","line":184}
+{"file":"src/parser/swift.rs","caller":"walk_node","name":"body.children","kind":"call","line":185}
+{"file":"src/parser/swift.rs","caller":"walk_node","name":"walk_node","kind":"call","line":186}
+{"file":"src/parser/swift.rs","caller":"walk_node","name":"extract_init","kind":"call","line":201}
+{"file":"src/parser/swift.rs","caller":"walk_node","name":"first_child_of_kind","kind":"call","line":202}
+{"file":"src/parser/swift.rs","caller":"walk_node","name":"qualify","kind":"call","line":203}
+{"file":"src/parser/swift.rs","caller":"walk_node","name":"body.walk","kind":"call","line":204}
+{"file":"src/parser/swift.rs","caller":"walk_node","name":"body.children","kind":"call","line":205}
+{"file":"src/parser/swift.rs","caller":"walk_node","name":"walk_node","kind":"call","line":206}
+{"file":"src/parser/swift.rs","caller":"walk_node","name":"extract_protocol_function","kind":"call","line":221}
+{"file":"src/parser/swift.rs","caller":"walk_node","name":"extract_protocol_property","kind":"call","line":225}
+{"file":"src/parser/swift.rs","caller":"walk_node","name":"extract_property","kind":"call","line":229}
+{"file":"src/parser/swift.rs","caller":"walk_node","name":"extract_enum_entry","kind":"call","line":233}
+{"file":"src/parser/swift.rs","caller":"walk_node","name":"extract_comment","kind":"call","line":237}
+{"file":"src/parser/swift.rs","caller":"walk_node","name":"extract_string","kind":"call","line":241}
+{"file":"src/parser/swift.rs","caller":"walk_node","name":"extract_call_ref","kind":"call","line":245}
+{"file":"src/parser/swift.rs","caller":"walk_node","name":"node.walk","kind":"call","line":251}
+{"file":"src/parser/swift.rs","caller":"walk_node","name":"node.children","kind":"call","line":252}
+{"file":"src/parser/swift.rs","caller":"walk_node","name":"walk_node","kind":"call","line":253}
+{"file":"src/parser/swift.rs","caller":"first_child_of_kind","name":"Node","kind":"type_annotation","line":270}
+{"file":"src/parser/swift.rs","caller":"first_child_of_kind","name":"Option","kind":"type_annotation","line":270}
+{"file":"src/parser/swift.rs","caller":"first_child_of_kind","name":"Node","kind":"type_annotation","line":270}
+{"file":"src/parser/swift.rs","caller":"first_child_of_kind","name":"node.walk","kind":"call","line":271}
+{"file":"src/parser/swift.rs","caller":"first_child_of_kind","name":"node.children","kind":"call","line":272}
+{"file":"src/parser/swift.rs","caller":"first_child_of_kind","name":"child.kind","kind":"call","line":273}
+{"file":"src/parser/swift.rs","caller":"first_anonymous_keyword","name":"Node","kind":"type_annotation","line":283}
+{"file":"src/parser/swift.rs","caller":"first_anonymous_keyword","name":"Option","kind":"type_annotation","line":283}
+{"file":"src/parser/swift.rs","caller":"first_anonymous_keyword","name":"String","kind":"type_annotation","line":283}
+{"file":"src/parser/swift.rs","caller":"first_anonymous_keyword","name":"node.walk","kind":"call","line":284}
+{"file":"src/parser/swift.rs","caller":"first_anonymous_keyword","name":"node.children","kind":"call","line":285}
+{"file":"src/parser/swift.rs","caller":"first_anonymous_keyword","name":"child.is_named","kind":"call","line":286}
+{"file":"src/parser/swift.rs","caller":"first_anonymous_keyword","name":"node_text","kind":"call","line":287}
+{"file":"src/parser/swift.rs","caller":"qualify","name":"Option","kind":"type_annotation","line":293}
+{"file":"src/parser/swift.rs","caller":"qualify","name":"String","kind":"type_annotation","line":293}
+{"file":"src/parser/swift.rs","caller":"qualify","name":"p.is_empty","kind":"call","line":295}
+{"file":"src/parser/swift.rs","caller":"qualify","name":"name.to_string","kind":"call","line":296}
+{"file":"src/parser/swift.rs","caller":"extract_swift_visibility","name":"Node","kind":"type_annotation","line":304}
+{"file":"src/parser/swift.rs","caller":"extract_swift_visibility","name":"String","kind":"type_annotation","line":304}
+{"file":"src/parser/swift.rs","caller":"extract_swift_visibility","name":"first_child_of_kind","kind":"call","line":305}
+{"file":"src/parser/swift.rs","caller":"extract_swift_visibility","name":"mods.walk","kind":"call","line":306}
+{"file":"src/parser/swift.rs","caller":"extract_swift_visibility","name":"mods.children","kind":"call","line":307}
+{"file":"src/parser/swift.rs","caller":"extract_swift_visibility","name":"child.kind","kind":"call","line":308}
+{"file":"src/parser/swift.rs","caller":"extract_swift_visibility","name":"node_text","kind":"call","line":309}
+{"file":"src/parser/swift.rs","caller":"extract_swift_visibility","name":"t.as_str","kind":"call","line":310}
+{"file":"src/parser/swift.rs","caller":"extract_swift_visibility","name":"\"public\".to_string","kind":"call","line":311}
+{"file":"src/parser/swift.rs","caller":"extract_swift_visibility","name":"\"private\".to_string","kind":"call","line":312}
+{"file":"src/parser/swift.rs","caller":"extract_swift_visibility","name":"\"internal\".to_string","kind":"call","line":313}
+{"file":"src/parser/swift.rs","caller":"extract_swift_visibility","name":"\"internal\".to_string","kind":"call","line":314}
+{"file":"src/parser/swift.rs","caller":"extract_swift_visibility","name":"\"internal\".to_string","kind":"call","line":320}
+{"file":"src/parser/swift.rs","caller":"extract_import","name":"Node","kind":"type_annotation","line":328}
+{"file":"src/parser/swift.rs","caller":"extract_import","name":"Vec","kind":"type_annotation","line":331}
+{"file":"src/parser/swift.rs","caller":"extract_import","name":"SymbolEntry","kind":"type_annotation","line":331}
+{"file":"src/parser/swift.rs","caller":"extract_import","name":"Vec","kind":"type_annotation","line":332}
+{"file":"src/parser/swift.rs","caller":"extract_import","name":"ReferenceEntry","kind":"type_annotation","line":332}
+{"file":"src/parser/swift.rs","caller":"extract_import","name":"node_line_range","kind":"call","line":334}
+{"file":"src/parser/swift.rs","caller":"extract_import","name":"first_child_of_kind","kind":"call","line":335}
+{"file":"src/parser/swift.rs","caller":"extract_import","name":"node_text","kind":"call","line":339}
+{"file":"src/parser/swift.rs","caller":"extract_import","name":"push_symbol","kind":"call","line":341}
+{"file":"src/parser/swift.rs","caller":"extract_import","name":"name.clone","kind":"call","line":344}
+{"file":"src/parser/swift.rs","caller":"extract_import","name":"\"private\".to_string","kind":"call","line":350}
+{"file":"src/parser/swift.rs","caller":"extract_import","name":"references.push","kind":"call","line":352}
+{"file":"src/parser/swift.rs","caller":"extract_import","name":"file_path.to_string","kind":"call","line":353}
+{"file":"src/parser/swift.rs","caller":"extract_import","name":"\"import\".to_string","kind":"call","line":355}
+{"file":"src/parser/swift.rs","caller":"extract_import","name":"String::new","kind":"call","line":358}
+{"file":"src/parser/swift.rs","caller":"class_like_name","name":"Node","kind":"type_annotation","line":365}
+{"file":"src/parser/swift.rs","caller":"class_like_name","name":"Option","kind":"type_annotation","line":365}
+{"file":"src/parser/swift.rs","caller":"class_like_name","name":"String","kind":"type_annotation","line":365}
+{"file":"src/parser/swift.rs","caller":"class_like_name","name":"first_child_of_kind","kind":"call","line":366}
+{"file":"src/parser/swift.rs","caller":"class_like_name","name":"node_text","kind":"call","line":367}
+{"file":"src/parser/swift.rs","caller":"class_like_name","name":"first_child_of_kind","kind":"call","line":369}
+{"file":"src/parser/swift.rs","caller":"class_like_name","name":"first_child_of_kind","kind":"call","line":371}
+{"file":"src/parser/swift.rs","caller":"class_like_name","name":"node_text","kind":"call","line":372}
+{"file":"src/parser/swift.rs","caller":"class_like_name","name":"node_text","kind":"call","line":374}
+{"file":"src/parser/swift.rs","caller":"extract_class_like","name":"Node","kind":"type_annotation","line":381}
+{"file":"src/parser/swift.rs","caller":"extract_class_like","name":"Option","kind":"type_annotation","line":384}
+{"file":"src/parser/swift.rs","caller":"extract_class_like","name":"Vec","kind":"type_annotation","line":385}
+{"file":"src/parser/swift.rs","caller":"extract_class_like","name":"SymbolEntry","kind":"type_annotation","line":385}
+{"file":"src/parser/swift.rs","caller":"extract_class_like","name":"Vec","kind":"type_annotation","line":386}
+{"file":"src/parser/swift.rs","caller":"extract_class_like","name":"TextEntry","kind":"type_annotation","line":386}
+{"file":"src/parser/swift.rs","caller":"extract_class_like","name":"Vec","kind":"type_annotation","line":387}
+{"file":"src/parser/swift.rs","caller":"extract_class_like","name":"ReferenceEntry","kind":"type_annotation","line":387}
+{"file":"src/parser/swift.rs","caller":"extract_class_like","name":"class_like_name","kind":"call","line":390}
+{"file":"src/parser/swift.rs","caller":"extract_class_like","name":"node_line_range","kind":"call","line":395}
+{"file":"src/parser/swift.rs","caller":"extract_class_like","name":"extract_swift_visibility","kind":"call","line":396}
+{"file":"src/parser/swift.rs","caller":"extract_class_like","name":"qualify","kind":"call","line":397}
+{"file":"src/parser/swift.rs","caller":"extract_class_like","name":"first_child_of_kind(node, \"class_body\")\n        .or_else","kind":"call","line":400}
+{"file":"src/parser/swift.rs","caller":"extract_class_like","name":"first_child_of_kind","kind":"call","line":400}
+{"file":"src/parser/swift.rs","caller":"extract_class_like","name":"first_child_of_kind","kind":"call","line":401}
+{"file":"src/parser/swift.rs","caller":"extract_class_like","name":"body.and_then","kind":"call","line":403}
+{"file":"src/parser/swift.rs","caller":"extract_class_like","name":"filter_swift_tokens","kind":"call","line":403}
+{"file":"src/parser/swift.rs","caller":"extract_class_like","name":"extract_tokens","kind":"call","line":403}
+{"file":"src/parser/swift.rs","caller":"extract_class_like","name":"push_symbol","kind":"call","line":409}
+{"file":"src/parser/swift.rs","caller":"extract_class_like","name":"full_name.clone","kind":"call","line":412}
+{"file":"src/parser/swift.rs","caller":"extract_class_like","name":"body.walk","kind":"call","line":422}
+{"file":"src/parser/swift.rs","caller":"extract_class_like","name":"body.children","kind":"call","line":423}
+{"file":"src/parser/swift.rs","caller":"extract_class_like","name":"walk_node","kind":"call","line":424}
+{"file":"src/parser/swift.rs","caller":"extract_protocol","name":"Node","kind":"type_annotation","line":440}
+{"file":"src/parser/swift.rs","caller":"extract_protocol","name":"Option","kind":"type_annotation","line":443}
+{"file":"src/parser/swift.rs","caller":"extract_protocol","name":"Vec","kind":"type_annotation","line":444}
+{"file":"src/parser/swift.rs","caller":"extract_protocol","name":"SymbolEntry","kind":"type_annotation","line":444}
+{"file":"src/parser/swift.rs","caller":"extract_protocol","name":"Vec","kind":"type_annotation","line":445}
+{"file":"src/parser/swift.rs","caller":"extract_protocol","name":"TextEntry","kind":"type_annotation","line":445}
+{"file":"src/parser/swift.rs","caller":"extract_protocol","name":"Vec","kind":"type_annotation","line":446}
+{"file":"src/parser/swift.rs","caller":"extract_protocol","name":"ReferenceEntry","kind":"type_annotation","line":446}
+{"file":"src/parser/swift.rs","caller":"extract_protocol","name":"first_child_of_kind","kind":"call","line":449}
+{"file":"src/parser/swift.rs","caller":"extract_protocol","name":"node_text","kind":"call","line":450}
+{"file":"src/parser/swift.rs","caller":"extract_protocol","name":"node_line_range","kind":"call","line":454}
+{"file":"src/parser/swift.rs","caller":"extract_protocol","name":"extract_swift_visibility","kind":"call","line":455}
+{"file":"src/parser/swift.rs","caller":"extract_protocol","name":"qualify","kind":"call","line":456}
+{"file":"src/parser/swift.rs","caller":"extract_protocol","name":"first_child_of_kind","kind":"call","line":458}
+{"file":"src/parser/swift.rs","caller":"extract_protocol","name":"body.and_then","kind":"call","line":459}
+{"file":"src/parser/swift.rs","caller":"extract_protocol","name":"filter_swift_tokens","kind":"call","line":459}
+{"file":"src/parser/swift.rs","caller":"extract_protocol","name":"extract_tokens","kind":"call","line":459}
+{"file":"src/parser/swift.rs","caller":"extract_protocol","name":"push_symbol","kind":"call","line":461}
+{"file":"src/parser/swift.rs","caller":"extract_protocol","name":"full_name.clone","kind":"call","line":464}
+{"file":"src/parser/swift.rs","caller":"extract_protocol","name":"body.walk","kind":"call","line":474}
+{"file":"src/parser/swift.rs","caller":"extract_protocol","name":"body.children","kind":"call","line":475}
+{"file":"src/parser/swift.rs","caller":"extract_protocol","name":"walk_node","kind":"call","line":476}
+{"file":"src/parser/swift.rs","caller":"function_name","name":"Node","kind":"type_annotation","line":490}
+{"file":"src/parser/swift.rs","caller":"function_name","name":"Option","kind":"type_annotation","line":490}
+{"file":"src/parser/swift.rs","caller":"function_name","name":"String","kind":"type_annotation","line":490}
+{"file":"src/parser/swift.rs","caller":"function_name","name":"node.walk","kind":"call","line":491}
+{"file":"src/parser/swift.rs","caller":"function_name","name":"node.children","kind":"call","line":492}
+{"file":"src/parser/swift.rs","caller":"function_name","name":"child.kind","kind":"call","line":493}
+{"file":"src/parser/swift.rs","caller":"function_name","name":"node_text","kind":"call","line":494}
+{"file":"src/parser/swift.rs","caller":"extract_function","name":"Node","kind":"type_annotation","line":501}
+{"file":"src/parser/swift.rs","caller":"extract_function","name":"Option","kind":"type_annotation","line":504}
+{"file":"src/parser/swift.rs","caller":"extract_function","name":"Vec","kind":"type_annotation","line":505}
+{"file":"src/parser/swift.rs","caller":"extract_function","name":"SymbolEntry","kind":"type_annotation","line":505}
+{"file":"src/parser/swift.rs","caller":"extract_function","name":"function_name","kind":"call","line":507}
+{"file":"src/parser/swift.rs","caller":"extract_function","name":"node_line_range","kind":"call","line":512}
+{"file":"src/parser/swift.rs","caller":"extract_function","name":"extract_swift_visibility","kind":"call","line":513}
+{"file":"src/parser/swift.rs","caller":"extract_function","name":"qualify","kind":"call","line":514}
+{"file":"src/parser/swift.rs","caller":"extract_function","name":"parent_ctx.is_some","kind":"call","line":517}
+{"file":"src/parser/swift.rs","caller":"extract_function","name":"first_child_of_kind(node, \"function_body\")\n        .and_then","kind":"call","line":519}
+{"file":"src/parser/swift.rs","caller":"extract_function","name":"first_child_of_kind","kind":"call","line":519}
+{"file":"src/parser/swift.rs","caller":"extract_function","name":"filter_swift_tokens","kind":"call","line":520}
+{"file":"src/parser/swift.rs","caller":"extract_function","name":"extract_tokens","kind":"call","line":520}
+{"file":"src/parser/swift.rs","caller":"extract_function","name":"push_symbol","kind":"call","line":522}
+{"file":"src/parser/swift.rs","caller":"extract_init","name":"Node","kind":"type_annotation","line":537}
+{"file":"src/parser/swift.rs","caller":"extract_init","name":"Option","kind":"type_annotation","line":540}
+{"file":"src/parser/swift.rs","caller":"extract_init","name":"Vec","kind":"type_annotation","line":541}
+{"file":"src/parser/swift.rs","caller":"extract_init","name":"SymbolEntry","kind":"type_annotation","line":541}
+{"file":"src/parser/swift.rs","caller":"extract_init","name":"node_line_range","kind":"call","line":543}
+{"file":"src/parser/swift.rs","caller":"extract_init","name":"extract_swift_visibility","kind":"call","line":544}
+{"file":"src/parser/swift.rs","caller":"extract_init","name":"qualify","kind":"call","line":545}
+{"file":"src/parser/swift.rs","caller":"extract_init","name":"first_child_of_kind(node, \"function_body\")\n        .and_then","kind":"call","line":547}
+{"file":"src/parser/swift.rs","caller":"extract_init","name":"first_child_of_kind","kind":"call","line":547}
+{"file":"src/parser/swift.rs","caller":"extract_init","name":"filter_swift_tokens","kind":"call","line":548}
+{"file":"src/parser/swift.rs","caller":"extract_init","name":"extract_tokens","kind":"call","line":548}
+{"file":"src/parser/swift.rs","caller":"extract_init","name":"push_symbol","kind":"call","line":552}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_function","name":"Node","kind":"type_annotation","line":566}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_function","name":"Option","kind":"type_annotation","line":569}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_function","name":"Vec","kind":"type_annotation","line":570}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_function","name":"SymbolEntry","kind":"type_annotation","line":570}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_function","name":"function_name","kind":"call","line":572}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_function","name":"node_line_range","kind":"call","line":577}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_function","name":"extract_swift_visibility","kind":"call","line":578}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_function","name":"qualify","kind":"call","line":579}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_function","name":"push_symbol","kind":"call","line":581}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_property","name":"Node","kind":"type_annotation","line":597}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_property","name":"Option","kind":"type_annotation","line":600}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_property","name":"Vec","kind":"type_annotation","line":601}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_property","name":"SymbolEntry","kind":"type_annotation","line":601}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_property","name":"node_line_range","kind":"call","line":603}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_property","name":"extract_swift_visibility","kind":"call","line":604}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_property","name":"first_child_of_kind","kind":"call","line":606}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_property","name":"first_child_of_kind","kind":"call","line":609}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_property","name":"node_text","kind":"call","line":612}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_property","name":"qualify","kind":"call","line":613}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_property","name":"push_symbol","kind":"call","line":615}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"Node","kind":"type_annotation","line":632}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"Option","kind":"type_annotation","line":635}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"Vec","kind":"type_annotation","line":636}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"SymbolEntry","kind":"type_annotation","line":636}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"node_line_range","kind":"call","line":638}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"extract_swift_visibility","kind":"call","line":639}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"first_child_of_kind(node, \"value_binding_pattern\")\n        .map(|b| node_text(b, source).trim() == \"let\")\n        .unwrap_or","kind":"call","line":642}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"first_child_of_kind(node, \"value_binding_pattern\")\n        .map","kind":"call","line":642}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"first_child_of_kind","kind":"call","line":642}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"node_text(b, source).trim","kind":"call","line":643}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"node_text","kind":"call","line":643}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"first_child_of_kind","kind":"call","line":646}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"first_child_of_kind","kind":"call","line":647}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"node_text","kind":"call","line":648}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"parent_ctx.is_some","kind":"call","line":660}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"name.is_empty","kind":"call","line":663}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"name\n                .chars()\n                .all","kind":"call","line":664}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"name\n                .chars","kind":"call","line":664}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"c.is_ascii_uppercase","kind":"call","line":666}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"c.is_ascii_digit","kind":"call","line":666}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"qualify","kind":"call","line":679}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"property_rhs_text(node, source).map","kind":"call","line":683}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"property_rhs_text","kind":"call","line":683}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"truncate_sig","kind":"call","line":683}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"symbols.push","kind":"call","line":688}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"file_path.to_string","kind":"call","line":689}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"kind.to_string","kind":"call","line":691}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"parent_ctx.map","kind":"call","line":693}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"String::new","kind":"call","line":698}
+{"file":"src/parser/swift.rs","caller":"property_rhs_text","name":"Node","kind":"type_annotation","line":705}
+{"file":"src/parser/swift.rs","caller":"property_rhs_text","name":"Option","kind":"type_annotation","line":705}
+{"file":"src/parser/swift.rs","caller":"property_rhs_text","name":"String","kind":"type_annotation","line":705}
+{"file":"src/parser/swift.rs","caller":"property_rhs_text","name":"node.walk","kind":"call","line":707}
+{"file":"src/parser/swift.rs","caller":"property_rhs_text","name":"node.children","kind":"call","line":708}
+{"file":"src/parser/swift.rs","caller":"property_rhs_text","name":"child.is_named","kind":"call","line":709}
+{"file":"src/parser/swift.rs","caller":"property_rhs_text","name":"node_text","kind":"call","line":710}
+{"file":"src/parser/swift.rs","caller":"property_rhs_text","name":"node_text","kind":"call","line":717}
+{"file":"src/parser/swift.rs","caller":"extract_enum_entry","name":"Node","kind":"type_annotation","line":726}
+{"file":"src/parser/swift.rs","caller":"extract_enum_entry","name":"Option","kind":"type_annotation","line":729}
+{"file":"src/parser/swift.rs","caller":"extract_enum_entry","name":"Vec","kind":"type_annotation","line":730}
+{"file":"src/parser/swift.rs","caller":"extract_enum_entry","name":"SymbolEntry","kind":"type_annotation","line":730}
+{"file":"src/parser/swift.rs","caller":"extract_enum_entry","name":"node_line_range","kind":"call","line":732}
+{"file":"src/parser/swift.rs","caller":"extract_enum_entry","name":"first_child_of_kind","kind":"call","line":733}
+{"file":"src/parser/swift.rs","caller":"extract_enum_entry","name":"node_text","kind":"call","line":736}
+{"file":"src/parser/swift.rs","caller":"extract_enum_entry","name":"qualify","kind":"call","line":737}
+{"file":"src/parser/swift.rs","caller":"extract_enum_entry","name":"push_symbol","kind":"call","line":739}
+{"file":"src/parser/swift.rs","caller":"extract_enum_entry","name":"\"public\".to_string","kind":"call","line":748}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"Node","kind":"type_annotation","line":757}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"Option","kind":"type_annotation","line":760}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"Vec","kind":"type_annotation","line":761}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"ReferenceEntry","kind":"type_annotation","line":761}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"node.walk","kind":"call","line":764}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"node\n        .children(&mut cursor)\n        .find","kind":"call","line":765}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"node\n        .children","kind":"call","line":765}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"c.is_named","kind":"call","line":767}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"c.kind","kind":"call","line":767}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"callee.kind","kind":"call","line":771}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"node_text","kind":"call","line":772}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"node_text","kind":"call","line":773}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"name.is_empty","kind":"call","line":776}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"name.rsplit('.').next().unwrap_or","kind":"call","line":779}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"name.rsplit('.').next","kind":"call","line":779}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"name.rsplit","kind":"call","line":779}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"is_swift_builtin","kind":"call","line":780}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"is_swift_primitive","kind":"call","line":780}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"references.push","kind":"call","line":784}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"file_path.to_string","kind":"call","line":785}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"\"call\".to_string","kind":"call","line":787}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"node_line_range","kind":"call","line":788}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"parent_ctx.map","kind":"call","line":789}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"String::new","kind":"call","line":790}
+{"file":"src/parser/swift.rs","name":"super::*","kind":"import","line":796}
+{"file":"src/parser/swift.rs","name":"crate::parser::treesitter::parse_file","kind":"import","line":797}
+{"file":"src/parser/swift.rs","caller":"find_sym","name":"SymbolEntry","kind":"type_annotation","line":799}
+{"file":"src/parser/swift.rs","caller":"find_sym","name":"SymbolEntry","kind":"type_annotation","line":799}
+{"file":"src/parser/swift.rs","caller":"find_sym","name":"symbols.iter().find(|s| s.name == name).unwrap_or_else","kind":"call","line":800}
+{"file":"src/parser/swift.rs","caller":"find_sym","name":"symbols.iter().find","kind":"call","line":800}
+{"file":"src/parser/swift.rs","caller":"find_sym","name":"symbols.iter","kind":"call","line":800}
+{"file":"src/parser/swift.rs","caller":"swift_top_level_function","name":"parse_file(source, \"swift\", \"t.swift\").unwrap","kind":"call","line":814}
+{"file":"src/parser/swift.rs","caller":"swift_top_level_function","name":"parse_file","kind":"call","line":814}
+{"file":"src/parser/swift.rs","caller":"swift_top_level_function","name":"find_sym","kind":"call","line":815}
+{"file":"src/parser/swift.rs","caller":"swift_struct_with_method_and_property","name":"parse_file(source, \"swift\", \"t.swift\").unwrap","kind":"call","line":824}
+{"file":"src/parser/swift.rs","caller":"swift_struct_with_method_and_property","name":"parse_file","kind":"call","line":824}
+{"file":"src/parser/swift.rs","caller":"swift_struct_with_method_and_property","name":"find_sym","kind":"call","line":825}
+{"file":"src/parser/swift.rs","caller":"swift_struct_with_method_and_property","name":"find_sym","kind":"call","line":827}
+{"file":"src/parser/swift.rs","caller":"swift_struct_with_method_and_property","name":"find_sym","kind":"call","line":829}
+{"file":"src/parser/swift.rs","caller":"swift_class_with_method","name":"parse_file(source, \"swift\", \"t.swift\").unwrap","kind":"call","line":837}
+{"file":"src/parser/swift.rs","caller":"swift_class_with_method","name":"parse_file","kind":"call","line":837}
+{"file":"src/parser/swift.rs","caller":"swift_class_with_method","name":"find_sym","kind":"call","line":838}
+{"file":"src/parser/swift.rs","caller":"swift_class_with_method","name":"find_sym","kind":"call","line":840}
+{"file":"src/parser/swift.rs","caller":"swift_protocol_surfaces_as_interface","name":"parse_file(source, \"swift\", \"t.swift\").unwrap","kind":"call","line":848}
+{"file":"src/parser/swift.rs","caller":"swift_protocol_surfaces_as_interface","name":"parse_file","kind":"call","line":848}
+{"file":"src/parser/swift.rs","caller":"swift_protocol_surfaces_as_interface","name":"find_sym","kind":"call","line":849}
+{"file":"src/parser/swift.rs","caller":"swift_extension_surfaces_as_class","name":"parse_file(source, \"swift\", \"t.swift\").unwrap","kind":"call","line":856}
+{"file":"src/parser/swift.rs","caller":"swift_extension_surfaces_as_class","name":"parse_file","kind":"call","line":856}
+{"file":"src/parser/swift.rs","caller":"swift_extension_surfaces_as_class","name":"find_sym","kind":"call","line":857}
+{"file":"src/parser/swift.rs","caller":"swift_extension_surfaces_as_class","name":"find_sym","kind":"call","line":859}
+{"file":"src/parser/swift.rs","caller":"swift_top_level_const","name":"parse_file(source, \"swift\", \"t.swift\").unwrap","kind":"call","line":866}
+{"file":"src/parser/swift.rs","caller":"swift_top_level_const","name":"parse_file","kind":"call","line":866}
+{"file":"src/parser/swift.rs","caller":"swift_top_level_const","name":"find_sym","kind":"call","line":867}
+{"file":"src/parser/swift.rs","caller":"swift_visibility_mapping","name":"parse_file(source, \"swift\", \"t.swift\").unwrap","kind":"call","line":875}
+{"file":"src/parser/swift.rs","caller":"swift_visibility_mapping","name":"parse_file","kind":"call","line":875}
+{"file":"src/parser/swift.rs","caller":"swift_imports","name":"parse_file(source, \"swift\", \"t.swift\").unwrap","kind":"call","line":888}
+{"file":"src/parser/swift.rs","caller":"swift_imports","name":"parse_file","kind":"call","line":888}
+{"file":"src/parser/swift.rs","caller":"swift_imports","name":"symbols.iter().filter(|s| s.kind == \"import\").collect","kind":"call","line":889}
+{"file":"src/parser/swift.rs","caller":"swift_imports","name":"symbols.iter().filter","kind":"call","line":889}
+{"file":"src/parser/swift.rs","caller":"swift_imports","name":"symbols.iter","kind":"call","line":889}
+{"file":"src/parser/swift.rs","caller":"swift_imports","name":"refs.iter().filter(|r| r.kind == \"import\").collect","kind":"call","line":893}
+{"file":"src/parser/swift.rs","caller":"swift_imports","name":"refs.iter().filter","kind":"call","line":893}
+{"file":"src/parser/swift.rs","caller":"swift_imports","name":"refs.iter","kind":"call","line":893}
+{"file":"src/parser/swift.rs","caller":"swift_enum_cases","name":"parse_file(source, \"swift\", \"t.swift\").unwrap","kind":"call","line":900}
+{"file":"src/parser/swift.rs","caller":"swift_enum_cases","name":"parse_file","kind":"call","line":900}
+{"file":"src/parser/swift.rs","caller":"swift_enum_cases","name":"find_sym","kind":"call","line":901}
+{"file":"src/parser/swift.rs","caller":"swift_enum_cases","name":"find_sym","kind":"call","line":903}
 {"file":"src/parser/treesitter.rs","name":"anyhow::Result","kind":"import","line":1}
 {"file":"src/parser/treesitter.rs","name":"tree_sitter::{Parser, Tree}","kind":"import","line":2}
 {"file":"src/parser/treesitter.rs","name":"crate::parser::format::{ReferenceEntry, SymbolEntry, TextEntry}","kind":"import","line":4}
@@ -14073,69 +15064,72 @@
 {"file":"src/parser/treesitter.rs","caller":"parse_file","name":"crate::parser::ruby::extract","kind":"call","line":132}
 {"file":"src/parser/treesitter.rs","caller":"parse_file","name":"crate::parser::csharp::extract","kind":"call","line":142}
 {"file":"src/parser/treesitter.rs","caller":"parse_file","name":"crate::parser::kotlin::extract","kind":"call","line":152}
-{"file":"src/parser/treesitter.rs","caller":"parse_file","name":"extract_texts_generic","kind":"call","line":163}
-{"file":"src/parser/treesitter.rs","caller":"parse_file","name":"merge_consecutive_texts","kind":"call","line":168}
-{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"Vec","kind":"type_annotation","line":177}
-{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"TextEntry","kind":"type_annotation","line":177}
-{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"Tree","kind":"type_annotation","line":177}
-{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"stack.pop","kind":"call","line":181}
-{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"node.kind","kind":"call","line":182}
-{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"kind.contains","kind":"call","line":184}
-{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"node_text","kind":"call","line":185}
-{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"raw.trim().to_string","kind":"call","line":186}
-{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"raw.trim","kind":"call","line":186}
-{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"is_trivial_text","kind":"call","line":187}
-{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"texts.push","kind":"call","line":188}
-{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"file_path.to_string","kind":"call","line":189}
-{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"\"comment\".to_string","kind":"call","line":190}
-{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"node_line_range","kind":"call","line":191}
-{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"String::new","kind":"call","line":194}
-{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"kind.contains","kind":"call","line":200}
-{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"node_text","kind":"call","line":201}
-{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"strip_string_quotes","kind":"call","line":202}
-{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"is_trivial_text","kind":"call","line":203}
-{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"texts.push","kind":"call","line":204}
-{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"file_path.to_string","kind":"call","line":205}
-{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"\"string\".to_string","kind":"call","line":206}
-{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"node_line_range","kind":"call","line":207}
-{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"String::new","kind":"call","line":210}
-{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"node.walk","kind":"call","line":217}
-{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"node.children(&mut cursor).collect","kind":"call","line":218}
-{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"node.children","kind":"call","line":218}
-{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"children.into_iter().rev","kind":"call","line":219}
-{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"children.into_iter","kind":"call","line":219}
-{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"stack.push","kind":"call","line":220}
-{"file":"src/parser/treesitter.rs","caller":"merge_consecutive_texts","name":"Vec","kind":"type_annotation","line":230}
-{"file":"src/parser/treesitter.rs","caller":"merge_consecutive_texts","name":"TextEntry","kind":"type_annotation","line":230}
-{"file":"src/parser/treesitter.rs","caller":"merge_consecutive_texts","name":"Vec","kind":"type_annotation","line":230}
-{"file":"src/parser/treesitter.rs","caller":"merge_consecutive_texts","name":"TextEntry","kind":"type_annotation","line":230}
-{"file":"src/parser/treesitter.rs","caller":"merge_consecutive_texts","name":"Vec::with_capacity","kind":"call","line":231}
-{"file":"src/parser/treesitter.rs","caller":"merge_consecutive_texts","name":"texts.len","kind":"call","line":231}
-{"file":"src/parser/treesitter.rs","caller":"merge_consecutive_texts","name":"merged.last","kind":"call","line":234}
-{"file":"src/parser/treesitter.rs","caller":"merge_consecutive_texts","name":"merged.last_mut().unwrap","kind":"call","line":245}
-{"file":"src/parser/treesitter.rs","caller":"merge_consecutive_texts","name":"merged.last_mut","kind":"call","line":245}
-{"file":"src/parser/treesitter.rs","caller":"merge_consecutive_texts","name":"last.text.push","kind":"call","line":247}
-{"file":"src/parser/treesitter.rs","caller":"merge_consecutive_texts","name":"last.text.push_str","kind":"call","line":248}
-{"file":"src/parser/treesitter.rs","caller":"merge_consecutive_texts","name":"merged.push","kind":"call","line":250}
-{"file":"src/parser/treesitter.rs","caller":"parse_sfc","name":"Result","kind":"type_annotation","line":267}
-{"file":"src/parser/treesitter.rs","caller":"parse_sfc","name":"Vec","kind":"type_annotation","line":267}
-{"file":"src/parser/treesitter.rs","caller":"parse_sfc","name":"ReferenceEntry","kind":"type_annotation","line":267}
-{"file":"src/parser/treesitter.rs","caller":"parse_sfc","name":"Vec","kind":"type_annotation","line":267}
-{"file":"src/parser/treesitter.rs","caller":"parse_sfc","name":"TextEntry","kind":"type_annotation","line":267}
-{"file":"src/parser/treesitter.rs","caller":"parse_sfc","name":"Vec","kind":"type_annotation","line":267}
-{"file":"src/parser/treesitter.rs","caller":"parse_sfc","name":"SymbolEntry","kind":"type_annotation","line":267}
-{"file":"src/parser/treesitter.rs","caller":"parse_sfc","name":"sfc::extract_script_blocks","kind":"call","line":268}
-{"file":"src/parser/treesitter.rs","caller":"parse_sfc","name":"blocks.is_empty","kind":"call","line":270}
-{"file":"src/parser/treesitter.rs","caller":"parse_sfc","name":"Vec::new","kind":"call","line":271}
-{"file":"src/parser/treesitter.rs","caller":"parse_sfc","name":"Vec::new","kind":"call","line":271}
-{"file":"src/parser/treesitter.rs","caller":"parse_sfc","name":"Vec::new","kind":"call","line":271}
-{"file":"src/parser/treesitter.rs","caller":"parse_sfc","name":"Vec::new","kind":"call","line":274}
-{"file":"src/parser/treesitter.rs","caller":"parse_sfc","name":"Vec::new","kind":"call","line":275}
-{"file":"src/parser/treesitter.rs","caller":"parse_sfc","name":"Vec::new","kind":"call","line":276}
-{"file":"src/parser/treesitter.rs","caller":"parse_sfc","name":"parse_file","kind":"call","line":281}
-{"file":"src/parser/treesitter.rs","caller":"parse_sfc","name":"all_symbols.extend","kind":"call","line":310}
-{"file":"src/parser/treesitter.rs","caller":"parse_sfc","name":"all_texts.extend","kind":"call","line":311}
-{"file":"src/parser/treesitter.rs","caller":"parse_sfc","name":"all_refs.extend","kind":"call","line":312}
+{"file":"src/parser/treesitter.rs","caller":"parse_file","name":"crate::parser::swift::extract","kind":"call","line":162}
+{"file":"src/parser/treesitter.rs","caller":"parse_file","name":"crate::parser::scala::extract","kind":"call","line":172}
+{"file":"src/parser/treesitter.rs","caller":"parse_file","name":"crate::parser::php::extract","kind":"call","line":182}
+{"file":"src/parser/treesitter.rs","caller":"parse_file","name":"extract_texts_generic","kind":"call","line":193}
+{"file":"src/parser/treesitter.rs","caller":"parse_file","name":"merge_consecutive_texts","kind":"call","line":198}
+{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"Vec","kind":"type_annotation","line":207}
+{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"TextEntry","kind":"type_annotation","line":207}
+{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"Tree","kind":"type_annotation","line":207}
+{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"stack.pop","kind":"call","line":211}
+{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"node.kind","kind":"call","line":212}
+{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"kind.contains","kind":"call","line":214}
+{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"node_text","kind":"call","line":215}
+{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"raw.trim().to_string","kind":"call","line":216}
+{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"raw.trim","kind":"call","line":216}
+{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"is_trivial_text","kind":"call","line":217}
+{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"texts.push","kind":"call","line":218}
+{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"file_path.to_string","kind":"call","line":219}
+{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"\"comment\".to_string","kind":"call","line":220}
+{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"node_line_range","kind":"call","line":221}
+{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"String::new","kind":"call","line":224}
+{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"kind.contains","kind":"call","line":230}
+{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"node_text","kind":"call","line":231}
+{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"strip_string_quotes","kind":"call","line":232}
+{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"is_trivial_text","kind":"call","line":233}
+{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"texts.push","kind":"call","line":234}
+{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"file_path.to_string","kind":"call","line":235}
+{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"\"string\".to_string","kind":"call","line":236}
+{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"node_line_range","kind":"call","line":237}
+{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"String::new","kind":"call","line":240}
+{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"node.walk","kind":"call","line":247}
+{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"node.children(&mut cursor).collect","kind":"call","line":248}
+{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"node.children","kind":"call","line":248}
+{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"children.into_iter().rev","kind":"call","line":249}
+{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"children.into_iter","kind":"call","line":249}
+{"file":"src/parser/treesitter.rs","caller":"extract_texts_generic","name":"stack.push","kind":"call","line":250}
+{"file":"src/parser/treesitter.rs","caller":"merge_consecutive_texts","name":"Vec","kind":"type_annotation","line":260}
+{"file":"src/parser/treesitter.rs","caller":"merge_consecutive_texts","name":"TextEntry","kind":"type_annotation","line":260}
+{"file":"src/parser/treesitter.rs","caller":"merge_consecutive_texts","name":"Vec","kind":"type_annotation","line":260}
+{"file":"src/parser/treesitter.rs","caller":"merge_consecutive_texts","name":"TextEntry","kind":"type_annotation","line":260}
+{"file":"src/parser/treesitter.rs","caller":"merge_consecutive_texts","name":"Vec::with_capacity","kind":"call","line":261}
+{"file":"src/parser/treesitter.rs","caller":"merge_consecutive_texts","name":"texts.len","kind":"call","line":261}
+{"file":"src/parser/treesitter.rs","caller":"merge_consecutive_texts","name":"merged.last","kind":"call","line":264}
+{"file":"src/parser/treesitter.rs","caller":"merge_consecutive_texts","name":"merged.last_mut().unwrap","kind":"call","line":275}
+{"file":"src/parser/treesitter.rs","caller":"merge_consecutive_texts","name":"merged.last_mut","kind":"call","line":275}
+{"file":"src/parser/treesitter.rs","caller":"merge_consecutive_texts","name":"last.text.push","kind":"call","line":277}
+{"file":"src/parser/treesitter.rs","caller":"merge_consecutive_texts","name":"last.text.push_str","kind":"call","line":278}
+{"file":"src/parser/treesitter.rs","caller":"merge_consecutive_texts","name":"merged.push","kind":"call","line":280}
+{"file":"src/parser/treesitter.rs","caller":"parse_sfc","name":"Result","kind":"type_annotation","line":297}
+{"file":"src/parser/treesitter.rs","caller":"parse_sfc","name":"Vec","kind":"type_annotation","line":297}
+{"file":"src/parser/treesitter.rs","caller":"parse_sfc","name":"ReferenceEntry","kind":"type_annotation","line":297}
+{"file":"src/parser/treesitter.rs","caller":"parse_sfc","name":"Vec","kind":"type_annotation","line":297}
+{"file":"src/parser/treesitter.rs","caller":"parse_sfc","name":"TextEntry","kind":"type_annotation","line":297}
+{"file":"src/parser/treesitter.rs","caller":"parse_sfc","name":"Vec","kind":"type_annotation","line":297}
+{"file":"src/parser/treesitter.rs","caller":"parse_sfc","name":"SymbolEntry","kind":"type_annotation","line":297}
+{"file":"src/parser/treesitter.rs","caller":"parse_sfc","name":"sfc::extract_script_blocks","kind":"call","line":298}
+{"file":"src/parser/treesitter.rs","caller":"parse_sfc","name":"blocks.is_empty","kind":"call","line":300}
+{"file":"src/parser/treesitter.rs","caller":"parse_sfc","name":"Vec::new","kind":"call","line":301}
+{"file":"src/parser/treesitter.rs","caller":"parse_sfc","name":"Vec::new","kind":"call","line":301}
+{"file":"src/parser/treesitter.rs","caller":"parse_sfc","name":"Vec::new","kind":"call","line":301}
+{"file":"src/parser/treesitter.rs","caller":"parse_sfc","name":"Vec::new","kind":"call","line":304}
+{"file":"src/parser/treesitter.rs","caller":"parse_sfc","name":"Vec::new","kind":"call","line":305}
+{"file":"src/parser/treesitter.rs","caller":"parse_sfc","name":"Vec::new","kind":"call","line":306}
+{"file":"src/parser/treesitter.rs","caller":"parse_sfc","name":"parse_file","kind":"call","line":311}
+{"file":"src/parser/treesitter.rs","caller":"parse_sfc","name":"all_symbols.extend","kind":"call","line":340}
+{"file":"src/parser/treesitter.rs","caller":"parse_sfc","name":"all_texts.extend","kind":"call","line":341}
+{"file":"src/parser/treesitter.rs","caller":"parse_sfc","name":"all_refs.extend","kind":"call","line":342}
 {"file":"src/parser/typescript.rs","name":"tree_sitter::{Node, Tree}","kind":"import","line":7}
 {"file":"src/parser/typescript.rs","name":"crate::parser::format::{ReferenceEntry, SymbolEntry, TextEntry}","kind":"import","line":9}
 {"file":"src/parser/typescript.rs","name":"crate::parser::helpers::*","kind":"import","line":10}
@@ -18606,6 +19600,8 @@
 {"file":"tests/fixtures/kotlin/sample.kt","name":"kotlin.collections.List","kind":"import","line":3}
 {"file":"tests/fixtures/kotlin/sample.kt","name":"kotlin.io.println","kind":"import","line":4}
 {"file":"tests/fixtures/kotlin/sample.kt","caller":"Person.Companion.create","name":"Person","kind":"call","line":21}
+{"file":"tests/fixtures/php/sample.php","name":"App\\Util\\Logger","kind":"import","line":5}
+{"file":"tests/fixtures/php/sample.php","name":"App\\Util\\Cache","kind":"import","line":6}
 {"file":"tests/fixtures/sample.go","name":"fmt","kind":"import","line":3}
 {"file":"tests/fixtures/sample.go","caller":"NewConfig","name":"Config","kind":"type_annotation","line":10}
 {"file":"tests/fixtures/sample.go","caller":"Config.Validate","name":"fmt.Errorf","kind":"call","line":16}
@@ -18625,6 +19621,12 @@
 {"file":"tests/fixtures/sample.ts","name":"express.Response","kind":"import","line":1}
 {"file":"tests/fixtures/sample.ts","caller":"UserService.getUser","name":"db.findById","kind":"call","line":16}
 {"file":"tests/fixtures/sample.ts","name":"res.json","kind":"call","line":21}
+{"file":"tests/fixtures/scala/sample.scala","name":"scala.collection.immutable.List","kind":"import","line":3}
+{"file":"tests/fixtures/scala/sample.scala","name":"scala.util.Try","kind":"import","line":4}
+{"file":"tests/fixtures/scala/sample.scala","name":"scala.util.Success","kind":"import","line":4}
+{"file":"tests/fixtures/swift/sample.swift","name":"Foundation","kind":"import","line":1}
+{"file":"tests/fixtures/swift/sample.swift","name":"UIKit","kind":"import","line":2}
+{"file":"tests/fixtures/swift/sample.swift","caller":"Point.magnitude","name":"(x * x + y * y).squareRoot","kind":"call","line":12}
 {"file":"tests/hotspots_integration.rs","name":"std::fs","kind":"import","line":4}
 {"file":"tests/hotspots_integration.rs","name":"std::process::Command","kind":"import","line":5}
 {"file":"tests/hotspots_integration.rs","name":"tempfile::TempDir","kind":"import","line":6}
@@ -19261,6 +20263,216 @@
 {"file":"tests/parse_kotlin_integration.rs","caller":"extracts_companion_object_members","name":"find","kind":"call","line":136}
 {"file":"tests/parse_kotlin_integration.rs","caller":"extracts_internal_visibility","name":"run_sigil","kind":"call","line":142}
 {"file":"tests/parse_kotlin_integration.rs","caller":"extracts_internal_visibility","name":"find","kind":"call","line":143}
+{"file":"tests/parse_php_integration.rs","name":"std::process::Command","kind":"import","line":9}
+{"file":"tests/parse_php_integration.rs","caller":"manifest_dir","name":"String","kind":"type_annotation","line":11}
+{"file":"tests/parse_php_integration.rs","caller":"manifest_dir","name":"env!(\"CARGO_MANIFEST_DIR\").to_string","kind":"call","line":12}
+{"file":"tests/parse_php_integration.rs","caller":"fixture","name":"String","kind":"type_annotation","line":15}
+{"file":"tests/parse_php_integration.rs","caller":"run_sigil","name":"Vec","kind":"type_annotation","line":19}
+{"file":"tests/parse_php_integration.rs","caller":"run_sigil","name":"serde_json::Value","kind":"type_annotation","line":19}
+{"file":"tests/parse_php_integration.rs","caller":"run_sigil","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .arg(\"index\")\n        .arg(\"--root\")\n        .arg(format!(\"{}/tests/fixtures/php\", manifest_dir()))\n        .arg(\"--files\")\n        .arg(fixture())\n        .arg(\"--stdout\")\n        .arg(\"--full\")\n        .output()\n        .expect","kind":"call","line":20}
+{"file":"tests/parse_php_integration.rs","caller":"run_sigil","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .arg(\"index\")\n        .arg(\"--root\")\n        .arg(format!(\"{}/tests/fixtures/php\", manifest_dir()))\n        .arg(\"--files\")\n        .arg(fixture())\n        .arg(\"--stdout\")\n        .arg(\"--full\")\n        .output","kind":"call","line":20}
+{"file":"tests/parse_php_integration.rs","caller":"run_sigil","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .arg(\"index\")\n        .arg(\"--root\")\n        .arg(format!(\"{}/tests/fixtures/php\", manifest_dir()))\n        .arg(\"--files\")\n        .arg(fixture())\n        .arg(\"--stdout\")\n        .arg","kind":"call","line":20}
+{"file":"tests/parse_php_integration.rs","caller":"run_sigil","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .arg(\"index\")\n        .arg(\"--root\")\n        .arg(format!(\"{}/tests/fixtures/php\", manifest_dir()))\n        .arg(\"--files\")\n        .arg(fixture())\n        .arg","kind":"call","line":20}
+{"file":"tests/parse_php_integration.rs","caller":"run_sigil","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .arg(\"index\")\n        .arg(\"--root\")\n        .arg(format!(\"{}/tests/fixtures/php\", manifest_dir()))\n        .arg(\"--files\")\n        .arg","kind":"call","line":20}
+{"file":"tests/parse_php_integration.rs","caller":"run_sigil","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .arg(\"index\")\n        .arg(\"--root\")\n        .arg(format!(\"{}/tests/fixtures/php\", manifest_dir()))\n        .arg","kind":"call","line":20}
+{"file":"tests/parse_php_integration.rs","caller":"run_sigil","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .arg(\"index\")\n        .arg(\"--root\")\n        .arg","kind":"call","line":20}
+{"file":"tests/parse_php_integration.rs","caller":"run_sigil","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .arg(\"index\")\n        .arg","kind":"call","line":20}
+{"file":"tests/parse_php_integration.rs","caller":"run_sigil","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .arg","kind":"call","line":20}
+{"file":"tests/parse_php_integration.rs","caller":"run_sigil","name":"Command::new","kind":"call","line":20}
+{"file":"tests/parse_php_integration.rs","caller":"run_sigil","name":"fixture","kind":"call","line":25}
+{"file":"tests/parse_php_integration.rs","caller":"run_sigil","name":"String::from_utf8(output.stdout)\n        .expect(\"invalid utf8 from sigil\")\n        .lines()\n        .filter(|l| !l.trim().is_empty())\n        .map(|l| serde_json::from_str(l).unwrap_or_else(|e| panic!(\"bad json: {l}: {e}\")))\n        .collect","kind":"call","line":37}
+{"file":"tests/parse_php_integration.rs","caller":"run_sigil","name":"String::from_utf8(output.stdout)\n        .expect(\"invalid utf8 from sigil\")\n        .lines()\n        .filter(|l| !l.trim().is_empty())\n        .map","kind":"call","line":37}
+{"file":"tests/parse_php_integration.rs","caller":"run_sigil","name":"String::from_utf8(output.stdout)\n        .expect(\"invalid utf8 from sigil\")\n        .lines()\n        .filter","kind":"call","line":37}
+{"file":"tests/parse_php_integration.rs","caller":"run_sigil","name":"String::from_utf8(output.stdout)\n        .expect(\"invalid utf8 from sigil\")\n        .lines","kind":"call","line":37}
+{"file":"tests/parse_php_integration.rs","caller":"run_sigil","name":"String::from_utf8(output.stdout)\n        .expect","kind":"call","line":37}
+{"file":"tests/parse_php_integration.rs","caller":"run_sigil","name":"String::from_utf8","kind":"call","line":37}
+{"file":"tests/parse_php_integration.rs","caller":"run_sigil","name":"l.trim().is_empty","kind":"call","line":40}
+{"file":"tests/parse_php_integration.rs","caller":"run_sigil","name":"l.trim","kind":"call","line":40}
+{"file":"tests/parse_php_integration.rs","caller":"run_sigil","name":"serde_json::from_str(l).unwrap_or_else","kind":"call","line":41}
+{"file":"tests/parse_php_integration.rs","caller":"run_sigil","name":"serde_json::from_str","kind":"call","line":41}
+{"file":"tests/parse_php_integration.rs","caller":"names","name":"serde_json::Value","kind":"type_annotation","line":45}
+{"file":"tests/parse_php_integration.rs","caller":"names","name":"Vec","kind":"type_annotation","line":45}
+{"file":"tests/parse_php_integration.rs","caller":"names","name":"entities.iter().map(|e| e[\"name\"].as_str().unwrap()).collect","kind":"call","line":46}
+{"file":"tests/parse_php_integration.rs","caller":"names","name":"entities.iter().map","kind":"call","line":46}
+{"file":"tests/parse_php_integration.rs","caller":"names","name":"entities.iter","kind":"call","line":46}
+{"file":"tests/parse_php_integration.rs","caller":"names","name":"e[\"name\"].as_str().unwrap","kind":"call","line":46}
+{"file":"tests/parse_php_integration.rs","caller":"names","name":"e[\"name\"].as_str","kind":"call","line":46}
+{"file":"tests/parse_php_integration.rs","caller":"find","name":"serde_json::Value","kind":"type_annotation","line":49}
+{"file":"tests/parse_php_integration.rs","caller":"find","name":"serde_json::Value","kind":"type_annotation","line":49}
+{"file":"tests/parse_php_integration.rs","caller":"find","name":"entities\n        .iter()\n        .find(|e| e[\"name\"].as_str() == Some(name))\n        .unwrap_or_else","kind":"call","line":50}
+{"file":"tests/parse_php_integration.rs","caller":"find","name":"entities\n        .iter()\n        .find","kind":"call","line":50}
+{"file":"tests/parse_php_integration.rs","caller":"find","name":"entities\n        .iter","kind":"call","line":50}
+{"file":"tests/parse_php_integration.rs","caller":"find","name":"e[\"name\"].as_str","kind":"call","line":52}
+{"file":"tests/parse_php_integration.rs","caller":"extracts_namespace_and_uses","name":"run_sigil","kind":"call","line":58}
+{"file":"tests/parse_php_integration.rs","caller":"extracts_namespace_and_uses","name":"find","kind":"call","line":59}
+{"file":"tests/parse_php_integration.rs","caller":"extracts_namespace_and_uses","name":"entities\n        .iter()\n        .filter(|e| e[\"kind\"].as_str() == Some(\"import\") && e.get(\"line_start\").is_some())\n        .collect","kind":"call","line":64}
+{"file":"tests/parse_php_integration.rs","caller":"extracts_namespace_and_uses","name":"entities\n        .iter()\n        .filter","kind":"call","line":64}
+{"file":"tests/parse_php_integration.rs","caller":"extracts_namespace_and_uses","name":"entities\n        .iter","kind":"call","line":64}
+{"file":"tests/parse_php_integration.rs","caller":"extracts_namespace_and_uses","name":"e[\"kind\"].as_str","kind":"call","line":66}
+{"file":"tests/parse_php_integration.rs","caller":"extracts_namespace_and_uses","name":"e.get(\"line_start\").is_some","kind":"call","line":66}
+{"file":"tests/parse_php_integration.rs","caller":"extracts_namespace_and_uses","name":"e.get","kind":"call","line":66}
+{"file":"tests/parse_php_integration.rs","caller":"extracts_top_level_function","name":"run_sigil","kind":"call","line":78}
+{"file":"tests/parse_php_integration.rs","caller":"extracts_top_level_function","name":"find","kind":"call","line":79}
+{"file":"tests/parse_php_integration.rs","caller":"extracts_top_level_function","name":"f[\"line_start\"].as_u64().unwrap","kind":"call","line":82}
+{"file":"tests/parse_php_integration.rs","caller":"extracts_top_level_function","name":"f[\"line_start\"].as_u64","kind":"call","line":82}
+{"file":"tests/parse_php_integration.rs","caller":"extracts_top_level_function","name":"f[\"line_end\"].as_u64().unwrap","kind":"call","line":83}
+{"file":"tests/parse_php_integration.rs","caller":"extracts_top_level_function","name":"f[\"line_end\"].as_u64","kind":"call","line":83}
+{"file":"tests/parse_php_integration.rs","caller":"extracts_class_with_method_and_property","name":"run_sigil","kind":"call","line":89}
+{"file":"tests/parse_php_integration.rs","caller":"extracts_class_with_method_and_property","name":"find","kind":"call","line":90}
+{"file":"tests/parse_php_integration.rs","caller":"extracts_class_with_method_and_property","name":"find","kind":"call","line":94}
+{"file":"tests/parse_php_integration.rs","caller":"extracts_class_with_method_and_property","name":"find","kind":"call","line":101}
+{"file":"tests/parse_php_integration.rs","caller":"extracts_class_with_method_and_property","name":"find","kind":"call","line":108}
+{"file":"tests/parse_php_integration.rs","caller":"extracts_class_with_method_and_property","name":"find","kind":"call","line":113}
+{"file":"tests/parse_php_integration.rs","caller":"extracts_class_with_method_and_property","name":"species[\"sig\"].as_str().unwrap_or","kind":"call","line":115}
+{"file":"tests/parse_php_integration.rs","caller":"extracts_class_with_method_and_property","name":"species[\"sig\"].as_str","kind":"call","line":115}
+{"file":"tests/parse_php_integration.rs","caller":"extracts_interface","name":"run_sigil","kind":"call","line":121}
+{"file":"tests/parse_php_integration.rs","caller":"extracts_interface","name":"find","kind":"call","line":122}
+{"file":"tests/parse_php_integration.rs","caller":"extracts_interface","name":"find","kind":"call","line":124}
+{"file":"tests/parse_php_integration.rs","caller":"extracts_trait","name":"run_sigil","kind":"call","line":130}
+{"file":"tests/parse_php_integration.rs","caller":"extracts_trait","name":"find","kind":"call","line":132}
+{"file":"tests/parse_php_integration.rs","caller":"extracts_trait","name":"find","kind":"call","line":134}
+{"file":"tests/parse_php_integration.rs","caller":"extracts_enum","name":"run_sigil","kind":"call","line":140}
+{"file":"tests/parse_php_integration.rs","caller":"extracts_enum","name":"find","kind":"call","line":141}
+{"file":"tests/parse_php_integration.rs","caller":"extracts_top_level_const","name":"run_sigil","kind":"call","line":147}
+{"file":"tests/parse_php_integration.rs","caller":"extracts_top_level_const","name":"find","kind":"call","line":148}
+{"file":"tests/parse_php_integration.rs","caller":"extracts_top_level_const","name":"c[\"sig\"].as_str().unwrap_or","kind":"call","line":150}
+{"file":"tests/parse_php_integration.rs","caller":"extracts_top_level_const","name":"c[\"sig\"].as_str","kind":"call","line":150}
+{"file":"tests/parse_scala_integration.rs","name":"std::process::Command","kind":"import","line":8}
+{"file":"tests/parse_scala_integration.rs","caller":"manifest_dir","name":"String","kind":"type_annotation","line":10}
+{"file":"tests/parse_scala_integration.rs","caller":"manifest_dir","name":"env!(\"CARGO_MANIFEST_DIR\").to_string","kind":"call","line":11}
+{"file":"tests/parse_scala_integration.rs","caller":"fixture","name":"String","kind":"type_annotation","line":14}
+{"file":"tests/parse_scala_integration.rs","caller":"run_sigil","name":"Vec","kind":"type_annotation","line":18}
+{"file":"tests/parse_scala_integration.rs","caller":"run_sigil","name":"serde_json::Value","kind":"type_annotation","line":18}
+{"file":"tests/parse_scala_integration.rs","caller":"run_sigil","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .arg(\"index\")\n        .arg(\"--root\")\n        .arg(format!(\"{}/tests/fixtures/scala\", manifest_dir()))\n        .arg(\"--files\")\n        .arg(fixture())\n        .arg(\"--stdout\")\n        .arg(\"--full\")\n        .output()\n        .expect","kind":"call","line":19}
+{"file":"tests/parse_scala_integration.rs","caller":"run_sigil","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .arg(\"index\")\n        .arg(\"--root\")\n        .arg(format!(\"{}/tests/fixtures/scala\", manifest_dir()))\n        .arg(\"--files\")\n        .arg(fixture())\n        .arg(\"--stdout\")\n        .arg(\"--full\")\n        .output","kind":"call","line":19}
+{"file":"tests/parse_scala_integration.rs","caller":"run_sigil","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .arg(\"index\")\n        .arg(\"--root\")\n        .arg(format!(\"{}/tests/fixtures/scala\", manifest_dir()))\n        .arg(\"--files\")\n        .arg(fixture())\n        .arg(\"--stdout\")\n        .arg","kind":"call","line":19}
+{"file":"tests/parse_scala_integration.rs","caller":"run_sigil","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .arg(\"index\")\n        .arg(\"--root\")\n        .arg(format!(\"{}/tests/fixtures/scala\", manifest_dir()))\n        .arg(\"--files\")\n        .arg(fixture())\n        .arg","kind":"call","line":19}
+{"file":"tests/parse_scala_integration.rs","caller":"run_sigil","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .arg(\"index\")\n        .arg(\"--root\")\n        .arg(format!(\"{}/tests/fixtures/scala\", manifest_dir()))\n        .arg(\"--files\")\n        .arg","kind":"call","line":19}
+{"file":"tests/parse_scala_integration.rs","caller":"run_sigil","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .arg(\"index\")\n        .arg(\"--root\")\n        .arg(format!(\"{}/tests/fixtures/scala\", manifest_dir()))\n        .arg","kind":"call","line":19}
+{"file":"tests/parse_scala_integration.rs","caller":"run_sigil","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .arg(\"index\")\n        .arg(\"--root\")\n        .arg","kind":"call","line":19}
+{"file":"tests/parse_scala_integration.rs","caller":"run_sigil","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .arg(\"index\")\n        .arg","kind":"call","line":19}
+{"file":"tests/parse_scala_integration.rs","caller":"run_sigil","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .arg","kind":"call","line":19}
+{"file":"tests/parse_scala_integration.rs","caller":"run_sigil","name":"Command::new","kind":"call","line":19}
+{"file":"tests/parse_scala_integration.rs","caller":"run_sigil","name":"fixture","kind":"call","line":24}
+{"file":"tests/parse_scala_integration.rs","caller":"run_sigil","name":"String::from_utf8(output.stdout)\n        .expect(\"invalid utf8 from sigil\")\n        .lines()\n        .filter(|l| !l.trim().is_empty())\n        .map(|l| serde_json::from_str(l).unwrap_or_else(|e| panic!(\"bad json: {l}: {e}\")))\n        .collect","kind":"call","line":36}
+{"file":"tests/parse_scala_integration.rs","caller":"run_sigil","name":"String::from_utf8(output.stdout)\n        .expect(\"invalid utf8 from sigil\")\n        .lines()\n        .filter(|l| !l.trim().is_empty())\n        .map","kind":"call","line":36}
+{"file":"tests/parse_scala_integration.rs","caller":"run_sigil","name":"String::from_utf8(output.stdout)\n        .expect(\"invalid utf8 from sigil\")\n        .lines()\n        .filter","kind":"call","line":36}
+{"file":"tests/parse_scala_integration.rs","caller":"run_sigil","name":"String::from_utf8(output.stdout)\n        .expect(\"invalid utf8 from sigil\")\n        .lines","kind":"call","line":36}
+{"file":"tests/parse_scala_integration.rs","caller":"run_sigil","name":"String::from_utf8(output.stdout)\n        .expect","kind":"call","line":36}
+{"file":"tests/parse_scala_integration.rs","caller":"run_sigil","name":"String::from_utf8","kind":"call","line":36}
+{"file":"tests/parse_scala_integration.rs","caller":"run_sigil","name":"l.trim().is_empty","kind":"call","line":39}
+{"file":"tests/parse_scala_integration.rs","caller":"run_sigil","name":"l.trim","kind":"call","line":39}
+{"file":"tests/parse_scala_integration.rs","caller":"run_sigil","name":"serde_json::from_str(l).unwrap_or_else","kind":"call","line":40}
+{"file":"tests/parse_scala_integration.rs","caller":"run_sigil","name":"serde_json::from_str","kind":"call","line":40}
+{"file":"tests/parse_scala_integration.rs","caller":"names","name":"serde_json::Value","kind":"type_annotation","line":44}
+{"file":"tests/parse_scala_integration.rs","caller":"names","name":"Vec","kind":"type_annotation","line":44}
+{"file":"tests/parse_scala_integration.rs","caller":"names","name":"entities.iter().map(|e| e[\"name\"].as_str().unwrap()).collect","kind":"call","line":45}
+{"file":"tests/parse_scala_integration.rs","caller":"names","name":"entities.iter().map","kind":"call","line":45}
+{"file":"tests/parse_scala_integration.rs","caller":"names","name":"entities.iter","kind":"call","line":45}
+{"file":"tests/parse_scala_integration.rs","caller":"names","name":"e[\"name\"].as_str().unwrap","kind":"call","line":45}
+{"file":"tests/parse_scala_integration.rs","caller":"names","name":"e[\"name\"].as_str","kind":"call","line":45}
+{"file":"tests/parse_scala_integration.rs","caller":"find","name":"serde_json::Value","kind":"type_annotation","line":48}
+{"file":"tests/parse_scala_integration.rs","caller":"find","name":"serde_json::Value","kind":"type_annotation","line":48}
+{"file":"tests/parse_scala_integration.rs","caller":"find","name":"entities\n        .iter()\n        .find(|e| e[\"name\"].as_str() == Some(name))\n        .unwrap_or_else","kind":"call","line":49}
+{"file":"tests/parse_scala_integration.rs","caller":"find","name":"entities\n        .iter()\n        .find","kind":"call","line":49}
+{"file":"tests/parse_scala_integration.rs","caller":"find","name":"entities\n        .iter","kind":"call","line":49}
+{"file":"tests/parse_scala_integration.rs","caller":"find","name":"e[\"name\"].as_str","kind":"call","line":51}
+{"file":"tests/parse_scala_integration.rs","caller":"extracts_package_and_imports","name":"run_sigil","kind":"call","line":57}
+{"file":"tests/parse_scala_integration.rs","caller":"extracts_package_and_imports","name":"find","kind":"call","line":58}
+{"file":"tests/parse_scala_integration.rs","caller":"extracts_package_and_imports","name":"entities\n        .iter()\n        .filter(|e| e[\"kind\"].as_str() == Some(\"import\") && e.get(\"line_start\").is_some())\n        .collect","kind":"call","line":62}
+{"file":"tests/parse_scala_integration.rs","caller":"extracts_package_and_imports","name":"entities\n        .iter()\n        .filter","kind":"call","line":62}
+{"file":"tests/parse_scala_integration.rs","caller":"extracts_package_and_imports","name":"entities\n        .iter","kind":"call","line":62}
+{"file":"tests/parse_scala_integration.rs","caller":"extracts_package_and_imports","name":"e[\"kind\"].as_str","kind":"call","line":64}
+{"file":"tests/parse_scala_integration.rs","caller":"extracts_package_and_imports","name":"e.get(\"line_start\").is_some","kind":"call","line":64}
+{"file":"tests/parse_scala_integration.rs","caller":"extracts_package_and_imports","name":"e.get","kind":"call","line":64}
+{"file":"tests/parse_scala_integration.rs","caller":"extracts_top_level_def_with_parameter","name":"run_sigil","kind":"call","line":81}
+{"file":"tests/parse_scala_integration.rs","caller":"extracts_top_level_def_with_parameter","name":"find","kind":"call","line":82}
+{"file":"tests/parse_scala_integration.rs","caller":"extracts_top_level_def_with_parameter","name":"f[\"line_start\"].as_u64().unwrap","kind":"call","line":85}
+{"file":"tests/parse_scala_integration.rs","caller":"extracts_top_level_def_with_parameter","name":"f[\"line_start\"].as_u64","kind":"call","line":85}
+{"file":"tests/parse_scala_integration.rs","caller":"extracts_class_with_method","name":"run_sigil","kind":"call","line":91}
+{"file":"tests/parse_scala_integration.rs","caller":"extracts_class_with_method","name":"find","kind":"call","line":92}
+{"file":"tests/parse_scala_integration.rs","caller":"extracts_class_with_method","name":"find","kind":"call","line":96}
+{"file":"tests/parse_scala_integration.rs","caller":"extracts_class_with_method","name":"find","kind":"call","line":103}
+{"file":"tests/parse_scala_integration.rs","caller":"extracts_object_with_method","name":"run_sigil","kind":"call","line":113}
+{"file":"tests/parse_scala_integration.rs","caller":"extracts_object_with_method","name":"find","kind":"call","line":114}
+{"file":"tests/parse_scala_integration.rs","caller":"extracts_object_with_method","name":"find","kind":"call","line":116}
+{"file":"tests/parse_scala_integration.rs","caller":"extracts_trait","name":"run_sigil","kind":"call","line":122}
+{"file":"tests/parse_scala_integration.rs","caller":"extracts_trait","name":"find","kind":"call","line":123}
+{"file":"tests/parse_scala_integration.rs","caller":"extracts_top_level_val_constant","name":"run_sigil","kind":"call","line":129}
+{"file":"tests/parse_scala_integration.rs","caller":"extracts_top_level_val_constant","name":"find","kind":"call","line":130}
+{"file":"tests/parse_scala_integration.rs","caller":"extracts_top_level_val_constant","name":"c[\"sig\"].as_str().unwrap_or","kind":"call","line":132}
+{"file":"tests/parse_scala_integration.rs","caller":"extracts_top_level_val_constant","name":"c[\"sig\"].as_str","kind":"call","line":132}
+{"file":"tests/parse_scala_integration.rs","caller":"extracts_sealed_class","name":"run_sigil","kind":"call","line":138}
+{"file":"tests/parse_scala_integration.rs","caller":"extracts_sealed_class","name":"find","kind":"call","line":139}
+{"file":"tests/parse_swift_integration.rs","name":"std::process::Command","kind":"import","line":9}
+{"file":"tests/parse_swift_integration.rs","caller":"manifest_dir","name":"String","kind":"type_annotation","line":11}
+{"file":"tests/parse_swift_integration.rs","caller":"manifest_dir","name":"env!(\"CARGO_MANIFEST_DIR\").to_string","kind":"call","line":12}
+{"file":"tests/parse_swift_integration.rs","caller":"fixture","name":"String","kind":"type_annotation","line":15}
+{"file":"tests/parse_swift_integration.rs","caller":"run_sigil","name":"Vec","kind":"type_annotation","line":19}
+{"file":"tests/parse_swift_integration.rs","caller":"run_sigil","name":"serde_json::Value","kind":"type_annotation","line":19}
+{"file":"tests/parse_swift_integration.rs","caller":"run_sigil","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .arg(\"index\")\n        .arg(\"--root\")\n        .arg(format!(\"{}/tests/fixtures/swift\", manifest_dir()))\n        .arg(\"--files\")\n        .arg(fixture())\n        .arg(\"--stdout\")\n        .arg(\"--full\")\n        .output()\n        .expect","kind":"call","line":20}
+{"file":"tests/parse_swift_integration.rs","caller":"run_sigil","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .arg(\"index\")\n        .arg(\"--root\")\n        .arg(format!(\"{}/tests/fixtures/swift\", manifest_dir()))\n        .arg(\"--files\")\n        .arg(fixture())\n        .arg(\"--stdout\")\n        .arg(\"--full\")\n        .output","kind":"call","line":20}
+{"file":"tests/parse_swift_integration.rs","caller":"run_sigil","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .arg(\"index\")\n        .arg(\"--root\")\n        .arg(format!(\"{}/tests/fixtures/swift\", manifest_dir()))\n        .arg(\"--files\")\n        .arg(fixture())\n        .arg(\"--stdout\")\n        .arg","kind":"call","line":20}
+{"file":"tests/parse_swift_integration.rs","caller":"run_sigil","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .arg(\"index\")\n        .arg(\"--root\")\n        .arg(format!(\"{}/tests/fixtures/swift\", manifest_dir()))\n        .arg(\"--files\")\n        .arg(fixture())\n        .arg","kind":"call","line":20}
+{"file":"tests/parse_swift_integration.rs","caller":"run_sigil","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .arg(\"index\")\n        .arg(\"--root\")\n        .arg(format!(\"{}/tests/fixtures/swift\", manifest_dir()))\n        .arg(\"--files\")\n        .arg","kind":"call","line":20}
+{"file":"tests/parse_swift_integration.rs","caller":"run_sigil","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .arg(\"index\")\n        .arg(\"--root\")\n        .arg(format!(\"{}/tests/fixtures/swift\", manifest_dir()))\n        .arg","kind":"call","line":20}
+{"file":"tests/parse_swift_integration.rs","caller":"run_sigil","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .arg(\"index\")\n        .arg(\"--root\")\n        .arg","kind":"call","line":20}
+{"file":"tests/parse_swift_integration.rs","caller":"run_sigil","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .arg(\"index\")\n        .arg","kind":"call","line":20}
+{"file":"tests/parse_swift_integration.rs","caller":"run_sigil","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .arg","kind":"call","line":20}
+{"file":"tests/parse_swift_integration.rs","caller":"run_sigil","name":"Command::new","kind":"call","line":20}
+{"file":"tests/parse_swift_integration.rs","caller":"run_sigil","name":"fixture","kind":"call","line":25}
+{"file":"tests/parse_swift_integration.rs","caller":"run_sigil","name":"String::from_utf8(output.stdout)\n        .expect(\"invalid utf8 from sigil\")\n        .lines()\n        .filter(|l| !l.trim().is_empty())\n        .map(|l| serde_json::from_str(l).unwrap_or_else(|e| panic!(\"bad json: {l}: {e}\")))\n        .collect","kind":"call","line":37}
+{"file":"tests/parse_swift_integration.rs","caller":"run_sigil","name":"String::from_utf8(output.stdout)\n        .expect(\"invalid utf8 from sigil\")\n        .lines()\n        .filter(|l| !l.trim().is_empty())\n        .map","kind":"call","line":37}
+{"file":"tests/parse_swift_integration.rs","caller":"run_sigil","name":"String::from_utf8(output.stdout)\n        .expect(\"invalid utf8 from sigil\")\n        .lines()\n        .filter","kind":"call","line":37}
+{"file":"tests/parse_swift_integration.rs","caller":"run_sigil","name":"String::from_utf8(output.stdout)\n        .expect(\"invalid utf8 from sigil\")\n        .lines","kind":"call","line":37}
+{"file":"tests/parse_swift_integration.rs","caller":"run_sigil","name":"String::from_utf8(output.stdout)\n        .expect","kind":"call","line":37}
+{"file":"tests/parse_swift_integration.rs","caller":"run_sigil","name":"String::from_utf8","kind":"call","line":37}
+{"file":"tests/parse_swift_integration.rs","caller":"run_sigil","name":"l.trim().is_empty","kind":"call","line":40}
+{"file":"tests/parse_swift_integration.rs","caller":"run_sigil","name":"l.trim","kind":"call","line":40}
+{"file":"tests/parse_swift_integration.rs","caller":"run_sigil","name":"serde_json::from_str(l).unwrap_or_else","kind":"call","line":41}
+{"file":"tests/parse_swift_integration.rs","caller":"run_sigil","name":"serde_json::from_str","kind":"call","line":41}
+{"file":"tests/parse_swift_integration.rs","caller":"names","name":"serde_json::Value","kind":"type_annotation","line":45}
+{"file":"tests/parse_swift_integration.rs","caller":"names","name":"Vec","kind":"type_annotation","line":45}
+{"file":"tests/parse_swift_integration.rs","caller":"names","name":"entities\n        .iter()\n        .map(|e| e[\"name\"].as_str().unwrap_or(\"<no name>\"))\n        .collect","kind":"call","line":46}
+{"file":"tests/parse_swift_integration.rs","caller":"names","name":"entities\n        .iter()\n        .map","kind":"call","line":46}
+{"file":"tests/parse_swift_integration.rs","caller":"names","name":"entities\n        .iter","kind":"call","line":46}
+{"file":"tests/parse_swift_integration.rs","caller":"names","name":"e[\"name\"].as_str().unwrap_or","kind":"call","line":48}
+{"file":"tests/parse_swift_integration.rs","caller":"names","name":"e[\"name\"].as_str","kind":"call","line":48}
+{"file":"tests/parse_swift_integration.rs","caller":"find","name":"serde_json::Value","kind":"type_annotation","line":52}
+{"file":"tests/parse_swift_integration.rs","caller":"find","name":"serde_json::Value","kind":"type_annotation","line":52}
+{"file":"tests/parse_swift_integration.rs","caller":"find","name":"entities\n        .iter()\n        .find(|e| e[\"name\"].as_str() == Some(name))\n        .unwrap_or_else","kind":"call","line":53}
+{"file":"tests/parse_swift_integration.rs","caller":"find","name":"entities\n        .iter()\n        .find","kind":"call","line":53}
+{"file":"tests/parse_swift_integration.rs","caller":"find","name":"entities\n        .iter","kind":"call","line":53}
+{"file":"tests/parse_swift_integration.rs","caller":"find","name":"e[\"name\"].as_str","kind":"call","line":55}
+{"file":"tests/parse_swift_integration.rs","caller":"extracts_representative_swift_snippet","name":"run_sigil","kind":"call","line":65}
+{"file":"tests/parse_swift_integration.rs","caller":"extracts_representative_swift_snippet","name":"entities\n        .iter()\n        .filter(|e| e[\"kind\"].as_str() == Some(\"import\") && e.get(\"line_start\").is_some())\n        .collect","kind":"call","line":68}
+{"file":"tests/parse_swift_integration.rs","caller":"extracts_representative_swift_snippet","name":"entities\n        .iter()\n        .filter","kind":"call","line":68}
+{"file":"tests/parse_swift_integration.rs","caller":"extracts_representative_swift_snippet","name":"entities\n        .iter","kind":"call","line":68}
+{"file":"tests/parse_swift_integration.rs","caller":"extracts_representative_swift_snippet","name":"e[\"kind\"].as_str","kind":"call","line":70}
+{"file":"tests/parse_swift_integration.rs","caller":"extracts_representative_swift_snippet","name":"e.get(\"line_start\").is_some","kind":"call","line":70}
+{"file":"tests/parse_swift_integration.rs","caller":"extracts_representative_swift_snippet","name":"e.get","kind":"call","line":70}
+{"file":"tests/parse_swift_integration.rs","caller":"extracts_representative_swift_snippet","name":"find","kind":"call","line":83}
+{"file":"tests/parse_swift_integration.rs","caller":"extracts_representative_swift_snippet","name":"find","kind":"call","line":88}
+{"file":"tests/parse_swift_integration.rs","caller":"extracts_representative_swift_snippet","name":"find","kind":"call","line":90}
+{"file":"tests/parse_swift_integration.rs","caller":"extracts_representative_swift_snippet","name":"find","kind":"call","line":93}
+{"file":"tests/parse_swift_integration.rs","caller":"extracts_representative_swift_snippet","name":"find","kind":"call","line":95}
+{"file":"tests/parse_swift_integration.rs","caller":"extracts_representative_swift_snippet","name":"find","kind":"call","line":99}
+{"file":"tests/parse_swift_integration.rs","caller":"extracts_representative_swift_snippet","name":"find","kind":"call","line":101}
+{"file":"tests/parse_swift_integration.rs","caller":"extracts_representative_swift_snippet","name":"find","kind":"call","line":108}
+{"file":"tests/parse_swift_integration.rs","caller":"extracts_representative_swift_snippet","name":"find","kind":"call","line":116}
+{"file":"tests/parse_swift_integration.rs","caller":"extracts_representative_swift_snippet","name":"find","kind":"call","line":121}
+{"file":"tests/parse_swift_integration.rs","caller":"extracts_representative_swift_snippet","name":"find","kind":"call","line":123}
+{"file":"tests/parse_swift_integration.rs","caller":"extracts_representative_swift_snippet","name":"entities\n        .iter()\n        .filter(|e| e[\"name\"].as_str() == Some(\"Person\") && e[\"kind\"].as_str() == Some(\"class\"))\n        .collect","kind":"call","line":129}
+{"file":"tests/parse_swift_integration.rs","caller":"extracts_representative_swift_snippet","name":"entities\n        .iter()\n        .filter","kind":"call","line":129}
+{"file":"tests/parse_swift_integration.rs","caller":"extracts_representative_swift_snippet","name":"entities\n        .iter","kind":"call","line":129}
+{"file":"tests/parse_swift_integration.rs","caller":"extracts_representative_swift_snippet","name":"e[\"name\"].as_str","kind":"call","line":131}
+{"file":"tests/parse_swift_integration.rs","caller":"extracts_representative_swift_snippet","name":"e[\"kind\"].as_str","kind":"call","line":131}
+{"file":"tests/parse_swift_integration.rs","caller":"extracts_representative_swift_snippet","name":"find","kind":"call","line":138}
+{"file":"tests/parse_swift_integration.rs","caller":"extracts_representative_swift_snippet","name":"find","kind":"call","line":142}
+{"file":"tests/parse_swift_integration.rs","caller":"extracts_representative_swift_snippet","name":"max_retries[\"sig\"].as_str().unwrap_or","kind":"call","line":144}
+{"file":"tests/parse_swift_integration.rs","caller":"extracts_representative_swift_snippet","name":"max_retries[\"sig\"].as_str","kind":"call","line":144}
+{"file":"tests/parse_swift_integration.rs","caller":"extracts_representative_swift_snippet","name":"find","kind":"call","line":151}
+{"file":"tests/parse_swift_integration.rs","caller":"extracts_representative_swift_snippet","name":"find","kind":"call","line":155}
 {"file":"tests/rank_live_smoke.rs","name":"std::path::PathBuf","kind":"import","line":5}
 {"file":"tests/rank_live_smoke.rs","caller":"project_root","name":"PathBuf","kind":"type_annotation","line":7}
 {"file":"tests/rank_live_smoke.rs","caller":"project_root","name":"std::env::current_dir().unwrap","kind":"call","line":8}

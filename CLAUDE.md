@@ -42,7 +42,7 @@ src/
   yaml_index.rs    — YAML parsing (sigil-native)
   toml_index.rs    — TOML parsing (sigil-native)
   markdown_index.rs — Markdown parsing (headings, code blocks, tables, lists, front matter)
-  parser/          — Vendored tree-sitter extractors for 12 languages; see parser/NOTICE
+  parser/          — Vendored tree-sitter extractors for 15 languages; see parser/NOTICE
   git.rs           — Git operations (changed_files, file_at_ref, git log for cochange)
   matcher.rs       — Entity matching across versions (exact/moved/renamed)
   classifier.rs    — Change classification (sig/body hash matrix)

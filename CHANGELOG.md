@@ -8,9 +8,13 @@ All notable changes to sigil are documented here. Format follows
 
 ### Added
 
-- **Kotlin language support** (issue #19, first of five new languages —
-  Swift, Scala, PHP, Luau to follow). New `lang-kotlin` feature flag,
-  enabled by default, brings the supported-grammar count to 12. Powered by
+- **Kotlin + Swift + Scala + PHP language support** (issue #19, four new
+  languages landing together; Luau dropped from the roadmap). New
+  `lang-kotlin`, `lang-swift`, `lang-scala`, `lang-php` feature flags,
+  all enabled by default, bring the supported-grammar count to 15.
+  Powered by `tree-sitter-kotlin-sg` v0.4 (ast-grep fork),
+  `tree-sitter-swift` v0.7, `tree-sitter-scala` v0.26, and
+  `tree-sitter-php` v0.24. Kotlin support details:
   `tree-sitter-kotlin-sg` v0.4 (ast-grep fork, actively maintained against
   modern tree-sitter releases). Extracts `function_declaration` →
   `function` / `method`, `class_declaration` → `class` / `interface`

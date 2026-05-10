@@ -158,6 +158,36 @@ pub fn parse_file(
             &mut references,
         ),
 
+        #[cfg(feature = "lang-swift")]
+        "swift" => crate::parser::swift::extract(
+            &tree,
+            source,
+            file_path,
+            &mut symbols,
+            &mut texts,
+            &mut references,
+        ),
+
+        #[cfg(feature = "lang-scala")]
+        "scala" => crate::parser::scala::extract(
+            &tree,
+            source,
+            file_path,
+            &mut symbols,
+            &mut texts,
+            &mut references,
+        ),
+
+        #[cfg(feature = "lang-php")]
+        "php" => crate::parser::php::extract(
+            &tree,
+            source,
+            file_path,
+            &mut symbols,
+            &mut texts,
+            &mut references,
+        ),
+
         _ => {
             // For unsupported languages, just extract comments and strings
             extract_texts_generic(&tree, source, file_path, &mut texts);

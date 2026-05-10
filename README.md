@@ -407,7 +407,7 @@ The two backends serve identical APIs; the router picks based on index size or `
 
 ## Supported languages
 
-Tree-sitter grammars ship as cargo features. Default build includes all 12:
+Tree-sitter grammars ship as cargo features. Default build includes all 15:
 
 | Language | Extensions |
 |---|---|
@@ -418,6 +418,9 @@ Tree-sitter grammars ship as cargo features. Default build includes all 12:
 | Go | `.go` |
 | Java | `.java` |
 | Kotlin | `.kt` `.kts` |
+| Swift | `.swift` |
+| Scala | `.scala` `.sc` |
+| PHP | `.php` `.phtml` `.phps` |
 | C / C++ | `.c` `.h` `.cpp` `.cc` `.cxx` `.hpp` `.hxx` |
 | Ruby | `.rb` `.rake` `.gemspec` |
 | C# | `.cs` |
