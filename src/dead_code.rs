@@ -161,6 +161,73 @@ fn build_patterns() -> Vec<FrameworkPattern> {
             re: re(r#"@(Controller|Get|Post|Put|Delete|Patch|Options|Head|All|Module|Injectable)\b"#),
             tag: "nestjs_decorator",
         },
+
+        // ── Kotlin ──────────────────────────────────────────────────
+        // Ktor: `routing { get("/path") { ... } }` — DSL builder with
+        // bare verb function calls that take a path-string argument.
+        // Anchored on the verb being preceded by whitespace or `{`,
+        // and a string literal in the first parameter slot, so it
+        // doesn't fire on every `get(...)` method call.
+        FrameworkPattern {
+            language: "kotlin",
+            re: re(r#"(?m)(?:^|\s|\{)(get|post|put|delete|patch|options|head)\(\s*"[^"]+""#),
+            tag: "ktor_route",
+        },
+        // Spring MVC / Spring Boot: @RestController / @Controller class
+        // annotation, and @GetMapping / @PostMapping / @RequestMapping
+        // method annotations. Any of these on a file is enough to mark
+        // it as a Spring entry point.
+        FrameworkPattern {
+            language: "kotlin",
+            re: re(r#"@(RestController|Controller|GetMapping|PostMapping|PutMapping|DeleteMapping|PatchMapping|RequestMapping)\b"#),
+            tag: "spring_annotation",
+        },
+
+        // ── Swift ───────────────────────────────────────────────────
+        // Vapor: `app.get("/path") { req in ... }` — same shape as
+        // Express but with Swift trailing closures. Backticks aren't
+        // valid Swift string delimiters so the alternation drops them.
+        FrameworkPattern {
+            language: "swift",
+            re: re(r#"\b[A-Za-z_][A-Za-z0-9_]*\.(get|post|put|delete|patch|options|head)\(\s*"[^"]+""#),
+            tag: "vapor_route",
+        },
+
+        // ── Scala ───────────────────────────────────────────────────
+        // Akka HTTP / pekko-http: `path("...") { get { complete(...) } }`.
+        // The `path("...")` directive is the unambiguous tell — bare
+        // method-named verbs would over-match. We deliberately don't
+        // match unqualified `get { ... }` directives because plain
+        // builder DSLs use the same shape outside HTTP.
+        FrameworkPattern {
+            language: "scala",
+            re: re(r#"\bpath\(\s*"[^"]+"\s*\)\s*\{"#),
+            tag: "akka_http_route",
+        },
+        // Play Framework: `Action { request => ... }` with the bare
+        // builder constructor and request callback. Tighter than the
+        // generic `Action` token alone.
+        FrameworkPattern {
+            language: "scala",
+            re: re(r#"\bAction(?:\.async)?\s*(?:\([^)]*\)\s*)?\{"#),
+            tag: "play_action",
+        },
+
+        // ── PHP ─────────────────────────────────────────────────────
+        // Laravel: `Route::get('/path', ...)` / `Route::post(...)` etc.
+        // Matches the canonical static-method form in routes/web.php.
+        FrameworkPattern {
+            language: "php",
+            re: re(r#"\bRoute::(get|post|put|delete|patch|options|any|match|resource|view|redirect)\(\s*['"][^'"]+['"]"#),
+            tag: "laravel_route",
+        },
+        // Symfony: `#[Route('/path', ...)]` PHP 8 attribute on a
+        // controller class or method.
+        FrameworkPattern {
+            language: "php",
+            re: re(r#"#\[\s*Route\s*\(\s*['"][^'"]+['"]"#),
+            tag: "symfony_route",
+        },
     ]
 }
 
@@ -194,6 +261,10 @@ fn lang_for_ext(ext: &str) -> Option<&'static str> {
         "go" => "go",
         "js" | "jsx" | "mjs" | "cjs" => "javascript",
         "ts" | "tsx" => "typescript",
+        "kt" | "kts" => "kotlin",
+        "swift" => "swift",
+        "scala" | "sc" => "scala",
+        "php" | "phtml" | "phps" => "php",
         _ => return None,
     })
 }

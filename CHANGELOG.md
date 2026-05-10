@@ -4,6 +4,30 @@ All notable changes to sigil are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Kotlin + Swift + Scala + PHP language support** (issue #19, four new
+  languages landing together; Luau dropped from the roadmap). New
+  `lang-kotlin`, `lang-swift`, `lang-scala`, `lang-php` feature flags,
+  all enabled by default, bring the supported-grammar count to 15.
+  Powered by `tree-sitter-kotlin-sg` v0.4 (ast-grep fork),
+  `tree-sitter-swift` v0.7, `tree-sitter-scala` v0.26, and
+  `tree-sitter-php` v0.24. Kotlin support details:
+  `tree-sitter-kotlin-sg` v0.4 (ast-grep fork, actively maintained against
+  modern tree-sitter releases). Extracts `function_declaration` →
+  `function` / `method`, `class_declaration` → `class` / `interface`
+  (disambiguated by the leading keyword), `object_declaration` → `object`,
+  `property_declaration` → `constant` / `property` / `variable`,
+  `package_header` → `module`, `import_header` → `import` symbols and
+  `kind=import` Reference rows. Nested members inside class / object /
+  `companion object` bodies are emitted with qualified names
+  (`Outer.member`, `Outer.Companion.member`). Visibility maps Kotlin's
+  `public` (default) / `private` / `protected` (→ `internal`) /
+  `internal`. `@`-prefixed annotations attach as metaprogramming markers.
+  Extensions: `.kt`, `.kts`.
+
 ## [0.5.0] — 2026-05-09 — module-level constants, entity docstrings, top-K subsystem entities
 
 ### Added

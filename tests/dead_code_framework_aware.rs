@@ -430,3 +430,183 @@ fn optional_fields_omitted_when_none() {
         "dynamic_name_match should be omitted: {row:?}",
     );
 }
+
+// ──────────────────────────────────────────────────────────────────────
+// Kotlin — Ktor route handlers and Spring `@RestController` /
+// `@GetMapping` annotated classes must be EXCLUDED. View functions
+// are registered by the framework at runtime; the call graph never
+// sees them.
+// ──────────────────────────────────────────────────────────────────────
+#[test]
+fn ktor_route_handler_is_not_flagged() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("Routes.kt"),
+        "fun Application.routes() {\n    routing {\n        get(\"/health\") {\n            call.respond(\"ok\")\n        }\n    }\n}\n",
+    )
+    .unwrap();
+    seed_sigil(
+        tmp.path(),
+        &[entity("Routes.kt", "routes", "function", Some("public"))],
+        &[],
+    );
+    let (stdout, stderr, ok) = run_dead_code(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let names: Vec<&str> = rows
+        .iter()
+        .filter_map(|r| r.get("name").and_then(|v| v.as_str()))
+        .collect();
+    assert!(
+        !names.contains(&"routes"),
+        "Ktor route registration `get(\"/health\")` must framework-exclude Routes.kt; rows={rows:?}",
+    );
+}
+
+#[test]
+fn spring_controller_class_is_not_flagged() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("UserController.kt"),
+        "@RestController\n@RequestMapping(\"/users\")\nclass UserController {\n    @GetMapping(\"/{id}\")\n    fun get(id: Long) = \"hi\"\n}\n",
+    )
+    .unwrap();
+    seed_sigil(
+        tmp.path(),
+        &[entity("UserController.kt", "UserController", "class", Some("public"))],
+        &[],
+    );
+    let (stdout, stderr, ok) = run_dead_code(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let names: Vec<&str> = rows
+        .iter()
+        .filter_map(|r| r.get("name").and_then(|v| v.as_str()))
+        .collect();
+    assert!(
+        !names.contains(&"UserController"),
+        "Spring @RestController must framework-exclude UserController.kt; rows={rows:?}",
+    );
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Swift — Vapor `app.get("/path")` route registrations must EXCLUDE
+// the surrounding handler.
+// ──────────────────────────────────────────────────────────────────────
+#[test]
+fn vapor_route_handler_is_not_flagged() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("Routes.swift"),
+        "import Vapor\n\nfunc routes(_ app: Application) throws {\n    app.get(\"hello\") { req async in\n        \"Hello, world!\"\n    }\n}\n",
+    )
+    .unwrap();
+    seed_sigil(
+        tmp.path(),
+        &[entity("Routes.swift", "routes", "function", Some("public"))],
+        &[],
+    );
+    let (stdout, stderr, ok) = run_dead_code(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let names: Vec<&str> = rows
+        .iter()
+        .filter_map(|r| r.get("name").and_then(|v| v.as_str()))
+        .collect();
+    assert!(
+        !names.contains(&"routes"),
+        "Vapor `app.get(\"hello\")` must framework-exclude Routes.swift; rows={rows:?}",
+    );
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Scala — Akka HTTP / pekko-http route directives (`path(...) { get { ... } }`)
+// must EXCLUDE the surrounding handler. Play `Action { ... }` style
+// is also captured.
+// ──────────────────────────────────────────────────────────────────────
+#[test]
+fn akka_http_route_handler_is_not_flagged() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("Routes.scala"),
+        "import akka.http.scaladsl.server.Directives._\n\nobject Routes {\n  def routes = path(\"hello\") {\n    get {\n      complete(\"hi\")\n    }\n  }\n}\n",
+    )
+    .unwrap();
+    seed_sigil(
+        tmp.path(),
+        &[entity("Routes.scala", "routes", "function", Some("public"))],
+        &[],
+    );
+    let (stdout, stderr, ok) = run_dead_code(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let names: Vec<&str> = rows
+        .iter()
+        .filter_map(|r| r.get("name").and_then(|v| v.as_str()))
+        .collect();
+    let files: Vec<&str> = rows
+        .iter()
+        .filter(|r| r["kind"] == "file")
+        .map(|r| r["file"].as_str().unwrap())
+        .collect();
+    assert!(
+        !names.contains(&"routes") && !files.contains(&"Routes.scala"),
+        "Akka HTTP `path(\"hello\") {{ get {{ ... }} }}` must framework-exclude Routes.scala; rows={rows:?}",
+    );
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// PHP — Laravel `Route::get('/path', ...)` and Symfony `#[Route('/...')]`
+// PHP 8 attributes must EXCLUDE the surrounding controller.
+// ──────────────────────────────────────────────────────────────────────
+#[test]
+fn laravel_route_controller_is_not_flagged() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("routes.php"),
+        "<?php\n\nuse Illuminate\\Support\\Facades\\Route;\n\nRoute::get('/users', [UserController::class, 'index']);\n",
+    )
+    .unwrap();
+    seed_sigil(
+        tmp.path(),
+        &[entity("routes.php", "UserController", "class", Some("public"))],
+        &[],
+    );
+    let (stdout, stderr, ok) = run_dead_code(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let names: Vec<&str> = rows
+        .iter()
+        .filter_map(|r| r.get("name").and_then(|v| v.as_str()))
+        .collect();
+    assert!(
+        !names.contains(&"UserController"),
+        "Laravel `Route::get(...)` must framework-exclude routes.php; rows={rows:?}",
+    );
+}
+
+#[test]
+fn symfony_route_attribute_is_not_flagged() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("BlogController.php"),
+        "<?php\n\nuse Symfony\\Component\\Routing\\Annotation\\Route;\n\nclass BlogController\n{\n    #[Route('/blog', name: 'blog_list')]\n    public function list(): Response { return new Response(); }\n}\n",
+    )
+    .unwrap();
+    seed_sigil(
+        tmp.path(),
+        &[entity("BlogController.php", "BlogController", "class", Some("public"))],
+        &[],
+    );
+    let (stdout, stderr, ok) = run_dead_code(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let names: Vec<&str> = rows
+        .iter()
+        .filter_map(|r| r.get("name").and_then(|v| v.as_str()))
+        .collect();
+    assert!(
+        !names.contains(&"BlogController"),
+        "Symfony #[Route(...)] attribute must framework-exclude BlogController.php; rows={rows:?}",
+    );
+}

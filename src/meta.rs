@@ -14,8 +14,11 @@ pub fn extract_markers(
     let markers = match language {
         "python" => extract_python_markers(entity_lines),
         "rust" => extract_rust_markers(entity_lines),
-        "java" | "csharp" => extract_annotation_markers(entity_lines, language),
+        "java" | "csharp" | "kotlin" | "scala" | "swift" => {
+            extract_annotation_markers(entity_lines, language)
+        }
         "typescript" | "javascript" | "tsx" => extract_annotation_markers(entity_lines, language),
+        "php" => extract_php_attribute_markers(entity_lines),
         "ruby" => extract_ruby_markers(entity_lines),
         _ => vec![],
     };
@@ -89,6 +92,31 @@ fn extract_annotation_markers(lines: &[&str], language: &str) -> Vec<String> {
             } else {
                 rest.split('(').next().unwrap_or("").trim().to_string()
             };
+            if !name.is_empty() {
+                markers.push(name);
+            }
+        } else if !trimmed.is_empty() {
+            break;
+        }
+    }
+    markers
+}
+
+/// PHP 8 attribute markers — `#[Route('/foo')]`, `#[Attribute]`, etc.
+/// One marker per line; stops at the first non-blank line that isn't an
+/// attribute (mirrors the annotation marker loop in `extract_annotation_markers`).
+fn extract_php_attribute_markers(lines: &[&str]) -> Vec<String> {
+    let mut markers = Vec::new();
+    for line in lines {
+        let trimmed = line.trim();
+        if let Some(rest) = trimmed.strip_prefix("#[") {
+            let name = rest
+                .trim_end_matches(']')
+                .split('(')
+                .next()
+                .unwrap_or("")
+                .trim()
+                .to_string();
             if !name.is_empty() {
                 markers.push(name);
             }
