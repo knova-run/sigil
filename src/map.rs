@@ -61,11 +61,11 @@ pub struct MapOptions {
     /// downstream "list subsystem files → list entities → call code.context
     /// per entity" N+1 pattern into a single map call.
     pub top_entities_per_subsystem: usize,
-    /// Run Louvain modularity clustering and tag each shown file with
+    /// Run Leiden modularity clustering and tag each shown file with
     /// `cluster_id`. Off by default — the field is opt-in so the default
     /// `sigil map` JSON stays byte-identical for existing consumers. See
     /// `sigil communities` for the standalone CLI.
-    pub louvain_clusters: bool,
+    pub leiden_clusters: bool,
 }
 
 impl Default for MapOptions {
@@ -78,7 +78,7 @@ impl Default for MapOptions {
             exclude_tests: false,
             clusters: true,
             top_entities_per_subsystem: 0,
-            louvain_clusters: false,
+            leiden_clusters: false,
         }
     }
 }
@@ -114,13 +114,14 @@ pub struct MapFile {
     /// when clustering is disabled (see `MapOptions::clusters`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub subsystem: Option<u32>,
-    /// Cluster id assigned by `communities::detect` (Louvain modularity
-    /// optimization). Additive to `subsystem` (label propagation) — the
-    /// two fields can disagree; `cluster_id` is meant to be the canonical
-    /// modularity-optimal grouping, surfaced for downstream consumers
-    /// that want a stable clustering key without re-running the algorithm.
-    /// Populated when `MapOptions::louvain_clusters` is true (default off
-    /// to keep `sigil map` output byte-identical for existing callers).
+    /// Cluster id assigned by `communities::detect_leiden` (Leiden
+    /// modularity optimization). Additive to `subsystem` (label
+    /// propagation) — the two fields can disagree; `cluster_id` is meant
+    /// to be the canonical modularity-optimal grouping, surfaced for
+    /// downstream consumers that want a stable clustering key without
+    /// re-running the algorithm. Populated when `MapOptions::leiden_clusters`
+    /// is true (default off to keep `sigil map` output byte-identical for
+    /// existing callers).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cluster_id: Option<u32>,
 }
@@ -314,16 +315,16 @@ pub fn build_map(idx: &Index, rank: &RankManifest, opts: &MapOptions) -> Map {
         Vec::new()
     };
 
-    // Optional Louvain pass — populates MapFile.cluster_id when requested.
+    // Optional Leiden pass — populates MapFile.cluster_id when requested.
     // Runs over the full index (same as the label-propagation pass above)
     // so cluster assignments don't shift when `--tokens` truncates the
     // shown file list.
-    if opts.louvain_clusters {
-        let clusters = crate::communities::detect(
+    if opts.leiden_clusters {
+        let clusters = crate::communities::detect_leiden(
             &idx.entities,
             &idx.references,
             &rank.file_rank,
-            &crate::communities::LouvainConfig::default(),
+            &crate::communities::LeidenConfig::default(),
         );
         let mut file_to_cluster: std::collections::HashMap<String, u32> =
             std::collections::HashMap::new();

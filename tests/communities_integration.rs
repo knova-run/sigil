@@ -1,16 +1,16 @@
-//! Integration tests for `sigil::communities` (Louvain modularity clustering).
+//! Integration tests for `sigil::communities` (Leiden modularity clustering).
 //!
 //! Built around a synthetic 8-file graph with two obvious clusters — four
 //! files imp-cycling each other in cluster X, four files doing the same in
-//! cluster Y, no cross-cluster references. Louvain must find them.
+//! cluster Y, no cross-cluster references. Leiden must find them.
 //!
 //! These tests intentionally go through the library API rather than the
 //! CLI fixture path because the algorithm is the focus — the CLI handler
-//! is a thin shim over `communities::detect`.
+//! is a thin shim over `communities::detect_leiden`.
 
 use std::collections::HashMap;
 
-use sigil::communities::{detect, detect_leiden, LeidenConfig, LouvainConfig};
+use sigil::communities::{detect_leiden, LeidenConfig};
 use sigil::entity::{Entity, Reference};
 
 fn ent(file: &str, name: &str) -> Entity {
@@ -83,7 +83,7 @@ fn two_cluster_fixture() -> (Vec<Entity>, Vec<Reference>) {
 #[test]
 fn finds_two_clusters_on_8_file_synthetic_graph() {
     let (entities, refs) = two_cluster_fixture();
-    let clusters = detect(&entities, &refs, &HashMap::new(), &LouvainConfig::default());
+    let clusters = detect_leiden(&entities, &refs, &HashMap::new(), &LeidenConfig::default());
 
     assert_eq!(
         clusters.len(),
@@ -94,7 +94,7 @@ fn finds_two_clusters_on_8_file_synthetic_graph() {
     let sizes: Vec<usize> = clusters.iter().map(|c| c.size).collect();
     assert_eq!(sizes, vec![4, 4], "each cluster should hold exactly four files");
 
-    // Verify x-files and y-files end up grouped — Louvain shouldn't mix them.
+    // Verify x-files and y-files end up grouped — Leiden shouldn't mix them.
     let x_cluster = clusters
         .iter()
         .find(|c| c.members.iter().any(|m| m == "x1.rs"))
@@ -128,7 +128,7 @@ fn finds_two_clusters_on_8_file_synthetic_graph() {
 #[test]
 fn cluster_ids_are_compact_and_zero_indexed() {
     let (entities, refs) = two_cluster_fixture();
-    let clusters = detect(&entities, &refs, &HashMap::new(), &LouvainConfig::default());
+    let clusters = detect_leiden(&entities, &refs, &HashMap::new(), &LeidenConfig::default());
     let ids: Vec<u32> = clusters.iter().map(|c| c.cluster_id).collect();
     assert_eq!(ids, vec![0, 1], "expected {{0,1}}, got {:?}", ids);
 }
@@ -136,9 +136,9 @@ fn cluster_ids_are_compact_and_zero_indexed() {
 #[test]
 fn deterministic_across_runs() {
     let (entities, refs) = two_cluster_fixture();
-    let first = detect(&entities, &refs, &HashMap::new(), &LouvainConfig::default());
-    let second = detect(&entities, &refs, &HashMap::new(), &LouvainConfig::default());
-    let third = detect(&entities, &refs, &HashMap::new(), &LouvainConfig::default());
+    let first = detect_leiden(&entities, &refs, &HashMap::new(), &LeidenConfig::default());
+    let second = detect_leiden(&entities, &refs, &HashMap::new(), &LeidenConfig::default());
+    let third = detect_leiden(&entities, &refs, &HashMap::new(), &LeidenConfig::default());
     assert_eq!(first, second, "two consecutive runs must match");
     assert_eq!(second, third, "three consecutive runs must match");
 }
@@ -158,7 +158,7 @@ fn representative_prefers_highest_pagerank_in_cluster() {
     rank.insert("y3.rs".to_string(), 0.05);
     rank.insert("y4.rs".to_string(), 0.95);
 
-    let clusters = detect(&entities, &refs, &rank, &LouvainConfig::default());
+    let clusters = detect_leiden(&entities, &refs, &rank, &LeidenConfig::default());
     let x_cluster = clusters
         .iter()
         .find(|c| c.members.iter().any(|m| m == "x1.rs"))
@@ -218,7 +218,7 @@ fn labels_capture_common_path_prefix() {
         }
     }
 
-    let clusters = detect(&entities, &refs, &HashMap::new(), &LouvainConfig::default());
+    let clusters = detect_leiden(&entities, &refs, &HashMap::new(), &LeidenConfig::default());
     assert_eq!(clusters.len(), 2);
     let labels: Vec<String> = clusters
         .iter()
@@ -239,7 +239,7 @@ fn labels_capture_common_path_prefix() {
 #[test]
 fn ndjson_serialization_round_trips() {
     let (entities, refs) = two_cluster_fixture();
-    let clusters = detect(&entities, &refs, &HashMap::new(), &LouvainConfig::default());
+    let clusters = detect_leiden(&entities, &refs, &HashMap::new(), &LeidenConfig::default());
     // Serialize the CLI's NDJSON shape and parse it back — guards the
     // wire format from drift if the Cluster struct grows fields later.
     for c in &clusters {
@@ -256,40 +256,10 @@ fn ndjson_serialization_round_trips() {
 }
 
 #[test]
-fn leiden_finds_two_clusters_on_8_file_synthetic_graph() {
-    // Headline behavior: Leiden produces the same obvious partition as
-    // Louvain on a clean two-clique fixture, just with the connectivity
-    // guarantee. Confirms the public `detect_leiden` API works end-to-end.
-    let (entities, refs) = two_cluster_fixture();
-    let clusters = detect_leiden(&entities, &refs, &HashMap::new(), &LeidenConfig::default());
-    assert_eq!(
-        clusters.len(),
-        2,
-        "expected exactly two clusters under Leiden, got {:?}",
-        clusters.iter().map(|c| (c.cluster_id, &c.members)).collect::<Vec<_>>()
-    );
-    let sizes: Vec<usize> = clusters.iter().map(|c| c.size).collect();
-    assert_eq!(sizes, vec![4, 4]);
-}
-
-#[test]
-fn leiden_is_deterministic_across_runs() {
-    // Same input + same seed → byte-identical output. Required so cluster
-    // ids stay stable across `sigil communities` invocations and downstream
-    // consumers can cache against them.
-    let (entities, refs) = two_cluster_fixture();
-    let first = detect_leiden(&entities, &refs, &HashMap::new(), &LeidenConfig::default());
-    let second = detect_leiden(&entities, &refs, &HashMap::new(), &LeidenConfig::default());
-    let third = detect_leiden(&entities, &refs, &HashMap::new(), &LeidenConfig::default());
-    assert_eq!(first, second);
-    assert_eq!(second, third);
-}
-
-#[test]
 fn isolated_files_produce_singleton_clusters() {
     // Five files, no references. Each should land in its own cluster.
     let entities: Vec<Entity> = (0..5).map(|i| ent(&format!("f{}.rs", i), "x")).collect();
-    let clusters = detect(&entities, &[], &HashMap::new(), &LouvainConfig::default());
+    let clusters = detect_leiden(&entities, &[], &HashMap::new(), &LeidenConfig::default());
     assert_eq!(clusters.len(), 5);
     for c in &clusters {
         assert_eq!(c.size, 1);

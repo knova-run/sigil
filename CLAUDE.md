@@ -57,12 +57,12 @@ src/
   # Phase 1 — rank, blast radius, agent commands
   rank.rs          — File-level PageRank + per-entity blast-radius BFS (pure fn)
   community.rs     — Label-propagation subsystem detection for `sigil map`
-  communities.rs   — Leiden + Louvain modularity clustering for `sigil
-                      communities` (issue #17). Default is Leiden — Louvain
-                      local-moving plus a refinement pass that splits any
-                      internally-disconnected community by BFS, guaranteeing
-                      every output cluster is connected. `cluster_id` surface
-                      for downstream consumers via `sigil map`
+  communities.rs   — Leiden modularity clustering for `sigil communities`
+                      (issue #17). Modularity-greedy local-moving plus a
+                      refinement pass that splits any internally-disconnected
+                      community by BFS, guaranteeing every output cluster
+                      is connected. `cluster_id` surface for downstream
+                      consumers via `sigil map`
   map.rs           — `sigil map` — budget-aware ranked codebase digest
   context.rs       — `sigil context <symbol>` — minimum-viable symbol bundle
   blast.rs         — `sigil blast <symbol>` — impact summary
@@ -194,8 +194,7 @@ sigil callers struct_hash [--kind call|import|type_annotation|instantiation]
 sigil callees build_index
 sigil duplicates --min-lines 10
 sigil cochange --commits 500               # → .sigil/cochange.json
-sigil communities --resolution 1.0         # Leiden file clusters (NDJSON, default)
-sigil communities --algorithm louvain      # opt out of the refinement pass
+sigil communities --resolution 1.0         # Leiden file clusters (NDJSON)
 sigil communities --pretty                 # pretty-printed JSON array form
 
 # DuckDB (baked into shipped release binaries since 0.3.2)

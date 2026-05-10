@@ -44,7 +44,7 @@ sigil groups commands into two tiers:
     hotspots      File churn × line count risk score
     ownership     Per-file primary author from git history
     security-scan Lightweight regex security-signal extractor
-    communities   Leiden/Louvain modularity clustering over the file graph
+    communities   Leiden modularity clustering over the file graph
 
   INSTALLERS (platform integrations, all idempotent):
     claude · cursor · codex · gemini · opencode · aider · copilot · hook
@@ -759,14 +759,14 @@ enum Cli {
         #[arg(short, long, default_value = ".")]
         root: PathBuf,
     },
-    /// Modularity-optimized file clustering over the import/call graph.
+    /// Leiden-modularity file clustering over the import/call graph.
     /// NDJSON on stdout, one cluster per line:
     /// `{cluster_id, size, members, representative, label}`.
     ///
-    /// Default: `--algorithm leiden`. Leiden's refinement step guarantees
-    /// every output community is internally connected (Louvain doesn't).
-    /// `--algorithm louvain` remains available for users who want the
-    /// classic Blondel et al. partition without the refinement pass.
+    /// Every output community is guaranteed internally connected
+    /// (Traag et al. 2019) — modularity-greedy local moving plus a
+    /// refinement pass that BFS-splits any disconnected component before
+    /// aggregation.
     Communities {
         /// Project root directory (must contain a `.sigil/` index — run
         /// `sigil index` first).
@@ -776,11 +776,6 @@ enum Cli {
         /// smaller clusters. <1 → fewer, larger clusters.
         #[arg(long, default_value = "1.0")]
         resolution: f64,
-        /// Clustering algorithm. `leiden` (default) adds a connectivity
-        /// refinement pass on top of Louvain's local-moving phase so every
-        /// output community is internally connected; `louvain` skips it.
-        #[arg(long, default_value = "leiden")]
-        algorithm: String,
         /// Pretty-print as a JSON array instead of streaming NDJSON.
         #[arg(long)]
         pretty: bool,
@@ -1804,8 +1799,7 @@ fn main() {
                 std::process::exit(1);
             }
         },
-        Cli::Communities { root, resolution, algorithm, pretty } => {
-            let algo = algorithm.to_lowercase();
+        Cli::Communities { root, resolution, pretty } => {
             let idx = match sigil::query::index::Index::load(&root) {
                 Ok(i) => i,
                 Err(e) => {
@@ -1815,40 +1809,16 @@ fn main() {
                 }
             };
             let rank_manifest = sigil::map::load_rank_manifest(&root).unwrap_or_default();
-            let clusters = match algo.as_str() {
-                "leiden" => {
-                    let cfg = sigil::communities::LeidenConfig {
-                        resolution,
-                        ..sigil::communities::LeidenConfig::default()
-                    };
-                    sigil::communities::detect_leiden(
-                        &idx.entities,
-                        &idx.references,
-                        &rank_manifest.file_rank,
-                        &cfg,
-                    )
-                }
-                "louvain" => {
-                    let cfg = sigil::communities::LouvainConfig {
-                        resolution,
-                        ..sigil::communities::LouvainConfig::default()
-                    };
-                    sigil::communities::detect(
-                        &idx.entities,
-                        &idx.references,
-                        &rank_manifest.file_rank,
-                        &cfg,
-                    )
-                }
-                other => {
-                    eprintln!(
-                        "communities: --algorithm {} is not recognized. \
-                         Supported algorithms: `leiden` (default), `louvain`.",
-                        other
-                    );
-                    std::process::exit(2);
-                }
+            let cfg = sigil::communities::LeidenConfig {
+                resolution,
+                ..sigil::communities::LeidenConfig::default()
             };
+            let clusters = sigil::communities::detect_leiden(
+                &idx.entities,
+                &idx.references,
+                &rank_manifest.file_rank,
+                &cfg,
+            );
             if pretty {
                 match serde_json::to_string_pretty(&clusters) {
                     Ok(s) => println!("{}", s),

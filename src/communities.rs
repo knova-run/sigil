@@ -1,16 +1,13 @@
 //! File-level community detection via **Leiden modularity optimization**
-//! (issue #17), with Louvain available as an explicit fallback.
+//! (issue #17). Single public entry point: [`detect_leiden`].
 //!
-//! `detect_leiden` is the public entry point used by `sigil communities`
-//! when called without `--algorithm`. It runs Louvain's local-moving phase
-//! and follows it with a connectivity refinement pass that BFS-splits any
-//! internally-disconnected community before aggregation. Every output
-//! community is therefore guaranteed connected — the headline guarantee
-//! Traag et al. (2019) flag as missing from vanilla Louvain.
-//!
-//! `detect` (Louvain only) stays public for callers that explicitly want
-//! the unrefined Blondel et al. (2008) partition; passing `--algorithm
-//! louvain` to the CLI uses it.
+//! `sigil communities` exposes this directly — no algorithm choice on the
+//! CLI surface. Internally the pipeline reuses the modularity-greedy
+//! local-moving phase from Blondel et al. (2008) and follows it with a
+//! connectivity refinement pass that BFS-splits any internally-disconnected
+//! community before aggregation. Every output community is therefore
+//! guaranteed connected — the headline guarantee Traag et al. (2019) flag
+//! as missing from vanilla Louvain.
 //!
 //! The randomized well-connected refinement variant from the Leiden paper
 //! (which can also tighten modularity by 1–3% on dense graphs) is a clean
@@ -24,34 +21,37 @@
 //! for "give me a hint", but the partition isn't modularity-optimal and
 //! the label IDs aren't a great clustering signal.
 //!
-//! `communities.rs` runs **Louvain** — O(N log N) per pass, two passes
-//! over the file graph, locally-greedy modularity gain. Output is meant
-//! to be the canonical clustering surface (`sigil communities` CLI,
-//! `cluster_id` field on `sigil map`).
+//! `communities.rs` runs **Leiden** — O(N log N) per pass over the file
+//! graph, locally-greedy modularity gain plus a connectivity refinement
+//! step. Output is meant to be the canonical clustering surface
+//! (`sigil communities` CLI, `cluster_id` field on `sigil map`).
 //!
 //! ## Algorithm
 //!
-//! Classic Louvain (Blondel et al. 2008):
+//! Per multi-level pass:
 //!
 //! 1. Build the undirected, weighted file graph (same edge rule as
 //!    `rank.rs` / `community.rs`: a reference to a symbol defined in file
 //!    B from file A contributes a 1/N-weighted edge A↔B).
 //! 2. Each node starts in its own community.
-//! 3. **Local moving phase**: repeat until no node moves —
-//!      for each node, evaluate Δmodularity of moving it to each
-//!      neighboring community, pick the best gain (must be > 0), break
-//!      ties by smaller community id for determinism.
-//! 4. **Aggregation phase**: collapse each community to a super-node;
-//!    edges between super-nodes carry the summed edge weight, self-loops
-//!    carry the internal weight.
-//! 5. Repeat 3–4 on the aggregated graph until no node moves.
-//! 6. Unfold the multi-level partition back to original file ids.
+//! 3. **Local moving phase** (Blondel et al. 2008): for each node, evaluate
+//!    Δmodularity of moving it to each neighboring community; pick the best
+//!    positive gain; break ties by smaller community id for determinism.
+//! 4. **Refinement phase** (Traag et al. 2019, connectivity-component
+//!    variant): for each community produced by step 3, BFS within the
+//!    community-induced subgraph and split any disconnected component into
+//!    its own refined community.
+//! 5. **Aggregation phase**: collapse each refined community to a
+//!    super-node; edges between super-nodes carry the summed edge weight,
+//!    self-loops carry the internal weight.
+//! 6. Repeat 3–5 on the aggregated graph until no node moves.
+//! 7. Unfold the multi-level partition back to original file ids.
 //!
 //! Determinism: nodes and neighbors are iterated in sorted order at every
-//! step. The RNG seed exists in the `LouvainConfig` for completeness but
-//! the algorithm itself doesn't sample — same input → same output, no
-//! seeding required for reproducibility. The seed knob is reserved for
-//! future Leiden refinement (which does sample during the refine step).
+//! step. The `seed` field on `LeidenConfig` is reserved for the future
+//! randomized well-connected refinement variant; current
+//! connectivity-component refinement is itself deterministic, so the
+//! seed isn't consulted today.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
@@ -61,33 +61,6 @@ use crate::entity::{Entity, Reference};
 
 /// Compact 0-indexed cluster id.
 pub type ClusterId = u32;
-
-/// Tunable knobs for `detect`. `resolution` follows the standard convention
-/// (1.0 = vanilla Louvain modularity, >1 = more, smaller clusters; <1 =
-/// fewer, larger clusters). `max_passes` caps the multi-level loop in case
-/// of pathological inputs.
-#[derive(Debug, Clone)]
-pub struct LouvainConfig {
-    pub resolution: f64,
-    pub max_passes: u32,
-    pub max_moves_per_pass: u32,
-    /// Seed retained for Leiden's refinement step (which samples). Louvain
-    /// itself is deterministic without seeding given sorted iteration; we
-    /// keep the field so callers don't have to change shape when Leiden
-    /// lands.
-    pub seed: u64,
-}
-
-impl Default for LouvainConfig {
-    fn default() -> Self {
-        Self {
-            resolution: 1.0,
-            max_passes: 16,
-            max_moves_per_pass: 100_000,
-            seed: 0xC0FFEE,
-        }
-    }
-}
 
 /// One cluster of files. Sized + decorated for direct serialization to
 /// the NDJSON output of `sigil communities`.
@@ -103,26 +76,9 @@ pub struct Cluster {
     pub label: Option<String>,
 }
 
-/// Run Louvain over the file-graph derived from `entities` + `references`.
-/// `file_rank` is consulted only for representative selection (highest-rank
-/// file in each cluster, tiebreak by shortest path then lexicographic).
-/// Files with no rank entry are scored 0.0.
-pub fn detect(
-    entities: &[Entity],
-    references: &[Reference],
-    file_rank: &HashMap<String, f64>,
-    cfg: &LouvainConfig,
-) -> Vec<Cluster> {
-    let Some((nodes, adj)) = build_graph(entities, references) else {
-        return Vec::new();
-    };
-    let community_of_node = louvain(&adj, cfg);
-    clusters_from_partition(community_of_node, &nodes, file_rank)
-}
-
-/// Build the file-graph used by both `detect` and `detect_leiden`. Returns
-/// the deterministic node list and the symmetric adjacency, or `None` when
-/// the input has no files at all (callers shortcut to an empty cluster set).
+/// Build the file-graph used by `detect_leiden`. Returns the deterministic
+/// node list and the symmetric adjacency, or `None` when the input has no
+/// files at all (callers shortcut to an empty cluster set).
 fn build_graph(
     entities: &[Entity],
     references: &[Reference],
@@ -153,23 +109,27 @@ fn build_graph(
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// Leiden surface (issue #17). Same `Cluster` output shape as `detect`; the
-// algorithmic upgrade Leiden brings is the refinement step that guarantees
-// every output community is internally connected. Configuration mirrors
-// Louvain's plus a `theta` parameter that tunes the refinement step.
+// Leiden surface (issue #17). Single public clustering API; output shape
+// is the `Cluster` struct above.
 // ─────────────────────────────────────────────────────────────────────────
 
+/// Tunable knobs for [`detect_leiden`]. `resolution` follows the standard
+/// modularity convention (1.0 = vanilla, >1 → more, smaller clusters; <1 →
+/// fewer, larger clusters). `max_passes` caps the multi-level loop in case
+/// of pathological inputs.
 #[derive(Debug, Clone)]
 pub struct LeidenConfig {
     pub resolution: f64,
     pub max_passes: u32,
     pub max_moves_per_pass: u32,
+    /// Seed for the future randomized well-connected refinement variant
+    /// from Traag et al. (2019). The current connectivity-component
+    /// refinement is itself deterministic, so `seed` is wire-format-stable
+    /// but unused by today's algorithm — keeping it on the public type
+    /// avoids a breaking change when the randomized refinement lands.
     pub seed: u64,
-    /// Refinement randomness knob. 0.01 is the value Traag et al. (2019)
-    /// recommend; higher values bias the refinement toward more aggressive
-    /// re-partitioning. Currently a placeholder — wired in once the
-    /// refinement step lands. Kept on the public type so adding it later
-    /// doesn't break callers.
+    /// Refinement randomness knob (Traag et al. 2019, θ ≈ 0.01). Same
+    /// reservation note as `seed`.
     pub theta: f64,
 }
 
@@ -185,27 +145,16 @@ impl Default for LeidenConfig {
     }
 }
 
-impl From<&LeidenConfig> for LouvainConfig {
-    fn from(c: &LeidenConfig) -> Self {
-        LouvainConfig {
-            resolution: c.resolution,
-            max_passes: c.max_passes,
-            max_moves_per_pass: c.max_moves_per_pass,
-            seed: c.seed,
-        }
-    }
-}
-
-/// Leiden modularity clustering. Same shape as `detect`; differs in the
-/// algorithmic guarantees of the partition: every cluster is internally
-/// connected (Louvain doesn't guarantee this).
+/// Leiden modularity clustering over the file-graph derived from `entities`
+/// + `references`. `file_rank` is consulted only for representative
+/// selection (highest-rank file in each cluster, tiebreak by shortest path
+/// then lexicographic). Files with no rank entry are scored 0.0.
 ///
-/// Implementation: Louvain's local-moving phase produces an initial
-/// partition; a refinement phase splits any internally-disconnected
-/// community into its connected components; aggregation uses the
-/// refined partition. Repeated multi-level. The randomized
-/// well-connected refinement variant from Traag et al. (2019) is a
-/// follow-up.
+/// Every output community is guaranteed internally connected: the
+/// modularity-greedy local-moving phase produces an initial partition; a
+/// refinement phase splits any internally-disconnected community into its
+/// connected components; aggregation uses the refined partition. Repeated
+/// multi-level until convergence.
 pub fn detect_leiden(
     entities: &[Entity],
     references: &[Reference],
@@ -220,8 +169,7 @@ pub fn detect_leiden(
 }
 
 /// Bucket files by community id, decorate with representative + label,
-/// and renumber cluster ids to a stable 0..K. Shared by `detect` (Louvain)
-/// and `detect_leiden`.
+/// and renumber cluster ids to a stable 0..K.
 fn clusters_from_partition(
     community_of_node: Vec<usize>,
     nodes: &[String],
@@ -255,21 +203,22 @@ fn clusters_from_partition(
         .collect()
 }
 
-/// Leiden multi-level loop: Louvain local-moving + connectivity refinement
-/// + aggregation, until convergence. Returns `community_of_node[i]` =
-/// final community id of node `i` at the finest (input) level.
+/// Leiden multi-level loop: modularity-greedy local-moving + connectivity
+/// refinement + aggregation, until convergence. Returns
+/// `community_of_node[i]` = final community id of node `i` at the finest
+/// (input) level.
 fn leiden(adj: &[BTreeMap<usize, f64>], cfg: &LeidenConfig) -> Vec<usize> {
-    let louvain_cfg: LouvainConfig = cfg.into();
     let mut levels: Vec<Vec<usize>> = Vec::new();
     let mut current = adj.to_vec();
 
     for _ in 0..cfg.max_passes {
-        let raw_partition = local_moving(&current, &louvain_cfg);
-        let louvain_compact = compact_in_node_order(&raw_partition);
+        let raw_partition = local_moving(&current, cfg);
+        let coarse_compact = compact_in_node_order(&raw_partition);
         // Refinement: split any internally-disconnected community into its
-        // connected components. This is the Leiden guarantee that Louvain
-        // lacks — every refined community grows by BFS through actual edges.
-        let refined = refine_to_connected_components(&current, &louvain_compact);
+        // connected components. This is the headline Leiden guarantee that
+        // local-moving alone doesn't make — every refined community grows
+        // by BFS through actual edges.
+        let refined = refine_to_connected_components(&current, &coarse_compact);
         let refined_compact = compact_in_node_order(&refined);
         let distinct = refined_compact.iter().copied().max().map(|m| m + 1).unwrap_or(0);
         if distinct == current.len() {
@@ -350,75 +299,14 @@ fn refine_to_connected_components(
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// Louvain core. Operates on a generic adjacency vec so the aggregation
-// pass can recurse with the same code path.
+// Modularity local-moving. Operates on a generic adjacency vec so the
+// aggregation pass can recurse with the same code path.
 // ─────────────────────────────────────────────────────────────────────────
-
-/// Returns: `community_of_node[i]` = community id of node `i` at the
-/// finest (input) level.
-fn louvain(adj: &[BTreeMap<usize, f64>], cfg: &LouvainConfig) -> Vec<usize> {
-    // Multi-level partitions stack: outer[level] = "for each node at this
-    // level, which super-node does it map to at the next coarser level".
-    // We unfold this stack at the end to recover the original-node → final
-    // community map.
-    let mut levels: Vec<Vec<usize>> = Vec::new();
-    let mut current = adj.to_vec();
-
-    for _ in 0..cfg.max_passes {
-        let raw_partition = local_moving(&current, cfg);
-        // Renumber community ids in node order so partition[i] ∈ 0..K
-        // matches the super-node indices that `aggregate` will use. This
-        // is what makes the unfold step at the bottom of `louvain` valid:
-        // each level's partition vector indexes into the next level's
-        // node space.
-        let compact_partition = compact_in_node_order(&raw_partition);
-        let distinct = compact_partition.iter().copied().max().map(|m| m + 1).unwrap_or(0);
-        // Convergence check: if every node ended in its own singleton
-        // (no merges happened this pass), we're done — but still push the
-        // identity partition so unfolding visits every level.
-        if distinct == current.len() {
-            levels.push(compact_partition);
-            break;
-        }
-        levels.push(compact_partition.clone());
-        let aggregated = aggregate(&current, &compact_partition);
-        // Safety: if aggregation didn't actually shrink (shouldn't happen
-        // when distinct < current.len(), but guard anyway), exit before
-        // we waste another pass.
-        if aggregated.len() >= current.len() {
-            break;
-        }
-        current = aggregated;
-    }
-
-    // Unfold the levels: start with identity at level 0 and propagate up.
-    let n = adj.len();
-    let mut result: Vec<usize> = (0..n).collect();
-    for partition in &levels {
-        for slot in result.iter_mut() {
-            *slot = partition[*slot];
-        }
-    }
-    // Compact community ids to 0..K. Iterate in node order so the lowest-
-    // numbered node anchors each community's id assignment — that's what
-    // makes reruns produce the same cluster_id values.
-    let mut compact: HashMap<usize, usize> = HashMap::new();
-    let mut next_id: usize = 0;
-    for slot in result.iter_mut() {
-        let id = *compact.entry(*slot).or_insert_with(|| {
-            let id = next_id;
-            next_id += 1;
-            id
-        });
-        *slot = id;
-    }
-    result
-}
 
 /// Local moving phase: each node greedily picks the neighbor community
 /// that yields the largest positive Δmodularity. Repeats until no node
 /// moves in a full sweep, or `max_moves_per_pass` is exhausted.
-fn local_moving(adj: &[BTreeMap<usize, f64>], cfg: &LouvainConfig) -> Vec<usize> {
+fn local_moving(adj: &[BTreeMap<usize, f64>], cfg: &LeidenConfig) -> Vec<usize> {
     let n = adj.len();
     let mut comm: Vec<usize> = (0..n).collect();
 
@@ -736,7 +624,7 @@ mod tests {
     #[test]
     fn empty_input_returns_no_clusters() {
         let r = HashMap::new();
-        let out = detect(&[], &[], &r, &LouvainConfig::default());
+        let out = detect_leiden(&[], &[], &r, &LeidenConfig::default());
         assert!(out.is_empty());
     }
 
@@ -876,7 +764,7 @@ mod tests {
     #[test]
     fn isolated_files_each_become_their_own_cluster() {
         let entities = vec![ent("a.rs", "x"), ent("b.rs", "y"), ent("c.rs", "z")];
-        let out = detect(&entities, &[], &HashMap::new(), &LouvainConfig::default());
+        let out = detect_leiden(&entities, &[], &HashMap::new(), &LeidenConfig::default());
         assert_eq!(out.len(), 3, "no edges → each file is its own cluster");
         for c in &out {
             assert_eq!(c.size, 1);
@@ -914,7 +802,7 @@ mod tests {
                 }
             }
         }
-        let out = detect(&entities, &refs, &HashMap::new(), &LouvainConfig::default());
+        let out = detect_leiden(&entities, &refs, &HashMap::new(), &LeidenConfig::default());
         // Expect 2 clusters, each size 4.
         assert_eq!(out.len(), 2, "should detect two communities, got {:?}", out);
         let sizes: Vec<usize> = out.iter().map(|c| c.size).collect();
@@ -943,15 +831,15 @@ mod tests {
             refr("c.rs", Some("c"), "f4"),
             refr("d.rs", Some("c"), "f3"),
         ];
-        let first = detect(&entities, &refs, &HashMap::new(), &LouvainConfig::default());
-        let second = detect(&entities, &refs, &HashMap::new(), &LouvainConfig::default());
+        let first = detect_leiden(&entities, &refs, &HashMap::new(), &LeidenConfig::default());
+        let second = detect_leiden(&entities, &refs, &HashMap::new(), &LeidenConfig::default());
         assert_eq!(first, second);
     }
 
     #[test]
     fn cluster_ids_are_compact_zero_indexed() {
         let entities = vec![ent("a.rs", "x"), ent("b.rs", "y"), ent("c.rs", "z")];
-        let out = detect(&entities, &[], &HashMap::new(), &LouvainConfig::default());
+        let out = detect_leiden(&entities, &[], &HashMap::new(), &LeidenConfig::default());
         let ids: Vec<u32> = out.iter().map(|c| c.cluster_id).collect();
         assert_eq!(ids, vec![0, 1, 2]);
     }
@@ -973,7 +861,7 @@ mod tests {
         rank.insert("popular.rs".to_string(), 0.9);
         rank.insert("a.rs".to_string(), 0.05);
         rank.insert("b.rs".to_string(), 0.05);
-        let out = detect(&entities, &refs, &rank, &LouvainConfig::default());
+        let out = detect_leiden(&entities, &refs, &rank, &LeidenConfig::default());
         assert_eq!(out.len(), 1, "all three should cluster");
         assert_eq!(out[0].representative, "popular.rs");
     }
@@ -1062,22 +950,22 @@ mod tests {
             // One weak link between the two
             refr("b.rs", Some("c"), "f3"),
         ];
-        let low_res = detect(
+        let low_res = detect_leiden(
             &entities,
             &refs,
             &HashMap::new(),
-            &LouvainConfig {
+            &LeidenConfig {
                 resolution: 0.1,
-                ..LouvainConfig::default()
+                ..LeidenConfig::default()
             },
         );
-        let high_res = detect(
+        let high_res = detect_leiden(
             &entities,
             &refs,
             &HashMap::new(),
-            &LouvainConfig {
+            &LeidenConfig {
                 resolution: 5.0,
-                ..LouvainConfig::default()
+                ..LeidenConfig::default()
             },
         );
         // We don't pin exact cluster counts (depends on tie-breaks), but
