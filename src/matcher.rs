@@ -192,6 +192,7 @@ mod tests {
             kind: "function".to_string(),
             line_start: 1, line_end: 5,
             parent: None,
+            qualified_name: None,
             sig: Some(format!("def {}():", name)),
             meta: None,
             body_hash: body_hash.map(|s| s.to_string()),

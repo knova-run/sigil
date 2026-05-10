@@ -75,13 +75,16 @@ pub fn parse_single_file(
             .get(sym.name.as_str())
             .and_then(|raw| crate::entity::truncate_doc(raw));
 
+        let parent = sym.parent.clone();
+        let qualified_name = crate::entity::compose_qualified_name(parent.as_deref(), &sym.name);
         entities.push(Entity {
             file: file_path.to_string(),
             name: sym.name.clone(),
             kind: normalize_kind(&sym.kind),
             line_start: sym.line[0],
             line_end: sym.line[1],
-            parent: sym.parent.clone(),
+            parent,
+            qualified_name,
             sig,
             meta: markers,
             body_hash: hasher::body_hash(source, body_start, line_end),

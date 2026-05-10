@@ -12,6 +12,12 @@ pub struct Entity {
     pub line_end: u32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent: Option<String>,
+    /// Composed `<parent>::<leaf>` form when the entity sits inside a parent
+    /// (class, module). Mirrors what callers — esp. retrieval pipelines that
+    /// match a user question against indexed names — would otherwise have to
+    /// compute themselves. Always None for top-level entities.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub qualified_name: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sig: Option<String>,
     #[serde(default, skip_serializing_if = "is_none_or_empty")]
@@ -40,6 +46,34 @@ pub struct Entity {
     /// follow-up file read.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub doc: Option<String>,
+}
+
+/// Compose the `qualified_name` field at construction time.
+///
+/// When the entity has no parent, returns None — top-level entities are
+/// fully-qualified by their name alone.
+///
+/// When the entity has a parent and the name does NOT already start with
+/// the parent (e.g. Rust struct methods stored as `method_name` with
+/// `parent="StructName"`), returns `parent::name`.
+///
+/// When the parser stores the name as `Parent.leaf` (e.g. Python methods
+/// stored as `UserService.get_user`), strips the parent prefix from the
+/// leaf and emits `parent::leaf` form. This keeps the output uniform
+/// across language conventions — callers always see `Class::method`.
+pub fn compose_qualified_name(parent: Option<&str>, name: &str) -> Option<String> {
+    let parent = parent?;
+    if parent.is_empty() {
+        return None;
+    }
+    // Strip a leading `parent.` from the name if present (Python convention).
+    let prefix = format!("{parent}.");
+    let leaf = if let Some(rest) = name.strip_prefix(&prefix) {
+        rest
+    } else {
+        name
+    };
+    Some(format!("{parent}::{leaf}"))
 }
 
 /// Cap on a preserved doc string (per-entity). Tuned to keep multi-paragraph
@@ -75,9 +109,11 @@ fn is_none_or_empty(v: &Option<Vec<String>>) -> bool {
 
 /// Skip when `None` OR when visibility is explicitly `"private"` — the
 /// default visibility for items in most of the languages sigil parses.
-/// Callers that care about "was visibility populated at all" can inspect
-/// the raw JSONL on disk where the field continues to be written verbatim
-/// because the writer bypasses these predicates (see src/writer.rs).
+/// The on-disk JSONL written by `src/writer.rs` honors this same predicate
+/// (it serializes through serde just like CLI output), so a `private`
+/// visibility round-trips as the field being absent. Callers that need
+/// to distinguish "absent" from "explicitly private" should re-derive
+/// visibility from the parser rather than the JSONL.
 fn is_none_or_private(v: &Option<String>) -> bool {
     match v {
         None => true,

@@ -489,6 +489,7 @@ mod tests {
             line_start: lo,
             line_end: hi,
             parent: parent.map(String::from),
+            qualified_name: None,
             sig: None,
             meta: None,
             body_hash: None,

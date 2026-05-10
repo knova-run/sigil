@@ -686,6 +686,7 @@ mod tests {
             line_start: 1,
             line_end: 2,
             parent: None,
+            qualified_name: None,
             sig: None,
             meta: None,
             body_hash: None,

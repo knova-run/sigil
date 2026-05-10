@@ -28,14 +28,22 @@ sigil groups commands into two tiers:
     benchmark   Publishes median token reduction vs raw alternatives
 
   SCRIPT-FACING (raw, unbounded, JSON-friendly):
-    search      Substring search over symbols + file paths
-    symbols     All entities in a file
-    children    Entities under a parent
-    callers     All refs targeting a symbol (unbounded)
-    callees     What a symbol calls
-    explore     Directory overview
-    duplicates  Clone report across the codebase
-    cochange    Git-history file-pair co-change miner
+    search        Substring search over symbols + file paths
+    symbols       All entities in a file
+    children      Entities under a parent
+    callers       All refs targeting a symbol (unbounded)
+    callees       What a symbol calls
+    explore       Directory overview
+    duplicates    Clone report across the codebase
+    cochange      Git-history file-pair co-change miner
+    identifiers   Symbol-shaped tokens lifted from arbitrary text
+    decisions     `WHY:` / `DECISION:` / `TRADEOFF:` comment markers
+    package-deps  Dependency edges from manifest files (go.mod, package.json)
+    contracts     HTTP routes, gRPC services, queue topics
+    workspace     Discover child git repos under a parent directory
+    hotspots      File churn × line count risk score
+    ownership     Per-file primary author from git history
+    security-scan Lightweight regex security-signal extractor
 
   INSTALLERS (platform integrations, all idempotent):
     claude · cursor · codex · gemini · opencode · aider · copilot · hook
@@ -542,6 +550,16 @@ enum Cli {
         /// Pretty-print the JSON output.
         #[arg(long)]
         pretty: bool,
+        /// Workspace mode: scan this parent directory for child git repos
+        /// and emit cross-repo file pairs that change in the same time
+        /// window. JSONL on stdout (one edge per row). Bypasses the
+        /// per-repo `.sigil/cochange.json` cache.
+        #[arg(long)]
+        workspace: Option<PathBuf>,
+        /// Workspace mode: max seconds between two commits for them to
+        /// count as temporally-correlated.
+        #[arg(long, default_value = "86400")]
+        workspace_window_secs: i64,
     },
     /// Minimum-viable context for a symbol — signature, callers, callees,
     /// related types. One call replaces the read-6-files orientation loop.
@@ -662,6 +680,97 @@ enum Cli {
     },
     /// Update sigil to the latest release
     Update,
+    /// Extract symbol-shaped identifiers from arbitrary text.
+    ///
+    /// Deterministic regex-based extractor for CamelCase, snake_case, and
+    /// dotted-path tokens (e.g. `NearestCentroid`, `_local_density`,
+    /// `Class::method`). Used by retrieval pipelines that want to join a
+    /// natural-language question against indexed entity names. JSON array
+    /// of strings on stdout.
+    Identifiers {
+        /// Source text. Pass on the command line or via stdin (use `-`).
+        text: String,
+    },
+    /// Extract architectural-decision markers from source-file comments.
+    ///
+    /// Scans for `# DECISION:`, `# WHY:`, `# RATIONALE:`, `# TRADEOFF:`
+    /// (and `//` / `--` comment-style equivalents) anchors in source. Emits
+    /// one JSONL row per match — designed to feed the Knova runner's
+    /// decision intelligence layer.
+    Decisions {
+        /// Project root directory
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
+    },
+    /// Extract package dependency edges from manifest files.
+    ///
+    /// Currently supports `go.mod`. Emits one JSONL row per (manifest,
+    /// dependency, version) edge. Used by workspace-mode tooling to
+    /// detect cross-repo dependency relationships without an LLM call.
+    #[command(name = "package-deps")]
+    PackageDeps {
+        /// Project root directory
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
+    },
+    /// Extract HTTP / gRPC / queue contract entries (providers + consumers)
+    /// from source code.
+    ///
+    /// Used by workspace-mode tooling to match a route handler in one repo
+    /// against the HTTP client that calls it in another, without an LLM
+    /// call. MVP covers FastAPI HTTP providers; more frameworks land
+    /// incrementally.
+    Contracts {
+        /// Project root directory
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
+    },
+    /// Coordinator over multiple git repos under a parent directory.
+    Workspace {
+        #[command(subcommand)]
+        action: WorkspaceAction,
+    },
+    /// Rank files by commit-count churn × line-count complexity.
+    /// JSONL on stdout: { file, churn, lines, hotspot_score } sorted desc.
+    Hotspots {
+        /// Project root (must be a git repo)
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
+        /// How many recent commits to consider for churn.
+        #[arg(long, default_value = "500")]
+        commits: usize,
+    },
+    /// Per-file ownership from git log. JSONL on stdout:
+    /// { file, primary_owner, ownership_pct, author_count, commit_count }.
+    Ownership {
+        /// Project root (must be a git repo)
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
+        /// How many recent commits to walk.
+        #[arg(long, default_value = "500")]
+        commits: usize,
+    },
+    /// Regex-based security signal scan. JSONL on stdout:
+    /// { file, line, kind, severity }.
+    #[command(name = "security-scan")]
+    SecurityScan {
+        /// Project root directory
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
+    },
+}
+
+#[derive(Subcommand)]
+enum WorkspaceAction {
+    /// List child git repos under the workspace root. Emits one JSONL row
+    /// per repo with { repo, path }. Used by callers that iterate the
+    /// workspace and run per-repo primitives (decisions, contracts,
+    /// package-deps, ...).
+    Scan {
+        /// Workspace root directory (parent of the child git repos)
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
+    },
 }
 
 #[derive(Subcommand)]
@@ -1284,7 +1393,34 @@ fn main() {
                 }
             }
         }
-        Cli::Cochange { root, commits, min_support, max_files_per_commit, pretty } => {
+        Cli::Cochange { root, commits, min_support, max_files_per_commit, pretty, workspace, workspace_window_secs } => {
+            // Workspace mode short-circuits the per-repo path: cross-repo
+            // edges over child git repos under `workspace`, JSONL on stdout.
+            if let Some(parent) = workspace {
+                let cfg = sigil::cross_repo_cochange::CrossRepoConfig {
+                    window_secs: workspace_window_secs,
+                    commits_per_repo: commits as usize,
+                    min_strength: 0.0,
+                };
+                match sigil::cross_repo_cochange::mine(&parent, &cfg) {
+                    Ok(edges) => {
+                        for edge in edges {
+                            match serde_json::to_string(&edge) {
+                                Ok(s) => println!("{}", s),
+                                Err(e) => {
+                                    eprintln!("cochange: failed to serialize: {}", e);
+                                    std::process::exit(1);
+                                }
+                            }
+                        }
+                        return;
+                    }
+                    Err(e) => {
+                        eprintln!("cochange --workspace: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
             let cfg = sigil::cochange::CochangeConfig { commits, min_support, max_files_per_commit };
             match sigil::cochange::mine(&root, &cfg) {
                 Ok(manifest) => {
@@ -1540,6 +1676,107 @@ fn main() {
                 }
             }
         }
+        Cli::Identifiers { text } => {
+            let ids = sigil::identifiers::extract(&text);
+            match serde_json::to_string(&ids) {
+                Ok(s) => println!("{}", s),
+                Err(e) => {
+                    eprintln!("identifiers: failed to serialize: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+        Cli::Decisions { root } => {
+            for marker in sigil::decisions::extract_from_root(&root) {
+                match serde_json::to_string(&marker) {
+                    Ok(s) => println!("{}", s),
+                    Err(e) => {
+                        eprintln!("decisions: failed to serialize: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+        }
+        Cli::PackageDeps { root } => {
+            for edge in sigil::package_deps::extract_from_root(&root) {
+                match serde_json::to_string(&edge) {
+                    Ok(s) => println!("{}", s),
+                    Err(e) => {
+                        eprintln!("package-deps: failed to serialize: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+        }
+        Cli::Contracts { root } => {
+            for row in sigil::contracts::extract_from_root(&root) {
+                match serde_json::to_string(&row) {
+                    Ok(s) => println!("{}", s),
+                    Err(e) => {
+                        eprintln!("contracts: failed to serialize: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+        }
+        Cli::Workspace { action } => match action {
+            WorkspaceAction::Scan { root } => {
+                for entry in sigil::workspace::scan(&root) {
+                    match serde_json::to_string(&entry) {
+                        Ok(s) => println!("{}", s),
+                        Err(e) => {
+                            eprintln!("workspace scan: failed to serialize: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+            }
+        },
+        Cli::Hotspots { root, commits } => match sigil::hotspots::mine(&root, commits) {
+            Ok(rows) => {
+                for row in rows {
+                    match serde_json::to_string(&row) {
+                        Ok(s) => println!("{}", s),
+                        Err(e) => {
+                            eprintln!("hotspots: failed to serialize: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("hotspots: {}", e);
+                std::process::exit(1);
+            }
+        },
+        Cli::SecurityScan { root } => {
+            for finding in sigil::security_scan::scan_root(&root) {
+                match serde_json::to_string(&finding) {
+                    Ok(s) => println!("{}", s),
+                    Err(e) => {
+                        eprintln!("security-scan: failed to serialize: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+        }
+        Cli::Ownership { root, commits } => match sigil::ownership::mine(&root, commits) {
+            Ok(rows) => {
+                for row in rows {
+                    match serde_json::to_string(&row) {
+                        Ok(s) => println!("{}", s),
+                        Err(e) => {
+                            eprintln!("ownership: failed to serialize: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("ownership: {}", e);
+                std::process::exit(1);
+            }
+        },
     }
 }
 

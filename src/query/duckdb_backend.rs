@@ -282,7 +282,7 @@ impl DuckDbBackend {
         limit: usize,
     ) -> Result<Vec<Entity>> {
         let mut sql = String::from(
-            "SELECT file, name, kind, line_start, line_end, parent, sig, \
+            "SELECT file, name, kind, line_start, line_end, parent, qualified_name, sig, \
                     visibility, body_hash, sig_hash, struct_hash \
              FROM entities \
              WHERE file = ?",
@@ -315,7 +315,7 @@ impl DuckDbBackend {
         limit: usize,
     ) -> Result<Vec<Entity>> {
         let mut sql = String::from(
-            "SELECT file, name, kind, line_start, line_end, parent, sig, \
+            "SELECT file, name, kind, line_start, line_end, parent, qualified_name, sig, \
                     visibility, body_hash, sig_hash, struct_hash \
              FROM entities \
              WHERE file = ? AND parent = ?",
@@ -388,7 +388,7 @@ impl DuckDbBackend {
     ) -> Result<Vec<Entity>> {
         let needle = format!("%{}%", query.to_lowercase());
         let mut sql = String::from(
-            "SELECT file, name, kind, line_start, line_end, parent, sig, \
+            "SELECT file, name, kind, line_start, line_end, parent, qualified_name, sig, \
                     visibility, body_hash, sig_hash, struct_hash \
              FROM entities \
              WHERE lower(name) LIKE ?",
@@ -754,9 +754,11 @@ fn empty_entities_table_sql() -> &'static str {
     "CREATE TABLE entities (
         file VARCHAR, name VARCHAR, kind VARCHAR,
         line_start BIGINT, line_end BIGINT,
-        parent VARCHAR, sig VARCHAR, meta VARCHAR,
+        parent VARCHAR, qualified_name VARCHAR,
+        sig VARCHAR, meta VARCHAR,
         body_hash VARCHAR, sig_hash VARCHAR, struct_hash VARCHAR,
-        visibility VARCHAR, rank DOUBLE, blast_radius VARCHAR
+        visibility VARCHAR, rank DOUBLE, blast_radius VARCHAR,
+        doc VARCHAR
     );"
 }
 
@@ -785,6 +787,7 @@ const ENTITIES_COLUMNS_SPEC: &str = "{ \
     line_start: 'BIGINT', \
     line_end: 'BIGINT', \
     parent: 'VARCHAR', \
+    qualified_name: 'VARCHAR', \
     sig: 'VARCHAR', \
     meta: 'JSON', \
     body_hash: 'VARCHAR', \
@@ -792,7 +795,8 @@ const ENTITIES_COLUMNS_SPEC: &str = "{ \
     struct_hash: 'VARCHAR', \
     visibility: 'VARCHAR', \
     rank: 'DOUBLE', \
-    blast_radius: 'JSON' \
+    blast_radius: 'JSON', \
+    doc: 'VARCHAR' \
 }";
 
 const REFS_COLUMNS_SPEC: &str = "{ \
@@ -852,13 +856,16 @@ fn lang_for(file: &str) -> Option<&'static str> {
 }
 
 /// Hydrate the subset of `Entity` that the DuckDB backend extracts —
-/// scalar columns only. `meta`, `rank`, and `blast_radius` stay `None`
-/// because reading them back requires DuckDB STRUCT/LIST parsing that
-/// isn't necessary for the query methods we serve today. Any consumer
-/// that needs the full struct should load the in-memory `Index` (which
-/// parses JSONL directly into the Rust struct and keeps every field).
+/// scalar columns only. `meta`, `rank`, `blast_radius`, and `doc` stay
+/// `None` because reading them back requires DuckDB STRUCT/LIST parsing
+/// (or, for `doc`, just isn't surfaced by today's query methods). Any
+/// consumer that needs the full struct should load the in-memory `Index`
+/// (which parses JSONL directly into the Rust struct and keeps every
+/// field).
 ///
-/// Column order must match the SELECT lists in the methods above.
+/// Column order must match the SELECT lists in the methods above:
+/// file, name, kind, line_start, line_end, parent, qualified_name, sig,
+/// visibility, body_hash, sig_hash, struct_hash.
 fn row_to_entity(row: &duckdb::Row<'_>) -> duckdb::Result<Entity> {
     Ok(Entity {
         file: row.get::<_, String>(0)?,
@@ -867,12 +874,13 @@ fn row_to_entity(row: &duckdb::Row<'_>) -> duckdb::Result<Entity> {
         line_start: row.get::<_, i64>(3)? as u32,
         line_end: row.get::<_, i64>(4)? as u32,
         parent: row.get::<_, Option<String>>(5)?,
-        sig: row.get::<_, Option<String>>(6)?,
+        qualified_name: row.get::<_, Option<String>>(6)?,
+        sig: row.get::<_, Option<String>>(7)?,
         meta: None,
-        body_hash: row.get::<_, Option<String>>(8)?,
-        sig_hash: row.get::<_, Option<String>>(9)?,
-        struct_hash: row.get::<_, String>(10)?,
-        visibility: row.get::<_, Option<String>>(7)?,
+        body_hash: row.get::<_, Option<String>>(9)?,
+        sig_hash: row.get::<_, Option<String>>(10)?,
+        struct_hash: row.get::<_, String>(11)?,
+        visibility: row.get::<_, Option<String>>(8)?,
         rank: None,
         blast_radius: None,
         doc: None,
@@ -968,6 +976,7 @@ mod tests {
             line_start: 1,
             line_end: 2,
             parent: None,
+            qualified_name: None,
             sig: None,
             meta: None,
             body_hash: Some("d".to_string()),

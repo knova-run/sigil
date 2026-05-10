@@ -473,7 +473,15 @@ Script-facing commands default to unbounded results and minified `--json` output
 | `sigil callees <caller> [--kind K] [--group-by file\|name\|kind]` | What a symbol calls. Same `--group-by` support. |
 | `sigil explore [--path PATH]` | Directory overview with file counts by language. |
 | `sigil duplicates [--min-lines N]` | Clone report across the codebase (groups by `body_hash`). |
-| `sigil cochange [--commits N]` | Mine git history for file-pair co-change weights (`.sigil/cochange.json`). |
+| `sigil cochange [--commits N] [--workspace DIR]` | Mine git history for file-pair co-change weights (`.sigil/cochange.json`). With `--workspace` mines cross-repo edges across child git repos under DIR. |
+| `sigil identifiers "<text>"` | Extract symbol-shaped tokens (CamelCase, snake_case, `Class::method`, `module.func`) from arbitrary text — feeds retrieval pipelines that match user questions against indexed names. |
+| `sigil decisions [--root DIR]` | Scan source comments for architectural-decision anchors (`# WHY:`, `# DECISION:`, `# TRADEOFF:`, `# RATIONALE:`, `# ADR:`, `# REJECTED:`). |
+| `sigil package-deps [--root DIR]` | Dependency edges from manifest files. Currently `go.mod` and `package.json`. |
+| `sigil contracts [--root DIR]` | HTTP routes (FastAPI / Express / axios), gRPC services (`.proto`), and Kafka-style topics. Cross-repo matchable via normalized `contract_id`. |
+| `sigil workspace scan [--root DIR]` | Discover child git repos under a parent directory. |
+| `sigil hotspots [--root DIR] [--commits N]` | File churn × line count risk score. |
+| `sigil ownership [--root DIR] [--commits N]` | Per-file primary author from git history. |
+| `sigil security-scan [--root DIR]` | Regex security-signal extractor (eval/exec, pickle.loads, hardcoded secrets, weak hashes, `verify=False`). Language-aware so Rust `cmd.exec(...)` doesn't false-positive. |
 
 ### Admin & data pipeline
 

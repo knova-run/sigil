@@ -26,3 +26,4 @@ skills/sigil-workspace/
 .sigil/index.duckdb
 .sigil/index.duckdb.stamp
 .sigil/index.duckdb.wal
+.claude/
