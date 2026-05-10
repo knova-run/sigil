@@ -47,6 +47,7 @@ sigil groups commands into two tiers:
     log           Filtered git log: `--significant <file>` keeps intent-bearing commits
     security-scan Lightweight regex security-signal extractor
     communities   Leiden modularity clustering over the file graph
+    dead-code     Framework-aware dead-code detection with confidence tiers
 
   INSTALLERS (platform integrations, all idempotent):
     claude · cursor · codex · gemini · opencode · aider · copilot · hook
@@ -827,6 +828,42 @@ enum Cli {
         /// Pretty-print as a JSON array instead of streaming NDJSON.
         #[arg(long)]
         pretty: bool,
+    },
+    /// Framework-aware dead-code detection with confidence tiers.
+    /// JSONL on stdout: { kind, file, name?, entity_kind?, line_start?,
+    /// confidence, dynamic_name_match?, recent_activity }.
+    ///
+    /// Confidence tiers:
+    ///   1.00 = file with zero incoming graph edges AND not a framework entry point
+    ///   0.85 = exported symbol with zero call sites AND not a dynamic-name match
+    ///   0.70 = internal helper with zero call sites
+    ///   <0.70 = surfaced only with --include-low-confidence
+    ///
+    /// Framework patterns currently cover: Flask, FastAPI, Django (Python);
+    /// net/http, chi, gin, echo (Go); Express, NestJS (TS/JS).
+    /// Dynamic-name suffixes excluded: Plugin / Handler / Adapter /
+    /// Middleware / Provider / Factory / Service.
+    #[command(name = "dead-code")]
+    DeadCode {
+        /// Project root directory (must have a `.sigil/` index; one will
+        /// be built on the fly if missing).
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
+        /// Filter to confidence ≥ 0.70 — the CI-safe tier.
+        #[arg(long)]
+        safe_only: bool,
+        /// Include candidates with confidence < 0.70 (off by default —
+        /// dynamic-name matches and other heuristic-flagged symbols).
+        #[arg(long)]
+        include_low_confidence: bool,
+        /// Activity window for `recent_activity` flag, in days.
+        #[arg(long, default_value = "30")]
+        activity_window_days: u64,
+        /// Additional regex(es) of names to exclude. Repeatable. Useful
+        /// for project-specific naming conventions that don't fit the
+        /// default dynamic-name suffix list.
+        #[arg(long)]
+        exclude_pattern: Vec<String>,
     },
 }
 
@@ -1949,6 +1986,50 @@ fn main() {
                             std::process::exit(1);
                         }
                     }
+                }
+            }
+        }
+        Cli::DeadCode {
+            root,
+            safe_only,
+            include_low_confidence,
+            activity_window_days,
+            exclude_pattern,
+        } => {
+            // Compile user-supplied regexes once; bail with a friendly
+            // message if any are malformed rather than panicking inside
+            // the worker loop.
+            let mut exclude_patterns = Vec::with_capacity(exclude_pattern.len());
+            for s in &exclude_pattern {
+                match regex::Regex::new(s) {
+                    Ok(re) => exclude_patterns.push(re),
+                    Err(e) => {
+                        eprintln!("dead-code: invalid --exclude-pattern `{}`: {}", s, e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+            let cfg = sigil::dead_code::DeadCodeConfig {
+                safe_only,
+                include_low_confidence,
+                activity_window_days,
+                exclude_patterns,
+            };
+            match sigil::dead_code::find_dead_code(&root, &cfg) {
+                Ok(rows) => {
+                    for row in rows {
+                        match serde_json::to_string(&row) {
+                            Ok(s) => println!("{}", s),
+                            Err(e) => {
+                                eprintln!("dead-code: failed to serialize: {}", e);
+                                std::process::exit(1);
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("dead-code: {}", e);
+                    std::process::exit(1);
                 }
             }
         }

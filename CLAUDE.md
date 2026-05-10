@@ -27,7 +27,7 @@ src/
                                      explore, duplicates, cochange, query, diff, index,
                                      identifiers, decisions, package-deps, contracts,
                                      workspace, hotspots, ownership, bus-factor, log,
-                                     security-scan, communities
+                                     security-scan, communities, dead-code
                       Installers:    claude, cursor, codex, gemini, opencode, aider,
                                      copilot, hook
   entity.rs        — Entity + Reference structs (serde); visibility, rank,
@@ -84,6 +84,11 @@ src/
   bus_factor.rs         — `sigil bus-factor` — per-file knowledge-concentration risk
   log_significant.rs    — `sigil log --significant` — intent-filtered git log per file
   security_scan.rs      — `sigil security-scan` — regex security-signal extractor
+  dead_code.rs          — `sigil dead-code` — framework-aware dead-code detection
+                          with confidence tiers (file 1.00, exported orphan 0.85,
+                          internal helper 0.70); excludes Flask/FastAPI/Django,
+                          chi/gin/echo, Express/NestJS route files and
+                          `*Handler`/`*Plugin`/`*Service` dynamic-name exports
 
   query/
     mod.rs               — Backend router (InMemory | DuckDb), format_* helpers
