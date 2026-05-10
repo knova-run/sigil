@@ -46,6 +46,27 @@ pub struct Entity {
     /// follow-up file read.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub doc: Option<String>,
+
+    /// Heritage edges this entity participates in. Currently populated for
+    /// Go struct embedding (`type Foo struct { Bar }` ⇒ Foo embeds Bar).
+    /// Empty vec is elided from JSON. Interface-implementation detection is
+    /// not yet wired up (Go interfaces are structural — a separate pass).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub heritage: Vec<HeritageEdge>,
+}
+
+/// One heritage relationship between two entities — e.g. struct embedding,
+/// class extension, interface implementation. The `target` is the bare name
+/// of the referenced entity (qualified when the parser can resolve it via
+/// the file-local import table; bare otherwise). Resolution at the JSONL
+/// layer is left to consumers, who already index entities by `name`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct HeritageEdge {
+    /// `"embed"` for Go struct embedding. Reserved values: `"extend"`,
+    /// `"implement"`, `"trait_impl"`.
+    pub kind: String,
+    /// Name (possibly qualified) of the parent / embedded entity.
+    pub target: String,
 }
 
 /// Compose the `qualified_name` field at construction time.
@@ -268,7 +289,7 @@ mod is_test_path_tests {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Reference {
     pub file: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -281,4 +302,13 @@ pub struct Reference {
     #[serde(rename = "kind", alias = "ref_kind")]
     pub ref_kind: String,
     pub line: u32,
+    /// Resolver confidence for this edge. `1.0` = exact same-file resolution
+    /// (the caller and callee both live in this file's symbol table).
+    /// `0.8` = call resolved through a file-local import alias to a
+    /// qualified package path (e.g. `fmt.Println` → `fmt/Println`).
+    /// `None` = bare textual reference, no resolution attempted (the legacy
+    /// behaviour). Old refs.jsonl rows round-trip as `None` so existing
+    /// indexes keep loading without a re-build.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub confidence: Option<f64>,
 }

@@ -561,6 +561,7 @@ fn extract_class(
                 line: node_line_range(super_node),
                 caller: Some(full_name.clone()),
                 project: String::new(),
+                confidence: None,
             });
         }
     }
@@ -776,6 +777,7 @@ fn extract_call(
                                 line,
                                 caller: None,
                                 project: String::new(),
+                                confidence: None,
                             });
                         }
                     }
@@ -805,6 +807,7 @@ fn extract_call(
                         line,
                         caller: parent_ctx.map(String::from),
                         project: String::new(),
+                        confidence: None,
                     });
                 }
             }

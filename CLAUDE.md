@@ -26,7 +26,8 @@ src/
                       Script-facing: search, symbols, children, callers, callees,
                                      explore, duplicates, cochange, query, diff, index,
                                      identifiers, decisions, package-deps, contracts,
-                                     workspace, hotspots, ownership, security-scan
+                                     workspace, hotspots, ownership, security-scan,
+                                     heritage
                       Installers:    claude, cursor, codex, gemini, opencode, aider,
                                      copilot, hook
   entity.rs        — Entity + Reference structs (serde); visibility, rank,
@@ -75,6 +76,7 @@ src/
   hotspots.rs           — `sigil hotspots` — file churn × line count risk score
   ownership.rs          — `sigil ownership` — per-file primary author from git log
   security_scan.rs      — `sigil security-scan` — regex security-signal extractor
+  heritage.rs           — `sigil heritage <symbol>` — heritage (embed/extend/impl) graph
 
   query/
     mod.rs               — Backend router (InMemory | DuckDb), format_* helpers
@@ -148,6 +150,8 @@ evals/
 - `kind: "constant"` covers Python ALL_CAPS module/class assignments, Rust `const`/`static`, Go `const`/package-level `var`, TS/JS top-level `const NAME`, Java `static final`, C# `const`/`static readonly`, C++ `constexpr`/`#define`. `Entity.sig` is the literal RHS value text (truncated at 256 chars with `…`). Lowercase Python/JS variables stay `kind: "variable"` with the same sig wiring.
 - `sigil where` includes constants in `DEFINITION_KINDS` — module-level tunables resolve like functions; variables and imports stay excluded.
 - `Entity.doc` carries the author-provided description (Python docstring first-statement, Rust `///` / `/** */`, godoc, JSDoc `/** */` for JS/TS, Javadoc for Java, XML-doc `///` for C#, Doxygen `///` / `//!` / `/** */` / `/*! */` for C++) when present, truncated at 1024 chars. Surfaced in `code.context` markdown as a `## Doc` section between Signature and Body, and in the agent JSON view under short key `d`.
+- `Entity.heritage` is an optional `Vec<HeritageEdge { kind, target }>` populated for Go struct embedding today (kind `"embed"`). Empty vecs are elided from JSONL. The on-disk shape is forward-compatible with future kinds (`"extend"`, `"implement"`, `"trait_impl"`).
+- `Reference.confidence` is an optional `f64` carried on edges that have been resolved through a file-local symbol/import table. Tiers: `1.0` = same-file bare-identifier call (the caller and callee are both in this file's symbol set); `0.8` = call resolved via a Go import alias to a qualified package path (e.g. `fmt.Println` → `fmt/Println`); `None` = unresolved bare textual reference (legacy behaviour for the other languages).
 - JSON diff: parent-aware matching `(file, parent, name)` prevents cross-matching (e.g., `body.text` vs `header.text`)
 - JSON diff: `_`-prefixed fields are marked as derived and suppressed from output
 - JSON diff: array items expanded with identity key heuristic (`id` > `key` > `name` > `text` > `type`), positional fallback
@@ -187,6 +191,7 @@ sigil callers struct_hash [--kind call|import|type_annotation|instantiation]
 sigil callees build_index
 sigil duplicates --min-lines 10
 sigil cochange --commits 500               # → .sigil/cochange.json
+sigil heritage Embedder                    # Go struct-embedding graph (in/out edges)
 
 # DuckDB (baked into shipped release binaries since 0.3.2)
 sigil query "SELECT kind, COUNT(*) FROM entities GROUP BY kind ORDER BY 2 DESC"

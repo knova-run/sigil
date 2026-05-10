@@ -98,6 +98,7 @@ mod tests {
             rank: None,
             blast_radius: None,
             doc: None,
+            heritage: Vec::new(),
         }
     }
 
@@ -120,6 +121,7 @@ mod tests {
             name: "Config".to_string(),
             ref_kind: "instantiation".to_string(),
             line: 50,
+            confidence: None,
         }];
         let mut buf = Vec::new();
         write_refs_jsonl(&refs, &mut buf, false).unwrap();

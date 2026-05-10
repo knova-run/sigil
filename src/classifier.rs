@@ -137,6 +137,7 @@ mod tests {
             rank: None,
             blast_radius: None,
             doc: None,
+            heritage: Vec::new(),
         }
     }
 

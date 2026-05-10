@@ -771,6 +771,7 @@ mod json_emit_tests {
                 transitive_callers: 7,
             }),
             doc: None,
+            heritage: Vec::new(),
         }
     }
 
@@ -792,6 +793,7 @@ mod json_emit_tests {
             rank: None,
             blast_radius: Some(BlastRadius::default()), // all zeros
             doc: None,
+            heritage: Vec::new(),
         }
     }
 
@@ -858,6 +860,7 @@ mod json_emit_tests {
             name: "foo".into(),
             ref_kind: "call".into(),
             line: 7,
+            confidence: None,
         };
         let s = serde_json::to_string(&r).unwrap();
         assert!(s.contains("\"kind\":\"call\""));

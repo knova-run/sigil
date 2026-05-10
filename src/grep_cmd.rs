@@ -499,6 +499,7 @@ mod tests {
             rank: None,
             blast_radius: Some(BlastRadius::default()),
             doc: None,
+            heritage: Vec::new(),
         }
     }
 

@@ -414,6 +414,7 @@ fn extract_table_entities(
             rank: None,
             blast_radius: None,
             doc: None,
+            heritage: Vec::new(),
         });
 
         // Recurse into nested tables

@@ -299,6 +299,7 @@ fn extract_call_ref(
         line,
         caller: parent_ctx.map(String::from),
         project: String::new(),
+        confidence: None,
     });
 }
 
@@ -432,6 +433,7 @@ fn extract_type_ref(
         line,
         caller: parent_ctx.map(String::from),
         project: String::new(),
+        confidence: None,
     });
 }
 
@@ -738,6 +740,7 @@ fn extract_include(
             line,
             caller: None,
             project: String::new(),
+            confidence: None,
         });
     }
 }

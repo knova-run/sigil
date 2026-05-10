@@ -544,6 +544,7 @@ fn extract_call_ref(
         line,
         caller: parent_ctx.map(String::from),
         project: String::new(),
+        confidence: None,
     });
 }
 
@@ -573,6 +574,7 @@ fn extract_new_ref(
         line,
         caller: parent_ctx.map(String::from),
         project: String::new(),
+        confidence: None,
     });
 }
 
@@ -644,6 +646,7 @@ fn extract_type_ref(
         line,
         caller: parent_ctx.map(String::from),
         project: String::new(),
+        confidence: None,
     });
 }
 
@@ -814,6 +817,7 @@ fn extract_declaration(
                             visibility: Some(visibility.clone()),
                             sig,
                             project: String::new(),
+                            heritage: Vec::new(),
                         });
                     }
                 }
@@ -1231,6 +1235,7 @@ fn extract_include(
             line,
             caller: None,
             project: String::new(),
+            confidence: None,
         });
     }
 }
@@ -1268,6 +1273,7 @@ fn extract_macro(node: Node, source: &[u8], file_path: &str, symbols: &mut Vec<S
         visibility: Some("public".to_string()),
         sig,
         project: String::new(),
+        heritage: Vec::new(),
     });
 }
 

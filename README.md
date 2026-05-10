@@ -29,6 +29,7 @@ Measured with the GPT-4o/o3 BPE tokenizer. Reproduce with `sigil benchmark` on y
 - `sigil callees <caller>` — what a symbol depends on.
 - `sigil symbols <file>` / `sigil children <file> <parent>` / `sigil search <q>` — precise AST lookups, not regex guesses.
 - `sigil duplicates` — clone report (free — sigil already hashes entity bodies).
+- `sigil heritage <symbol>` — inbound/outbound heritage edges (Go struct embedding today; class extension and trait impls land incrementally).
 
 **For AI agents — one-shot primitives that fit a context window:**
 - `sigil where <symbol>` — single-shot definition locator. Returns file + line + class + signature + overloads in one call. Replaces the grep-narrow-read_file chain.

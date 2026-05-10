@@ -44,6 +44,7 @@ sigil groups commands into two tiers:
     hotspots      File churn × line count risk score
     ownership     Per-file primary author from git history
     security-scan Lightweight regex security-signal extractor
+    heritage      Struct embedding / extension / impl graph for a symbol
 
   INSTALLERS (platform integrations, all idempotent):
     claude · cursor · codex · gemini · opencode · aider · copilot · hook
@@ -757,6 +758,24 @@ enum Cli {
         /// Project root directory
         #[arg(short, long, default_value = ".")]
         root: PathBuf,
+    },
+    /// Heritage graph for a symbol — outgoing edges (this symbol embeds /
+    /// extends / implements X) and incoming edges (Y embeds / extends /
+    /// implements this symbol).
+    ///
+    /// Currently only Go struct embedding populates the graph; future
+    /// extractors will add class extension, interface implementation, and
+    /// trait impl edges through the same schema.
+    Heritage {
+        /// Symbol name to query. Matches the entity's bare name, or the
+        /// tail segment of a `pkg.Foo`-shaped heritage target.
+        symbol: String,
+        /// Project root directory
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
+        /// Pretty-print the JSON output.
+        #[arg(long)]
+        pretty: bool,
     },
 }
 
@@ -1777,6 +1796,20 @@ fn main() {
                 std::process::exit(1);
             }
         },
+        Cli::Heritage { symbol, root, pretty } => {
+            let idx = query::load(&root)
+                .unwrap_or_else(|e| { eprintln!("error: {}", e); std::process::exit(1); });
+            let report = sigil::heritage::build_report(&idx, &symbol);
+            println!("{}", sigil::heritage::render_json(&report, pretty));
+            // Exit non-zero when the symbol has no edges in either direction
+            // and no matching definition — same convention as `sigil blast`.
+            if report.definitions.is_empty()
+                && report.incoming.is_empty()
+                && report.outgoing.is_empty()
+            {
+                std::process::exit(2);
+            }
+        }
     }
 }
 

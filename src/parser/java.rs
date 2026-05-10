@@ -467,6 +467,7 @@ fn extract_call_ref(
         line,
         caller: parent_ctx.map(String::from),
         project: String::new(),
+        confidence: None,
     });
 }
 
@@ -497,6 +498,7 @@ fn extract_new_ref(
         line,
         caller: parent_ctx.map(String::from),
         project: String::new(),
+        confidence: None,
     });
 }
 
@@ -574,6 +576,7 @@ fn extract_type_refs(
         line,
         caller: parent_ctx.map(String::from),
         project: String::new(),
+        confidence: None,
     });
 }
 
@@ -829,6 +832,7 @@ fn extract_field(
                 visibility: Some(visibility.clone()),
                 sig,
                 project: String::new(),
+                heritage: Vec::new(),
             });
         }
     }
@@ -867,6 +871,7 @@ fn extract_import(
                 line,
                 caller: None,
                 project: String::new(),
+                confidence: None,
             });
         }
     }

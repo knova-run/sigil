@@ -373,6 +373,7 @@ fn extract_array_items(
             rank: None,
             blast_radius: None,
             doc: None,
+            heritage: Vec::new(),
         });
 
         // Recurse into object items to extract their properties as children
@@ -447,6 +448,7 @@ fn extract_object_entities(
             rank: None,
             blast_radius: None,
             doc: None,
+            heritage: Vec::new(),
         });
 
         // Recurse into nested objects

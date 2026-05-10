@@ -308,6 +308,7 @@ pub fn push_symbol(
         visibility,
         sig: None,
         project: String::new(),
+        heritage: Vec::new(),
     });
 }
 

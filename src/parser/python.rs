@@ -395,6 +395,7 @@ fn extract_import(
                     line,
                     caller: None,
                     project: String::new(),
+                    confidence: None,
                 });
             }
             "aliased_import" => {
@@ -422,6 +423,7 @@ fn extract_import(
                         line,
                         caller: None,
                         project: String::new(),
+                        confidence: None,
                     });
                 }
             }
@@ -481,6 +483,7 @@ fn extract_import_from(
                     line,
                     caller: None,
                     project: String::new(),
+                    confidence: None,
                 });
             }
             "aliased_import" => {
@@ -513,6 +516,7 @@ fn extract_import_from(
                         line,
                         caller: None,
                         project: String::new(),
+                        confidence: None,
                     });
                 }
             }
@@ -541,6 +545,7 @@ fn extract_import_from(
                     line,
                     caller: None,
                     project: String::new(),
+                    confidence: None,
                 });
             }
             _ => {}
@@ -614,6 +619,7 @@ fn extract_assignment(
         visibility: Some(visibility),
         sig,
         project: String::new(),
+        heritage: Vec::new(),
     });
 }
 
@@ -663,6 +669,7 @@ fn extract_call(
         line,
         caller: parent_ctx.map(String::from),
         project: String::new(),
+        confidence: None,
     });
 }
 

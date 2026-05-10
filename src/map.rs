@@ -700,6 +700,7 @@ mod tests {
                 transitive_callers: 0,
             }),
             doc: None,
+            heritage: Vec::new(),
         }
     }
 
@@ -799,6 +800,7 @@ mod tests {
                     name: "foo".to_string(),
                     ref_kind: "call".to_string(),
                     line: 42,
+                    confidence: None,
                 },
             ],
         );

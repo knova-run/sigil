@@ -291,6 +291,7 @@ fn extract_rust_const(
         visibility: Some(visibility),
         sig,
         project: String::new(),
+        heritage: Vec::new(),
     });
 }
 
@@ -540,6 +541,7 @@ fn extract_use_paths(
                     line: *line,
                     caller: None,
                     project: String::new(),
+                    confidence: None,
                 });
             }
         }
@@ -572,6 +574,7 @@ fn extract_use_paths(
                 line: *line,
                 caller: None,
                 project: String::new(),
+                confidence: None,
             });
         }
         "scoped_identifier" | "identifier" => {
@@ -595,6 +598,7 @@ fn extract_use_paths(
                 line: *line,
                 caller: None,
                 project: String::new(),
+                confidence: None,
             });
         }
         _ => {
@@ -657,6 +661,7 @@ fn extract_call(
         line,
         caller: parent_ctx.map(String::from),
         project: String::new(),
+        confidence: None,
     });
 }
 
@@ -729,6 +734,7 @@ fn extract_type_refs_from_node(
                         line: node_line_range(n),
                         caller: parent_ctx.map(String::from),
                         project: String::new(),
+                        confidence: None,
                     });
                 }
             }
@@ -742,6 +748,7 @@ fn extract_type_refs_from_node(
                         line: node_line_range(n),
                         caller: parent_ctx.map(String::from),
                         project: String::new(),
+                        confidence: None,
                     });
                 }
                 continue; // Don't recurse into children
@@ -758,6 +765,7 @@ fn extract_type_refs_from_node(
                             line: node_line_range(type_node),
                             caller: parent_ctx.map(String::from),
                             project: String::new(),
+                            confidence: None,
                         });
                     }
                 }

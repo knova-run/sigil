@@ -1,10 +1,24 @@
 //! Go symbol and text extraction.
 
+use std::collections::HashMap;
+
 use tree_sitter::{Node, Tree};
 
 use crate::parser::format::{ReferenceEntry, SymbolEntry, TextEntry};
 use crate::parser::helpers::*;
 use crate::parser::treesitter::MAX_DEPTH;
+
+/// File-local Go import-resolution table.
+///
+/// Maps the bare identifier a Go file uses to refer to a package — the
+/// alias when one is given (`import io "io/ioutil"` ⇒ `"io"`), otherwise
+/// the last segment of the import path (`import "encoding/json"` ⇒
+/// `"json"`) — to the fully-qualified import path.
+///
+/// Built once per file before symbol/ref walking, then passed read-only to
+/// the call extractor. Used to upgrade an unresolved `pkg.Func` selector
+/// into a confidence-tagged edge against the package path.
+type ImportTable = HashMap<String, String>;
 
 pub fn extract(
     tree: &Tree,
@@ -15,7 +29,45 @@ pub fn extract(
     references: &mut Vec<ReferenceEntry>,
 ) {
     let root = tree.root_node();
-    walk_node(root, source, file_path, None, symbols, texts, references, 0);
+    // Pre-pass: walk the whole tree just for `import_declaration` nodes so
+    // call/ref extraction below sees a complete alias map even when imports
+    // appear deeper than the file's top level (rare, but valid Go).
+    let imports = collect_imports(root, source);
+    walk_node(
+        root, source, file_path, None, symbols, texts, references, 0, &imports,
+    );
+}
+
+/// Walk the parse tree once just to populate the per-file `ImportTable`.
+fn collect_imports(root: Node, source: &[u8]) -> ImportTable {
+    let mut table = ImportTable::new();
+    let mut stack = vec![root];
+    while let Some(n) = stack.pop() {
+        if n.kind() == "import_spec" {
+            // path is mandatory; alias optional
+            if let Some(path_node) = find_child_by_field(n, "path") {
+                let path = strip_string_quotes(&node_text(path_node, source));
+                if !path.is_empty() {
+                    let alias = find_child_by_field(n, "name").map(|a| node_text(a, source));
+                    let local_name = match alias.as_deref() {
+                        // Blank/dot imports introduce no usable local name.
+                        Some("_") | Some(".") => continue,
+                        Some(a) => a.to_string(),
+                        None => path.rsplit('/').next().unwrap_or(&path).to_string(),
+                    };
+                    if !local_name.is_empty() {
+                        table.insert(local_name, path);
+                    }
+                }
+            }
+            continue;
+        }
+        let mut cursor = n.walk();
+        for child in n.children(&mut cursor) {
+            stack.push(child);
+        }
+    }
+    table
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -28,6 +80,7 @@ fn walk_node(
     texts: &mut Vec<TextEntry>,
     references: &mut Vec<ReferenceEntry>,
     depth: usize,
+    imports: &ImportTable,
 ) {
     // Prevent stack overflow on deeply nested code
     if depth > MAX_DEPTH {
@@ -38,11 +91,15 @@ fn walk_node(
 
     match kind {
         "function_declaration" => {
-            extract_function(node, source, file_path, symbols, texts, references, depth);
+            extract_function(
+                node, source, file_path, symbols, texts, references, depth, imports,
+            );
             return; // handled recursively
         }
         "method_declaration" => {
-            extract_method(node, source, file_path, symbols, texts, references, depth);
+            extract_method(
+                node, source, file_path, symbols, texts, references, depth, imports,
+            );
             return; // handled recursively
         }
         "type_declaration" => {
@@ -65,7 +122,7 @@ fn walk_node(
             extract_package(node, source, file_path, symbols);
         }
         "call_expression" => {
-            extract_call(node, source, file_path, parent_ctx, references);
+            extract_call(node, source, file_path, parent_ctx, references, imports);
         }
         "comment" => {
             extract_go_comment(node, source, file_path, parent_ctx, texts);
@@ -143,6 +200,7 @@ fn walk_node(
             texts,
             references,
             depth + 1,
+            imports,
         );
     }
 }
@@ -208,6 +266,7 @@ fn extract_function(
     texts: &mut Vec<TextEntry>,
     references: &mut Vec<ReferenceEntry>,
     depth: usize,
+    imports: &ImportTable,
 ) {
     let name = match find_child_by_field(node, "name") {
         Some(n) => node_text(n, source),
@@ -257,6 +316,7 @@ fn extract_function(
                 texts,
                 references,
                 depth + 1,
+                imports,
             );
         }
     }
@@ -271,6 +331,7 @@ fn extract_method(
     texts: &mut Vec<TextEntry>,
     references: &mut Vec<ReferenceEntry>,
     depth: usize,
+    imports: &ImportTable,
 ) {
     let name = match find_child_by_field(node, "name") {
         Some(n) => node_text(n, source),
@@ -348,6 +409,7 @@ fn extract_method(
                 texts,
                 references,
                 depth + 1,
+                imports,
             );
         }
     }
@@ -398,17 +460,11 @@ fn extract_type_spec(
         })
         .unwrap_or("type_alias");
 
-    push_symbol(
-        symbols,
-        file_path,
-        name.clone(),
-        kind,
-        line,
-        parent_ctx,
-        None,
-        None,
-        Some(visibility),
-    );
+    // Embed targets collected here, then attached to the just-pushed
+    // SymbolEntry once we know its index. Go interfaces could also embed
+    // interfaces, but interface-impl detection is deferred (interfaces in
+    // Go are structural — would need a separate cross-file pass).
+    let mut embeds: Vec<(String, String)> = Vec::new();
 
     // For structs, extract fields and their type references
     if let Some(type_n) = type_node {
@@ -438,6 +494,12 @@ fn extract_type_spec(
                             None,
                             Some(field_vis),
                         );
+                    } else if let Some(embed_target) =
+                        detect_embedded_field(child, source)
+                    {
+                        // Anonymous field == struct embedding. Emit a
+                        // heritage edge against the embedded type name.
+                        embeds.push(("embed".to_string(), embed_target));
                     }
                     // Extract type references from field type
                     if let Some(field_type) = find_child_by_field(child, "type") {
@@ -482,6 +544,63 @@ fn extract_type_spec(
             }
         }
     }
+
+    // Push the parent type symbol. We do this AFTER scanning fields so the
+    // heritage vec is already populated. The struct/interface symbol must
+    // also live before its child property/method symbols in the sorted
+    // output, so the placement here is fine — `index.rs` re-sorts by
+    // (file, line_start) before serializing.
+    symbols.push(SymbolEntry {
+        file: file_path.to_string(),
+        name: name.clone(),
+        kind: kind.to_string(),
+        line,
+        parent: parent_ctx.map(String::from),
+        tokens: None,
+        alias: None,
+        visibility: Some(visibility),
+        sig: None,
+        project: String::new(),
+        heritage: embeds,
+    });
+}
+
+/// Recognise a struct embed: a `field_declaration` whose body is just a
+/// bare type name (no field name).
+///
+/// Returns the embedded type's name. Handles four cases:
+/// * `Bar`           → `Bar` (type_identifier)
+/// * `*Bar`          → `Bar` (pointer_type wrapping type_identifier)
+/// * `pkg.Bar`       → `pkg.Bar` (qualified_type)
+/// * `*pkg.Bar`      → `pkg.Bar` (pointer_type wrapping qualified_type)
+///
+/// Returns `None` for nominal fields (those with names) and for malformed
+/// nodes the grammar might surface.
+fn detect_embedded_field(field: Node, source: &[u8]) -> Option<String> {
+    // Tree-sitter-go represents embeds as `field_declaration` nodes with a
+    // `type` field and no `name` field. We've already established no name
+    // above, but double-check here for safety against grammar quirks.
+    if find_child_by_field(field, "name").is_some() {
+        return None;
+    }
+    let type_node = find_child_by_field(field, "type")?;
+    fn extract_target(t: Node, source: &[u8]) -> Option<String> {
+        match t.kind() {
+            "type_identifier" => Some(node_text(t, source)),
+            "qualified_type" => Some(node_text(t, source)),
+            "pointer_type" => {
+                // pointer_type wraps `_type` field — unwrap and recurse.
+                let inner = find_child_by_field(t, "type").or_else(|| {
+                    let mut c = t.walk();
+                    t.children(&mut c)
+                        .find(|n| matches!(n.kind(), "type_identifier" | "qualified_type"))
+                })?;
+                extract_target(inner, source)
+            }
+            _ => None,
+        }
+    }
+    extract_target(type_node, source)
 }
 
 fn extract_var_const(
@@ -526,6 +645,7 @@ fn extract_var_const(
                     visibility: Some(visibility),
                     sig: value_text.clone(),
                     project: String::new(),
+                    heritage: Vec::new(),
                 });
             }
             // Handle multiple names in one spec: `var a, b, c int`
@@ -553,6 +673,7 @@ fn extract_var_const(
                         visibility: Some(extra_vis),
                         sig: value_text.clone(),
                         project: String::new(),
+                        heritage: Vec::new(),
                     });
                 }
             }
@@ -598,6 +719,7 @@ fn extract_imports(
                     line,
                     caller: None,
                     project: String::new(),
+                    confidence: None,
                 });
             }
         }
@@ -633,6 +755,7 @@ fn extract_imports(
                             line: spec_line,
                             caller: None,
                             project: String::new(),
+                            confidence: None,
                         });
                     }
                 }
@@ -663,12 +786,28 @@ fn extract_package(node: Node, source: &[u8], file_path: &str, symbols: &mut Vec
 }
 
 /// Extract a function call as a reference.
+///
+/// 3-tier resolver:
+/// * Selector calls (`pkg.Func`) whose leading segment matches a file-local
+///   import alias emit two refs:
+///     1. The raw selector form `pkg.Func` with `confidence=0.8`, for
+///        backwards-compatible textual `callers`/`callees` queries.
+///     2. The resolved qualified form `<import-path>/Func` with
+///        `confidence=0.8`, for cross-file/cross-repo resolution.
+///   Both edges share line + caller so consumers can dedupe by line.
+/// * Plain identifier calls (`SomeFunc`) emit a single edge with
+///   `confidence=1.0` — same-file resolution is implicit at this layer
+///   (the caller and callee both live in the file's symbol table).
+/// * Selector calls that don't resolve through the import table (method
+///   calls on a local value, calls into nested receivers) keep the old
+///   behaviour: emit the selector verbatim with `confidence=None`.
 fn extract_call(
     node: Node,
     source: &[u8],
     file_path: &str,
     parent_ctx: Option<&str>,
     references: &mut Vec<ReferenceEntry>,
+    imports: &ImportTable,
 ) {
     let line = node_line_range(node);
 
@@ -678,9 +817,9 @@ fn extract_call(
     };
 
     // Extract the name of the called function
-    let name = match func.kind() {
-        "identifier" => node_text(func, source),
-        "selector_expression" => node_text(func, source),
+    let (name, is_selector) = match func.kind() {
+        "identifier" => (node_text(func, source), false),
+        "selector_expression" => (node_text(func, source), true),
         _ => return,
     };
 
@@ -689,6 +828,52 @@ fn extract_call(
         return;
     }
 
+    if is_selector {
+        // Selector form: `<head>.<rest>` — head is the leftmost segment.
+        if let Some((head, rest)) = name.split_once('.') {
+            if let Some(import_path) = imports.get(head) {
+                // Tier 2 — resolved through file-local import alias.
+                // Emit the bare textual form for legacy text-match consumers
+                // first…
+                references.push(ReferenceEntry {
+                    file: file_path.to_string(),
+                    name: name.clone(),
+                    kind: "call".to_string(),
+                    line,
+                    caller: parent_ctx.map(String::from),
+                    project: String::new(),
+                    confidence: Some(0.8),
+                });
+                // …then the qualified form (`encoding/json/Marshal`).
+                // We use `/` as the join character to stay consistent with
+                // Go's package-path convention; consumers that want
+                // `pkg.Marshal` can split on `/` and take the tail.
+                references.push(ReferenceEntry {
+                    file: file_path.to_string(),
+                    name: format!("{import_path}/{rest}"),
+                    kind: "call".to_string(),
+                    line,
+                    caller: parent_ctx.map(String::from),
+                    project: String::new(),
+                    confidence: Some(0.8),
+                });
+                return;
+            }
+        }
+        // Unresolved selector — keep legacy behaviour, no confidence tag.
+        references.push(ReferenceEntry {
+            file: file_path.to_string(),
+            name,
+            kind: "call".to_string(),
+            line,
+            caller: parent_ctx.map(String::from),
+            project: String::new(),
+            confidence: None,
+        });
+        return;
+    }
+
+    // Bare identifier — tier 1, exact same-file resolution.
     references.push(ReferenceEntry {
         file: file_path.to_string(),
         name,
@@ -696,6 +881,7 @@ fn extract_call(
         line,
         caller: parent_ctx.map(String::from),
         project: String::new(),
+        confidence: Some(1.0),
     });
 }
 
@@ -744,6 +930,7 @@ fn extract_type_refs_from_node(
                         line: node_line_range(n),
                         caller: parent_ctx.map(String::from),
                         project: String::new(),
+                        confidence: None,
                     });
                 }
             }
@@ -756,6 +943,7 @@ fn extract_type_refs_from_node(
                     line: node_line_range(n),
                     caller: parent_ctx.map(String::from),
                     project: String::new(),
+                    confidence: None,
                 });
                 continue; // Don't recurse into children
             }

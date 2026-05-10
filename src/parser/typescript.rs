@@ -568,6 +568,7 @@ fn extract_call_ref(
         line,
         caller: parent_ctx.map(String::from),
         project: String::new(),
+        confidence: None,
     });
 }
 
@@ -597,6 +598,7 @@ fn extract_new_ref(
         line,
         caller: parent_ctx.map(String::from),
         project: String::new(),
+        confidence: None,
     });
 }
 
@@ -669,6 +671,7 @@ fn extract_type_refs_recursive(
                     line,
                     caller: parent_ctx.map(String::from),
                     project: String::new(),
+                    confidence: None,
                 });
             }
         }
@@ -685,6 +688,7 @@ fn extract_type_refs_recursive(
                         line,
                         caller: parent_ctx.map(String::from),
                         project: String::new(),
+                        confidence: None,
                     });
                 }
             }
@@ -1069,6 +1073,7 @@ fn extract_variable_decl(
                     visibility: Some(visibility.to_string()),
                     sig,
                     project: String::new(),
+                    heritage: Vec::new(),
                 });
             }
         }
@@ -1118,6 +1123,7 @@ fn extract_import(
                             line,
                             caller: None,
                             project: String::new(),
+                            confidence: None,
                         });
                     }
                     "named_imports" => {
@@ -1149,6 +1155,7 @@ fn extract_import(
                                         line,
                                         caller: None,
                                         project: String::new(),
+                                        confidence: None,
                                     });
                                 }
                             }
@@ -1183,6 +1190,7 @@ fn extract_import(
                             line,
                             caller: None,
                             project: String::new(),
+                            confidence: None,
                         });
                     }
                     _ => {}

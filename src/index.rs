@@ -77,6 +77,15 @@ pub fn parse_single_file(
 
         let parent = sym.parent.clone();
         let qualified_name = crate::entity::compose_qualified_name(parent.as_deref(), &sym.name);
+        // Translate parser-side heritage tuples to the on-disk shape.
+        let heritage: Vec<crate::entity::HeritageEdge> = sym
+            .heritage
+            .iter()
+            .map(|(kind, target)| crate::entity::HeritageEdge {
+                kind: kind.clone(),
+                target: target.clone(),
+            })
+            .collect();
         entities.push(Entity {
             file: file_path.to_string(),
             name: sym.name.clone(),
@@ -97,6 +106,7 @@ pub fn parse_single_file(
             rank: None,
             blast_radius: None,
             doc,
+            heritage,
         });
     }
 
@@ -107,6 +117,7 @@ pub fn parse_single_file(
             name: refentry.name.clone(),
             ref_kind: refentry.kind.clone(),
             line: refentry.line[0],
+            confidence: refentry.confidence,
         });
     }
 
