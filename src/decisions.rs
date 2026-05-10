@@ -15,7 +15,7 @@
 //! Knova runner's decision intelligence layer (the read side of `get_why`).
 
 use serde::Serialize;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 #[derive(Debug, Serialize, PartialEq)]
 pub struct DecisionMarker {
@@ -149,7 +149,3 @@ fn is_scanned_file(path: &Path) -> bool {
     )
 }
 
-/// Helper for tests / CLI: collect from arbitrary paths into PathBufs.
-pub fn _phantom() -> PathBuf {
-    PathBuf::new()
-}

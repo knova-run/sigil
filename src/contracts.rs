@@ -116,7 +116,8 @@ fn is_skipped_dir(path: &Path) -> bool {
     };
     matches!(
         name.as_ref(),
-        ".git" | "node_modules" | "vendor" | "target" | "dist" | "build" | ".venv" | "__pycache__"
+        ".git" | "node_modules" | "vendor" | "target" | "dist" | "build"
+            | ".venv" | "venv" | "__pycache__" | ".sigil" | ".repowise-workspace"
     )
 }
 
@@ -213,31 +214,53 @@ fn proto_rpc_re() -> &'static Regex {
 fn scan_proto(file: &str, text: &str) -> Vec<ContractRow> {
     let mut out = Vec::new();
     let mut current_service: Option<String> = None;
+    // Brace depth inside the current service body. `rpc` lines live at depth
+    // 1; nested `message`, `oneof`, or `option { ... }` push deeper and must
+    // close fully before we clear `current_service`.
+    let mut depth: i32 = 0;
     for (i, line) in text.lines().enumerate() {
-        if let Some(caps) = proto_service_re().captures(line) {
-            current_service = Some(caps[1].to_string());
-            continue;
-        }
-        // Naive close-brace tracking — fine for the common one-service-per-file
-        // case. For multi-service files the caller can split the proto.
-        if line.trim() == "}" {
-            current_service = None;
+        if current_service.is_none() {
+            if let Some(caps) = proto_service_re().captures(line) {
+                current_service = Some(caps[1].to_string());
+                let opens = line.matches('{').count() as i32;
+                let closes = line.matches('}').count() as i32;
+                depth = opens - closes;
+                if depth <= 0 {
+                    // Single-line `service Foo {}` — already closed.
+                    if opens > 0 {
+                        current_service = None;
+                    }
+                    depth = 0;
+                }
+                continue;
+            }
         }
         if let Some(svc) = current_service.as_deref() {
-            if let Some(caps) = proto_rpc_re().captures(line) {
-                let path = format!("{svc}/{}", &caps[1]);
-                out.push(ContractRow {
-                    contract_id: format!("grpc::{path}"),
-                    kind: "grpc".to_string(),
-                    role: "provider".to_string(),
-                    method: None,
-                    path: Some(path),
-                    topic: None,
-                    file: file.to_string(),
-                    line: (i + 1) as u32,
-                    language: "proto".to_string(),
-                    framework: "grpc".to_string(),
-                });
+            // Only emit rpc at top level of the service body to avoid
+            // capturing rpc-shaped tokens inside nested option blocks.
+            if depth == 1 {
+                if let Some(caps) = proto_rpc_re().captures(line) {
+                    let path = format!("{svc}/{}", &caps[1]);
+                    out.push(ContractRow {
+                        contract_id: format!("grpc::{path}"),
+                        kind: "grpc".to_string(),
+                        role: "provider".to_string(),
+                        method: None,
+                        path: Some(path),
+                        topic: None,
+                        file: file.to_string(),
+                        line: (i + 1) as u32,
+                        language: "proto".to_string(),
+                        framework: "grpc".to_string(),
+                    });
+                }
+            }
+            let opens = line.matches('{').count() as i32;
+            let closes = line.matches('}').count() as i32;
+            depth += opens - closes;
+            if depth <= 0 {
+                current_service = None;
+                depth = 0;
             }
         }
     }

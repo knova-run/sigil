@@ -32,7 +32,10 @@ fn unix_to_iso_date(unix: i64) -> String {
     // Compute year-month-day from epoch seconds, UTC. Avoids pulling in a
     // full chrono dep for one date format.
     // Algorithm: days since 1970-01-01, walk year/month boundaries.
-    let mut days = unix.div_euclid(86_400);
+    // The forward-walking loops don't support pre-epoch timestamps; git
+    // `%at` never produces negatives for real commits, but clamp defensively
+    // so a corrupt input yields the epoch rather than `1970-01-00`.
+    let mut days = unix.div_euclid(86_400).max(0);
     let mut year: i64 = 1970;
     loop {
         let leap = is_leap(year);
@@ -156,16 +159,25 @@ fn commit_events(repo: &Path, repo_name: &str, max_commits: usize) -> Result<Vec
 
 fn correlate(events: Vec<ChangeEvent>, cfg: &CrossRepoConfig) -> Vec<CrossRepoEdge> {
     use std::collections::BTreeMap;
+    // Sort by timestamp so the inner loop can break out of the window
+    // instead of scanning every later event. Drops worst-case work from
+    // O(n²) to O(n·k) where k is the average number of events that fall
+    // inside `window_secs` of any given event.
+    let mut events = events;
+    events.sort_by_key(|e| e.unix);
     // (repo, file) -> aggregate {freq, last_unix, strength}
     let mut pairs: BTreeMap<(String, String, String, String), (u32, i64)> = BTreeMap::new();
     let n = events.len();
     for i in 0..n {
         let a = &events[i];
-        for b in events.iter().skip(i + 1) {
-            if a.repo == b.repo {
-                continue;
+        for j in (i + 1)..n {
+            let b = &events[j];
+            // events are sorted by `unix`, so once b is past the window
+            // every later event is too — bail out.
+            if b.unix - a.unix > cfg.window_secs {
+                break;
             }
-            if (a.unix - b.unix).abs() > cfg.window_secs {
+            if a.repo == b.repo {
                 continue;
             }
             // Order the pair so (repoA, fileA) < (repoB, fileB) is canonical.

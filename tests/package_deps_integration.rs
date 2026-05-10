@@ -2,8 +2,10 @@
 //! dependency edges from manifest files.
 //!
 //! Output format: JSONL, one row per dependency edge with fields
-//! `{ source_repo, manifest, dependency, version_spec, kind }` where
-//! `kind` is the manifest format ("go", "npm", "pip", "cargo", "maven").
+//! `{ source_repo, manifest, dependency, version_spec, kind }`. Currently
+//! wired into the walker: `kind = "go"` (go.mod) and `kind = "npm"`
+//! (package.json). "pip" / "cargo" / "maven" are reserved kinds for
+//! future manifest parsers; tests here cover what's implemented today.
 
 use std::fs;
 use std::process::Command;

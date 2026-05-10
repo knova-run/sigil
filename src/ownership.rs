@@ -76,6 +76,12 @@ pub fn mine(repo: &Path, max_commits: usize) -> Result<Vec<FileOwnership>> {
             }
         })
         .collect();
-    out.sort_by(|a, b| b.commit_count.cmp(&a.commit_count));
+    // Commit count descending; file path ascending as a deterministic
+    // tiebreaker so equal-count rows order consistently across runs.
+    out.sort_by(|a, b| {
+        b.commit_count
+            .cmp(&a.commit_count)
+            .then_with(|| a.file.cmp(&b.file))
+    });
     Ok(out)
 }

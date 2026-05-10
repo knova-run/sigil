@@ -43,6 +43,7 @@ fn close_headings(
             let body_hash = hasher::body_hash_raw(source, line_start, end_line as usize);
             let sig_hash = hasher::sig_hash(Some(&sig));
 
+            let qualified_name = crate::entity::compose_qualified_name(parent.as_deref(), &name);
             entities.push(Entity {
                 file: file_path.to_string(),
                 name,
@@ -50,7 +51,7 @@ fn close_headings(
                 line_start: line_start as u32,
                 line_end: end_line,
                 parent,
-                qualified_name: None,
+                qualified_name,
                 sig: Some(sig),
                 meta: None,
                 body_hash,
@@ -93,6 +94,7 @@ fn flush_accumulator(
     let body_hash = hasher::body_hash_raw(source, line_start as usize, line_end as usize);
     let sig_hash = hasher::sig_hash(sig.as_deref());
 
+    let qualified_name = crate::entity::compose_qualified_name(parent.as_deref(), &name);
     entities.push(Entity {
         file: file_path.to_string(),
         name,
@@ -100,7 +102,7 @@ fn flush_accumulator(
         line_start,
         line_end,
         parent,
-        qualified_name: None,
+        qualified_name,
         sig,
         meta: None,
         body_hash,
@@ -490,6 +492,7 @@ pub fn parse_markdown_file(
                     let body_hash = hasher::body_hash_raw(source, code_start, code_end);
                     let sig_hash = hasher::sig_hash(sig.as_deref());
 
+                    let qualified_name = crate::entity::compose_qualified_name(parent.as_deref(), &name);
                     entities.push(Entity {
                         file: file_path.to_string(),
                         name,
@@ -497,7 +500,7 @@ pub fn parse_markdown_file(
                         line_start: code_start as u32,
                         line_end: code_end as u32,
                         parent,
-                        qualified_name: None,
+                        qualified_name,
                         sig,
                         meta: None,
                         body_hash,
@@ -535,6 +538,7 @@ pub fn parse_markdown_file(
                     let struct_hash = hasher::struct_hash(raw.as_bytes());
                     let body_hash = hasher::body_hash_raw(source, table_start, table_end);
 
+                    let qualified_name = crate::entity::compose_qualified_name(parent.as_deref(), &name);
                     entities.push(Entity {
                         file: file_path.to_string(),
                         name,
@@ -542,7 +546,7 @@ pub fn parse_markdown_file(
                         line_start: table_start as u32,
                         line_end: table_end as u32,
                         parent,
-                        qualified_name: None,
+                        qualified_name,
                         sig: None,
                         meta: None,
                         body_hash,
@@ -585,6 +589,7 @@ pub fn parse_markdown_file(
         let body_hash = hasher::body_hash_raw(source, *start_line, total_lines);
         let sig_hash = hasher::sig_hash(sig.as_deref());
 
+        let qualified_name = crate::entity::compose_qualified_name(parent.as_deref(), &name);
         entities.push(Entity {
             file: file_path.to_string(),
             name,
@@ -592,7 +597,7 @@ pub fn parse_markdown_file(
             line_start: *start_line as u32,
             line_end: total_lines as u32,
             parent,
-            qualified_name: None,
+            qualified_name,
             sig,
             meta: None,
             body_hash,
@@ -616,6 +621,7 @@ pub fn parse_markdown_file(
         let struct_hash = hasher::struct_hash(raw.as_bytes());
         let body_hash = hasher::body_hash_raw(source, *start_line, total_lines);
 
+        let qualified_name = crate::entity::compose_qualified_name(parent.as_deref(), &name);
         entities.push(Entity {
             file: file_path.to_string(),
             name,
@@ -623,7 +629,7 @@ pub fn parse_markdown_file(
             line_start: *start_line as u32,
             line_end: total_lines as u32,
             parent,
-            qualified_name: None,
+            qualified_name,
             sig: None,
             meta: None,
             body_hash,

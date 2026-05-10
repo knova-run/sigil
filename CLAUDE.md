@@ -24,7 +24,9 @@ src/
   main.rs          — CLI binary (clap). Two-tier command surface:
                       Agent-facing: map, context, review, blast, benchmark
                       Script-facing: search, symbols, children, callers, callees,
-                                     explore, duplicates, cochange, query, diff, index
+                                     explore, duplicates, cochange, query, diff, index,
+                                     identifiers, decisions, package-deps, contracts,
+                                     workspace, hotspots, ownership, security-scan
                       Installers:    claude, cursor, codex, gemini, opencode, aider,
                                      copilot, hook
   entity.rs        — Entity + Reference structs (serde); visibility, rank,
@@ -62,6 +64,17 @@ src/
   duplicates.rs    — `sigil duplicates` — body_hash clone report
   cochange.rs      — Git-history file-pair co-change mining (.sigil/cochange.json)
   tokens.rs        — Tokenizer enum (proxy / cl100k / o200k / p50k); BPE feature-gated
+
+  # Wiki-substrate — code-intelligence signals for downstream runners
+  identifiers.rs        — `sigil identifiers` — symbol-shaped token extraction
+  decisions.rs          — `sigil decisions` — WHY:/DECISION:/TRADEOFF: marker scan
+  package_deps.rs       — `sigil package-deps` — go.mod / package.json edges
+  contracts.rs          — `sigil contracts` — HTTP routes, gRPC services, queue topics
+  workspace.rs          — `sigil workspace scan` — discover child git repos
+  cross_repo_cochange.rs — `sigil cochange --workspace` — cross-repo file-pair mining
+  hotspots.rs           — `sigil hotspots` — file churn × line count risk score
+  ownership.rs          — `sigil ownership` — per-file primary author from git log
+  security_scan.rs      — `sigil security-scan` — regex security-signal extractor
 
   query/
     mod.rs               — Backend router (InMemory | DuckDb), format_* helpers

@@ -28,14 +28,22 @@ sigil groups commands into two tiers:
     benchmark   Publishes median token reduction vs raw alternatives
 
   SCRIPT-FACING (raw, unbounded, JSON-friendly):
-    search      Substring search over symbols + file paths
-    symbols     All entities in a file
-    children    Entities under a parent
-    callers     All refs targeting a symbol (unbounded)
-    callees     What a symbol calls
-    explore     Directory overview
-    duplicates  Clone report across the codebase
-    cochange    Git-history file-pair co-change miner
+    search        Substring search over symbols + file paths
+    symbols       All entities in a file
+    children      Entities under a parent
+    callers       All refs targeting a symbol (unbounded)
+    callees       What a symbol calls
+    explore       Directory overview
+    duplicates    Clone report across the codebase
+    cochange      Git-history file-pair co-change miner
+    identifiers   Symbol-shaped tokens lifted from arbitrary text
+    decisions     `WHY:` / `DECISION:` / `TRADEOFF:` comment markers
+    package-deps  Dependency edges from manifest files (go.mod, package.json)
+    contracts     HTTP routes, gRPC services, queue topics
+    workspace     Discover child git repos under a parent directory
+    hotspots      File churn × line count risk score
+    ownership     Per-file primary author from git history
+    security-scan Lightweight regex security-signal extractor
 
   INSTALLERS (platform integrations, all idempotent):
     claude · cursor · codex · gemini · opencode · aider · copilot · hook

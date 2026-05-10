@@ -41,7 +41,13 @@ pub fn mine(repo: &Path, max_commits: usize) -> Result<Vec<Hotspot>> {
             })
         })
         .collect();
-    out.sort_by(|a, b| b.hotspot_score.total_cmp(&a.hotspot_score));
+    // Score descending; file path ascending as a deterministic tiebreaker
+    // so equal-scoring rows always appear in the same order across runs.
+    out.sort_by(|a, b| {
+        b.hotspot_score
+            .total_cmp(&a.hotspot_score)
+            .then_with(|| a.file.cmp(&b.file))
+    });
     Ok(out)
 }
 

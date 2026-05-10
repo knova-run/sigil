@@ -1,15 +1,14 @@
 //! Package dependency edge extraction from manifest files.
 //!
-//! Outputs one row per (manifest, dependency) edge. Supported manifests:
+//! Outputs one row per (manifest, dependency) edge. Currently supported:
 //!   - `go.mod`         (kind = "go")
 //!   - `package.json`   (kind = "npm")
-//!   - `pyproject.toml` (kind = "pip")
-//!   - `Cargo.toml`     (kind = "cargo")
-//!   - `pom.xml`        (kind = "maven")
 //!
-//! The MVP focuses on `go.mod` since it's the most direct way to detect
-//! cross-repo edges in a Go monorepo (the kinesis-consumer + sqs-consumer
-//! + go-dataproxy seam in Knova). Other formats land incrementally.
+//! `pyproject.toml` ("pip"), `Cargo.toml` ("cargo"), and `pom.xml` ("maven")
+//! are planned but not yet wired into the walker — see the schema in
+//! `tests/package_deps_integration.rs`. The MVP focuses on `go.mod` since
+//! it's the most direct way to detect cross-repo edges in a Go monorepo
+//! (the kinesis-consumer + sqs-consumer + go-dataproxy seam in Knova).
 
 use serde::Serialize;
 use std::path::Path;
@@ -99,7 +98,8 @@ fn is_skipped_dir(path: &Path) -> bool {
     };
     matches!(
         name.as_ref(),
-        ".git" | "node_modules" | "vendor" | "target" | "dist" | "build" | ".venv" | ".sigil"
+        ".git" | "node_modules" | "vendor" | "target" | "dist" | "build"
+            | ".venv" | "venv" | "__pycache__" | ".sigil" | ".repowise-workspace"
     )
 }
 

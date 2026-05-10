@@ -109,9 +109,11 @@ fn is_none_or_empty(v: &Option<Vec<String>>) -> bool {
 
 /// Skip when `None` OR when visibility is explicitly `"private"` — the
 /// default visibility for items in most of the languages sigil parses.
-/// Callers that care about "was visibility populated at all" can inspect
-/// the raw JSONL on disk where the field continues to be written verbatim
-/// because the writer bypasses these predicates (see src/writer.rs).
+/// The on-disk JSONL written by `src/writer.rs` honors this same predicate
+/// (it serializes through serde just like CLI output), so a `private`
+/// visibility round-trips as the field being absent. Callers that need
+/// to distinguish "absent" from "explicitly private" should re-derive
+/// visibility from the parser rather than the JSONL.
 fn is_none_or_private(v: &Option<String>) -> bool {
     match v {
         None => true,

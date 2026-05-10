@@ -317,7 +317,7 @@ fn extract_mapping_entities(
             line_start: key_line,
             line_end: end_line,
             parent: parent.map(|s| s.to_string()),
-            qualified_name: None,
+            qualified_name: crate::entity::compose_qualified_name(parent, &key),
             sig: Some(sig),
             meta: None,
             body_hash,

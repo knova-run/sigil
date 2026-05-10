@@ -17,6 +17,13 @@ fn token_re() -> &'static Regex {
     })
 }
 
+fn split_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    // `::` matched first so `::` consumes as one delimiter rather than two
+    // `:` chars splitting into a phantom empty segment.
+    RE.get_or_init(|| Regex::new(r"::|\.").unwrap())
+}
+
 pub fn extract(text: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut seen = std::collections::HashSet::<String>::new();
@@ -24,7 +31,7 @@ pub fn extract(text: &str) -> Vec<String> {
         let tok = m.as_str();
         // Candidates: the full token, plus each `.`/`::`-separated segment.
         let mut candidates: Vec<&str> = vec![tok];
-        for seg in tok.split(|c| c == '.' || c == ':').filter(|s| !s.is_empty()) {
+        for seg in split_re().split(tok).filter(|s| !s.is_empty()) {
             candidates.push(seg);
         }
         for c in candidates {
