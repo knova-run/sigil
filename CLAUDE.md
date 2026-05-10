@@ -26,8 +26,8 @@ src/
                       Script-facing: search, symbols, children, callers, callees,
                                      explore, duplicates, cochange, query, diff, index,
                                      identifiers, decisions, package-deps, contracts,
-                                     workspace, hotspots, ownership, security-scan,
-                                     dead-code
+                                     workspace, hotspots, ownership, bus-factor, log,
+                                     security-scan, communities, dead-code
                       Installers:    claude, cursor, codex, gemini, opencode, aider,
                                      copilot, hook
   entity.rs        — Entity + Reference structs (serde); visibility, rank,
@@ -57,6 +57,12 @@ src/
   # Phase 1 — rank, blast radius, agent commands
   rank.rs          — File-level PageRank + per-entity blast-radius BFS (pure fn)
   community.rs     — Label-propagation subsystem detection for `sigil map`
+  communities.rs   — Leiden modularity clustering for `sigil communities`
+                      (issue #17). Modularity-greedy local-moving plus a
+                      refinement pass that splits any internally-disconnected
+                      community by BFS, guaranteeing every output cluster
+                      is connected. `cluster_id` surface for downstream
+                      consumers via `sigil map`
   map.rs           — `sigil map` — budget-aware ranked codebase digest
   context.rs       — `sigil context <symbol>` — minimum-viable symbol bundle
   blast.rs         — `sigil blast <symbol>` — impact summary
@@ -68,13 +74,15 @@ src/
 
   # Wiki-substrate — code-intelligence signals for downstream runners
   identifiers.rs        — `sigil identifiers` — symbol-shaped token extraction
-  decisions.rs          — `sigil decisions` — WHY:/DECISION:/TRADEOFF: marker scan
+  decisions.rs          — `sigil decisions` — WHY:/DECISION:/RATIONALE:/TRADEOFF:/ADR:/REJECTED: marker scan
   package_deps.rs       — `sigil package-deps` — go.mod / package.json edges
   contracts.rs          — `sigil contracts` — HTTP routes, gRPC services, queue topics
   workspace.rs          — `sigil workspace scan` — discover child git repos
   cross_repo_cochange.rs — `sigil cochange --workspace` — cross-repo file-pair mining
   hotspots.rs           — `sigil hotspots` — file churn × line count risk score
   ownership.rs          — `sigil ownership` — per-file primary author from git log
+  bus_factor.rs         — `sigil bus-factor` — per-file knowledge-concentration risk
+  log_significant.rs    — `sigil log --significant` — intent-filtered git log per file
   security_scan.rs      — `sigil security-scan` — regex security-signal extractor
   dead_code.rs          — `sigil dead-code` — framework-aware dead-code detection
                           with confidence tiers (file 1.00, exported orphan 0.85,
@@ -193,6 +201,8 @@ sigil callers struct_hash [--kind call|import|type_annotation|instantiation]
 sigil callees build_index
 sigil duplicates --min-lines 10
 sigil cochange --commits 500               # → .sigil/cochange.json
+sigil communities --resolution 1.0         # Leiden file clusters (NDJSON)
+sigil communities --pretty                 # pretty-printed JSON array form
 
 # DuckDB (baked into shipped release binaries since 0.3.2)
 sigil query "SELECT kind, COUNT(*) FROM entities GROUP BY kind ORDER BY 2 DESC"

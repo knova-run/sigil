@@ -37,13 +37,16 @@ sigil groups commands into two tiers:
     duplicates    Clone report across the codebase
     cochange      Git-history file-pair co-change miner
     identifiers   Symbol-shaped tokens lifted from arbitrary text
-    decisions     `WHY:` / `DECISION:` / `TRADEOFF:` comment markers
+    decisions     `WHY:` / `DECISION:` / `RATIONALE:` / `TRADEOFF:` / `ADR:` / `REJECTED:` markers
     package-deps  Dependency edges from manifest files (go.mod, package.json)
     contracts     HTTP routes, gRPC services, queue topics
     workspace     Discover child git repos under a parent directory
     hotspots      File churn × line count risk score
     ownership     Per-file primary author from git history
+    bus-factor    Per-file knowledge-concentration risk from git history
+    log           Filtered git log: `--significant <file>` keeps intent-bearing commits
     security-scan Lightweight regex security-signal extractor
+    communities   Leiden modularity clustering over the file graph
     dead-code     Framework-aware dead-code detection with confidence tiers
 
   INSTALLERS (platform integrations, all idempotent):
@@ -631,6 +634,12 @@ enum Cli {
         /// 0 (default) preserves the legacy shape.
         #[arg(long, default_value = "0")]
         top_entities_per_subsystem: usize,
+        /// Run Leiden modularity clustering and tag each shown file with
+        /// `cluster_id` in the JSON output. Off by default — enabling adds
+        /// a new optional field to `MapFile` and runs the same pipeline as
+        /// `sigil communities` over the full index.
+        #[arg(long)]
+        with_clusters: bool,
     },
     /// Install or uninstall the Claude Code integration
     /// (CLAUDE.md capability block + PreToolUse hint hook).
@@ -694,14 +703,21 @@ enum Cli {
     },
     /// Extract architectural-decision markers from source-file comments.
     ///
-    /// Scans for `# DECISION:`, `# WHY:`, `# RATIONALE:`, `# TRADEOFF:`
-    /// (and `//` / `--` comment-style equivalents) anchors in source. Emits
-    /// one JSONL row per match — designed to feed the Knova runner's
-    /// decision intelligence layer.
+    /// Scans for `# DECISION:`, `# WHY:`, `# RATIONALE:`, `# TRADEOFF:`,
+    /// `# ADR:`, `# REJECTED:` (and `//` / `--` comment-style equivalents)
+    /// anchors in source. Emits one JSONL row per match — designed to feed
+    /// the Knova runner's decision intelligence layer.
     Decisions {
         /// Project root directory
         #[arg(short, long, default_value = ".")]
         root: PathBuf,
+        /// Also scan git commit messages for `Why:` / `Decision:` /
+        /// `Tradeoff:` / `Refactor for:` / `Rationale:` prefixes. Off
+        /// by default — current output stays byte-stable for consumers
+        /// that don't opt in. Each commit-derived row carries
+        /// `source: "commit_message"`; inline rows still omit the field.
+        #[arg(long)]
+        include_git_history: bool,
     },
     /// Extract package dependency edges from manifest files.
     ///
@@ -758,6 +774,60 @@ enum Cli {
         /// Project root directory
         #[arg(short, long, default_value = ".")]
         root: PathBuf,
+    },
+    /// Per-file knowledge-concentration risk. JSONL on stdout:
+    /// { path, primary_owner, primary_share, second_owner, second_share, risk }
+    /// where risk = high (>= threshold) | medium (>= 0.6) | low.
+    /// Reuses the same git log walk as `sigil ownership`.
+    #[command(name = "bus-factor")]
+    BusFactor {
+        /// Project root (must be a git repo)
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
+        /// Primary-share cutoff for "high" risk.
+        #[arg(long, default_value = "0.8")]
+        threshold: f64,
+        /// How many recent commits to walk.
+        #[arg(long, default_value = "500")]
+        commits: usize,
+    },
+    /// Filtered git log. Currently only `--significant <file>` is wired:
+    /// walks the file's history, drops merges + noise-prefix subjects
+    /// (chore/deps/fmt/lint/whitespace/Bump/dependabot/renovate) + subjects
+    /// shorter than 30 chars. JSON per commit: { sha, date, author, subject,
+    /// body, paths }.
+    Log {
+        /// File path to walk (required for the MVP — this is the only mode
+        /// `sigil log` currently surfaces).
+        #[arg(long)]
+        significant: PathBuf,
+        /// Cap on returned commits (most-recent first).
+        #[arg(long, default_value = "10")]
+        limit: usize,
+        /// Project root (must be a git repo)
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
+    },
+    /// Leiden-modularity file clustering over the import/call graph.
+    /// NDJSON on stdout, one cluster per line:
+    /// `{cluster_id, size, members, representative, label}`.
+    ///
+    /// Every output community is guaranteed internally connected
+    /// (Traag et al. 2019) — modularity-greedy local moving plus a
+    /// refinement pass that BFS-splits any disconnected component before
+    /// aggregation.
+    Communities {
+        /// Project root directory (must contain a `.sigil/` index — run
+        /// `sigil index` first).
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
+        /// Modularity resolution. 1.0 = vanilla modularity. >1 → more,
+        /// smaller clusters. <1 → fewer, larger clusters.
+        #[arg(long, default_value = "1.0")]
+        resolution: f64,
+        /// Pretty-print as a JSON array instead of streaming NDJSON.
+        #[arg(long)]
+        pretty: bool,
     },
     /// Framework-aware dead-code detection with confidence tiers.
     /// JSONL on stdout: { kind, file, name?, entity_kind?, line_start?,
@@ -1511,7 +1581,7 @@ fn main() {
                 }
             }
         }
-        Cli::Map { root, tokens, focus, depth, format, write, exclude_tests, no_clusters, top_entities_per_subsystem } => {
+        Cli::Map { root, tokens, focus, depth, format, write, exclude_tests, no_clusters, top_entities_per_subsystem, with_clusters } => {
             let idx = query::load(&root)
                 .unwrap_or_else(|e| { eprintln!("error: {}", e); std::process::exit(1); });
             let rank_manifest = sigil::map::load_rank_manifest(&root)
@@ -1528,6 +1598,7 @@ fn main() {
                 exclude_tests,
                 clusters: !no_clusters,
                 top_entities_per_subsystem,
+                leiden_clusters: with_clusters,
                 ..sigil::map::MapOptions::default()
             };
             let map = sigil::map::build_map(&idx, &rank_manifest, &opts);
@@ -1723,8 +1794,27 @@ fn main() {
                 }
             }
         }
-        Cli::Decisions { root } => {
-            for marker in sigil::decisions::extract_from_root(&root) {
+        Cli::Decisions {
+            root,
+            include_git_history,
+        } => {
+            let mut rows = sigil::decisions::extract_from_root(&root);
+            if include_git_history {
+                match sigil::decisions::extract_from_git_history(&root) {
+                    Ok(more) => rows.extend(more),
+                    Err(e) => {
+                        eprintln!("decisions --include-git-history: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+                // Re-sort so inline + commit rows interleave deterministically
+                // by (file, line). `extract_from_root` already returns sorted
+                // output but `extract_from_git_history` rows arrive in git-log
+                // order; without this re-sort merged JSONL would depend on
+                // git's history walk.
+                sigil::decisions::sort_markers(&mut rows);
+            }
+            for marker in rows {
                 match serde_json::to_string(&marker) {
                     Ok(s) => println!("{}", s),
                     Err(e) => {
@@ -1814,6 +1904,91 @@ fn main() {
                 std::process::exit(1);
             }
         },
+        Cli::BusFactor {
+            root,
+            threshold,
+            commits,
+        } => match sigil::bus_factor::mine(&root, commits, threshold) {
+            Ok(rows) => {
+                for row in rows {
+                    match serde_json::to_string(&row) {
+                        Ok(s) => println!("{}", s),
+                        Err(e) => {
+                            eprintln!("bus-factor: failed to serialize: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("bus-factor: {}", e);
+                std::process::exit(1);
+            }
+        },
+        Cli::Log {
+            significant,
+            limit,
+            root,
+        } => {
+            let file = significant.to_string_lossy().to_string();
+            match sigil::log_significant::mine(&root, &file, limit) {
+                Ok(rows) => {
+                    for row in rows {
+                        match serde_json::to_string(&row) {
+                            Ok(s) => println!("{}", s),
+                            Err(e) => {
+                                eprintln!("log: failed to serialize: {}", e);
+                                std::process::exit(1);
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("log: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+        Cli::Communities { root, resolution, pretty } => {
+            let idx = match sigil::query::index::Index::load(&root) {
+                Ok(i) => i,
+                Err(e) => {
+                    eprintln!("communities: {}", e);
+                    eprintln!("hint: run `sigil index` first to populate .sigil/.");
+                    std::process::exit(1);
+                }
+            };
+            let rank_manifest = sigil::map::load_rank_manifest(&root).unwrap_or_default();
+            let cfg = sigil::communities::LeidenConfig {
+                resolution,
+                ..sigil::communities::LeidenConfig::default()
+            };
+            let clusters = sigil::communities::detect_leiden(
+                &idx.entities,
+                &idx.references,
+                &rank_manifest.file_rank,
+                &cfg,
+            );
+            if pretty {
+                match serde_json::to_string_pretty(&clusters) {
+                    Ok(s) => println!("{}", s),
+                    Err(e) => {
+                        eprintln!("communities: failed to serialize: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            } else {
+                for c in &clusters {
+                    match serde_json::to_string(c) {
+                        Ok(s) => println!("{}", s),
+                        Err(e) => {
+                            eprintln!("communities: failed to serialize: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+            }
+        }
         Cli::DeadCode {
             root,
             safe_only,
