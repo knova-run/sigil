@@ -30,9 +30,13 @@ pub struct BusFactor {
     pub path: String,
     pub primary_owner: String,
     pub primary_share: f64,
+    /// Second-place author, when one exists. `second_owner` and
+    /// `second_share` travel together — both `None` when the file has a
+    /// single author so consumers don't see one half of the pair.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub second_owner: Option<String>,
-    pub second_share: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub second_share: Option<f64>,
     pub risk: &'static str,
 }
 
@@ -84,19 +88,17 @@ pub fn mine(repo: &Path, max_commits: usize, threshold: f64) -> Result<Vec<BusFa
                 .first()
                 .cloned()
                 .unwrap_or_else(|| (String::new(), 0));
-            let (second_owner, second_count) = match ranked.get(1) {
-                Some((e, c)) => (Some(e.clone()), *c),
-                None => (None, 0),
-            };
             let primary_share = if total == 0 {
                 0.0
             } else {
                 primary_count as f64 / total as f64
             };
-            let second_share = if total == 0 {
-                0.0
-            } else {
-                second_count as f64 / total as f64
+            let (second_owner, second_share) = match ranked.get(1) {
+                Some((e, c)) if total > 0 => (
+                    Some(e.clone()),
+                    Some(*c as f64 / total as f64),
+                ),
+                _ => (None, None),
             };
             let risk = classify(primary_share, threshold);
             BusFactor {

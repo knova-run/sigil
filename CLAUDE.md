@@ -74,7 +74,7 @@ src/
 
   # Wiki-substrate — code-intelligence signals for downstream runners
   identifiers.rs        — `sigil identifiers` — symbol-shaped token extraction
-  decisions.rs          — `sigil decisions` — WHY:/DECISION:/TRADEOFF: marker scan
+  decisions.rs          — `sigil decisions` — WHY:/DECISION:/RATIONALE:/TRADEOFF:/ADR:/REJECTED: marker scan
   package_deps.rs       — `sigil package-deps` — go.mod / package.json edges
   contracts.rs          — `sigil contracts` — HTTP routes, gRPC services, queue topics
   workspace.rs          — `sigil workspace scan` — discover child git repos

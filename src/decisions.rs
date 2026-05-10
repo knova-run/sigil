@@ -8,6 +8,8 @@
 //! # WHY: <text>
 //! # RATIONALE: <text>
 //! # TRADEOFF: <text>
+//! # ADR: <text>
+//! # REJECTED: <text>
 //! ```
 //!
 //! and the same forms with `//` (Rust/Go/JS/TS/Java/C/C++/C#) and `--` (Lua/SQL).
@@ -22,7 +24,12 @@ use std::process::Command;
 #[derive(Debug, Serialize, PartialEq)]
 pub struct DecisionMarker {
     pub file: String,
-    pub line: u32,
+    /// 1-indexed source line for inline-comment rows. `None` for
+    /// commit-message rows, which carry no file-line context. Elided from
+    /// the wire when absent so consumers don't have to special-case a `0`
+    /// sentinel.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub line: Option<u32>,
     pub marker: String,
     pub text: String,
     /// Provenance of the marker. `None` means inline-source (the original
@@ -46,7 +53,7 @@ pub fn extract_from_text(file_label: &str, source: &str) -> Vec<DecisionMarker> 
         if let Some((marker, text)) = scan_line(line) {
             out.push(DecisionMarker {
                 file: file_label.to_string(),
-                line: (i + 1) as u32,
+                line: Some((i + 1) as u32),
                 marker: marker.to_string(),
                 text: text.to_string(),
                 source: None,
@@ -94,11 +101,39 @@ fn scan_line(line: &str) -> Option<(&'static str, &str)> {
 }
 
 /// Walk `root` and return all decision markers found in source files.
-/// Skips common dependency / build directories.
+/// Skips common dependency / build directories. Output is sorted by
+/// `(file, line, marker, source)` so the JSONL emit order is stable
+/// across filesystems and across `--include-git-history` merges.
 pub fn extract_from_root(root: &Path) -> Vec<DecisionMarker> {
     let mut out = Vec::new();
     walk(root, root, &mut out);
+    sort_markers(&mut out);
     out
+}
+
+/// Deterministic sort over decision markers — `(file, line, marker, source)`.
+/// Inline rows (line = `Some(N)`) precede commit rows (line = `None`) on
+/// the same file. Rust's default `Option` ordering puts `None` first; we
+/// invert that here so the natural reading order is "lines 1..N then
+/// commit-message provenance" rather than the reverse.
+pub fn sort_markers(markers: &mut [DecisionMarker]) {
+    markers.sort_by(|a, b| {
+        a.file
+            .cmp(&b.file)
+            .then_with(|| line_order(a.line).cmp(&line_order(b.line)))
+            .then_with(|| a.marker.cmp(&b.marker))
+            .then_with(|| a.source.cmp(&b.source))
+    });
+}
+
+/// Map `Option<u32>` to a sortable `(presence, value)` tuple where
+/// inline rows (`Some`) sort before commit rows (`None`). `(0, n)` precedes
+/// `(1, 0)` lexicographically, which is what we want.
+fn line_order(line: Option<u32>) -> (u8, u32) {
+    match line {
+        Some(n) => (0, n),
+        None => (1, 0),
+    }
 }
 
 fn walk(root: &Path, dir: &Path, out: &mut Vec<DecisionMarker>) {
@@ -173,14 +208,19 @@ const COMMIT_MARKERS: &[&str] =
 /// is not a git repo or git is unavailable — the caller treats commit
 /// archaeology as a strict opt-in via `--include-git-history`.
 pub fn extract_from_git_history(root: &Path) -> Result<Vec<DecisionMarker>> {
-    // Record-separator-delimited records so multi-line bodies stay intact.
-    // %H sha · newline · body · blank line · file-list (from --name-only).
-    const RECORD_SEP: &str = "\x1e";
+    // Records are RS-delimited. Inside a record we use a US byte (\x1f)
+    // immediately after %B to mark the end of the commit body — git's own
+    // `\n\n` separator between body and `--name-only` paths is ambiguous
+    // when the body itself contains paragraph breaks (especially on
+    // `--allow-empty` commits with no trailing path list).
     let output = Command::new("git")
         .args([
             "log",
             "--no-merges",
-            &format!("--pretty=format:{}%H%n%B", RECORD_SEP),
+            &format!(
+                "--pretty=format:{}%H%n%B{}",
+                RECORD_SEP, BODY_END_SEP
+            ),
             "--name-only",
         ])
         .current_dir(root)
@@ -188,29 +228,37 @@ pub fn extract_from_git_history(root: &Path) -> Result<Vec<DecisionMarker>> {
     if !output.status.success() {
         return Ok(Vec::new());
     }
-    let text = String::from_utf8_lossy(&output.stdout).to_string();
+    Ok(parse_git_log(&String::from_utf8_lossy(&output.stdout)))
+}
+
+/// Record-separator between commits in our git format string.
+const RECORD_SEP: &str = "\x1e";
+/// Unit-separator placed by the format string immediately after %B so the
+/// body/paths split is unambiguous regardless of body shape or trailing
+/// `--name-only` content.
+const BODY_END_SEP: &str = "\x1f";
+
+/// Parse the raw stdout of the `git log` command issued by
+/// `extract_from_git_history`. Pure function so the body/paths-boundary
+/// logic is testable without a temp git repo.
+fn parse_git_log(text: &str) -> Vec<DecisionMarker> {
     let mut out = Vec::new();
     for record in text.split(RECORD_SEP) {
         if record.trim().is_empty() {
             continue;
         }
-        // First line is the sha. The remainder is body + blank line +
-        // changed files (from --name-only). We don't need the sha for the
-        // emitted row — we surface the first changed file as `file`, or
-        // "HEAD" if the commit has none.
-        let mut lines = record.lines();
-        let _sha = lines.next().unwrap_or("");
-        let rest: Vec<&str> = lines.collect();
-        // Split rest into (body, files) at the last blank line, same
-        // trick as log_significant. Walks from the end so a body with
-        // its own blank paragraphs survives.
-        let boundary = rest.iter().rposition(|l| l.trim().is_empty());
-        let (body_lines, file_lines): (&[&str], &[&str]) = match boundary {
-            Some(idx) => (&rest[..idx], &rest[idx + 1..]),
-            None => (&rest[..], &[]),
+        // Split body from paths at the explicit BODY_END_SEP. If the
+        // sentinel is missing (shouldn't happen for our format string),
+        // treat the whole record as the body and emit no path attribution.
+        let (header, paths_blob) = match record.split_once(BODY_END_SEP) {
+            Some((h, p)) => (h, p),
+            None => (record, ""),
         };
-        let first_file = file_lines
-            .iter()
+        let mut header_lines = header.lines();
+        let _sha = header_lines.next().unwrap_or("");
+        let body_lines: Vec<&str> = header_lines.collect();
+        let first_file = paths_blob
+            .lines()
             .map(|l| l.trim())
             .find(|l| !l.is_empty())
             .unwrap_or("HEAD")
@@ -219,7 +267,7 @@ pub fn extract_from_git_history(root: &Path) -> Result<Vec<DecisionMarker>> {
             if let Some((marker, text)) = scan_commit_line(line) {
                 out.push(DecisionMarker {
                     file: first_file.clone(),
-                    line: 0,
+                    line: None,
                     marker: marker.to_string(),
                     text: text.to_string(),
                     source: Some("commit_message"),
@@ -227,7 +275,7 @@ pub fn extract_from_git_history(root: &Path) -> Result<Vec<DecisionMarker>> {
             }
         }
     }
-    Ok(out)
+    out
 }
 
 /// Match a single commit-message line against the COMMIT_MARKERS list.
@@ -281,6 +329,122 @@ mod tests {
         assert!(scan_commit_line("Wherefore: not a recognized marker").is_none());
         assert!(scan_commit_line("Why").is_none()); // no colon
         assert!(scan_commit_line("Why:").is_none()); // empty body
+    }
+
+    #[test]
+    fn parse_git_log_attributes_empty_commits_to_head() {
+        // `--allow-empty` commits emit no paths from `--name-only`. With the
+        // previous "rposition of last blank line" heuristic, a paragraph
+        // break inside the body was misread as the body/paths boundary,
+        // causing later body text to be emitted as a fake `file` value.
+        // The BODY_END_SEP sentinel pins the split unambiguously.
+        let text = format!(
+            "{rs}deadbeef\nWhy: we chose JWT for compat\n\nSome additional context paragraph.{us}",
+            rs = RECORD_SEP,
+            us = BODY_END_SEP,
+        );
+        let rows = parse_git_log(&text);
+        assert_eq!(rows.len(), 1, "exactly one Why marker expected, got {rows:?}");
+        assert_eq!(
+            rows[0].file, "HEAD",
+            "empty commit should attribute to HEAD, not a body paragraph; got {:?}",
+            rows[0].file,
+        );
+        assert_eq!(rows[0].marker, "Why");
+        assert_eq!(rows[0].text, "we chose JWT for compat");
+    }
+
+    #[test]
+    fn commit_message_rows_omit_line_field() {
+        // `line` is the source-file line number for inline rows. Commit
+        // bodies have no such number, so commit-derived rows must elide
+        // the field rather than emit a `0` sentinel that consumers would
+        // confusingly have to special-case.
+        let text = format!(
+            "{rs}deadbeef\nWhy: keep JWT for compat{us}\nsrc/auth.py",
+            rs = RECORD_SEP,
+            us = BODY_END_SEP,
+        );
+        let rows = parse_git_log(&text);
+        assert_eq!(rows.len(), 1);
+        let json = serde_json::to_value(&rows[0]).unwrap();
+        assert!(
+            json.get("line").is_none(),
+            "commit-derived row should omit `line` (no source-file context); got {json:?}"
+        );
+    }
+
+    #[test]
+    fn inline_rows_keep_line_field() {
+        let rows = extract_from_text("auth.py", "# DECISION: keep JWT\n");
+        assert_eq!(rows.len(), 1);
+        let json = serde_json::to_value(&rows[0]).unwrap();
+        assert_eq!(
+            json["line"].as_u64(),
+            Some(1),
+            "inline rows must preserve the 1-indexed source line on the wire; got {json:?}"
+        );
+    }
+
+    #[test]
+    fn sort_markers_orders_by_file_then_line_with_inline_before_commit() {
+        let mut rows = vec![
+            DecisionMarker {
+                file: "z.rs".into(),
+                line: Some(5),
+                marker: "WHY".into(),
+                text: "z why inline".into(),
+                source: None,
+            },
+            DecisionMarker {
+                file: "a.rs".into(),
+                line: None,
+                marker: "Why".into(),
+                text: "a why commit".into(),
+                source: Some("commit_message"),
+            },
+            DecisionMarker {
+                file: "a.rs".into(),
+                line: Some(10),
+                marker: "DECISION".into(),
+                text: "a decision inline".into(),
+                source: None,
+            },
+            DecisionMarker {
+                file: "a.rs".into(),
+                line: Some(2),
+                marker: "WHY".into(),
+                text: "a why inline".into(),
+                source: None,
+            },
+        ];
+        sort_markers(&mut rows);
+        let order: Vec<(&str, Option<u32>, &str)> = rows
+            .iter()
+            .map(|m| (m.file.as_str(), m.line, m.marker.as_str()))
+            .collect();
+        assert_eq!(
+            order,
+            vec![
+                ("a.rs", Some(2), "WHY"),
+                ("a.rs", Some(10), "DECISION"),
+                ("a.rs", None, "Why"),
+                ("z.rs", Some(5), "WHY"),
+            ],
+        );
+    }
+
+    #[test]
+    fn parse_git_log_keeps_first_changed_file_for_normal_commits() {
+        let text = format!(
+            "{rs}cafef00d\nDecision: keep the bearer-token shape{us}\nsrc/auth.py\nsrc/api.py",
+            rs = RECORD_SEP,
+            us = BODY_END_SEP,
+        );
+        let rows = parse_git_log(&text);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].file, "src/auth.py");
+        assert_eq!(rows[0].marker, "Decision");
     }
 }
 

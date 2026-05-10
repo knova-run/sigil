@@ -37,7 +37,7 @@ sigil groups commands into two tiers:
     duplicates    Clone report across the codebase
     cochange      Git-history file-pair co-change miner
     identifiers   Symbol-shaped tokens lifted from arbitrary text
-    decisions     `WHY:` / `DECISION:` / `TRADEOFF:` comment markers
+    decisions     `WHY:` / `DECISION:` / `RATIONALE:` / `TRADEOFF:` / `ADR:` / `REJECTED:` markers
     package-deps  Dependency edges from manifest files (go.mod, package.json)
     contracts     HTTP routes, gRPC services, queue topics
     workspace     Discover child git repos under a parent directory
@@ -702,10 +702,10 @@ enum Cli {
     },
     /// Extract architectural-decision markers from source-file comments.
     ///
-    /// Scans for `# DECISION:`, `# WHY:`, `# RATIONALE:`, `# TRADEOFF:`
-    /// (and `//` / `--` comment-style equivalents) anchors in source. Emits
-    /// one JSONL row per match — designed to feed the Knova runner's
-    /// decision intelligence layer.
+    /// Scans for `# DECISION:`, `# WHY:`, `# RATIONALE:`, `# TRADEOFF:`,
+    /// `# ADR:`, `# REJECTED:` (and `//` / `--` comment-style equivalents)
+    /// anchors in source. Emits one JSONL row per match — designed to feed
+    /// the Knova runner's decision intelligence layer.
     Decisions {
         /// Project root directory
         #[arg(short, long, default_value = ".")]
@@ -1761,30 +1761,27 @@ fn main() {
             root,
             include_git_history,
         } => {
-            for marker in sigil::decisions::extract_from_root(&root) {
+            let mut rows = sigil::decisions::extract_from_root(&root);
+            if include_git_history {
+                match sigil::decisions::extract_from_git_history(&root) {
+                    Ok(more) => rows.extend(more),
+                    Err(e) => {
+                        eprintln!("decisions --include-git-history: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+                // Re-sort so inline + commit rows interleave deterministically
+                // by (file, line). `extract_from_root` already returns sorted
+                // output but `extract_from_git_history` rows arrive in git-log
+                // order; without this re-sort merged JSONL would depend on
+                // git's history walk.
+                sigil::decisions::sort_markers(&mut rows);
+            }
+            for marker in rows {
                 match serde_json::to_string(&marker) {
                     Ok(s) => println!("{}", s),
                     Err(e) => {
                         eprintln!("decisions: failed to serialize: {}", e);
-                        std::process::exit(1);
-                    }
-                }
-            }
-            if include_git_history {
-                match sigil::decisions::extract_from_git_history(&root) {
-                    Ok(rows) => {
-                        for marker in rows {
-                            match serde_json::to_string(&marker) {
-                                Ok(s) => println!("{}", s),
-                                Err(e) => {
-                                    eprintln!("decisions: failed to serialize: {}", e);
-                                    std::process::exit(1);
-                                }
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        eprintln!("decisions --include-git-history: {}", e);
                         std::process::exit(1);
                     }
                 }

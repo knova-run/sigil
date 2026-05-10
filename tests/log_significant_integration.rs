@@ -101,6 +101,40 @@ fn drops_short_subjects_and_noise_prefixes_keeps_intentful_ones() {
 }
 
 #[test]
+fn limit_zero_means_unlimited() {
+    // Match the convention used by `sigil callers --max 0`, etc.: a 0
+    // limit returns every match. The previous loop-guard placement
+    // (push-then-check) silently truncated to a single row instead.
+    let tmp = TempDir::new().unwrap();
+    init_repo(tmp.path());
+    for i in 0..4 {
+        commit(
+            tmp.path(),
+            "lib.py",
+            &format!("x = {i}\n"),
+            &format!("feat: meaningful commit number {i} that's long enough"),
+        );
+    }
+    let output = Command::new(env!("CARGO_BIN_EXE_sigil"))
+        .arg("log")
+        .arg("--significant")
+        .arg("lib.py")
+        .arg("--limit")
+        .arg("0")
+        .arg("--root")
+        .arg(tmp.path())
+        .output()
+        .expect("failed");
+    assert!(output.status.success());
+    let rows: Vec<serde_json::Value> = String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .filter(|l| !l.is_empty())
+        .map(|l| serde_json::from_str(l).unwrap())
+        .collect();
+    assert_eq!(rows.len(), 4, "--limit 0 must return every significant commit, got {}", rows.len());
+}
+
+#[test]
 fn limit_caps_returned_rows() {
     let tmp = TempDir::new().unwrap();
     init_repo(tmp.path());

@@ -38,7 +38,9 @@ const RECORD_SEP: &str = "\x1e";
 
 /// Walk `git log` for `file` in `repo`, filter to "significant" commits,
 /// and return up to `limit` rows (most-recent first — same order as
-/// `git log`).
+/// `git log`). `limit == 0` means unlimited, matching the convention
+/// other sigil commands use for cap arguments (`--max-results 0`,
+/// `--max 0`, etc.).
 pub fn mine(repo: &Path, file: &str, limit: usize) -> Result<Vec<SignificantCommit>> {
     // %H sha · %aI author-date (ISO 8601 strict) · %ae author email ·
     // %s subject · %b body. RECORD_SEP at the start of the format string
@@ -92,7 +94,7 @@ pub fn mine(repo: &Path, file: &str, limit: usize) -> Result<Vec<SignificantComm
             body,
             paths,
         });
-        if out.len() >= limit {
+        if limit > 0 && out.len() >= limit {
             break;
         }
     }
@@ -111,8 +113,13 @@ pub fn is_significant(subject: &str) -> bool {
     }
     let lower = trimmed.to_ascii_lowercase();
     // Conventional-commit-style prefixes: `chore:`, `chore(scope):`, etc.
+    // `deps` only fires in its conventional-commit shapes (`deps:`,
+    // `deps(...)`, `deps `) so legitimate-content subjects starting with
+    // the same four letters (e.g. "deps build pipeline rewrite") aren't
+    // swallowed.
     const NOISE_PREFIXES: &[&str] = &[
-        "chore", "deps", "fmt", "lint", "whitespace", "bump ", "dependabot", "renovate",
+        "chore", "fmt", "lint", "whitespace", "bump ", "dependabot", "renovate",
+        "deps:", "deps(", "deps ",
     ];
     for prefix in NOISE_PREFIXES {
         if lower.starts_with(prefix) {
@@ -179,6 +186,21 @@ mod tests {
         ));
         assert!(is_significant(
             "refactor decisions extractor to use byte-safe slicing"
+        ));
+    }
+
+    #[test]
+    fn deps_noise_prefix_is_anchored_to_conventional_commit_shapes() {
+        // `deps` only fires in its conventional-commit shapes — `deps:`,
+        // `deps(scope)`, or `deps ` followed by content. The bare token
+        // (e.g. hypothetical "depsy: ...") is no longer auto-filtered
+        // because the prefix is explicit, not bare. Real dependency-bump
+        // subjects all use the conventional shapes and stay filtered.
+        assert!(!is_significant("deps: bump tokio from 1.30 to 1.31"));
+        assert!(!is_significant("deps(rust): upgrade to latest serde release"));
+        assert!(!is_significant("deps bump async-trait from 0.1 to 0.2"));
+        assert!(is_significant(
+            "depsy: a long descriptive subject for a hypothetical not-deps tool"
         ));
     }
 

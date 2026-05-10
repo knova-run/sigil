@@ -73,10 +73,18 @@ fn high_risk_when_single_author_dominates() {
     assert_eq!(row["primary_owner"], "alice@x.com");
     assert!((row["primary_share"].as_f64().unwrap() - 1.0).abs() < 0.001);
     assert_eq!(row["risk"], "high");
-    // second_share is 0.0 with a single author
-    assert!((row["second_share"].as_f64().unwrap() - 0.0).abs() < 0.001);
-    // second_owner is elided (skip_serializing_if = None)
-    assert!(row.get("second_owner").is_none() || row["second_owner"].is_null());
+    // Single-author files: both `second_owner` and `second_share` must be
+    // elided so the correlated fields stay in lockstep on the wire.
+    assert!(
+        row.get("second_owner").is_none() || row["second_owner"].is_null(),
+        "second_owner should be absent when only one author exists, got {:?}",
+        row.get("second_owner")
+    );
+    assert!(
+        row.get("second_share").is_none() || row["second_share"].is_null(),
+        "second_share should be absent when second_owner is absent, got {:?}",
+        row.get("second_share")
+    );
 }
 
 #[test]

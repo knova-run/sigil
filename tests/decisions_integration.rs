@@ -1,7 +1,7 @@
 //! Integration tests for `sigil decisions` — extract architectural
 //! decision markers from source-file comments.
 //!
-//! The MVP scans for `# DECISION:`, `# WHY:`, `# RATIONALE:`, `# TRADEOFF:`
+//! The MVP scans for `# DECISION:`, `# WHY:`, `# RATIONALE:`, `# TRADEOFF:`, `# ADR:`, `# REJECTED:`
 //! anchors in line-style comments across the supported languages and emits
 //! one JSONL row per match.
 
