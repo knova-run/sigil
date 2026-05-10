@@ -482,6 +482,7 @@ Script-facing commands default to unbounded results and minified `--json` output
 | `sigil hotspots [--root DIR] [--commits N]` | File churn × line count risk score. |
 | `sigil ownership [--root DIR] [--commits N]` | Per-file primary author from git history. |
 | `sigil security-scan [--root DIR]` | Regex security-signal extractor (eval/exec, pickle.loads, hardcoded secrets, weak hashes, `verify=False`). Language-aware so Rust `cmd.exec(...)` doesn't false-positive. |
+| `sigil dead-code [--root DIR] [--safe-only] [--include-low-confidence] [--exclude-pattern RE] [--activity-window-days N]` | Framework-aware dead-code detection with confidence tiers. Walks `.sigil/` entities + refs; excludes Flask/FastAPI/Django/chi/gin/echo/Express/NestJS route files and downgrades `*Handler`/`*Plugin`/`*Service`/... exports. Emits `confidence` (1.00 dead file, 0.85 exported orphan, 0.70 internal helper) + optional `framework_excluded` / `dynamic_name_match` / `recent_activity`. `--safe-only` filters to ≥ 0.70 for CI shipping. |
 
 ### Admin & data pipeline
 

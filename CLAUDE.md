@@ -26,7 +26,8 @@ src/
                       Script-facing: search, symbols, children, callers, callees,
                                      explore, duplicates, cochange, query, diff, index,
                                      identifiers, decisions, package-deps, contracts,
-                                     workspace, hotspots, ownership, security-scan
+                                     workspace, hotspots, ownership, security-scan,
+                                     dead-code
                       Installers:    claude, cursor, codex, gemini, opencode, aider,
                                      copilot, hook
   entity.rs        — Entity + Reference structs (serde); visibility, rank,
@@ -75,6 +76,11 @@ src/
   hotspots.rs           — `sigil hotspots` — file churn × line count risk score
   ownership.rs          — `sigil ownership` — per-file primary author from git log
   security_scan.rs      — `sigil security-scan` — regex security-signal extractor
+  dead_code.rs          — `sigil dead-code` — framework-aware dead-code detection
+                          with confidence tiers (file 1.00, exported orphan 0.85,
+                          internal helper 0.70); excludes Flask/FastAPI/Django,
+                          chi/gin/echo, Express/NestJS route files and
+                          `*Handler`/`*Plugin`/`*Service` dynamic-name exports
 
   query/
     mod.rs               — Backend router (InMemory | DuckDb), format_* helpers
