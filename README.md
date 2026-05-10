@@ -481,6 +481,9 @@ Script-facing commands default to unbounded results and minified `--json` output
 | `sigil workspace scan [--root DIR]` | Discover child git repos under a parent directory. |
 | `sigil hotspots [--root DIR] [--commits N]` | File churn × line count risk score. |
 | `sigil ownership [--root DIR] [--commits N]` | Per-file primary author from git history. |
+| `sigil bus-factor [--root DIR] [--threshold 0.8] [--commits N]` | Per-file knowledge-concentration risk from git history. Emits `{path, primary_owner, primary_share, second_owner, second_share, risk}` where `risk` = high (>= threshold) / medium (>= 0.6) / low. |
+| `sigil log --significant <file> [--limit N] [--root DIR]` | Intent-filtered git log for a single file. Drops merges, noise-prefix subjects (chore/deps/fmt/lint/whitespace/Bump/dependabot/renovate), and subjects shorter than 30 chars. JSON per commit: `{sha, date, author, subject, body, paths}`. |
+| `sigil decisions [--root DIR] [--include-git-history]` (extended) | `--include-git-history` also scans git commit bodies for `Why:` / `Decision:` / `Tradeoff:` / `Refactor for:` / `Rationale:` lines and emits them as `source: "commit_message"` rows. Inline source-comment rows stay byte-stable (no `source` key). |
 | `sigil security-scan [--root DIR]` | Regex security-signal extractor (eval/exec, pickle.loads, hardcoded secrets, weak hashes, `verify=False`). Language-aware so Rust `cmd.exec(...)` doesn't false-positive. |
 | `sigil communities [--root DIR] [--resolution F] [--pretty]` | Leiden-modularity file clusters over the import/call graph. NDJSON one cluster per line: `{cluster_id, size, members, representative, label}`. Representative = highest-PageRank file in the cluster. The refinement pass guarantees every output community is internally connected (Traag et al. 2019). |
 

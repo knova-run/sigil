@@ -1,5 +1,6 @@
 pub mod benchmark;
 pub mod blast;
+pub mod bus_factor;
 pub mod cache;
 pub mod change_detail;
 pub mod classifier;
@@ -21,6 +22,7 @@ pub mod toml_index;
 pub mod yaml_index;
 pub mod markdown_index;
 pub mod inline_diff;
+pub mod log_significant;
 pub mod markdown_formatter;
 pub mod matcher;
 pub mod meta;

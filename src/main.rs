@@ -37,12 +37,14 @@ sigil groups commands into two tiers:
     duplicates    Clone report across the codebase
     cochange      Git-history file-pair co-change miner
     identifiers   Symbol-shaped tokens lifted from arbitrary text
-    decisions     `WHY:` / `DECISION:` / `TRADEOFF:` comment markers
+    decisions     `WHY:` / `DECISION:` / `RATIONALE:` / `TRADEOFF:` / `ADR:` / `REJECTED:` markers
     package-deps  Dependency edges from manifest files (go.mod, package.json)
     contracts     HTTP routes, gRPC services, queue topics
     workspace     Discover child git repos under a parent directory
     hotspots      File churn × line count risk score
     ownership     Per-file primary author from git history
+    bus-factor    Per-file knowledge-concentration risk from git history
+    log           Filtered git log: `--significant <file>` keeps intent-bearing commits
     security-scan Lightweight regex security-signal extractor
     communities   Leiden modularity clustering over the file graph
 
@@ -700,14 +702,21 @@ enum Cli {
     },
     /// Extract architectural-decision markers from source-file comments.
     ///
-    /// Scans for `# DECISION:`, `# WHY:`, `# RATIONALE:`, `# TRADEOFF:`
-    /// (and `//` / `--` comment-style equivalents) anchors in source. Emits
-    /// one JSONL row per match — designed to feed the Knova runner's
-    /// decision intelligence layer.
+    /// Scans for `# DECISION:`, `# WHY:`, `# RATIONALE:`, `# TRADEOFF:`,
+    /// `# ADR:`, `# REJECTED:` (and `//` / `--` comment-style equivalents)
+    /// anchors in source. Emits one JSONL row per match — designed to feed
+    /// the Knova runner's decision intelligence layer.
     Decisions {
         /// Project root directory
         #[arg(short, long, default_value = ".")]
         root: PathBuf,
+        /// Also scan git commit messages for `Why:` / `Decision:` /
+        /// `Tradeoff:` / `Refactor for:` / `Rationale:` prefixes. Off
+        /// by default — current output stays byte-stable for consumers
+        /// that don't opt in. Each commit-derived row carries
+        /// `source: "commit_message"`; inline rows still omit the field.
+        #[arg(long)]
+        include_git_history: bool,
     },
     /// Extract package dependency edges from manifest files.
     ///
@@ -762,6 +771,39 @@ enum Cli {
     #[command(name = "security-scan")]
     SecurityScan {
         /// Project root directory
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
+    },
+    /// Per-file knowledge-concentration risk. JSONL on stdout:
+    /// { path, primary_owner, primary_share, second_owner, second_share, risk }
+    /// where risk = high (>= threshold) | medium (>= 0.6) | low.
+    /// Reuses the same git log walk as `sigil ownership`.
+    #[command(name = "bus-factor")]
+    BusFactor {
+        /// Project root (must be a git repo)
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
+        /// Primary-share cutoff for "high" risk.
+        #[arg(long, default_value = "0.8")]
+        threshold: f64,
+        /// How many recent commits to walk.
+        #[arg(long, default_value = "500")]
+        commits: usize,
+    },
+    /// Filtered git log. Currently only `--significant <file>` is wired:
+    /// walks the file's history, drops merges + noise-prefix subjects
+    /// (chore/deps/fmt/lint/whitespace/Bump/dependabot/renovate) + subjects
+    /// shorter than 30 chars. JSON per commit: { sha, date, author, subject,
+    /// body, paths }.
+    Log {
+        /// File path to walk (required for the MVP — this is the only mode
+        /// `sigil log` currently surfaces).
+        #[arg(long)]
+        significant: PathBuf,
+        /// Cap on returned commits (most-recent first).
+        #[arg(long, default_value = "10")]
+        limit: usize,
+        /// Project root (must be a git repo)
         #[arg(short, long, default_value = ".")]
         root: PathBuf,
     },
@@ -1715,8 +1757,27 @@ fn main() {
                 }
             }
         }
-        Cli::Decisions { root } => {
-            for marker in sigil::decisions::extract_from_root(&root) {
+        Cli::Decisions {
+            root,
+            include_git_history,
+        } => {
+            let mut rows = sigil::decisions::extract_from_root(&root);
+            if include_git_history {
+                match sigil::decisions::extract_from_git_history(&root) {
+                    Ok(more) => rows.extend(more),
+                    Err(e) => {
+                        eprintln!("decisions --include-git-history: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+                // Re-sort so inline + commit rows interleave deterministically
+                // by (file, line). `extract_from_root` already returns sorted
+                // output but `extract_from_git_history` rows arrive in git-log
+                // order; without this re-sort merged JSONL would depend on
+                // git's history walk.
+                sigil::decisions::sort_markers(&mut rows);
+            }
+            for marker in rows {
                 match serde_json::to_string(&marker) {
                     Ok(s) => println!("{}", s),
                     Err(e) => {
@@ -1806,6 +1867,51 @@ fn main() {
                 std::process::exit(1);
             }
         },
+        Cli::BusFactor {
+            root,
+            threshold,
+            commits,
+        } => match sigil::bus_factor::mine(&root, commits, threshold) {
+            Ok(rows) => {
+                for row in rows {
+                    match serde_json::to_string(&row) {
+                        Ok(s) => println!("{}", s),
+                        Err(e) => {
+                            eprintln!("bus-factor: failed to serialize: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("bus-factor: {}", e);
+                std::process::exit(1);
+            }
+        },
+        Cli::Log {
+            significant,
+            limit,
+            root,
+        } => {
+            let file = significant.to_string_lossy().to_string();
+            match sigil::log_significant::mine(&root, &file, limit) {
+                Ok(rows) => {
+                    for row in rows {
+                        match serde_json::to_string(&row) {
+                            Ok(s) => println!("{}", s),
+                            Err(e) => {
+                                eprintln!("log: failed to serialize: {}", e);
+                                std::process::exit(1);
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("log: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
         Cli::Communities { root, resolution, pretty } => {
             let idx = match sigil::query::index::Index::load(&root) {
                 Ok(i) => i,
