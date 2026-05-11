@@ -150,6 +150,7 @@ pub fn build_index(
     files: Option<&[PathBuf]>,
     full: bool,
     include_refs: bool,
+    tier3: bool,
     verbose: bool,
 ) -> IndexResult {
     let files_to_index = match files {
@@ -252,6 +253,17 @@ pub fn build_index(
                 continue;
             }
         }
+    }
+
+    // Tier-3 call resolution: runs before the final sort so the resolver
+    // sees stable input order. Mutates `all_refs` in place — may demote
+    // false tier-1 edges (bare-name 1.0 with no actual same-file def) and
+    // promote unique cross-file matches to confidence 0.5. Also appends
+    // barrel-follow edges for JS/TS + Python re-exports at confidence 0.7.
+    if tier3 && include_refs {
+        resolve_tier3(&all_entities, &mut all_refs);
+        let extra = resolve_barrel_follow(&all_entities, &all_refs);
+        all_refs.extend(extra);
     }
 
     // Sort deterministically
@@ -384,6 +396,352 @@ fn load_previous_refs(sigil_dir: &Path) -> Vec<Reference> {
     content.lines()
         .filter_map(|line| serde_json::from_str(line).ok())
         .collect()
+}
+
+/// Entity kinds that participate in tier-3 call resolution. These are the
+/// kinds you can actually `call(...)`; data types, modules, imports and the
+/// like are excluded so a `Foo` data class doesn't shadow a `Foo()` function
+/// in another file.
+const CALLABLE_KINDS: &[&str] = &["function", "fn", "method", "constructor"];
+
+fn is_callable_kind(kind: &str) -> bool {
+    CALLABLE_KINDS.contains(&kind)
+}
+
+/// Map a file path (by extension) to the language tag the parsers use.
+/// `None` for files we don't parse as code (json/yaml/toml/markdown).
+fn language_from_file(file: &str) -> Option<&'static str> {
+    let ext = file.rsplit('.').next().unwrap_or("");
+    match ext {
+        "py" => Some("python"),
+        "rs" => Some("rust"),
+        "js" | "jsx" | "mjs" | "cjs" => Some("javascript"),
+        "ts" | "tsx" => Some("typescript"),
+        "go" => Some("go"),
+        "rb" => Some("ruby"),
+        "java" => Some("java"),
+        "c" | "h" => Some("c"),
+        "cpp" | "cc" | "cxx" | "hpp" | "hh" => Some("cpp"),
+        "cs" => Some("csharp"),
+        "swift" => Some("swift"),
+        "kt" | "kts" => Some("kotlin"),
+        "scala" | "sc" => Some("scala"),
+        "php" => Some("php"),
+        _ => None,
+    }
+}
+
+/// Tier-3 call resolver — runs after all files are parsed and before the
+/// final sort. Mirrors repowise's `CallResolver._resolve_free_call` (issue
+/// #15 followup) but only the global-unique fallback piece — barrel
+/// re-export following is a separate pass (JS/TS + Python only) layered on
+/// top of this.
+///
+/// Behaviour:
+///
+///   * Demote false tier-1: a bare-identifier call tagged 1.0 by the
+///     parser whose name does NOT match any same-file callable definition
+///     is reset to None (parsers issue 1.0 optimistically for any bare
+///     identifier; this pass is the first place we can verify same-file
+///     match).
+///   * Promote to tier-3 (0.5): an unresolved bare-name call (None
+///     confidence after the demote) whose name appears as a callable
+///     definition exactly once across the whole index — and only in
+///     files of the same language as the caller — gets confidence 0.5.
+///   * Tier-2 edges (0.8) and member/scoped calls (`.`/`::`/`/` in the
+///     name) are left untouched — those resolve through file-local imports
+///     and are owned by the per-parser resolvers.
+fn resolve_tier3(entities: &[Entity], refs: &mut [Reference]) {
+    use std::collections::HashMap;
+
+    // (file, name) → exists — callable defs in that file
+    let mut same_file: std::collections::HashSet<(&str, &str)> =
+        std::collections::HashSet::new();
+    // name → Vec<&file> — every callable def of that name
+    let mut globals: HashMap<&str, Vec<&str>> = HashMap::new();
+
+    for e in entities {
+        if !is_callable_kind(&e.kind) {
+            continue;
+        }
+        same_file.insert((e.file.as_str(), e.name.as_str()));
+        globals.entry(e.name.as_str()).or_default().push(e.file.as_str());
+    }
+
+    for r in refs.iter_mut() {
+        if r.ref_kind != "call" {
+            continue;
+        }
+        // Only bare names participate. Member/scoped/resolved-form names
+        // (containing `.`, `::`, or `/`) belong to tier-2 or are already
+        // unresolved attribute chains.
+        if r.name.contains('.') || r.name.contains("::") || r.name.contains('/') {
+            continue;
+        }
+        // Tier-2 (or any other non-None, non-tier-1 confidence) → leave alone.
+        if !matches!(r.confidence, None | Some(1.0)) {
+            continue;
+        }
+        // Verified tier-1: same-file def exists, leave at 1.0.
+        if same_file.contains(&(r.file.as_str(), r.name.as_str())) {
+            continue;
+        }
+        // Tier-1 was optimistic — demote.
+        if r.confidence == Some(1.0) {
+            r.confidence = None;
+        }
+        // Tier-3 global-unique check (language-gated).
+        let caller_lang = language_from_file(&r.file);
+        let Some(defs) = globals.get(r.name.as_str()) else { continue };
+        let same_lang_defs: Vec<&&str> = defs
+            .iter()
+            .filter(|f| language_from_file(f) == caller_lang)
+            .collect();
+        if same_lang_defs.len() == 1 {
+            r.confidence = Some(0.5);
+        }
+    }
+}
+
+/// Barrel-follow tier-3 pass. Detects files that re-export a name without
+/// defining it locally (JS/TS `export { x } from "./y"`, Python
+/// `__init__.py` doing `from .pkg import x`) and emits an additional edge
+/// at confidence 0.7 pointing at the underlying file, for every tier-2
+/// edge that lands on a barrel.
+///
+/// Mirrors repowise's `_follow_barrel_exports` heuristic
+/// (call_resolver.py:98-110) — one-hop: if the chain is barrel→barrel→def
+/// we only follow the first hop, which covers the common case.
+///
+/// Scope: JS/TS and Python only — these are the ecosystems where
+/// re-exports through `index.{ts,js}` / `__init__.py` are idiomatic. Other
+/// languages would need manifest-aware resolvers (Cargo.toml, go.mod,
+/// composer.json, etc.) to map a textual import path to a file; that work
+/// is a separate follow-up.
+fn resolve_barrel_follow(entities: &[Entity], refs: &[Reference]) -> Vec<Reference> {
+    use std::collections::{HashMap, HashSet};
+
+    let file_set: HashSet<&str> = entities.iter().map(|e| e.file.as_str()).collect();
+
+    // Per-file map of locally-defined callable names.
+    let mut local_defs: HashMap<&str, HashSet<&str>> = HashMap::new();
+    for e in entities {
+        if is_callable_kind(&e.kind) {
+            local_defs.entry(e.file.as_str()).or_default().insert(e.name.as_str());
+        }
+    }
+
+    // Per-file map of "imported name → source module string" — only the
+    // imports we know about (Entity kind=="import"). The alias when present
+    // gives the local binding name; otherwise the trailing segment of the
+    // import's name.
+    let mut file_imports: HashMap<&str, Vec<(String, String)>> = HashMap::new();
+    for e in entities {
+        if e.kind != "import" {
+            continue;
+        }
+        // The Entity layer doesn't carry the SymbolEntry's alias, so we
+        // back-derive the local binding from the import name's shape:
+        // JS/TS + Python imports use `.` as the joiner, so the local name
+        // is the trailing `.`-segment and the source is everything before
+        // it. Wildcard imports (`pkg.*`) are skipped — they introduce no
+        // single local binding.
+        let trimmed = e.name.trim_end_matches(".*");
+        let (source, local_name) = match trimmed.rsplit_once('.') {
+            Some((src, leaf)) => (src.to_string(), leaf.to_string()),
+            None => (trimmed.to_string(), trimmed.to_string()),
+        };
+        if source.is_empty() || local_name.is_empty() || local_name == "*" {
+            continue;
+        }
+        file_imports
+            .entry(e.file.as_str())
+            .or_default()
+            .push((local_name, source));
+    }
+
+    // Resolve textual import sources (`./utils`, `.pkg`) to real file paths,
+    // and build the barrel map: (barrel_file, local_name) → underlying_file.
+    // A file is a barrel for `name` if it imports `name` from somewhere
+    // AND does not locally define `name`.
+    let mut barrel_origins: HashMap<(&str, String), String> = HashMap::new();
+    for (file, imps) in &file_imports {
+        let defs = local_defs.get(file);
+        for (local_name, src) in imps {
+            let already_defined = defs.map(|d| d.contains(local_name.as_str())).unwrap_or(false);
+            if already_defined {
+                continue;
+            }
+            let Some(resolved) = resolve_module_path(file, src, &file_set) else {
+                continue;
+            };
+            barrel_origins.insert((*file, local_name.clone()), resolved);
+        }
+    }
+    if barrel_origins.is_empty() {
+        return Vec::new();
+    }
+
+    // Walk tier-2 resolved-form refs (`<src>.<member>/<rest>`) and check
+    // whether `<src>` resolves to a barrel for `<member>`. If so, emit an
+    // additional edge against the underlying file.
+    let mut additions: Vec<Reference> = Vec::new();
+    for r in refs {
+        if r.ref_kind != "call" {
+            continue;
+        }
+        if r.confidence != Some(0.8) {
+            continue;
+        }
+        // The resolved-form is `<import-path>.<local_name>/<rest>` per the
+        // tier-2 convention. Split on the LAST `/` — the import path itself
+        // can contain `/` (relative JS/TS module specifiers like `./a/b`).
+        let Some(slash_at) = r.name.rfind('/') else { continue };
+        let lhs = &r.name[..slash_at];
+        let rest = &r.name[slash_at + 1..];
+        let Some(dot_at) = lhs.rfind('.') else { continue };
+        let import_src = &lhs[..dot_at];
+        let local_name = &lhs[dot_at + 1..];
+        let Some(resolved_barrel) = resolve_module_path(&r.file, import_src, &file_set) else {
+            continue;
+        };
+        let key: (&str, String) = (resolved_barrel.as_str(), local_name.to_string());
+        // We need a `&str` for the file slot but resolved_barrel is owned
+        // — index into the file_set's stored borrow for the same path.
+        let Some(file_borrow) = file_set.get(resolved_barrel.as_str()) else { continue };
+        let key: (&str, String) = (*file_borrow, key.1);
+        let Some(origin_module) = barrel_origins.get(&key) else { continue };
+        // The barrel's underlying file is the import source it pointed at.
+        // Emit an edge whose name is `<origin_file>/<rest>` so consumers can
+        // distinguish this edge from the original tier-2 form.
+        let edge_name = if rest.is_empty() {
+            format!("{origin_module}/{local_name}")
+        } else {
+            format!("{origin_module}/{rest}")
+        };
+        additions.push(Reference {
+            file: r.file.clone(),
+            caller: r.caller.clone(),
+            name: edge_name,
+            ref_kind: "call".to_string(),
+            line: r.line,
+            confidence: Some(0.7),
+        });
+    }
+    additions
+}
+
+/// Resolve a textual module specifier (`./utils`, `../pkg/helpers`,
+/// `pkg.helpers`) to a real file path that exists in the index. JS/TS and
+/// Python only — other languages need manifest-aware resolvers.
+///
+/// Strategies tried (first hit wins):
+///
+///   * JS/TS relative (`./X`, `../X`): probe `X.ts`, `X.tsx`, `X.js`,
+///     `X.jsx`, `X.mjs`, `X.cjs`, then `X/index.{ts,tsx,js,jsx,mjs,cjs}`
+///   * Python dotted (`pkg.helpers`, `.pkg.helpers`): probe
+///     `pkg/helpers.py`, `pkg/helpers/__init__.py` (and resolve leading
+///     `.` relative to the importing file's directory)
+fn resolve_module_path(
+    from_file: &str,
+    module: &str,
+    files: &std::collections::HashSet<&str>,
+) -> Option<String> {
+    fn parent_dir(file: &str) -> &str {
+        match file.rfind('/') {
+            Some(i) => &file[..i],
+            None => "",
+        }
+    }
+    let lang = language_from_file(from_file);
+
+    if matches!(lang, Some("javascript") | Some("typescript"))
+        && (module.starts_with("./") || module.starts_with("../"))
+    {
+        let base = parent_dir(from_file);
+        let joined = if base.is_empty() {
+            module.trim_start_matches("./").to_string()
+        } else {
+            format!("{}/{}", base, module)
+        };
+        let normalized = normalize_path(&joined);
+        for ext in &["ts", "tsx", "js", "jsx", "mjs", "cjs"] {
+            let candidate = format!("{normalized}.{ext}");
+            if let Some(hit) = files.get(candidate.as_str()) {
+                return Some((*hit).to_string());
+            }
+        }
+        for ext in &["ts", "tsx", "js", "jsx", "mjs", "cjs"] {
+            let candidate = format!("{normalized}/index.{ext}");
+            if let Some(hit) = files.get(candidate.as_str()) {
+                return Some((*hit).to_string());
+            }
+        }
+        return None;
+    }
+
+    if lang == Some("python") {
+        // Strip leading dots for relative imports (`.pkg.helpers`).
+        let (level, rest) = {
+            let mut level = 0;
+            for ch in module.chars() {
+                if ch == '.' {
+                    level += 1;
+                } else {
+                    break;
+                }
+            }
+            (level, &module[level..])
+        };
+        let base = if level == 0 {
+            String::new()
+        } else {
+            // Walk up `level-1` directories from the file's parent (level=1
+            // means same dir, level=2 means one up, etc.).
+            let mut dir = parent_dir(from_file).to_string();
+            for _ in 1..level {
+                if let Some(i) = dir.rfind('/') {
+                    dir.truncate(i);
+                } else {
+                    dir.clear();
+                }
+            }
+            dir
+        };
+        let dotted = rest.replace('.', "/");
+        let path = if base.is_empty() {
+            dotted
+        } else if dotted.is_empty() {
+            base
+        } else {
+            format!("{base}/{dotted}")
+        };
+        let candidate = format!("{path}.py");
+        if let Some(hit) = files.get(candidate.as_str()) {
+            return Some((*hit).to_string());
+        }
+        let candidate = format!("{path}/__init__.py");
+        if let Some(hit) = files.get(candidate.as_str()) {
+            return Some((*hit).to_string());
+        }
+    }
+    None
+}
+
+/// Canonicalise a path string by collapsing `.` / `..` segments. Operates
+/// on `/`-separated paths (the form sigil stores filenames in).
+fn normalize_path(p: &str) -> String {
+    let mut out: Vec<&str> = Vec::new();
+    for seg in p.split('/') {
+        match seg {
+            "" | "." => {}
+            ".." => {
+                out.pop();
+            }
+            other => out.push(other),
+        }
+    }
+    out.join("/")
 }
 
 #[cfg(test)]

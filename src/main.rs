@@ -89,6 +89,12 @@ enum Cli {
         #[arg(long)]
         no_rank: bool,
 
+        /// Skip the tier-3 call resolver pass (global-unique fallback
+        /// across the index, plus JS/TS + Python barrel one-hop). On by
+        /// default; this flag opts out for strict-only call graphs.
+        #[arg(long)]
+        no_tier3: bool,
+
         /// Print progress information
         #[arg(short, long)]
         verbose: bool,
@@ -917,9 +923,9 @@ fn main() {
     let cli = Cli::parse();
 
     match cli {
-        Cli::Index { root, files, stdout, pretty, full, no_refs, no_rank, verbose } => {
+        Cli::Index { root, files, stdout, pretty, full, no_refs, no_rank, no_tier3, verbose } => {
             let files_arg = if files.is_empty() { None } else { Some(files.as_slice()) };
-            let mut result = index::build_index(&root, files_arg, full, !no_refs, verbose);
+            let mut result = index::build_index(&root, files_arg, full, !no_refs, !no_tier3, verbose);
 
             // Phase 1 rank pass. On by default; `--no-rank` skips it (useful
             // in CI or when refs are also skipped). Rank is a whole-repo

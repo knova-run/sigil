@@ -339,6 +339,12 @@ fn walk_node(
         "import_statement" => {
             extract_import(node, source, file_path, symbols, references);
         }
+        "export_statement" => {
+            // Re-exports (`export ... from "./y"`) are import-equivalent for
+            // tier-3 barrel-follow; declaration exports are handled by the
+            // existing extractors that recurse into the wrapped declaration.
+            extract_reexport(node, source, file_path, symbols, references);
+        }
 
         // --- Reference extraction ---
         "call_expression" => {
@@ -1089,6 +1095,94 @@ fn extract_import(
                     _ => {}
                 }
             }
+        }
+    }
+}
+
+/// Handle `export { x } from "./y"` / `export * from "./y"` re-export
+/// statements. These bind a name in the current module that was originally
+/// defined elsewhere — semantically equivalent to an import for our purposes
+/// (barrel-follow walks the import chain via these symbols). Emits the same
+/// `kind: "import"` symbols as `extract_import` so the tier-3 barrel-follow
+/// pass treats both forms uniformly.
+pub(crate) fn extract_reexport(
+    node: Node,
+    source: &[u8],
+    file_path: &str,
+    symbols: &mut Vec<SymbolEntry>,
+    references: &mut Vec<ReferenceEntry>,
+) {
+    let line = node_line_range(node);
+    // Only export_statement forms with a `source` field are re-exports.
+    let Some(source_node) = find_child_by_field(node, "source") else {
+        return;
+    };
+    let source_module = strip_string_quotes(&node_text(source_node, source)).to_string();
+
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        match child.kind() {
+            "export_clause" => {
+                // `export { a, b as c } from "./y"`
+                let mut spec_cursor = child.walk();
+                for spec in child.children(&mut spec_cursor) {
+                    if spec.kind() != "export_specifier" {
+                        continue;
+                    }
+                    let imp_name = find_child_by_field(spec, "name").map(|n| node_text(n, source));
+                    let alias = find_child_by_field(spec, "alias")
+                        .map(|n| node_text(n, source))
+                        .or_else(|| imp_name.clone());
+                    if let Some(name) = imp_name {
+                        let full_name = format!("{source_module}.{name}");
+                        push_symbol(
+                            symbols,
+                            file_path,
+                            full_name.clone(),
+                            "import",
+                            line,
+                            None,
+                            None,
+                            alias,
+                            Some("private".to_string()),
+                        );
+                        references.push(ReferenceEntry {
+                            file: file_path.to_string(),
+                            name: full_name,
+                            kind: "import".to_string(),
+                            line,
+                            caller: None,
+                            project: String::new(),
+                            confidence: None,
+                        });
+                    }
+                }
+            }
+            "*" => {
+                // `export * from "./y"` — wildcard re-export. No local alias.
+                let full_name = format!("{source_module}.*");
+                push_symbol(
+                    symbols,
+                    file_path,
+                    full_name.clone(),
+                    "import",
+                    line,
+                    None,
+                    None,
+                    None,
+                    Some("private".to_string()),
+                );
+                references.push(ReferenceEntry {
+                    file: file_path.to_string(),
+                    name: full_name,
+                    kind: "import".to_string(),
+                    line,
+                    caller: None,
+                    project: String::new(),
+                    confidence: None,
+                });
+            }
+            _ => {}
         }
     }
 }

@@ -390,6 +390,13 @@ fn walk_node(
         "import_statement" => {
             extract_import(node, source, file_path, symbols, references);
         }
+        "export_statement" => {
+            // TS re-exports share the JS export-from grammar; reuse the JS
+            // re-export extractor so tier-3 barrel-follow works the same way.
+            crate::parser::javascript::extract_reexport(
+                node, source, file_path, symbols, references,
+            );
+        }
 
         // --- TS-specific constructs ---
         "interface_declaration" => {

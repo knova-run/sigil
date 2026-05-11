@@ -344,6 +344,7 @@ pub fn ensure_indexed(root: &Path) -> Result<()> {
         /* files */ None,
         /* full */ true,
         /* include_refs */ true,
+        /* tier3 */ true,
         /* verbose */ false,
     );
     // Populate file-level PageRank and per-entity blast radius so
