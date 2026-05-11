@@ -16,6 +16,61 @@ pub fn extract(
 ) {
     let root = tree.root_node();
     walk_node(root, source, file_path, None, symbols, texts, references, 0);
+    resolve_rust_imports_tier2(symbols, references);
+}
+
+/// Tier-2 resolver: upgrade scoped-call heads (`Head::member`) whose head
+/// matches a file-local `use` binding to confidence 0.8, and emit a resolved
+/// edge using `/` as the path/member separator (Go convention).
+///
+/// Short-name resolution rules:
+///   * `use foo::Bar;`         → short = `Bar`, path = `foo::Bar`
+///   * `use foo::Bar as Baz;`  → short = `Baz`, path = `foo::Bar`
+///   * `use foo::{Bar, Baz};`  → two entries, short `Bar`/`Baz`
+///   * `use foo::*;` (wildcard) is skipped — namespace-glob shadowing needs
+///     cross-file analysis.
+fn resolve_rust_imports_tier2(symbols: &[SymbolEntry], references: &mut Vec<ReferenceEntry>) {
+    use std::collections::HashMap;
+    let imports: HashMap<String, &str> = symbols
+        .iter()
+        .filter(|s| s.kind == "import")
+        .filter_map(|s| {
+            let short = match s.alias.as_deref() {
+                Some(a) if !a.is_empty() => a.to_string(),
+                _ => s.name.rsplit("::").next()?.to_string(),
+            };
+            if short.is_empty() || short == "*" || short.ends_with('*') {
+                None
+            } else {
+                Some((short, s.name.as_str()))
+            }
+        })
+        .collect();
+    if imports.is_empty() {
+        return;
+    }
+    let mut added: Vec<ReferenceEntry> = Vec::new();
+    for r in references.iter_mut() {
+        if r.kind != "call" {
+            continue;
+        }
+        let (head, rest) = match r.name.split_once("::") {
+            Some((h, t)) => (h.to_string(), t.to_string()),
+            None => (r.name.clone(), String::new()),
+        };
+        let Some(&path) = imports.get(&head) else { continue };
+        r.confidence = Some(0.8);
+        added.push(ReferenceEntry {
+            file: r.file.clone(),
+            name: format!("{path}/{rest}"),
+            kind: "call".to_string(),
+            line: r.line,
+            caller: r.caller.clone(),
+            project: r.project.clone(),
+            confidence: Some(0.8),
+        });
+    }
+    references.extend(added);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1132,6 +1187,44 @@ fn helper() {}";
         if let Some(s) = scoped {
             assert_eq!(s.confidence, None);
         }
+    }
+
+    #[test]
+    fn rust_use_alias_scoped_call_gets_tier2_two_edges() {
+        // `use foo::Bar;` then `Bar::greet()`:
+        //   * raw `Bar::greet` upgraded to 0.8
+        //   * resolved `foo::Bar/greet` at 0.8
+        let source = b"use foo::Bar;\nfn caller() { Bar::greet(); }\n";
+        let (_, _, refs) = parse_file(source, "rust", "t.rs").unwrap();
+        let raw = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "Bar::greet")
+            .expect("raw Bar::greet call");
+        assert_eq!(raw.confidence, Some(0.8));
+        let resolved = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "foo::Bar/greet")
+            .expect("resolved foo::Bar/greet form");
+        assert_eq!(resolved.confidence, Some(0.8));
+    }
+
+    #[test]
+    fn rust_use_as_clause_call_resolves_tier2() {
+        // `use foo::Bar as Baz;` then `Baz::greet()`:
+        //   * raw `Baz::greet` upgraded to 0.8
+        //   * resolved `foo::Bar/greet` at 0.8
+        let source = b"use foo::Bar as Baz;\nfn caller() { Baz::greet(); }\n";
+        let (_, _, refs) = parse_file(source, "rust", "t.rs").unwrap();
+        let raw = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "Baz::greet")
+            .expect("raw Baz::greet call");
+        assert_eq!(raw.confidence, Some(0.8));
+        let resolved = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "foo::Bar/greet")
+            .expect("resolved foo::Bar/greet form");
+        assert_eq!(resolved.confidence, Some(0.8));
     }
 
     #[test]

@@ -119,6 +119,55 @@ pub fn extract(
 ) {
     let root = tree.root_node();
     walk_node(root, source, file_path, None, symbols, texts, references, 0);
+    resolve_php_imports_tier2(symbols, references);
+}
+
+/// Tier-2 resolver: upgrade bare-name calls whose head matches a file-local
+/// `use` binding to confidence 0.8, and emit a second edge with the
+/// fully-qualified namespace path. Mirrors the Go template's two-edge form
+/// using `/` as the resolved-form separator.
+fn resolve_php_imports_tier2(symbols: &[SymbolEntry], references: &mut Vec<ReferenceEntry>) {
+    use std::collections::HashMap;
+    let imports: HashMap<String, &str> = symbols
+        .iter()
+        .filter(|s| s.kind == "import")
+        .filter_map(|s| {
+            let short = match s.alias.as_deref() {
+                Some(a) if !a.is_empty() => a.to_string(),
+                _ => s.name.rsplit('\\').next()?.to_string(),
+            };
+            if short.is_empty() {
+                None
+            } else {
+                Some((short, s.name.as_str()))
+            }
+        })
+        .collect();
+    if imports.is_empty() {
+        return;
+    }
+    let mut added: Vec<ReferenceEntry> = Vec::new();
+    for r in references.iter_mut() {
+        if r.kind != "call" {
+            continue;
+        }
+        let (head, rest) = match r.name.split_once('\\') {
+            Some((h, t)) => (h.to_string(), t.to_string()),
+            None => (r.name.clone(), String::new()),
+        };
+        let Some(&path) = imports.get(&head) else { continue };
+        r.confidence = Some(0.8);
+        added.push(ReferenceEntry {
+            file: r.file.clone(),
+            name: format!("{path}/{rest}"),
+            kind: "call".to_string(),
+            line: r.line,
+            caller: r.caller.clone(),
+            project: r.project.clone(),
+            confidence: Some(0.8),
+        });
+    }
+    references.extend(added);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -739,6 +788,30 @@ mod tests {
                 symbols.iter().map(|s| (&s.name, &s.kind)).collect::<Vec<_>>()
             )
         })
+    }
+
+    #[test]
+    fn php_imported_class_call_gets_tier2_two_edges() {
+        // `use Foo\Bar;` then `\Bar::greet()` or function call style
+        // `Bar(...)` resolves via the namespace_use_clause local binding.
+        // PHP namespaces use `\` — the resolved path is `Foo\Bar/<member>`.
+        let source =
+            b"<?php\nuse Foo\\Bar;\n\nfunction caller() { Bar(); }\n";
+        let (_, _, refs) = parse_file(source, "php", "t.php").unwrap();
+        let raw = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "Bar")
+            .expect("raw Bar() call");
+        assert_eq!(raw.confidence, Some(0.8));
+        let resolved = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "Foo\\Bar/")
+            .or_else(|| refs.iter().find(|r| r.kind == "call" && r.name.starts_with("Foo\\Bar")));
+        // PHP `use Foo\Bar;` followed by `Bar()` resolves the bare call
+        // through the namespace use. The resolved form should reference
+        // the fully-qualified path.
+        let resolved = resolved.expect("resolved Foo\\Bar form");
+        assert_eq!(resolved.confidence, Some(0.8));
     }
 
     #[test]

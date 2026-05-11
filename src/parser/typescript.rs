@@ -94,6 +94,9 @@ pub fn extract(
 ) {
     let root = tree.root_node();
     walk_node(root, source, file_path, None, symbols, texts, references, 0);
+    // TS imports share the JS emission shape (default / named with optional
+    // alias / namespace `* as ns`), so the JS tier-2 resolver applies as-is.
+    crate::parser::javascript::resolve_js_imports_tier2(symbols, references);
 }
 
 // ---------------------------------------------------------------------------
@@ -1585,6 +1588,38 @@ mod tests {
         if let Some(m) = member {
             assert_eq!(m.confidence, None);
         }
+    }
+
+    #[test]
+    fn ts_named_import_call_gets_tier2_two_edges() {
+        let source = b"import { helper } from \"./utils\";\nfunction caller() { helper(); }\n";
+        let (_, _, refs) = parse_file(source, "typescript", "t.ts").unwrap();
+        let raw = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "helper")
+            .expect("raw helper call");
+        assert_eq!(raw.confidence, Some(0.8));
+        let resolved = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "./utils.helper/")
+            .expect("resolved ./utils.helper/ form");
+        assert_eq!(resolved.confidence, Some(0.8));
+    }
+
+    #[test]
+    fn ts_namespace_import_member_call_resolves_tier2() {
+        let source = b"import * as np from \"numpy\";\nfunction caller() { np.array(); }\n";
+        let (_, _, refs) = parse_file(source, "typescript", "t.ts").unwrap();
+        let raw = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "np.array")
+            .expect("raw np.array call");
+        assert_eq!(raw.confidence, Some(0.8));
+        let resolved = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "numpy/array")
+            .expect("resolved numpy/array form");
+        assert_eq!(resolved.confidence, Some(0.8));
     }
 
     #[test]

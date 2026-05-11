@@ -108,6 +108,61 @@ pub fn extract(
 ) {
     let root = tree.root_node();
     walk_node(root, source, file_path, None, symbols, texts, references, 0);
+    resolve_scala_imports_tier2(symbols, references);
+}
+
+/// Tier-2 resolver: upgrade member-head calls (`Head.member`) whose head
+/// matches a file-local `import` binding to confidence 0.8, and emit a
+/// resolved edge using `/` as the path/member separator.
+///
+/// Short-name resolution rules:
+///   * `import a.b.C`               → short = `C`, path = `a.b.C`
+///   * `import a.b.{C => D}`        → short = `D`, path = `a.b.C` (Scala 2)
+///   * `import a.b.c as e`          → short = `e`, path = `a.b.c` (Scala 3)
+///   * Wildcard (`a.b._`) is skipped — namespace-level shadowing needs
+///     cross-file analysis to resolve safely.
+fn resolve_scala_imports_tier2(symbols: &[SymbolEntry], references: &mut Vec<ReferenceEntry>) {
+    use std::collections::HashMap;
+    let imports: HashMap<String, &str> = symbols
+        .iter()
+        .filter(|s| s.kind == "import")
+        .filter_map(|s| {
+            let short = match s.alias.as_deref() {
+                Some(a) if !a.is_empty() => a.to_string(),
+                _ => s.name.rsplit('.').next()?.to_string(),
+            };
+            if short.is_empty() || short == "_" {
+                None
+            } else {
+                Some((short, s.name.as_str()))
+            }
+        })
+        .collect();
+    if imports.is_empty() {
+        return;
+    }
+    let mut added: Vec<ReferenceEntry> = Vec::new();
+    for r in references.iter_mut() {
+        if r.kind != "call" {
+            continue;
+        }
+        let (head, rest) = match r.name.split_once('.') {
+            Some((h, t)) => (h.to_string(), t.to_string()),
+            None => (r.name.clone(), String::new()),
+        };
+        let Some(&path) = imports.get(&head) else { continue };
+        r.confidence = Some(0.8);
+        added.push(ReferenceEntry {
+            file: r.file.clone(),
+            name: format!("{path}/{rest}"),
+            kind: "call".to_string(),
+            line: r.line,
+            caller: r.caller.clone(),
+            project: r.project.clone(),
+            confidence: Some(0.8),
+        });
+    }
+    references.extend(added);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -844,6 +899,44 @@ mod tests {
         if let Some(f) = field {
             assert_eq!(f.confidence, None);
         }
+    }
+
+    #[test]
+    fn scala_imported_object_call_gets_tier2_two_edges() {
+        // `import a.b.C` then `C.greet()`:
+        //   * raw `C.greet` upgraded to 0.8
+        //   * resolved `a.b.C/greet` at 0.8
+        let source = b"import a.b.C\n\ndef caller(): Unit = { C.greet() }\n";
+        let (_, _, refs) = parse_file(source, "scala", "t.scala").unwrap();
+        let raw = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "C.greet")
+            .expect("raw C.greet call");
+        assert_eq!(raw.confidence, Some(0.8));
+        let resolved = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "a.b.C/greet")
+            .expect("resolved a.b.C/greet form");
+        assert_eq!(resolved.confidence, Some(0.8));
+    }
+
+    #[test]
+    fn scala_renamed_import_call_resolves_tier2() {
+        // Scala 2: `import a.b.{C => D}` then `D.greet()`:
+        //   * raw `D.greet` upgraded to 0.8
+        //   * resolved `a.b.C/greet` at 0.8
+        let source = b"import a.b.{C => D}\n\ndef caller(): Unit = { D.greet() }\n";
+        let (_, _, refs) = parse_file(source, "scala", "t.scala").unwrap();
+        let raw = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "D.greet")
+            .expect("raw D.greet call");
+        assert_eq!(raw.confidence, Some(0.8));
+        let resolved = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "a.b.C/greet")
+            .expect("resolved a.b.C/greet form");
+        assert_eq!(resolved.confidence, Some(0.8));
     }
 
     #[test]

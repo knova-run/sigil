@@ -85,6 +85,58 @@ pub fn extract(
 ) {
     let root = tree.root_node();
     walk_node(root, source, file_path, None, symbols, texts, references, 0);
+    resolve_java_imports_tier2(symbols, references);
+}
+
+/// Tier-2 resolver: for each call ref whose name is `Class.method` where
+/// `Class` matches a file-local Java `import` (last segment of the
+/// dotted path), upgrade the edge from `confidence: None` to `Some(0.8)`
+/// AND emit a sibling resolved-form edge `<full-import-path>/method`
+/// also at `Some(0.8)`. Matches the Go resolver shape.
+fn resolve_java_imports_tier2(
+    symbols: &[SymbolEntry],
+    references: &mut Vec<ReferenceEntry>,
+) {
+    use std::collections::HashMap;
+    // Build short-name → full-path table from import symbols.
+    let imports: HashMap<&str, &str> = symbols
+        .iter()
+        .filter(|s| s.kind == "import")
+        .filter_map(|s| {
+            let short = s.name.rsplit('.').next()?;
+            if short.is_empty() {
+                None
+            } else {
+                Some((short, s.name.as_str()))
+            }
+        })
+        .collect();
+    if imports.is_empty() {
+        return;
+    }
+    let mut added: Vec<ReferenceEntry> = Vec::new();
+    for r in references.iter_mut() {
+        if r.kind != "call" {
+            continue;
+        }
+        let Some((head, rest)) = r.name.split_once('.') else {
+            continue;
+        };
+        let Some(&path) = imports.get(head) else {
+            continue;
+        };
+        r.confidence = Some(0.8);
+        added.push(ReferenceEntry {
+            file: r.file.clone(),
+            name: format!("{path}/{rest}"),
+            kind: "call".to_string(),
+            line: r.line,
+            caller: r.caller.clone(),
+            project: r.project.clone(),
+            confidence: Some(0.8),
+        });
+    }
+    references.extend(added);
 }
 
 // ---------------------------------------------------------------------------
@@ -1060,6 +1112,26 @@ mod tests {
 
         let name = find_sym(&symbols, "Config.name");
         assert_eq!(name.visibility.as_deref(), Some("internal"));
+    }
+
+    #[test]
+    fn java_imported_class_call_gets_tier2_two_edges() {
+        // `import com.foo.Bar;` then `Bar.greet()` resolves via the
+        // file-local import table. Emit TWO edges, both confidence 0.8:
+        //   1. raw selector form `Bar.greet`
+        //   2. resolved qualified form `com.foo.Bar/greet`
+        let source = b"import com.foo.Bar;\nclass C { void caller() { Bar.greet(); } }\n";
+        let (_, _, refs) = parse_file(source, "java", "T.java").unwrap();
+        let raw = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "Bar.greet")
+            .expect("raw selector Bar.greet");
+        assert_eq!(raw.confidence, Some(0.8));
+        let resolved = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "com.foo.Bar/greet")
+            .expect("resolved com.foo.Bar/greet");
+        assert_eq!(resolved.confidence, Some(0.8));
     }
 
     #[test]

@@ -65,6 +65,70 @@ pub fn extract(
 ) {
     let root = tree.root_node();
     walk_node(root, source, file_path, None, symbols, texts, references, 0);
+    resolve_js_imports_tier2(symbols, references);
+}
+
+/// Tier-2 resolver: upgrade bare- and member-head calls whose head matches a
+/// file-local ES module import binding to confidence 0.8, and emit a second
+/// edge with the import's resolved path. The resolved form uses `/` as the
+/// path/member separator. For namespace imports (`import * as ns from "m"`)
+/// the stored path ends in `.*`; that suffix is trimmed for the resolved
+/// edge so `ns.foo()` resolves to `m/foo`, not `m.*/foo`.
+///
+/// Short-name resolution rules:
+///   * `import foo from "mod"`      → short = `foo`, path = `mod`
+///   * `import { x } from "mod"`    → short = `x`,   path = `mod.x`
+///   * `import { x as y } "mod"`    → short = `y`,   path = `mod.x`
+///   * `import * as ns from "mod"`  → short = `ns`,  path = `mod` (trimmed)
+pub(crate) fn resolve_js_imports_tier2(
+    symbols: &[SymbolEntry],
+    references: &mut Vec<ReferenceEntry>,
+) {
+    use std::collections::HashMap;
+    let imports: HashMap<String, String> = symbols
+        .iter()
+        .filter(|s| s.kind == "import")
+        .filter_map(|s| {
+            let short = match s.alias.as_deref() {
+                Some(a) if !a.is_empty() => a.to_string(),
+                _ => s.name.rsplit('.').next()?.to_string(),
+            };
+            if short.is_empty() || short == "*" {
+                return None;
+            }
+            let path = s
+                .name
+                .strip_suffix(".*")
+                .unwrap_or(&s.name)
+                .to_string();
+            Some((short, path))
+        })
+        .collect();
+    if imports.is_empty() {
+        return;
+    }
+    let mut added: Vec<ReferenceEntry> = Vec::new();
+    for r in references.iter_mut() {
+        if r.kind != "call" {
+            continue;
+        }
+        let (head, rest) = match r.name.split_once('.') {
+            Some((h, t)) => (h.to_string(), t.to_string()),
+            None => (r.name.clone(), String::new()),
+        };
+        let Some(path) = imports.get(&head) else { continue };
+        r.confidence = Some(0.8);
+        added.push(ReferenceEntry {
+            file: r.file.clone(),
+            name: format!("{path}/{rest}"),
+            kind: "call".to_string(),
+            line: r.line,
+            caller: r.caller.clone(),
+            project: r.project.clone(),
+            confidence: Some(0.8),
+        });
+    }
+    references.extend(added);
 }
 
 // ---------------------------------------------------------------------------
@@ -1131,6 +1195,43 @@ mod tests {
         if let Some(m) = member {
             assert_eq!(m.confidence, None);
         }
+    }
+
+    #[test]
+    fn js_named_import_call_gets_tier2_two_edges() {
+        // `import { helper } from "./utils"` then `helper()`:
+        //   * raw `helper` upgraded to 0.8
+        //   * resolved `./utils.helper/` at 0.8
+        let source = b"import { helper } from \"./utils\";\nfunction caller() { helper(); }\n";
+        let (_, _, refs) = parse_file(source, "javascript", "t.js").unwrap();
+        let raw = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "helper")
+            .expect("raw helper call");
+        assert_eq!(raw.confidence, Some(0.8));
+        let resolved = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "./utils.helper/")
+            .expect("resolved ./utils.helper/ form");
+        assert_eq!(resolved.confidence, Some(0.8));
+    }
+
+    #[test]
+    fn js_namespace_import_member_call_resolves_tier2() {
+        // `import * as np from "numpy"; np.array()` → resolved `numpy/array`.
+        // The trailing `.*` in the import's stored path is trimmed.
+        let source = b"import * as np from \"numpy\";\nfunction caller() { np.array(); }\n";
+        let (_, _, refs) = parse_file(source, "javascript", "t.js").unwrap();
+        let raw = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "np.array")
+            .expect("raw np.array call");
+        assert_eq!(raw.confidence, Some(0.8));
+        let resolved = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "numpy/array")
+            .expect("resolved numpy/array form");
+        assert_eq!(resolved.confidence, Some(0.8));
     }
 
     #[test]

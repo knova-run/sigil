@@ -30,6 +30,61 @@ pub fn extract(
         references,
         0,
     );
+    resolve_python_imports_tier2(symbols, references);
+}
+
+/// Tier-2 resolver: upgrade bare- and attribute-head calls whose head matches
+/// a file-local `import` / `from ... import` binding to confidence 0.8, and
+/// emit a second edge with the import's fully-qualified path. The resolved
+/// form uses `/` as the path/member separator, matching the Go template.
+///
+/// Short-name resolution rules:
+///   * `import foo`           → short = `foo`,  path = `foo`
+///   * `import foo as bar`    → short = `bar`,  path = `foo`
+///   * `from x import y`      → short = `y`,    path = `x.y`
+///   * `from x import y as z` → short = `z`,    path = `x.y`
+fn resolve_python_imports_tier2(symbols: &[SymbolEntry], references: &mut Vec<ReferenceEntry>) {
+    use std::collections::HashMap;
+    let imports: HashMap<String, &str> = symbols
+        .iter()
+        .filter(|s| s.kind == "import")
+        .filter_map(|s| {
+            let short = match s.alias.as_deref() {
+                Some(a) if !a.is_empty() => a.to_string(),
+                _ => s.name.rsplit('.').next()?.to_string(),
+            };
+            if short.is_empty() || short == "*" {
+                None
+            } else {
+                Some((short, s.name.as_str()))
+            }
+        })
+        .collect();
+    if imports.is_empty() {
+        return;
+    }
+    let mut added: Vec<ReferenceEntry> = Vec::new();
+    for r in references.iter_mut() {
+        if r.kind != "call" {
+            continue;
+        }
+        let (head, rest) = match r.name.split_once('.') {
+            Some((h, t)) => (h.to_string(), t.to_string()),
+            None => (r.name.clone(), String::new()),
+        };
+        let Some(&path) = imports.get(&head) else { continue };
+        r.confidence = Some(0.8);
+        added.push(ReferenceEntry {
+            file: r.file.clone(),
+            name: format!("{path}/{rest}"),
+            kind: "call".to_string(),
+            line: r.line,
+            caller: r.caller.clone(),
+            project: r.project.clone(),
+            confidence: Some(0.8),
+        });
+    }
+    references.extend(added);
 }
 
 /// Extract `__all__` list from module level if present.
@@ -995,6 +1050,44 @@ class Bar:
             "attribute-chain call stays at confidence=None until alias resolver lands; got {:?}",
             attr.confidence,
         );
+    }
+
+    #[test]
+    fn python_imported_attr_call_gets_tier2_two_edges() {
+        // `from pkg import obj` then `obj.method()` should produce:
+        //   * raw `obj.method` call ref at confidence=0.8 (was None)
+        //   * resolved `pkg.obj/method` call ref at confidence=0.8
+        let source = b"from pkg import obj\n\ndef caller():\n    obj.method()\n";
+        let (_, _, refs) = parse_file(source, "python", "t.py").unwrap();
+        let raw = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "obj.method")
+            .expect("raw obj.method call");
+        assert_eq!(raw.confidence, Some(0.8));
+        let resolved = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "pkg.obj/method")
+            .expect("resolved pkg.obj/method form");
+        assert_eq!(resolved.confidence, Some(0.8));
+    }
+
+    #[test]
+    fn python_aliased_import_call_resolves_tier2() {
+        // `import numpy as np` then `np.array()`:
+        //   * raw `np.array` at 0.8
+        //   * resolved `numpy/array` at 0.8
+        let source = b"import numpy as np\n\ndef caller():\n    np.array()\n";
+        let (_, _, refs) = parse_file(source, "python", "t.py").unwrap();
+        let raw = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "np.array")
+            .expect("raw np.array call");
+        assert_eq!(raw.confidence, Some(0.8));
+        let resolved = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "numpy/array")
+            .expect("resolved numpy/array form");
+        assert_eq!(resolved.confidence, Some(0.8));
     }
 
     #[test]
