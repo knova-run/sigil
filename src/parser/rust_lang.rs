@@ -642,10 +642,11 @@ fn extract_call(
         return;
     };
 
-    // Extract the name of the called function
-    let name = match func.kind() {
-        "identifier" => node_text(func, source),
-        "scoped_identifier" | "field_expression" => node_text(func, source),
+    // Tier-1 confidence on bare identifiers; scoped / field-expression
+    // calls stay at None until full `use`-alias resolution lands.
+    let (name, confidence) = match func.kind() {
+        "identifier" => (node_text(func, source), Some(1.0_f64)),
+        "scoped_identifier" | "field_expression" => (node_text(func, source), None),
         _ => return,
     };
 
@@ -661,7 +662,7 @@ fn extract_call(
         line,
         caller: parent_ctx.map(String::from),
         project: String::new(),
-        confidence: None,
+        confidence,
     });
 }
 
@@ -1113,6 +1114,24 @@ pub fn documented() {}
 fn helper() {}";
         let (_symbols, texts, _refs) = parse_file(source, "rust", "test.rs").unwrap();
         assert!(texts.iter().any(|t| t.kind == "comment"));
+    }
+
+    #[test]
+    fn rust_bare_call_gets_tier1_confidence() {
+        // Tier 1: bare `identifier` call → confidence 1.0. Scoped /
+        // field-expression calls stay at None until full `use`-alias
+        // resolution lands.
+        let source = b"fn caller() { helper(); module::other(); }\nfn helper() {}\n";
+        let (_, _, refs) = parse_file(source, "rust", "t.rs").unwrap();
+        let bare = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "helper")
+            .expect("helper() call");
+        assert_eq!(bare.confidence, Some(1.0));
+        let scoped = refs.iter().find(|r| r.kind == "call" && r.name == "module::other");
+        if let Some(s) = scoped {
+            assert_eq!(s.confidence, None);
+        }
     }
 
     #[test]

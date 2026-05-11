@@ -686,9 +686,9 @@ fn extract_call_ref(
     // We only generate a Reference for plain-named call targets. Method
     // calls (member_call_expression) and dynamic callees aren't
     // statically resolvable here and add noise to the call graph.
-    let name = match callee.kind() {
-        "name" => node_text(callee, source),
-        "qualified_name" => node_text(callee, source),
+    let (name, confidence) = match callee.kind() {
+        "name" => (node_text(callee, source), Some(1.0_f64)),
+        "qualified_name" => (node_text(callee, source), None),
         _ => return,
     };
     if name.is_empty() {
@@ -707,7 +707,7 @@ fn extract_call_ref(
         line: node_line_range(node),
         caller: parent_ctx.map(String::from),
         project: String::new(),
-    confidence: None,
+        confidence,
     });
 }
 
@@ -739,6 +739,20 @@ mod tests {
                 symbols.iter().map(|s| (&s.name, &s.kind)).collect::<Vec<_>>()
             )
         })
+    }
+
+    #[test]
+    fn php_bare_call_gets_tier1_confidence() {
+        // PHP unqualified `name` calls get tier-1 confidence (1.0).
+        // Qualified namespace calls (`App\Foo\bar()`) and method/scoped
+        // calls stay at None until alias resolution lands.
+        let source = b"<?php\nfunction caller() { helper(); }\nfunction helper() {}\n";
+        let (_, _, refs) = parse_file(source, "php", "t.php").unwrap();
+        let bare = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "helper")
+            .expect("helper() bare call");
+        assert_eq!(bare.confidence, Some(1.0));
     }
 
     #[test]

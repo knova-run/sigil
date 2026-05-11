@@ -774,11 +774,10 @@ fn extract_call_ref(
         Some(f) => f,
         None => return,
     };
-    let name = match function.kind() {
-        "identifier" | "field_expression" | "operator_identifier" | "generic_function" => {
-            node_text(function, source)
-        }
-        _ => node_text(function, source),
+    let (name, confidence) = match function.kind() {
+        "identifier" | "operator_identifier" => (node_text(function, source), Some(1.0_f64)),
+        "field_expression" | "generic_function" => (node_text(function, source), None),
+        _ => (node_text(function, source), None),
     };
     if name.is_empty() {
         return;
@@ -796,7 +795,7 @@ fn extract_call_ref(
         line: node_line_range(node),
         caller: parent_ctx.map(String::from),
         project: String::new(),
-    confidence: None,
+        confidence,
     });
 }
 
@@ -830,6 +829,21 @@ mod tests {
                     symbols.iter().map(|s| (&s.name, &s.kind)).collect::<Vec<_>>()
                 )
             })
+    }
+
+    #[test]
+    fn scala_bare_call_gets_tier1_confidence() {
+        let source = b"def caller(): Unit = { helper(); obj.method() }\ndef helper(): Unit = ()\n";
+        let (_, _, refs) = parse_file(source, "scala", "t.scala").unwrap();
+        let bare = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "helper")
+            .expect("helper() bare call");
+        assert_eq!(bare.confidence, Some(1.0));
+        let field = refs.iter().find(|r| r.kind == "call" && r.name == "obj.method");
+        if let Some(f) = field {
+            assert_eq!(f.confidence, None);
+        }
     }
 
     #[test]

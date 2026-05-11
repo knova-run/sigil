@@ -458,6 +458,14 @@ fn extract_call_ref(
     if name.is_empty() || is_java_builtin(&name) {
         return;
     }
+    // Tier-1 confidence when the invocation has no `object` qualifier —
+    // same-file resolution. Qualified invocations (`obj.method()`,
+    // `pkg.Class.method()`) stay None until import-table resolution lands.
+    let confidence = if find_child_by_field(node, "object").is_none() {
+        Some(1.0_f64)
+    } else {
+        None
+    };
 
     let line = node_line_range(node);
     references.push(ReferenceEntry {
@@ -467,7 +475,7 @@ fn extract_call_ref(
         line,
         caller: parent_ctx.map(String::from),
         project: String::new(),
-        confidence: None,
+        confidence,
     });
 }
 
@@ -1052,6 +1060,21 @@ mod tests {
 
         let name = find_sym(&symbols, "Config.name");
         assert_eq!(name.visibility.as_deref(), Some("internal"));
+    }
+
+    #[test]
+    fn java_bare_call_gets_tier1_confidence() {
+        let source = b"class C { void caller() { helper(); obj.method(); } void helper() {} }\n";
+        let (_, _, refs) = parse_file(source, "java", "T.java").unwrap();
+        let bare = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "helper")
+            .expect("helper() bare call");
+        assert_eq!(bare.confidence, Some(1.0));
+        let member = refs.iter().find(|r| r.kind == "call" && r.name == "obj.method");
+        if let Some(m) = member {
+            assert_eq!(m.confidence, None);
+        }
     }
 
     #[test]

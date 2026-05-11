@@ -535,6 +535,12 @@ fn extract_call_ref(
     if name.is_empty() || is_cpp_builtin_call(&name) {
         return;
     }
+    // Tier-1 confidence on bare identifiers; qualified / member-access
+    // calls stay None until C++ `using`-declaration resolution lands.
+    let confidence = match func.kind() {
+        "identifier" => Some(1.0_f64),
+        _ => None,
+    };
 
     let line = node_line_range(node);
     references.push(ReferenceEntry {
@@ -544,7 +550,7 @@ fn extract_call_ref(
         line,
         caller: parent_ctx.map(String::from),
         project: String::new(),
-        confidence: None,
+        confidence,
     });
 }
 
@@ -1354,6 +1360,17 @@ mod tests {
             .iter()
             .find(|s| s.name == name)
             .unwrap_or_else(|| panic!("symbol not found: {name}"))
+    }
+
+    #[test]
+    fn cpp_bare_call_gets_tier1_confidence() {
+        let source = b"int helper() { return 1; }\nint caller() { return helper(); }\n";
+        let (_, _, refs) = parse_file(source, "cpp", "t.cpp").unwrap();
+        let bare = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "helper")
+            .expect("helper() bare call");
+        assert_eq!(bare.confidence, Some(1.0));
     }
 
     #[test]

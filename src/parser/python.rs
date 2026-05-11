@@ -639,22 +639,15 @@ fn extract_call(
         return;
     };
 
-    // Extract the name of the called function
-    let name = match func.kind() {
-        "identifier" => {
-            // Simple call: foo()
-            node_text(func, source)
-        }
-        "attribute" => {
-            // Method call: obj.method() or chained: a.b.c()
-            // We capture the full attribute chain
-            node_text(func, source)
-        }
-        _ => {
-            // Complex expression like lambda calls, subscript calls, etc.
-            // Skip these as they're hard to resolve statically
-            return;
-        }
+    // Extract the name and tag the 3-tier resolver confidence:
+    //   * bare identifier (`foo()`) — tier 1, same-file resolution → 1.0
+    //   * attribute chain (`obj.method`, `a.b.c`) — tier 3 unresolved;
+    //     full Python import-alias resolution (`import x as y` / `from m
+    //     import x as y`) is a planned follow-up.
+    let (name, confidence) = match func.kind() {
+        "identifier" => (node_text(func, source), Some(1.0_f64)),
+        "attribute" => (node_text(func, source), None),
+        _ => return,
     };
 
     // Skip builtins and common patterns that aren't useful references
@@ -669,7 +662,7 @@ fn extract_call(
         line,
         caller: parent_ctx.map(String::from),
         project: String::new(),
-        confidence: None,
+        confidence,
     });
 }
 
@@ -972,6 +965,36 @@ class Bar:
     pass";
         let (_symbols, texts, _refs) = parse_file(source, "python", "test.py").unwrap();
         assert!(texts.iter().any(|t| t.kind == "docstring"));
+    }
+
+    #[test]
+    fn python_bare_call_gets_tier1_confidence() {
+        // 3-tier resolver, tier 1: a bare-identifier call (`foo()`) is a
+        // same-file resolution candidate and must be tagged with
+        // `confidence: Some(1.0)`. Attribute-chain calls (`obj.method`)
+        // stay at `confidence: None` until per-language import-alias
+        // resolution lands.
+        let source = b"def caller():\n    helper()\n    obj.method()\n\ndef helper():\n    pass\n";
+        let (_symbols, _texts, refs) = parse_file(source, "python", "t.py").unwrap();
+        let call = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "helper")
+            .expect("helper() bare call");
+        assert_eq!(
+            call.confidence,
+            Some(1.0),
+            "bare `helper()` call must carry confidence=1.0; got {:?}",
+            call.confidence,
+        );
+        let attr = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "obj.method")
+            .expect("obj.method() attribute call");
+        assert_eq!(
+            attr.confidence, None,
+            "attribute-chain call stays at confidence=None until alias resolver lands; got {:?}",
+            attr.confidence,
+        );
     }
 
     #[test]

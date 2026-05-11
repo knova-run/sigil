@@ -639,9 +639,9 @@ fn extract_call_ref(
     let Some(callee) = callee else {
         return;
     };
-    let name = match callee.kind() {
-        "simple_identifier" => node_text(callee, source),
-        "navigation_expression" => node_text(callee, source),
+    let (name, confidence) = match callee.kind() {
+        "simple_identifier" => (node_text(callee, source), Some(1.0_f64)),
+        "navigation_expression" => (node_text(callee, source), None),
         _ => return,
     };
     if name.is_empty() {
@@ -661,7 +661,7 @@ fn extract_call_ref(
         line: node_line_range(node),
         caller: parent_ctx.map(String::from),
         project: String::new(),
-    confidence: None,
+        confidence,
     });
 }
 
@@ -715,6 +715,21 @@ mod tests {
         // Non-stopword identifiers survive.
         assert!(out.split_whitespace().any(|t| t == "myValue"));
         assert!(out.split_whitespace().any(|t| t == "helperFn"));
+    }
+
+    #[test]
+    fn kotlin_bare_call_gets_tier1_confidence() {
+        let source = b"fun caller() { helper(); obj.method() }\nfun helper() {}\n";
+        let (_, _, refs) = parse_file(source, "kotlin", "t.kt").unwrap();
+        let bare = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "helper")
+            .expect("helper() bare call");
+        assert_eq!(bare.confidence, Some(1.0));
+        let nav = refs.iter().find(|r| r.kind == "call" && r.name == "obj.method");
+        if let Some(n) = nav {
+            assert_eq!(n.confidence, None);
+        }
     }
 
     #[test]

@@ -429,6 +429,13 @@ fn extract_call_ref(
     if name.is_empty() || is_js_builtin_call(&name) {
         return;
     }
+    // Tier-1 confidence on bare-identifier calls; member-expression calls
+    // (`obj.method()`) stay None until namespace-import resolution lands.
+    let confidence = if func.kind() == "identifier" {
+        Some(1.0_f64)
+    } else {
+        None
+    };
 
     let line = node_line_range(node);
     references.push(ReferenceEntry {
@@ -438,7 +445,7 @@ fn extract_call_ref(
         line,
         caller: parent_ctx.map(String::from),
         project: String::new(),
-        confidence: None,
+        confidence,
     });
 }
 
@@ -1106,6 +1113,24 @@ mod tests {
             .iter()
             .find(|s| s.name == name)
             .unwrap_or_else(|| panic!("symbol not found: {name}"))
+    }
+
+    #[test]
+    fn js_bare_call_gets_tier1_confidence() {
+        // Tier 1: bare `identifier` call → confidence 1.0. member_expression
+        // calls (e.g., `obj.method()`) stay None until namespace-alias
+        // resolution (`import * as ns from ...; ns.foo()`) lands.
+        let source = b"function caller() { helper(); obj.method(); }\nfunction helper() {}\n";
+        let (_, _, refs) = parse_file(source, "javascript", "t.js").unwrap();
+        let bare = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "helper")
+            .expect("helper() bare call");
+        assert_eq!(bare.confidence, Some(1.0));
+        let member = refs.iter().find(|r| r.kind == "call" && r.name == "obj.method");
+        if let Some(m) = member {
+            assert_eq!(m.confidence, None);
+        }
     }
 
     #[test]
