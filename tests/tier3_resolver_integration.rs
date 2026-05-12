@@ -945,3 +945,71 @@ fn php_psr4_function_import_resolves_to_actual_file_at_confidence_seven() {
         resolved["confidence"]
     );
 }
+
+// --- P2.9 — Rust Cargo workspace resolver ----------------------------------
+//
+// Cargo workspaces declare crate members at the root `Cargo.toml`. Rust
+// source uses crate names with underscores (`myapp_core`) while the
+// Cargo.toml `name` and directory often use hyphens (`myapp-core`).
+// Without Cargo awareness, the cross-crate import `myapp_core::helper`
+// can't be located in the workspace.
+
+#[test]
+fn rust_cargo_workspace_import_resolves_to_actual_file_at_confidence_seven() {
+    // Root Cargo.toml:    [workspace] members = ["crates/*"]
+    // crates/myapp-core/Cargo.toml:   name = "myapp-core"
+    // crates/myapp-core/src/lib.rs:   pub fn helper() {}
+    // crates/myapp-cli/src/main.rs:   use myapp_core::helper; fn main() { helper() }
+    let dir = fresh_dir("cargo-workspace");
+    write(
+        &dir,
+        "Cargo.toml",
+        "[workspace]\nmembers = [\"crates/*\"]\n",
+    );
+    write(
+        &dir,
+        "crates/myapp-core/Cargo.toml",
+        "[package]\nname = \"myapp-core\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+    );
+    write(
+        &dir,
+        "crates/myapp-cli/Cargo.toml",
+        "[package]\nname = \"myapp-cli\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+    );
+    write(
+        &dir,
+        "crates/myapp-core/src/lib.rs",
+        "pub fn helper() {}\n",
+    );
+    write(
+        &dir,
+        "crates/myapp-cli/src/main.rs",
+        "use myapp_core::helper;\n\nfn main() {\n    helper();\n}\n",
+    );
+    let refs = run_index_with_refs(&dir, &[]);
+
+    let resolved = refs
+        .iter()
+        .find(|r| {
+            r["kind"].as_str() == Some("call")
+                && r["file"].as_str() == Some("crates/myapp-cli/src/main.rs")
+                && r["name"]
+                    .as_str()
+                    .map(|s| s.contains("crates/myapp-core/src/lib.rs"))
+                    .unwrap_or(false)
+        })
+        .unwrap_or_else(|| {
+            let all_refs: Vec<_> = refs.iter().map(|r| (
+                r["file"].as_str(),
+                r["name"].as_str(),
+                r["confidence"].as_f64(),
+            )).collect();
+            panic!("expected Cargo-resolved file edge.\nALL REFS:\n{all_refs:#?}")
+        });
+    assert_eq!(
+        resolved["confidence"].as_f64(),
+        Some(0.7),
+        "Cargo-resolved file edge should be at 0.7; got {:?}",
+        resolved["confidence"]
+    );
+}

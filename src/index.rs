@@ -264,6 +264,7 @@ pub fn build_index(
         let tsconfig = load_tsconfig_paths(root);
         let go_modules = load_go_modules(root);
         let php_psr4 = load_php_psr4(root);
+        let cargo_workspace = load_cargo_workspace(root);
         resolve_tier3(&all_entities, &mut all_refs);
         resolve_tier2b_imported_fallback(&all_entities, &mut all_refs, tsconfig.as_ref());
         resolve_member_call(&all_entities, &mut all_refs);
@@ -272,6 +273,8 @@ pub fn build_index(
         let extra = resolve_go_module_imports(&all_entities, &all_refs, &go_modules);
         all_refs.extend(extra);
         let extra = resolve_php_psr4_imports(&all_entities, &all_refs, &php_psr4);
+        all_refs.extend(extra);
+        let extra = resolve_cargo_workspace_imports(&all_entities, &all_refs, &cargo_workspace);
         all_refs.extend(extra);
     }
 
@@ -1163,6 +1166,180 @@ fn resolve_php_psr4_imports(
             file: r.file.clone(),
             caller: r.caller.clone(),
             name: format!("{file_path}/{func}"),
+            ref_kind: "call".to_string(),
+            line: r.line,
+            confidence: Some(0.7),
+        });
+    }
+    additions
+}
+
+/// Parsed Cargo workspace map — `crate_name` (both hyphen and underscore
+/// forms) → workspace-relative directory of the member crate. Rust source
+/// uses underscored crate names (`use myapp_core`) while Cargo.toml's
+/// `name` and the on-disk directory typically use hyphens (`myapp-core`).
+/// We register both spellings up front so a lookup just hashes once.
+#[derive(Debug, Clone, Default)]
+pub struct CargoWorkspace {
+    crates: std::collections::HashMap<String, String>,
+}
+
+/// Read the workspace `Cargo.toml` at the index root, expand `members`
+/// globs, and parse each member's `[package] name`. Registers both
+/// hyphenated and underscored variants of the crate name (mirrors what
+/// rustc does — `use my_crate` for a `name = "my-crate"`). Tolerates a
+/// missing or non-workspace Cargo.toml by returning an empty map.
+pub fn load_cargo_workspace(root: &Path) -> CargoWorkspace {
+    let Ok(content) = std::fs::read_to_string(root.join("Cargo.toml")) else {
+        return CargoWorkspace::default();
+    };
+    let Ok(v) = toml::from_str::<toml::Value>(&content) else {
+        return CargoWorkspace::default();
+    };
+    let Some(workspace) = v.get("workspace") else {
+        return CargoWorkspace::default();
+    };
+    let members: Vec<String> = workspace
+        .get("members")
+        .and_then(|m| m.as_array())
+        .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+        .unwrap_or_default();
+
+    let mut crates: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    for member_pattern in &members {
+        // Resolve glob patterns (`crates/*`) and bare paths uniformly.
+        let candidates = expand_cargo_member_glob(root, member_pattern);
+        for member_dir in candidates {
+            let manifest = member_dir.join("Cargo.toml");
+            let Ok(text) = std::fs::read_to_string(&manifest) else { continue };
+            let Ok(mv) = toml::from_str::<toml::Value>(&text) else { continue };
+            let Some(name) = mv.get("package").and_then(|p| p.get("name")).and_then(|n| n.as_str())
+            else { continue };
+            let rel = member_dir
+                .strip_prefix(root)
+                .ok()
+                .map(|p| p.to_string_lossy().replace('\\', "/"))
+                .unwrap_or_default();
+            crates.insert(name.to_string(), rel.clone());
+            // Rust source allows both hyphen → underscore aliasing.
+            let underscored = name.replace('-', "_");
+            if underscored != name {
+                crates.insert(underscored, rel);
+            }
+        }
+    }
+    CargoWorkspace { crates }
+}
+
+/// Expand a single `[workspace] members` entry — either an exact path or a
+/// trailing `*` glob (`crates/*`). Returns the directory paths that exist
+/// and contain a `Cargo.toml`.
+fn expand_cargo_member_glob(root: &Path, pattern: &str) -> Vec<std::path::PathBuf> {
+    let pattern = pattern.trim_end_matches('/');
+    if let Some(prefix) = pattern.strip_suffix("/*") {
+        let base = root.join(prefix);
+        let Ok(read) = std::fs::read_dir(&base) else { return Vec::new() };
+        let mut out = Vec::new();
+        for entry in read.flatten() {
+            let p = entry.path();
+            if p.is_dir() && p.join("Cargo.toml").is_file() {
+                out.push(p);
+            }
+        }
+        out
+    } else {
+        let p = root.join(pattern);
+        if p.join("Cargo.toml").is_file() {
+            vec![p]
+        } else {
+            Vec::new()
+        }
+    }
+}
+
+/// Tier-3 file-resolution pass for Rust Cargo workspaces. For each tier-2
+/// 0.8 Rust call edge of form `<crate>::<path>/<rest>`, look up the
+/// workspace crate, scan files under its directory for a callable matching
+/// the trailing name, and emit a 0.7 edge pointing at the actual `.rs`
+/// file. Mirrors the Go / PHP resolution pattern.
+fn resolve_cargo_workspace_imports(
+    entities: &[Entity],
+    refs: &[Reference],
+    cargo: &CargoWorkspace,
+) -> Vec<Reference> {
+    use std::collections::HashMap;
+    if cargo.crates.is_empty() {
+        return Vec::new();
+    }
+    // dir_prefix → (name → file_path) for every Rust callable, keyed by
+    // the workspace-relative directory the file sits under (recursive —
+    // we accept any file beneath the crate root).
+    let mut callables: HashMap<String, HashMap<String, String>> = HashMap::new();
+    for e in entities {
+        if !e.file.ends_with(".rs") {
+            continue;
+        }
+        if !is_callable_kind(&e.kind) {
+            continue;
+        }
+        callables
+            .entry(e.file.clone())
+            .or_default()
+            .insert(e.name.clone(), e.file.clone());
+    }
+
+    let mut additions: Vec<Reference> = Vec::new();
+    for r in refs {
+        if r.ref_kind != "call" {
+            continue;
+        }
+        if r.confidence != Some(0.8) {
+            continue;
+        }
+        if !r.file.ends_with(".rs") {
+            continue;
+        }
+        // Tier-2 Rust form: `<crate>::<path>/<rest>` (or `<crate>::<func>/`
+        // for a bare-name call after a `use` import).
+        let Some(slash_at) = r.name.rfind('/') else { continue };
+        let lhs = &r.name[..slash_at];
+        let rest = &r.name[slash_at + 1..];
+        let Some(cc_at) = lhs.find("::") else { continue };
+        let crate_name = &lhs[..cc_at];
+        let trailing = &lhs[cc_at + 2..];
+        let func: &str = if rest.is_empty() {
+            // `<crate>::<func>/` — func is the last `::` segment.
+            match trailing.rfind("::") {
+                Some(pos) => &trailing[pos + 2..],
+                None => trailing,
+            }
+        } else {
+            rest
+        };
+        if func.is_empty() || func.contains('/') || func.contains(':') {
+            continue;
+        }
+        let Some(crate_dir) = cargo.crates.get(crate_name) else { continue };
+        // Scan all callables under the crate's directory. The intermediate
+        // path between crate name and func is advisory only — Rust's
+        // module tree makes strict enforcement noisy without a full
+        // mod-graph walk.
+        let mut hits: Vec<String> = Vec::new();
+        for (file, names) in callables.iter() {
+            if !file.starts_with(crate_dir.as_str()) {
+                continue;
+            }
+            if names.contains_key(func) {
+                hits.push(file.clone());
+            }
+        }
+        if hits.len() != 1 {
+            continue;
+        }
+        additions.push(Reference {
+            file: r.file.clone(),
+            caller: r.caller.clone(),
+            name: format!("{}/{func}", hits[0]),
             ref_kind: "call".to_string(),
             line: r.line,
             confidence: Some(0.7),
