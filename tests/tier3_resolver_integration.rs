@@ -143,8 +143,8 @@ fn same_file_tier1_match_is_preserved() {
         .expect("helper() call from caller.py should be in refs");
     assert_eq!(
         call["confidence"].as_f64(),
-        Some(1.0),
-        "same-file tier-1 must remain 1.0; got {:?}",
+        Some(0.95),
+        "same-file tier-1 must remain 0.95; got {:?}",
         call["confidence"]
     );
 }

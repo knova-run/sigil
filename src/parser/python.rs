@@ -700,7 +700,7 @@ fn extract_call(
     //     full Python import-alias resolution (`import x as y` / `from m
     //     import x as y`) is a planned follow-up.
     let (name, confidence) = match func.kind() {
-        "identifier" => (node_text(func, source), Some(1.0_f64)),
+        "identifier" => (node_text(func, source), Some(0.95_f64)),
         "attribute" => (node_text(func, source), None),
         _ => return,
     };
@@ -1026,7 +1026,7 @@ class Bar:
     fn python_bare_call_gets_tier1_confidence() {
         // 3-tier resolver, tier 1: a bare-identifier call (`foo()`) is a
         // same-file resolution candidate and must be tagged with
-        // `confidence: Some(1.0)`. Attribute-chain calls (`obj.method`)
+        // `confidence: Some(0.95)`. Attribute-chain calls (`obj.method`)
         // stay at `confidence: None` until per-language import-alias
         // resolution lands.
         let source = b"def caller():\n    helper()\n    obj.method()\n\ndef helper():\n    pass\n";
@@ -1037,7 +1037,7 @@ class Bar:
             .expect("helper() bare call");
         assert_eq!(
             call.confidence,
-            Some(1.0),
+            Some(0.95),
             "bare `helper()` call must carry confidence=1.0; got {:?}",
             call.confidence,
         );

@@ -3,7 +3,7 @@
 //! * Struct-embedding heritage edges are surfaced on the embedder's
 //!   `Entity.heritage` vec when `sigil index --stdout` runs against a Go file.
 //! * The 3-tier call resolver tags calls correctly: same-file bare-identifier
-//!   calls get `confidence: 1.0`, calls through a file-local import alias
+//!   calls get `confidence: 0.95` (tier-1, repowise-aligned), calls through a file-local import alias
 //!   get `confidence: 0.8` and are emitted twice (raw selector + resolved
 //!   `pkg-path/Func` form).
 //!
@@ -169,7 +169,7 @@ fn non_embedder_struct_has_no_heritage_field_in_json() {
 }
 
 #[test]
-fn bare_identifier_call_gets_confidence_one() {
+fn bare_identifier_call_gets_tier1_confidence() {
     let (_, refs) = run_index_with_refs();
     let local_calls: Vec<&serde_json::Value> = refs
         .iter()
@@ -181,10 +181,13 @@ fn bare_identifier_call_gets_confidence_one() {
     );
     let confidence = local_calls[0]["confidence"]
         .as_f64()
-        .expect("bare-identifier call should serialise confidence=1.0");
+        .expect("bare-identifier call should serialise tier-1 confidence");
+    // Tier-1 confidence post-P5.17 realignment is 0.95 (repowise-compatible),
+    // not 1.0. Same-file bare-identifier resolution leaves AST-uncertainty
+    // headroom even on a successful local match.
     assert!(
-        (confidence - 1.0).abs() < 1e-9,
-        "bare-identifier confidence should be 1.0, got {}",
+        (confidence - 0.95).abs() < 1e-9,
+        "bare-identifier confidence should be 0.95 (tier-1), got {}",
         confidence
     );
 }

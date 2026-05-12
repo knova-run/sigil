@@ -585,7 +585,7 @@ fn extract_call_ref(
     // qualified invocations stay None until C# `using`-alias resolution
     // lands.
     let confidence = match func.kind() {
-        "identifier" => Some(1.0_f64),
+        "identifier" => Some(0.95_f64),
         _ => None,
     };
 
@@ -1401,7 +1401,7 @@ mod tests {
             .iter()
             .find(|r| r.kind == "call" && r.name == "Helper")
             .expect("Helper() bare call");
-        assert_eq!(bare.confidence, Some(1.0));
+        assert_eq!(bare.confidence, Some(0.95));
         let member = refs.iter().find(|r| r.kind == "call" && r.name.contains('.'));
         if let Some(m) = member {
             assert_eq!(m.confidence, None);

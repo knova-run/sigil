@@ -700,7 +700,7 @@ fn extract_call(
     // Tier-1 confidence on bare identifiers; scoped / field-expression
     // calls stay at None until full `use`-alias resolution lands.
     let (name, confidence) = match func.kind() {
-        "identifier" => (node_text(func, source), Some(1.0_f64)),
+        "identifier" => (node_text(func, source), Some(0.95_f64)),
         "scoped_identifier" | "field_expression" => (node_text(func, source), None),
         _ => return,
     };
@@ -1182,7 +1182,7 @@ fn helper() {}";
             .iter()
             .find(|r| r.kind == "call" && r.name == "helper")
             .expect("helper() call");
-        assert_eq!(bare.confidence, Some(1.0));
+        assert_eq!(bare.confidence, Some(0.95));
         let scoped = refs.iter().find(|r| r.kind == "call" && r.name == "module::other");
         if let Some(s) = scoped {
             assert_eq!(s.confidence, None);

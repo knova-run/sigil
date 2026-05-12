@@ -773,7 +773,7 @@ fn extract_call_ref(
         return;
     };
     let (name, confidence) = match callee.kind() {
-        "simple_identifier" => (node_text(callee, source), Some(1.0_f64)),
+        "simple_identifier" => (node_text(callee, source), Some(0.95_f64)),
         "navigation_expression" => (node_text(callee, source), None),
         _ => return,
     };
@@ -821,7 +821,7 @@ mod tests {
             .iter()
             .find(|r| r.kind == "call" && r.name == "helper")
             .expect("helper() bare call");
-        assert_eq!(bare.confidence, Some(1.0));
+        assert_eq!(bare.confidence, Some(0.95));
         let nav = refs.iter().find(|r| r.kind == "call" && r.name == "obj.method");
         if let Some(n) = nav {
             assert_eq!(n.confidence, None);

@@ -514,7 +514,7 @@ fn extract_call_ref(
     // same-file resolution. Qualified invocations (`obj.method()`,
     // `pkg.Class.method()`) stay None until import-table resolution lands.
     let confidence = if find_child_by_field(node, "object").is_none() {
-        Some(1.0_f64)
+        Some(0.95_f64)
     } else {
         None
     };
@@ -1142,7 +1142,7 @@ mod tests {
             .iter()
             .find(|r| r.kind == "call" && r.name == "helper")
             .expect("helper() bare call");
-        assert_eq!(bare.confidence, Some(1.0));
+        assert_eq!(bare.confidence, Some(0.95));
         let member = refs.iter().find(|r| r.kind == "call" && r.name == "obj.method");
         if let Some(m) = member {
             assert_eq!(m.confidence, None);

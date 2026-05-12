@@ -830,7 +830,7 @@ fn extract_call_ref(
         None => return,
     };
     let (name, confidence) = match function.kind() {
-        "identifier" | "operator_identifier" => (node_text(function, source), Some(1.0_f64)),
+        "identifier" | "operator_identifier" => (node_text(function, source), Some(0.95_f64)),
         "field_expression" | "generic_function" => (node_text(function, source), None),
         _ => (node_text(function, source), None),
     };
@@ -894,7 +894,7 @@ mod tests {
             .iter()
             .find(|r| r.kind == "call" && r.name == "helper")
             .expect("helper() bare call");
-        assert_eq!(bare.confidence, Some(1.0));
+        assert_eq!(bare.confidence, Some(0.95));
         let field = refs.iter().find(|r| r.kind == "call" && r.name == "obj.method");
         if let Some(f) = field {
             assert_eq!(f.confidence, None);

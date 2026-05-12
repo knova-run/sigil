@@ -513,15 +513,15 @@ fn resolve_tier3(entities: &[Entity], refs: &mut [Reference]) {
             continue;
         }
         // Tier-2 (or any other non-None, non-tier-1 confidence) → leave alone.
-        if !matches!(r.confidence, None | Some(1.0)) {
+        if !matches!(r.confidence, None | Some(0.95)) {
             continue;
         }
-        // Verified tier-1: same-file def exists, leave at 1.0.
+        // Verified tier-1: same-file def exists, leave at 0.95.
         if same_file.contains(&(r.file.as_str(), r.name.as_str())) {
             continue;
         }
         // Tier-1 was optimistic — demote.
-        if r.confidence == Some(1.0) {
+        if r.confidence == Some(0.95) {
             r.confidence = None;
         }
         // Tier-3 global-unique check (language-gated).

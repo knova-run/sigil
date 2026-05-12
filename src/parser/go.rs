@@ -881,7 +881,7 @@ fn extract_call(
         line,
         caller: parent_ctx.map(String::from),
         project: String::new(),
-        confidence: Some(1.0),
+        confidence: Some(0.95),
     });
 }
 

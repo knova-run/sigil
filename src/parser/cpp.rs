@@ -538,7 +538,7 @@ fn extract_call_ref(
     // Tier-1 confidence on bare identifiers; qualified / member-access
     // calls stay None until C++ `using`-declaration resolution lands.
     let confidence = match func.kind() {
-        "identifier" => Some(1.0_f64),
+        "identifier" => Some(0.95_f64),
         _ => None,
     };
 
@@ -1370,7 +1370,7 @@ mod tests {
             .iter()
             .find(|r| r.kind == "call" && r.name == "helper")
             .expect("helper() bare call");
-        assert_eq!(bare.confidence, Some(1.0));
+        assert_eq!(bare.confidence, Some(0.95));
     }
 
     #[test]

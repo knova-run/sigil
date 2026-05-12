@@ -797,12 +797,12 @@ fn extract_call(
                 {
                     let receiver_name = node_text(receiver, source);
                     if receiver_name.is_empty() || receiver_name == "self" {
-                        (method.clone(), Some(1.0_f64))
+                        (method.clone(), Some(0.95_f64))
                     } else {
                         (format!("{}.{}", receiver_name, method), None)
                     }
                 } else {
-                    (method, Some(1.0_f64))
+                    (method, Some(0.95_f64))
                 };
 
                 if !call_name.is_empty() {
@@ -859,7 +859,7 @@ mod tests {
             .iter()
             .find(|r| r.kind == "call" && r.name == "helper")
             .expect("helper() bareword call");
-        assert_eq!(bare.confidence, Some(1.0));
+        assert_eq!(bare.confidence, Some(0.95));
         let dispatch = refs.iter().find(|r| r.kind == "call" && r.name == "obj.method");
         if let Some(d) = dispatch {
             assert_eq!(d.confidence, None);

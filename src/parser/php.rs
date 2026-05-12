@@ -736,7 +736,7 @@ fn extract_call_ref(
     // calls (member_call_expression) and dynamic callees aren't
     // statically resolvable here and add noise to the call graph.
     let (name, confidence) = match callee.kind() {
-        "name" => (node_text(callee, source), Some(1.0_f64)),
+        "name" => (node_text(callee, source), Some(0.95_f64)),
         "qualified_name" => (node_text(callee, source), None),
         _ => return,
     };
@@ -825,7 +825,7 @@ mod tests {
             .iter()
             .find(|r| r.kind == "call" && r.name == "helper")
             .expect("helper() bare call");
-        assert_eq!(bare.confidence, Some(1.0));
+        assert_eq!(bare.confidence, Some(0.95));
     }
 
     #[test]
