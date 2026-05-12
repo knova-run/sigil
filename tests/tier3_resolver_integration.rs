@@ -1329,3 +1329,232 @@ fn cpp_include_resolves_via_compile_commands_at_confidence_seven() {
         resolved["confidence"]
     );
 }
+
+// --- P3.13 — C# csproj / sln / GlobalUsings resolver -----------------------
+//
+// Ports repowise's `dotnet/` package (~620 LOC in repowise; focused
+// equivalent here). Builds a namespace → file map from `.cs` files'
+// `namespace` declarations (both block-form and C# 10+ file-scoped),
+// then resolves `Class.Method` calls by intersecting the caller's
+// `using` namespaces with the candidate files. Disambiguates same-named
+// classes across namespaces — Strategy 2 alone can't because the global
+// class-method index sees multiple matches.
+
+#[test]
+fn csharp_using_directive_disambiguates_class_call_at_confidence_seven() {
+    // Two `Helper.Do` definitions in different namespaces.
+    // App/Main.cs has `using ProjA.Foo;` — picks ProjA's Helper.
+    let dir = fresh_dir("csharp-using");
+    write(
+        &dir,
+        "ProjA/Foo/Helper.cs",
+        "namespace ProjA.Foo;\npublic static class Helper {\n    public static void Do() {}\n}\n",
+    );
+    write(
+        &dir,
+        "ProjB/Foo/Helper.cs",
+        "namespace ProjB.Foo;\npublic static class Helper {\n    public static void Do() {}\n}\n",
+    );
+    write(
+        &dir,
+        "App/Main.cs",
+        "using ProjA.Foo;\nclass App {\n    static void Main() {\n        Helper.Do();\n    }\n}\n",
+    );
+    let refs = run_index_with_refs(&dir, &[]);
+
+    let resolved = refs
+        .iter()
+        .find(|r| {
+            r["kind"].as_str() == Some("call")
+                && r["file"].as_str() == Some("App/Main.cs")
+                && r["name"]
+                    .as_str()
+                    .map(|s| s.contains("ProjA/Foo/Helper.cs"))
+                    .unwrap_or(false)
+        })
+        .unwrap_or_else(|| {
+            let all_refs: Vec<_> = refs.iter().map(|r| (
+                r["file"].as_str(),
+                r["name"].as_str(),
+                r["confidence"].as_f64(),
+            )).collect();
+            panic!("expected C# using-disambiguated edge.\nALL REFS:\n{all_refs:#?}")
+        });
+    assert_eq!(
+        resolved["confidence"].as_f64(),
+        Some(0.7),
+        "C# using-disambiguated edge should be at 0.7; got {:?}",
+        resolved["confidence"]
+    );
+}
+
+#[test]
+fn csharp_implicit_usings_resolves_without_explicit_using() {
+    // SDK-style project with <ImplicitUsings>enable</ImplicitUsings>.
+    // The default implicit-using set includes `System.Linq`, so calls
+    // to types in System.Linq (or any default namespace) resolve via
+    // the project's globals without a `using` directive in the file.
+    //
+    // Here we test: caller uses `Foo.Bar` from project's <Using/> item.
+    let dir = fresh_dir("csharp-implicit");
+    write(
+        &dir,
+        "App/App.csproj",
+        "<Project Sdk=\"Microsoft.NET.Sdk\">\n  <PropertyGroup>\n    <ImplicitUsings>enable</ImplicitUsings>\n  </PropertyGroup>\n  <ItemGroup>\n    <Using Include=\"Foo.Bar\" />\n  </ItemGroup>\n</Project>\n",
+    );
+    write(
+        &dir,
+        "Foo/Bar/Widget.cs",
+        "namespace Foo.Bar;\npublic static class Widget {\n    public static void Render() {}\n}\n",
+    );
+    // App/Main.cs has NO `using Foo.Bar;` — it must come from the
+    // project's <Using/> ItemGroup.
+    write(
+        &dir,
+        "App/Main.cs",
+        "class App {\n    static void Main() {\n        Widget.Render();\n    }\n}\n",
+    );
+    let refs = run_index_with_refs(&dir, &[]);
+
+    let resolved = refs
+        .iter()
+        .find(|r| {
+            r["kind"].as_str() == Some("call")
+                && r["file"].as_str() == Some("App/Main.cs")
+                && r["name"]
+                    .as_str()
+                    .map(|s| s.contains("Foo/Bar/Widget.cs"))
+                    .unwrap_or(false)
+        })
+        .unwrap_or_else(|| {
+            let all_refs: Vec<_> = refs.iter().map(|r| (
+                r["file"].as_str(),
+                r["name"].as_str(),
+                r["confidence"].as_f64(),
+            )).collect();
+            panic!("expected resolution via project's <Using/> item.\nALL REFS:\n{all_refs:#?}")
+        });
+    assert_eq!(
+        resolved["confidence"].as_f64(),
+        Some(0.7),
+        "C# <Using/>-resolved edge should be at 0.7; got {:?}",
+        resolved["confidence"]
+    );
+}
+
+#[test]
+fn csharp_global_using_directive_disambiguates_call() {
+    // C# 10's `global using` directive applies to every .cs file in the
+    // project. Caller's own file has no `using Foo.Bar;` — it comes from
+    // the project-level `global using` in a sibling file.
+    let dir = fresh_dir("csharp-global");
+    write(
+        &dir,
+        "App/App.csproj",
+        "<Project Sdk=\"Microsoft.NET.Sdk\"></Project>\n",
+    );
+    write(
+        &dir,
+        "App/GlobalUsings.cs",
+        "global using Foo.Bar;\n",
+    );
+    write(
+        &dir,
+        "Foo/Bar/Service.cs",
+        "namespace Foo.Bar;\npublic static class Service {\n    public static void Run() {}\n}\n",
+    );
+    write(
+        &dir,
+        "App/Main.cs",
+        "class App {\n    static void Main() {\n        Service.Run();\n    }\n}\n",
+    );
+    let refs = run_index_with_refs(&dir, &[]);
+
+    let resolved = refs
+        .iter()
+        .find(|r| {
+            r["kind"].as_str() == Some("call")
+                && r["file"].as_str() == Some("App/Main.cs")
+                && r["name"]
+                    .as_str()
+                    .map(|s| s.contains("Foo/Bar/Service.cs"))
+                    .unwrap_or(false)
+        })
+        .unwrap_or_else(|| {
+            let all_refs: Vec<_> = refs.iter().map(|r| (
+                r["file"].as_str(),
+                r["name"].as_str(),
+                r["confidence"].as_f64(),
+            )).collect();
+            panic!("expected resolution via `global using` directive.\nALL REFS:\n{all_refs:#?}")
+        });
+    assert_eq!(
+        resolved["confidence"].as_f64(),
+        Some(0.7),
+        "C# global-using resolved edge should be at 0.7; got {:?}",
+        resolved["confidence"]
+    );
+}
+
+#[test]
+fn csharp_project_reference_ranks_same_or_referenced_first() {
+    // Two `Foo.Bar.Service` classes — one in a referenced project,
+    // one in an unrelated project. App.csproj references CoreLib.csproj.
+    // App/Main.cs has `using Foo.Bar;`. The resolver should prefer the
+    // referenced project's file over the unrelated one.
+    let dir = fresh_dir("csharp-projref");
+    write(
+        &dir,
+        "App/App.csproj",
+        "<Project Sdk=\"Microsoft.NET.Sdk\">\n  <ItemGroup>\n    <ProjectReference Include=\"..\\CoreLib\\CoreLib.csproj\" />\n  </ItemGroup>\n</Project>\n",
+    );
+    write(
+        &dir,
+        "CoreLib/CoreLib.csproj",
+        "<Project Sdk=\"Microsoft.NET.Sdk\"></Project>\n",
+    );
+    write(
+        &dir,
+        "Unrelated/Unrelated.csproj",
+        "<Project Sdk=\"Microsoft.NET.Sdk\"></Project>\n",
+    );
+    write(
+        &dir,
+        "CoreLib/Service.cs",
+        "namespace Foo.Bar;\npublic static class Service {\n    public static void Run() {}\n}\n",
+    );
+    write(
+        &dir,
+        "Unrelated/Service.cs",
+        "namespace Foo.Bar;\npublic static class Service {\n    public static void Run() {}\n}\n",
+    );
+    write(
+        &dir,
+        "App/Main.cs",
+        "using Foo.Bar;\nclass App {\n    static void Main() {\n        Service.Run();\n    }\n}\n",
+    );
+    let refs = run_index_with_refs(&dir, &[]);
+
+    let resolved = refs
+        .iter()
+        .find(|r| {
+            r["kind"].as_str() == Some("call")
+                && r["file"].as_str() == Some("App/Main.cs")
+                && r["name"].as_str().map(|s| s.contains("Service.cs")).unwrap_or(false)
+                && r["confidence"].as_f64() == Some(0.7)
+        })
+        .unwrap_or_else(|| {
+            let all_refs: Vec<_> = refs.iter().map(|r| (
+                r["file"].as_str(),
+                r["name"].as_str(),
+                r["confidence"].as_f64(),
+            )).collect();
+            panic!("expected ProjectReference-ranked edge.\nALL REFS:\n{all_refs:#?}")
+        });
+    let edge_path = resolved["name"].as_str().unwrap();
+    assert!(
+        edge_path.contains("CoreLib/Service.cs"),
+        "ProjectReference should win over unrelated project; got {}",
+        edge_path,
+    );
+}

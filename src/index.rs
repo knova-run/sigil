@@ -286,6 +286,9 @@ pub fn build_index(
         let compile_commands = load_compile_commands(root);
         let extra = resolve_cpp_includes(&all_entities, &all_refs, &compile_commands);
         all_refs.extend(extra);
+        let dotnet = load_dotnet_index(root);
+        let extra = resolve_csharp_usings(&all_entities, &all_refs, &dotnet);
+        all_refs.extend(extra);
     }
 
     // Sort deterministically
@@ -1358,6 +1361,571 @@ fn resolve_cargo_workspace_imports(
     additions
 }
 
+/// Repo-scoped .NET project index. Mirrors repowise's `dotnet/` package:
+/// every `.csproj` is parsed for its references and implicit-usings flag,
+/// every `.sln` is regex-scanned to surface orphan csprojs, every `.cs`
+/// file is regex-scanned for its `namespace` declarations and `global
+/// using` directives, and per-project global+implicit usings are merged.
+///
+/// Used by `resolve_csharp_usings` to disambiguate `Class.Method` calls
+/// where multiple namespaces define the same class name — the caller's
+/// `using` list (plus its project's globals) picks the right namespace.
+#[derive(Debug, Clone, Default)]
+pub struct DotNetIndex {
+    /// fully-qualified namespace → list of repo-relative .cs files declaring it.
+    namespace_map: std::collections::HashMap<String, Vec<String>>,
+    /// repo-relative .cs file → enclosing csproj's repo-relative path.
+    file_to_project: std::collections::HashMap<String, String>,
+    /// repo-relative csproj path → set of referenced csproj paths.
+    project_refs: std::collections::HashMap<String, std::collections::HashSet<String>>,
+    /// repo-relative csproj path → set of NuGet package ids.
+    package_refs: std::collections::HashMap<String, std::collections::HashSet<String>>,
+    /// repo-relative csproj path → set of implicit+global+`<Using/>` namespaces.
+    project_globals: std::collections::HashMap<String, std::collections::HashSet<String>>,
+}
+
+/// Build the .NET index. Tolerates a repo without `.csproj`/`.sln` —
+/// returns an index with just the namespace map (sufficient for the
+/// loose-cs-files case).
+pub fn load_dotnet_index(root: &Path) -> DotNetIndex {
+    use std::collections::HashSet;
+
+    // Default ImplicitUsings set (dotnet/sdk repo,
+    // Microsoft.NET.Sdk.ImplicitNamespaceImports.props).
+    const DEFAULT_IMPLICIT_USINGS: &[&str] = &[
+        "System",
+        "System.Collections.Generic",
+        "System.IO",
+        "System.Linq",
+        "System.Net.Http",
+        "System.Threading",
+        "System.Threading.Tasks",
+    ];
+    const WEB_IMPLICIT_USINGS: &[&str] = &[
+        "System.Net.Http.Json",
+        "Microsoft.AspNetCore.Builder",
+        "Microsoft.AspNetCore.Hosting",
+        "Microsoft.AspNetCore.Http",
+        "Microsoft.AspNetCore.Routing",
+        "Microsoft.Extensions.Configuration",
+        "Microsoft.Extensions.DependencyInjection",
+        "Microsoft.Extensions.Hosting",
+        "Microsoft.Extensions.Logging",
+    ];
+
+    fn rel_posix(root: &Path, p: &Path) -> Option<String> {
+        p.strip_prefix(root)
+            .ok()
+            .map(|x| x.to_string_lossy().replace('\\', "/"))
+    }
+
+    // Walk repo for .csproj, .sln, .cs (skip bin/obj/.vs/packages/etc.).
+    fn walk(
+        dir: &Path,
+        root: &Path,
+        depth: usize,
+        cs: &mut Vec<std::path::PathBuf>,
+        csproj: &mut Vec<std::path::PathBuf>,
+        sln: &mut Vec<std::path::PathBuf>,
+    ) {
+        if depth > 12 {
+            return;
+        }
+        let Ok(read) = std::fs::read_dir(dir) else { return };
+        for entry in read.flatten() {
+            let path = entry.path();
+            let name = entry.file_name();
+            let name_lossy = name.to_string_lossy();
+            if path.is_dir() {
+                if matches!(
+                    name_lossy.as_ref(),
+                    "bin" | "obj" | ".vs" | "node_modules" | ".git" | ".sigil" | "packages" | "TestResults"
+                ) || name_lossy.starts_with('.')
+                {
+                    continue;
+                }
+                walk(&path, root, depth + 1, cs, csproj, sln);
+            } else if name_lossy.ends_with(".cs") {
+                cs.push(path);
+            } else if name_lossy.ends_with(".csproj") {
+                csproj.push(path);
+            } else if name_lossy.ends_with(".sln") {
+                sln.push(path);
+            }
+        }
+    }
+    let mut cs_files = Vec::new();
+    let mut csproj_files = Vec::new();
+    let mut sln_files = Vec::new();
+    walk(root, root, 0, &mut cs_files, &mut csproj_files, &mut sln_files);
+
+    let mut idx = DotNetIndex::default();
+
+    // ---- 1. Parse each .csproj ----
+    // Tracks project_dir → csproj relative path for the .cs → project step.
+    let mut project_dirs: Vec<(String, std::path::PathBuf)> = Vec::new();
+    for path in &csproj_files {
+        let Some(rel) = rel_posix(root, path) else { continue };
+        let Ok(content) = std::fs::read_to_string(path) else { continue };
+        let (refs, pkgs, usings, implicit) = parse_csproj_xml(&content, path);
+        idx.project_refs.insert(rel.clone(), refs);
+        idx.package_refs.insert(rel.clone(), pkgs);
+        // Implicit / project usings: compute the union here so the resolver
+        // doesn't have to re-derive per call. Web SDK heuristic: any
+        // AspNetCore package reference flags the expanded implicit set.
+        let mut globals: HashSet<String> = HashSet::new();
+        if implicit {
+            for ns in DEFAULT_IMPLICIT_USINGS {
+                globals.insert((*ns).to_string());
+            }
+            if idx.package_refs[&rel]
+                .iter()
+                .any(|p| p.starts_with("Microsoft.AspNetCore"))
+            {
+                for ns in WEB_IMPLICIT_USINGS {
+                    globals.insert((*ns).to_string());
+                }
+            }
+        }
+        for u in usings {
+            globals.insert(u);
+        }
+        idx.project_globals.insert(rel.clone(), globals);
+        if let Some(parent) = path.parent() {
+            project_dirs.push((rel, parent.to_path_buf()));
+        }
+    }
+
+    // ---- 2. Walk .sln files to catch orphan csprojs ----
+    // (Minimal: just surface csproj refs we missed. Full project parse for
+    // orphans is a small extension if needed.)
+    for path in &sln_files {
+        let Ok(content) = std::fs::read_to_string(path) else { continue };
+        let sln_dir = path.parent().unwrap_or(root);
+        for entry_path in parse_sln_csproj_paths(&content, sln_dir) {
+            let Some(rel) = rel_posix(root, &entry_path) else { continue };
+            if !idx.project_refs.contains_key(&rel) {
+                let Ok(content) = std::fs::read_to_string(&entry_path) else { continue };
+                let (refs, pkgs, usings, implicit) = parse_csproj_xml(&content, &entry_path);
+                idx.project_refs.insert(rel.clone(), refs);
+                idx.package_refs.insert(rel.clone(), pkgs);
+                let mut globals: HashSet<String> = HashSet::new();
+                if implicit {
+                    for ns in DEFAULT_IMPLICIT_USINGS {
+                        globals.insert((*ns).to_string());
+                    }
+                }
+                for u in usings {
+                    globals.insert(u);
+                }
+                idx.project_globals.insert(rel.clone(), globals);
+                if let Some(parent) = entry_path.parent() {
+                    project_dirs.push((rel, parent.to_path_buf()));
+                }
+            }
+        }
+    }
+
+    // ---- 3. Build namespace map + file_to_project + global-using scan ----
+    // Longest project-dir prefix wins for file → project assignment.
+    project_dirs.sort_by_key(|(_, p)| std::cmp::Reverse(p.to_string_lossy().len()));
+    for cs_path in &cs_files {
+        let Some(cs_rel) = rel_posix(root, cs_path) else { continue };
+        let Ok(text) = std::fs::read_to_string(cs_path) else { continue };
+
+        for ns in scan_csharp_namespaces(&text) {
+            idx.namespace_map.entry(ns).or_default().push(cs_rel.clone());
+        }
+        // file → enclosing project (longest matching csproj dir).
+        for (proj_rel, proj_dir) in &project_dirs {
+            if cs_path.starts_with(proj_dir) {
+                idx.file_to_project.insert(cs_rel.clone(), proj_rel.clone());
+                break;
+            }
+        }
+        // global using directives — fold into the file's project globals.
+        let globals = scan_csharp_global_usings(&text);
+        if !globals.is_empty() {
+            if let Some(proj_rel) = idx.file_to_project.get(&cs_rel).cloned() {
+                let set = idx.project_globals.entry(proj_rel).or_default();
+                for g in globals {
+                    set.insert(g);
+                }
+            }
+        }
+    }
+
+    idx
+}
+
+/// Parse a `.csproj` (or `Directory.Build.props`) for the fields we need.
+/// Returns (project_references_abs, package_refs, project_usings,
+/// implicit_usings_enabled). Tolerates SDK-style and legacy XML by
+/// stripping the XML namespace prefix from element local-names.
+fn parse_csproj_xml(
+    content: &str,
+    csproj_path: &Path,
+) -> (
+    std::collections::HashSet<String>,
+    std::collections::HashSet<String>,
+    std::collections::HashSet<String>,
+    bool,
+) {
+    use std::collections::HashSet;
+    let mut project_refs: HashSet<String> = HashSet::new();
+    let mut package_refs: HashSet<String> = HashSet::new();
+    let mut project_usings: HashSet<String> = HashSet::new();
+    let mut implicit_usings = false;
+    let csproj_dir = csproj_path.parent();
+
+    // Hand-rolled regex-style scan (no XML parser dep). We just need
+    // element local-names + their `Include=` attribute / inner text.
+    // Strips XML namespace prefix automatically (we never look at it).
+    fn find_attr(tag: &str, attr: &str) -> Option<String> {
+        // Returns the value of `attr="..."` inside the tag text.
+        let needle = format!("{attr}=\"");
+        let start = tag.find(&needle)? + needle.len();
+        let end = tag[start..].find('"')? + start;
+        Some(tag[start..end].to_string())
+    }
+
+    // Iterate over all `<TagName ...>` matches; for self-closing tags we
+    // only need the attributes; for `<ImplicitUsings>true</ImplicitUsings>`
+    // we read the inner text.
+    let bytes = content.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] != b'<' {
+            i += 1;
+            continue;
+        }
+        // Find the closing `>`.
+        let Some(end) = content[i..].find('>') else { break };
+        let tag_text = &content[i + 1..i + end]; // without the `<` and `>`.
+        i += end + 1;
+        if tag_text.starts_with('/') || tag_text.starts_with('?') || tag_text.starts_with('!') {
+            continue;
+        }
+        // Extract local-name (strip namespace prefix and any attribute tail).
+        let local: String = tag_text
+            .split_whitespace()
+            .next()
+            .unwrap_or("")
+            .split(':')
+            .next_back()
+            .unwrap_or("")
+            .trim_end_matches('/')
+            .to_string();
+
+        match local.as_str() {
+            "ImplicitUsings" => {
+                // Read inner text up to closing tag.
+                if let Some(close) = content[i..].find("</") {
+                    let inner = content[i..i + close].trim().to_lowercase();
+                    if matches!(inner.as_str(), "true" | "enable" | "1") {
+                        implicit_usings = true;
+                    }
+                }
+            }
+            "ProjectReference" => {
+                if let Some(include) = find_attr(tag_text, "Include") {
+                    let rel = include.replace('\\', "/");
+                    if let Some(dir) = csproj_dir {
+                        let resolved = dir.join(&rel);
+                        let posix = normalize_path(&resolved.to_string_lossy().replace('\\', "/"));
+                        project_refs.insert(posix);
+                    }
+                }
+            }
+            "PackageReference" => {
+                if let Some(pkg) = find_attr(tag_text, "Include") {
+                    package_refs.insert(pkg);
+                }
+            }
+            "Using" => {
+                if let Some(ns) = find_attr(tag_text, "Include") {
+                    project_usings.insert(ns);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    (project_refs, package_refs, project_usings, implicit_usings)
+}
+
+/// Parse a `.sln` line-oriented format for the absolute csproj paths it
+/// declares. Skips solution-folder type GUID `2150E333-...-46DE8`.
+fn parse_sln_csproj_paths(content: &str, sln_dir: &Path) -> Vec<std::path::PathBuf> {
+    const FOLDER_GUID: &str = "2150E333-8FDC-42A3-9474-1A3956D46DE8";
+    let mut out = Vec::new();
+    for line in content.lines() {
+        let line = line.trim();
+        if !line.starts_with("Project(") {
+            continue;
+        }
+        // Project("{TYPE}") = "Name", "rel\path.csproj", "{GUID}"
+        let Some(type_start) = line.find("(\"{") else { continue };
+        let Some(type_end) = line[type_start + 3..].find("}\"") else { continue };
+        let type_guid = &line[type_start + 3..type_start + 3 + type_end];
+        if type_guid.eq_ignore_ascii_case(FOLDER_GUID) {
+            continue;
+        }
+        // Find the second quoted string — the relative path.
+        let mut quotes: Vec<usize> = Vec::new();
+        for (idx, ch) in line.char_indices() {
+            if ch == '"' {
+                quotes.push(idx);
+            }
+        }
+        if quotes.len() < 6 {
+            continue;
+        }
+        // Quote layout: [0..1]=type GUID, [2..3]=Name, [4..5]=relative
+        // csproj path. We want the path.
+        let rel = &line[quotes[4] + 1..quotes[5]];
+        if !rel.to_ascii_lowercase().ends_with(".csproj") {
+            continue;
+        }
+        let rel_normalised = rel.replace('\\', "/");
+        out.push(sln_dir.join(rel_normalised));
+    }
+    out
+}
+
+/// Extract every namespace declaration from a .cs file. Covers both
+/// block-form `namespace Foo {` and file-scoped C# 10+ `namespace Foo;`.
+fn scan_csharp_namespaces(text: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    for line in text.lines() {
+        let trimmed = line.trim_start();
+        let Some(rest) = trimmed.strip_prefix("namespace ") else { continue };
+        let mut name_end = 0;
+        for (i, ch) in rest.char_indices() {
+            if ch.is_ascii_alphanumeric() || ch == '_' || ch == '.' {
+                name_end = i + ch.len_utf8();
+            } else {
+                break;
+            }
+        }
+        if name_end == 0 {
+            continue;
+        }
+        let name = &rest[..name_end];
+        let tail = rest[name_end..].trim_start();
+        if tail.starts_with('{') || tail.starts_with(';') {
+            out.push(name.to_string());
+        }
+    }
+    out
+}
+
+/// Extract every `global using <Foo.Bar>;` namespace target.
+fn scan_csharp_global_usings(text: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    for line in text.lines() {
+        let trimmed = line.trim_start();
+        let rest = match trimmed
+            .strip_prefix("global using static ")
+            .or_else(|| trimmed.strip_prefix("global using "))
+        {
+            Some(r) => r,
+            None => continue,
+        };
+        // Optional `Alias = ` prefix.
+        let payload = if let Some(eq) = rest.find('=') {
+            rest[eq + 1..].trim_start()
+        } else {
+            rest
+        };
+        let mut end = 0;
+        for (i, ch) in payload.char_indices() {
+            if ch.is_ascii_alphanumeric() || ch == '_' || ch == '.' {
+                end = i + ch.len_utf8();
+            } else {
+                break;
+            }
+        }
+        if end > 0 {
+            out.push(payload[..end].to_string());
+        }
+    }
+    out
+}
+
+/// Tier-3 file-resolution pass for C# `Class.Method` calls. For each .cs
+/// call ref of form `<Class>.<Member>` (the C# parser's tier-2 form), find
+/// candidate classes via the namespace map, intersected with the caller's
+/// `using` directives + their project's implicit + global usings. Rank:
+/// same-project → referenced-project → anywhere. Emits a 0.7 edge naming
+/// the chosen file.
+fn resolve_csharp_usings(
+    entities: &[Entity],
+    refs: &[Reference],
+    idx: &DotNetIndex,
+) -> Vec<Reference> {
+    use std::collections::{HashMap, HashSet};
+    if idx.namespace_map.is_empty() {
+        return Vec::new();
+    }
+
+    // (file, class_name) → set of method names defined on that class.
+    let mut class_methods: HashMap<(&str, &str), HashSet<&str>> = HashMap::new();
+    // file → set of class names defined locally.
+    let mut classes_in_file: HashMap<&str, HashSet<&str>> = HashMap::new();
+    for e in entities {
+        if !e.file.ends_with(".cs") {
+            continue;
+        }
+        if e.kind == "class" {
+            classes_in_file.entry(e.file.as_str()).or_default().insert(e.name.as_str());
+        }
+        if e.kind == "method" {
+            if let Some(parent) = e.parent.as_deref() {
+                // Method leaf: strip `Parent.` or `Parent::` prefix.
+                let leaf = e
+                    .name
+                    .strip_prefix(&format!("{parent}."))
+                    .or_else(|| e.name.strip_prefix(&format!("{parent}::")))
+                    .unwrap_or(e.name.as_str());
+                // Also strip any namespace prefix from parent
+                // (parent might be `ProjA.Foo.Helper` — extract `Helper`).
+                let class_leaf = match parent.rsplit_once('.') {
+                    Some((_, last)) => last,
+                    None => parent,
+                };
+                class_methods
+                    .entry((e.file.as_str(), class_leaf))
+                    .or_default()
+                    .insert(leaf);
+            }
+        }
+    }
+    // file → list of using namespaces (sigil's C# parser emits import
+    // entities for `using X.Y;` with name = "X.Y").
+    let mut usings_by_file: HashMap<&str, Vec<&str>> = HashMap::new();
+    for e in entities {
+        if e.kind != "import" {
+            continue;
+        }
+        if !e.file.ends_with(".cs") {
+            continue;
+        }
+        usings_by_file
+            .entry(e.file.as_str())
+            .or_default()
+            .push(e.name.as_str());
+    }
+
+    let mut additions: Vec<Reference> = Vec::new();
+    for r in refs {
+        if r.ref_kind != "call" {
+            continue;
+        }
+        if !r.file.ends_with(".cs") {
+            continue;
+        }
+        if matches!(r.confidence, Some(c) if c >= 0.95) {
+            continue;
+        }
+        // `Class.Method` split (one-level chain).
+        let Some((class_name, method_leaf)) = r.name.rsplit_once('.') else { continue };
+        if class_name.contains('.') || class_name.is_empty() || method_leaf.is_empty() {
+            continue;
+        }
+
+        // Caller's namespaces to consult: file's `using` directives +
+        // its project's implicit + global usings.
+        let mut consult: Vec<&str> = Vec::new();
+        if let Some(usings) = usings_by_file.get(r.file.as_str()) {
+            consult.extend(usings.iter().copied());
+        }
+        let caller_project = idx.file_to_project.get(r.file.as_str());
+        if let Some(proj) = caller_project {
+            if let Some(globals) = idx.project_globals.get(proj) {
+                consult.extend(globals.iter().map(String::as_str));
+            }
+        }
+        if consult.is_empty() {
+            continue;
+        }
+
+        // For each namespace, find files declaring it that contain
+        // (class_name, method_leaf).
+        let mut hits: Vec<String> = Vec::new();
+        for ns in &consult {
+            let Some(files) = idx.namespace_map.get(*ns) else { continue };
+            for file in files {
+                let f: &str = file.as_str();
+                let has_class = classes_in_file
+                    .get(f)
+                    .map(|s| s.contains(class_name))
+                    .unwrap_or(false);
+                let has_method = class_methods
+                    .get(&(f, class_name))
+                    .map(|s| s.contains(method_leaf))
+                    .unwrap_or(false);
+                if has_class && has_method {
+                    hits.push(file.clone());
+                }
+            }
+        }
+        hits.sort();
+        hits.dedup();
+        if hits.is_empty() {
+            continue;
+        }
+
+        // Rank: same-project → referenced-project → anywhere.
+        let chosen: String = if let Some(caller_proj) = caller_project {
+            let same: Vec<&String> = hits
+                .iter()
+                .filter(|f| idx.file_to_project.get(*f) == Some(caller_proj))
+                .collect();
+            if !same.is_empty() {
+                same[0].clone()
+            } else {
+                let refs_set = idx.project_refs.get(caller_proj);
+                let referenced: Vec<&String> = hits
+                    .iter()
+                    .filter(|f| {
+                        if let Some(rs) = refs_set {
+                            idx.file_to_project
+                                .get(*f)
+                                .map(|p| rs.contains(p))
+                                .unwrap_or(false)
+                        } else {
+                            false
+                        }
+                    })
+                    .collect();
+                if !referenced.is_empty() {
+                    referenced[0].clone()
+                } else {
+                    hits[0].clone()
+                }
+            }
+        } else {
+            // No project info → just take the first hit (or skip when
+            // multiple are equally plausible).
+            if hits.len() > 1 {
+                continue;
+            }
+            hits[0].clone()
+        };
+
+        additions.push(Reference {
+            file: r.file.clone(),
+            caller: r.caller.clone(),
+            name: format!("{chosen}/{method_leaf}"),
+            ref_kind: "call".to_string(),
+            line: r.line,
+            confidence: Some(0.7),
+        });
+    }
+    additions
+}
+
 /// Parsed `compile_commands.json` — per-source-file include directories
 /// extracted from `-I`, `-isystem`, `-iquote` flags in either the
 /// `arguments` array or the `command` string. Paths are repo-relative.
@@ -2235,6 +2803,61 @@ mod tests {
         assert_eq!(camel_to_snake("V2Api"), "v2_api");
         // Single-token leaf — no insertion needed.
         assert_eq!(camel_to_snake("Foo"), "foo");
+    }
+
+    #[test]
+    fn scan_csharp_namespaces_handles_both_forms() {
+        // Block-form
+        assert_eq!(
+            scan_csharp_namespaces("namespace Foo.Bar {\n}\n"),
+            vec!["Foo.Bar".to_string()],
+        );
+        // File-scoped (C# 10+)
+        assert_eq!(
+            scan_csharp_namespaces("namespace Foo.Bar;\nclass X {}\n"),
+            vec!["Foo.Bar".to_string()],
+        );
+        // Multiple namespaces in one file (rare but legal)
+        let multi = "namespace A {\n}\nnamespace B.C {\n}\n";
+        assert_eq!(
+            scan_csharp_namespaces(multi),
+            vec!["A".to_string(), "B.C".to_string()],
+        );
+        // Not a namespace declaration
+        assert!(scan_csharp_namespaces("using System;").is_empty());
+    }
+
+    #[test]
+    fn scan_csharp_global_usings_handles_alias_and_static() {
+        assert_eq!(
+            scan_csharp_global_usings("global using Foo.Bar;\n"),
+            vec!["Foo.Bar".to_string()],
+        );
+        assert_eq!(
+            scan_csharp_global_usings("global using static Foo.Bar;\n"),
+            vec!["Foo.Bar".to_string()],
+        );
+        // Alias form
+        assert_eq!(
+            scan_csharp_global_usings("global using Alias = Foo.Bar;\n"),
+            vec!["Foo.Bar".to_string()],
+        );
+        // Plain `using` (not global) is ignored.
+        assert!(scan_csharp_global_usings("using Foo.Bar;\n").is_empty());
+    }
+
+    #[test]
+    fn parse_sln_csproj_paths_skips_solution_folders() {
+        // Solution-folder type GUID — must be skipped.
+        let sln = r#"
+            Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Folder", "Folder", "{00000000-0000-0000-0000-000000000001}"
+            EndProject
+            Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "App", "App\App.csproj", "{00000000-0000-0000-0000-000000000002}"
+            EndProject
+        "#;
+        let paths = parse_sln_csproj_paths(sln, std::path::Path::new("/repo"));
+        assert_eq!(paths.len(), 1);
+        assert!(paths[0].to_string_lossy().ends_with("App/App.csproj"));
     }
 
     #[test]
