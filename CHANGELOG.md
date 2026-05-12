@@ -8,6 +8,88 @@ All notable changes to sigil are documented here. Format follows
 
 ### Added
 
+- **Call-graph accuracy: tier-1/2/3 confidence-tagged resolver across all
+  15 languages** (issue #15). `Reference.confidence` carries a stable
+  per-edge confidence score, repowise-aligned. Tiers, highest to lowest:
+  * `0.95` — same-file bare-identifier call; also `self.X()` (Python/
+    Ruby) and `this.X()` (Java/Kotlin/JS/TS/C#/Swift) bound to the
+    caller's own class.
+  * `0.93` — `Class.method()` where the receiver class is defined in
+    the same file.
+  * `0.88` — `Class.method()` where `Class.method` has exactly one
+    matching definition globally in the caller's language.
+  * `0.85` — bare-name call where exactly one of the caller's imports
+    (incl. Python `from X import *`) defines the name as callable.
+    Closes the star-import gap.
+  * `0.8` — file-local import-alias resolution (e.g. `import { foo as
+    bar } from "./x"` then `bar()` → 0.8).
+  * `0.7` — file-resolved edge from a manifest-aware resolver: see
+    below.
+  * `0.5` — tier-3 global-unique fallback (language-gated).
+- **Manifest-aware import resolvers** that turn tier-2 0.8 cross-file
+  edges into 0.7 file-resolved edges pointing at the actual `.kt`/`.go`/
+  etc. file (and `Reference.callee_id` carries a stable `<file>::
+  <symbol-path>` for downstream consumers). Languages covered:
+  * **JS/TS** — `tsconfig.json` `compilerOptions.paths` longest-prefix
+    rewrite plus existing barrel-follow.
+  * **Go** — multi-`go.mod` workspace prefix map; `vendor/` skipped.
+  * **PHP** — `composer.json` `autoload.psr-4` + `autoload-dev.psr-4`
+    longest-prefix namespace → directory map.
+  * **Rust** — root `Cargo.toml` `[workspace] members` glob with
+    automatic hyphen↔underscore aliasing (rustc-style).
+  * **Swift** — `Package.swift` `.target(name:)`/`.executableTarget`/…
+    declarations via regex (defaults to `Sources/<name>` /
+    `Tests/<name>` when `path:` is omitted).
+  * **Kotlin + Scala** — path-based FQN disambiguation across the
+    standard `src/main/<lang>/<pkg-as-dirs>/` layout.
+  * **C/C++** — `compile_commands.json` `-I/-isystem/-iquote` lookup
+    plus importer-relative `#include` resolution.
+  * **C#** — `.csproj` + `.sln` + namespace map + project-level
+    `<Using/>` + `global using` directives + `<ImplicitUsings>`
+    (default SDK set + Web SDK set on `Microsoft.AspNetCore*`
+    PackageReference); ranks same-project > referenced-project >
+    anywhere.
+  * **Ruby** — Rails autoload convention (CamelCase class →
+    snake_case `.rb` under `app/**`/`lib/**`).
+- **`external:<modpath>` sentinel entities** for imports that don't
+  resolve to a workspace file (Go third-party, Rust non-workspace
+  crates, Swift external SPM targets, JS/TS non-aliased imports,
+  Python missing modules). Surfaces external dependencies as
+  first-class graph nodes for cross-repo readiness.
+- **`Reference.callee_id`** — optional stable per-symbol identifier
+  of form `<file>::<symbol-path>` populated by every manifest
+  resolver. Old refs.jsonl rows round-trip as None (additive
+  schema).
+- **Heritage extraction across 11 languages** (issue #15 second
+  half). `Entity.heritage` populates for:
+  * Go — struct embedding (`embed`).
+  * Java — `extends` (extend), `implements` (implement), and
+    interface-`extends` (extend) — both `superclass`/`interfaces`
+    fields and the `extends_interfaces` child node.
+  * TypeScript — class `extends` + `implements`; interface
+    `extends` (multi-parent).
+  * JavaScript — class `extends`.
+  * Python — class inheritance (`class Foo(Base, Mixin)`),
+    including `class Shape(ABC)` and `metaclass=Meta`.
+  * Rust — `impl Trait for Type` (implement, on the impl entity)
+    and `trait Sub: Super` (extend, on the trait).
+  * Kotlin / Scala / C# / Swift / C++ — class supertypes from
+    delegation_specifier / extends_clause / base_list /
+    inheritance_specifier / base_class_clause respectively. Most
+    emit as `extend` since syntactically they don't distinguish
+    superclass vs interface/protocol/mixin.
+  * PHP — `extends` (extend) and `implements` (implement)
+    separately.
+
+### Changed
+
+- **`Reference.confidence` tier-1 value moved from `1.0` → `0.95`**
+  to align with repowise's confidence scale (repowise leaves
+  AST-uncertainty headroom even on same-file matches). Filters
+  inside the resolver passes updated accordingly. Public consumers
+  filtering on `confidence == Some(1.0)` should migrate to
+  `Some(0.95)` (or `c >= 0.95`).
+
 - **Kotlin + Swift + Scala + PHP language support** (issue #19, four new
   languages landing together; Luau dropped from the roadmap). New
   `lang-kotlin`, `lang-swift`, `lang-scala`, `lang-php` feature flags,

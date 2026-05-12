@@ -25,11 +25,11 @@ Measured with the GPT-4o/o3 BPE tokenizer. Reproduce with `sigil benchmark` on y
 
 **Impact & navigation — blast radius is the second headline:**
 - `sigil blast <symbol>` — direct callers, direct files, transitive reach. Before touching a function, see how many files it breaks.
-- `sigil callers <symbol>` — exact reference sites from the parsed AST. Not every string match grep catches.
+- `sigil callers <symbol>` — exact reference sites from the parsed AST. Edges carry a tier-tagged `confidence` score (`0.95` same-file, `0.93/0.88` class.method, `0.85` imported star, `0.8` import alias, `0.7` manifest file-resolved, `0.5` global-unique).
 - `sigil callees <caller>` — what a symbol depends on.
 - `sigil symbols <file>` / `sigil children <file> <parent>` / `sigil search <q>` — precise AST lookups, not regex guesses.
 - `sigil duplicates` — clone report (free — sigil already hashes entity bodies).
-- `sigil heritage <symbol>` — inbound/outbound heritage edges (Go struct embedding today; class extension and trait impls land incrementally).
+- `sigil heritage <symbol>` — inbound/outbound heritage edges across 11 languages: Go struct embedding; Java/TS/JS/Python/Kotlin/Scala/C#/Swift/C++/PHP class `extends` & `implements`; Rust `impl Trait for Type` & `trait Sub: Super`; Python ABC subclass.
 
 **For AI agents — one-shot primitives that fit a context window:**
 - `sigil where <symbol>` — single-shot definition locator. Returns file + line + class + signature + overloads in one call. Replaces the grep-narrow-read_file chain.
