@@ -1558,3 +1558,81 @@ fn csharp_project_reference_ranks_same_or_referenced_first() {
         edge_path,
     );
 }
+
+// --- P5.16 — granular callee_id field on Reference ------------------------
+//
+// File-resolved edges from the manifest resolvers carry a stable
+// `callee_id` of form `<file>::<symbol-path>`. Lets downstream consumers
+// (heritage, blast, IDE jump-to-def) reach the target entity without
+// re-doing name matching.
+
+#[test]
+fn manifest_resolved_edges_carry_callee_id() {
+    // Go file-resolved edge — `internal/utils/helper.go/Helper`.
+    // The callee_id should mirror with `::` separator instead of `/`.
+    let dir = fresh_dir("callee-id-go");
+    write(
+        &dir,
+        "go.mod",
+        "module github.com/acme/myproj\n\ngo 1.21\n",
+    );
+    write(
+        &dir,
+        "internal/utils/helper.go",
+        "package utils\n\nfunc Helper() {}\n",
+    );
+    write(
+        &dir,
+        "main.go",
+        "package main\n\nimport \"github.com/acme/myproj/internal/utils\"\n\nfunc main() {\n    utils.Helper()\n}\n",
+    );
+    let refs = run_index_with_refs(&dir, &[]);
+
+    let resolved = refs
+        .iter()
+        .find(|r| {
+            r["kind"].as_str() == Some("call")
+                && r["file"].as_str() == Some("main.go")
+                && r["confidence"].as_f64() == Some(0.7)
+                && r["name"].as_str().map(|s| s.contains("internal/utils/helper.go")).unwrap_or(false)
+        })
+        .expect("go.mod-resolved edge");
+    assert_eq!(
+        resolved["callee_id"].as_str(),
+        Some("internal/utils/helper.go::Helper"),
+        "callee_id should be `<file>::<symbol>`; got {:?}",
+        resolved["callee_id"],
+    );
+}
+
+#[test]
+fn csharp_callee_id_carries_class_and_method() {
+    // C# resolver should emit callee_id as `<file>::<Class>::<Method>`.
+    let dir = fresh_dir("callee-id-cs");
+    write(
+        &dir,
+        "Lib/Helper.cs",
+        "namespace Lib;\npublic static class Helper {\n    public static void Do() {}\n}\n",
+    );
+    write(
+        &dir,
+        "App/Main.cs",
+        "using Lib;\nclass App {\n    static void Main() {\n        Helper.Do();\n    }\n}\n",
+    );
+    let refs = run_index_with_refs(&dir, &[]);
+
+    let resolved = refs
+        .iter()
+        .find(|r| {
+            r["kind"].as_str() == Some("call")
+                && r["file"].as_str() == Some("App/Main.cs")
+                && r["confidence"].as_f64() == Some(0.7)
+        })
+        .expect("C# resolved edge");
+    assert_eq!(
+        resolved["callee_id"].as_str(),
+        Some("Lib/Helper.cs::Helper::Do"),
+        "C# callee_id should be `<file>::<Class>::<Method>`; got {:?}",
+        resolved["callee_id"],
+    );
+}

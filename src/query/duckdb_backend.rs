@@ -815,6 +815,7 @@ fn row_to_reference(row: &duckdb::Row<'_>) -> duckdb::Result<Reference> {
         ref_kind: row.get::<_, String>(3)?,
         line: row.get::<_, i64>(4)? as u32,
         confidence: None,
+        callee_id: None,
     })
 }
 
@@ -1000,6 +1001,7 @@ mod tests {
             ref_kind: kind.to_string(),
             line,
             confidence: None,
+            callee_id: None,
         }
     }
 

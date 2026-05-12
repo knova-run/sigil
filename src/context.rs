@@ -787,6 +787,7 @@ mod tests {
             ref_kind: kind.to_string(),
             line,
             confidence: None,
+            callee_id: None,
         }
     }
 

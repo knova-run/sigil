@@ -122,6 +122,7 @@ mod tests {
             ref_kind: "instantiation".to_string(),
             line: 50,
             confidence: None,
+            callee_id: None,
         }];
         let mut buf = Vec::new();
         write_refs_jsonl(&refs, &mut buf, false).unwrap();

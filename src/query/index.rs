@@ -509,6 +509,7 @@ mod tests {
             ref_kind: kind.to_string(),
             line: 1,
             confidence: None,
+            callee_id: None,
         }
     }
 

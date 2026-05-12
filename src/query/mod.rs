@@ -862,6 +862,7 @@ mod json_emit_tests {
             ref_kind: "call".into(),
             line: 7,
             confidence: None,
+            callee_id: None,
         };
         let s = serde_json::to_string(&r).unwrap();
         assert!(s.contains("\"kind\":\"call\""));

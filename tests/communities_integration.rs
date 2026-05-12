@@ -42,7 +42,8 @@ fn refr(file: &str, caller: &str, target: &str) -> Reference {
         name: target.to_string(),
         ref_kind: "call".to_string(),
         line: 1,
-            confidence: None,
+        confidence: None,
+        callee_id: None,
     }
 }
 

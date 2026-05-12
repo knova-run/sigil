@@ -139,6 +139,7 @@ pub fn parse_single_file(
             ref_kind: refentry.kind.clone(),
             line: refentry.line[0],
             confidence: refentry.confidence,
+            callee_id: None,
         });
     }
 
@@ -833,11 +834,9 @@ fn resolve_barrel_follow(
         // The barrel's underlying file is the import source it pointed at.
         // Emit an edge whose name is `<origin_file>/<rest>` so consumers can
         // distinguish this edge from the original tier-2 form.
-        let edge_name = if rest.is_empty() {
-            format!("{origin_module}/{local_name}")
-        } else {
-            format!("{origin_module}/{rest}")
-        };
+        let leaf = if rest.is_empty() { local_name } else { rest };
+        let edge_name = format!("{origin_module}/{leaf}");
+        let callee_id = format!("{origin_module}::{leaf}");
         additions.push(Reference {
             file: r.file.clone(),
             caller: r.caller.clone(),
@@ -845,6 +844,7 @@ fn resolve_barrel_follow(
             ref_kind: "call".to_string(),
             line: r.line,
             confidence: Some(0.7),
+            callee_id: Some(callee_id),
         });
     }
     additions
@@ -1037,6 +1037,7 @@ fn resolve_go_module_imports(
             ref_kind: "call".to_string(),
             line: r.line,
             confidence: Some(0.7),
+            callee_id: Some(format!("{file_path}::{func}")),
         });
     }
     additions
@@ -1182,6 +1183,7 @@ fn resolve_php_psr4_imports(
             ref_kind: "call".to_string(),
             line: r.line,
             confidence: Some(0.7),
+            callee_id: Some(format!("{file_path}::{func}")),
         });
     }
     additions
@@ -1349,13 +1351,15 @@ fn resolve_cargo_workspace_imports(
         if hits.len() != 1 {
             continue;
         }
+        let target = hits[0].clone();
         additions.push(Reference {
             file: r.file.clone(),
             caller: r.caller.clone(),
-            name: format!("{}/{func}", hits[0]),
+            name: format!("{target}/{func}"),
             ref_kind: "call".to_string(),
             line: r.line,
             confidence: Some(0.7),
+            callee_id: Some(format!("{target}::{func}")),
         });
     }
     additions
@@ -1921,6 +1925,7 @@ fn resolve_csharp_usings(
             ref_kind: "call".to_string(),
             line: r.line,
             confidence: Some(0.7),
+            callee_id: Some(format!("{chosen}::{class_name}::{method_leaf}")),
         });
     }
     additions
@@ -2131,13 +2136,15 @@ fn resolve_cpp_includes(
             continue;
         }
         let file = hit_files.into_iter().next().unwrap();
+        let callee_name = r.name.clone();
         additions.push(Reference {
             file: r.file.clone(),
             caller: r.caller.clone(),
-            name: format!("{file}/{}", r.name),
+            name: format!("{file}/{callee_name}"),
             ref_kind: "call".to_string(),
             line: r.line,
             confidence: Some(0.7),
+            callee_id: Some(format!("{file}::{callee_name}")),
         });
     }
     additions
@@ -2256,13 +2263,15 @@ fn resolve_jvm_fqn_imports(entities: &[Entity], refs: &[Reference]) -> Vec<Refer
             continue;
         }
         let file = hit_files.into_iter().next().unwrap();
+        let callee_name = r.name.clone();
         additions.push(Reference {
             file: r.file.clone(),
             caller: r.caller.clone(),
-            name: format!("{file}/{}", r.name),
+            name: format!("{file}/{callee_name}"),
             ref_kind: "call".to_string(),
             line: r.line,
             confidence: Some(0.7),
+            callee_id: Some(format!("{file}::{callee_name}")),
         });
     }
     additions
@@ -2520,13 +2529,15 @@ fn resolve_swift_spm_imports(
             continue;
         }
         let file = hit_files.into_iter().next().unwrap();
+        let callee_name = r.name.clone();
         additions.push(Reference {
             file: r.file.clone(),
             caller: r.caller.clone(),
-            name: format!("{file}/{}", r.name),
+            name: format!("{file}/{callee_name}"),
             ref_kind: "call".to_string(),
             line: r.line,
             confidence: Some(0.7),
+            callee_id: Some(format!("{file}::{callee_name}")),
         });
     }
     additions
@@ -2639,13 +2650,15 @@ fn resolve_rails_autoload(entities: &[Entity], refs: &[Reference]) -> Vec<Refere
         if hits.len() != 1 {
             continue;
         }
+        let target = hits[0];
         additions.push(Reference {
             file: r.file.clone(),
             caller: r.caller.clone(),
-            name: format!("{}/{leaf}", hits[0]),
+            name: format!("{target}/{leaf}"),
             ref_kind: "call".to_string(),
             line: r.line,
             confidence: Some(0.7),
+            callee_id: Some(format!("{target}::{head}::{leaf}")),
         });
     }
     additions

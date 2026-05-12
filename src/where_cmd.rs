@@ -584,6 +584,7 @@ mod tests {
             ref_kind: "call".into(),
             line: 1,
             confidence: None,
+            callee_id: None,
         }
     }
 }

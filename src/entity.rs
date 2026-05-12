@@ -355,4 +355,14 @@ pub struct Reference {
     /// indexes keep loading without a re-build.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub confidence: Option<f64>,
+
+    /// Stable per-symbol identifier for the resolved callee — populated
+    /// when a tier-3 pass binds the edge to a specific file and entity.
+    /// Format: `<file>::<symbol_path>`, e.g. `src/foo.rs::Foo::bar` for
+    /// a method, `src/foo.rs::helper` for a top-level function. Lets
+    /// downstream consumers (heritage CLI, blast-radius, IDE jump-to-
+    /// definition) reach the target entity without re-doing name matching.
+    /// Old refs.jsonl round-trips as None.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub callee_id: Option<String>,
 }
