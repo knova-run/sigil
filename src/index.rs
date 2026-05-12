@@ -276,6 +276,8 @@ pub fn build_index(
         all_refs.extend(extra);
         let extra = resolve_cargo_workspace_imports(&all_entities, &all_refs, &cargo_workspace);
         all_refs.extend(extra);
+        let extra = resolve_rails_autoload(&all_entities, &all_refs);
+        all_refs.extend(extra);
     }
 
     // Sort deterministically
@@ -1348,6 +1350,125 @@ fn resolve_cargo_workspace_imports(
     additions
 }
 
+/// Convert a CamelCase identifier to Rails-convention snake_case
+/// (`UserMailer` → `user_mailer`, `APIController` → `api_controller`).
+/// Treats consecutive uppercase runs as a single acronym to match
+/// ActiveSupport's `underscore` behavior.
+fn camel_to_snake(s: &str) -> String {
+    let chars: Vec<char> = s.chars().collect();
+    let mut out = String::with_capacity(s.len() + 4);
+    for (i, &ch) in chars.iter().enumerate() {
+        if ch.is_ascii_uppercase() {
+            let prev_lower = i > 0 && chars[i - 1].is_ascii_lowercase();
+            let next_lower = i + 1 < chars.len() && chars[i + 1].is_ascii_lowercase();
+            // Insert `_` between a lower→upper boundary, or before the
+            // last upper of an acronym followed by a lowercase letter
+            // (e.g. `APIController` → `api_controller`).
+            if i > 0 && (prev_lower || next_lower) {
+                out.push('_');
+            }
+            out.push(ch.to_ascii_lowercase());
+        } else {
+            out.push(ch);
+        }
+    }
+    out
+}
+
+/// Tier-3 file-resolution pass for Ruby on Rails autoload conventions.
+/// For each `.rb` call ref of form `ClassName.method`, scan the index for
+/// a file whose path matches the Rails convention
+/// (`<dir>/<snake_case>.rb` for `dir` in `app/**`, `lib/**`) AND defines
+/// `ClassName` with the called method. Emits a 0.7 file-resolved edge.
+///
+/// This pass is additive to Strategy 2 (P0.2): when global-unique already
+/// fires (one class globally), Strategy 2 binds at 0.88; this pass layers
+/// the file pointer. When global is ambiguous, the Rails convention
+/// disambiguates and this pass is the only one that fires.
+fn resolve_rails_autoload(entities: &[Entity], refs: &[Reference]) -> Vec<Reference> {
+    use std::collections::HashMap;
+
+    // class_name → list of (file, has_method_X)? Build a class→file map
+    // first, then on the per-ref pass we filter by method presence.
+    let mut classes_by_name: HashMap<&str, Vec<&str>> = HashMap::new();
+    let mut methods: std::collections::HashSet<(&str, &str, &str)> =
+        std::collections::HashSet::new();
+    for e in entities {
+        if !e.file.ends_with(".rb") {
+            continue;
+        }
+        if e.kind == "class" {
+            classes_by_name.entry(e.name.as_str()).or_default().push(e.file.as_str());
+        } else if e.kind == "method" {
+            let Some(parent) = e.parent.as_deref() else { continue };
+            let leaf = e
+                .name
+                .strip_prefix(&format!("{parent}."))
+                .or_else(|| e.name.strip_prefix(&format!("{parent}::")))
+                .unwrap_or(e.name.as_str());
+            methods.insert((e.file.as_str(), parent, leaf));
+        }
+    }
+
+    fn is_rails_path(file: &str) -> bool {
+        file.starts_with("app/") || file.starts_with("lib/")
+    }
+    fn matches_rails_convention(file: &str, class_name: &str) -> bool {
+        let snake = camel_to_snake(class_name);
+        // The file's stem (filename without extension) must equal the
+        // class's snake_case form. Subdirectory structure is loose —
+        // Rails autoload only enforces the leaf.
+        let stem = match file.rfind('/') {
+            Some(i) => &file[i + 1..],
+            None => file,
+        };
+        stem == format!("{snake}.rb")
+    }
+
+    let mut additions: Vec<Reference> = Vec::new();
+    for r in refs {
+        if r.ref_kind != "call" {
+            continue;
+        }
+        if !r.file.ends_with(".rb") {
+            continue;
+        }
+        let Some((head, leaf)) = r.name.rsplit_once('.') else { continue };
+        if head.contains('.') || leaf.is_empty() {
+            continue;
+        }
+        // Find Rails-convention files defining `head` with method `leaf`.
+        let Some(class_files) = classes_by_name.get(head) else { continue };
+        let candidates: Vec<&str> = class_files
+            .iter()
+            .copied()
+            .filter(|f| is_rails_path(f))
+            .filter(|f| matches_rails_convention(f, head))
+            .filter(|f| methods.contains(&(*f, head, leaf)))
+            .collect();
+        // Rails default autoload privileges `app/` over `lib/` — when
+        // both exist, `app/` wins. Within a tier the match must still
+        // be unique.
+        let app_hits: Vec<&str> = candidates.iter().copied().filter(|f| f.starts_with("app/")).collect();
+        let hits: Vec<&str> = if !app_hits.is_empty() { app_hits } else { candidates };
+        let mut hits = hits;
+        hits.sort();
+        hits.dedup();
+        if hits.len() != 1 {
+            continue;
+        }
+        additions.push(Reference {
+            file: r.file.clone(),
+            caller: r.caller.clone(),
+            name: format!("{}/{leaf}", hits[0]),
+            ref_kind: "call".to_string(),
+            line: r.line,
+            confidence: Some(0.7),
+        });
+    }
+    additions
+}
+
 /// Resolve a textual module specifier (`./utils`, `../pkg/helpers`,
 /// `pkg.helpers`) to a real file path that exists in the index. JS/TS and
 /// Python only — other languages need manifest-aware resolvers.
@@ -1489,6 +1610,17 @@ mod tests {
         assert_eq!(normalize_kind("procedure"), "function");
         assert_eq!(normalize_kind("function"), "function");
         assert_eq!(normalize_kind("class"), "class");
+    }
+
+    #[test]
+    fn camel_to_snake_rails_conventions() {
+        assert_eq!(camel_to_snake("UserMailer"), "user_mailer");
+        assert_eq!(camel_to_snake("User"), "user");
+        assert_eq!(camel_to_snake("HTTPController"), "http_controller");
+        assert_eq!(camel_to_snake("APIBase"), "api_base");
+        assert_eq!(camel_to_snake("V2Api"), "v2_api");
+        // Single-token leaf — no insertion needed.
+        assert_eq!(camel_to_snake("Foo"), "foo");
     }
 
     #[test]

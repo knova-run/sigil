@@ -1013,3 +1013,65 @@ fn rust_cargo_workspace_import_resolves_to_actual_file_at_confidence_seven() {
         resolved["confidence"]
     );
 }
+
+// --- P2.12 — Ruby Rails autoload resolver ----------------------------------
+//
+// Rails autoload convention: class `UserMailer` lives in `*_mailer.rb` —
+// CamelCase class → snake_case filename. The Rails-conventional paths
+// (app/**/*.rb, lib/**/*.rb) carry stronger evidence than a bare
+// global-unique check, especially when multiple classes share a name.
+//
+// Strategy 2 (P0.2) already handles single-match cases at 0.88; this pass
+// emits an additional 0.7 file-resolved edge so consumers can locate the
+// actual `.rb` file. It also disambiguates when more than one class
+// shares a name — only the Rails-conventional file path wins.
+
+#[test]
+fn rails_autoload_picks_app_conventional_file_at_confidence_seven() {
+    // Two `UserMailer` classes — one in app/services (Rails canonical),
+    // one in lib/legacy (also valid Ruby but not the autoload choice).
+    // The caller's `UserMailer.deliver` should produce a 0.7 file edge
+    // pointing at app/services/user_mailer.rb.
+    let dir = fresh_dir("rails-autoload");
+    write(
+        &dir,
+        "app/services/user_mailer.rb",
+        "class UserMailer\n  def self.deliver\n  end\nend\n",
+    );
+    write(
+        &dir,
+        "lib/legacy/user_mailer.rb",
+        "class UserMailer\n  def self.deliver\n  end\nend\n",
+    );
+    write(
+        &dir,
+        "app/controllers/users_controller.rb",
+        "class UsersController\n  def create\n    UserMailer.deliver\n  end\nend\n",
+    );
+    let refs = run_index_with_refs(&dir, &[]);
+
+    let resolved = refs
+        .iter()
+        .find(|r| {
+            r["kind"].as_str() == Some("call")
+                && r["file"].as_str() == Some("app/controllers/users_controller.rb")
+                && r["name"]
+                    .as_str()
+                    .map(|s| s.contains("app/services/user_mailer.rb"))
+                    .unwrap_or(false)
+        })
+        .unwrap_or_else(|| {
+            let all_refs: Vec<_> = refs.iter().map(|r| (
+                r["file"].as_str(),
+                r["name"].as_str(),
+                r["confidence"].as_f64(),
+            )).collect();
+            panic!("expected Rails-resolved file edge.\nALL REFS:\n{all_refs:#?}")
+        });
+    assert_eq!(
+        resolved["confidence"].as_f64(),
+        Some(0.7),
+        "Rails-resolved file edge should be at 0.7; got {:?}",
+        resolved["confidence"]
+    );
+}
