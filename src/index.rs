@@ -281,6 +281,8 @@ pub fn build_index(
         let swift_spm = load_swift_spm(root);
         let extra = resolve_swift_spm_imports(&all_entities, &all_refs, &swift_spm);
         all_refs.extend(extra);
+        let extra = resolve_kotlin_fqn_imports(&all_entities, &all_refs);
+        all_refs.extend(extra);
     }
 
     // Sort deterministically
@@ -1345,6 +1347,98 @@ fn resolve_cargo_workspace_imports(
             file: r.file.clone(),
             caller: r.caller.clone(),
             name: format!("{}/{func}", hits[0]),
+            ref_kind: "call".to_string(),
+            line: r.line,
+            confidence: Some(0.7),
+        });
+    }
+    additions
+}
+
+/// Tier-3 file-resolution pass for Kotlin FQN imports. Kotlin source
+/// stores its package in the `<root>/<pkg>/<File>.kt` layout (under
+/// `src/main/kotlin/` or `src/main/java/` in standard Gradle projects).
+/// For each `.kt` call ref whose name matches an `import com.x.y.<name>`
+/// in the caller, find files under `*/com/x/y/` that define a callable
+/// with that name. Emit a 0.7 file-resolved edge when exactly one
+/// matches.
+///
+/// Path-based rather than settings.gradle-based: Kotlin's standard layout
+/// encodes the package in the directory tree, so we get the same
+/// disambiguation as repowise's `kotlin_gradle.py` without parsing
+/// `settings.gradle(.kts)`. Multi-module / non-standard `srcDirs(...)`
+/// layouts are a follow-up.
+fn resolve_kotlin_fqn_imports(entities: &[Entity], refs: &[Reference]) -> Vec<Reference> {
+    use std::collections::{HashMap, HashSet};
+
+    // file → set of callable names defined locally.
+    let mut callables: HashMap<&str, HashSet<&str>> = HashMap::new();
+    for e in entities {
+        if !e.file.ends_with(".kt") && !e.file.ends_with(".kts") {
+            continue;
+        }
+        if !is_callable_kind(&e.kind) && e.kind != "class" {
+            continue;
+        }
+        callables.entry(e.file.as_str()).or_default().insert(e.name.as_str());
+    }
+    // file → list of FQN imports (e.g. `com.example.helper`).
+    let mut imports_by_file: HashMap<&str, Vec<&str>> = HashMap::new();
+    for e in entities {
+        if e.kind != "import" {
+            continue;
+        }
+        if !e.file.ends_with(".kt") && !e.file.ends_with(".kts") {
+            continue;
+        }
+        imports_by_file
+            .entry(e.file.as_str())
+            .or_default()
+            .push(e.name.as_str());
+    }
+
+    let mut additions: Vec<Reference> = Vec::new();
+    for r in refs {
+        if r.ref_kind != "call" {
+            continue;
+        }
+        if !r.file.ends_with(".kt") && !r.file.ends_with(".kts") {
+            continue;
+        }
+        if r.name.contains('.') || r.name.contains('/') || r.name.contains(':') {
+            continue;
+        }
+        let Some(imports) = imports_by_file.get(r.file.as_str()) else { continue };
+        let mut hit_files: HashSet<&str> = HashSet::new();
+        for import in imports {
+            // `com.example.helper` → leaf=helper, package=com.example.
+            // The leaf must match the call name; star imports skipped.
+            let Some(dot_at) = import.rfind('.') else { continue };
+            let leaf = &import[dot_at + 1..];
+            if leaf == "*" || leaf != r.name {
+                continue;
+            }
+            let package_path = import[..dot_at].replace('.', "/");
+            let needle = format!("/{package_path}/");
+            // Scan callable-bearing .kt files whose path contains the
+            // package-as-directory form and defines the called name.
+            for (file, names) in callables.iter() {
+                if !file.contains(needle.as_str()) {
+                    continue;
+                }
+                if names.contains(r.name.as_str()) {
+                    hit_files.insert(*file);
+                }
+            }
+        }
+        if hit_files.len() != 1 {
+            continue;
+        }
+        let file = hit_files.into_iter().next().unwrap();
+        additions.push(Reference {
+            file: r.file.clone(),
+            caller: r.caller.clone(),
+            name: format!("{file}/{}", r.name),
             ref_kind: "call".to_string(),
             line: r.line,
             confidence: Some(0.7),

@@ -1145,3 +1145,70 @@ fn swift_spm_target_resolves_call_when_global_unique_ambiguous_at_confidence_sev
         resolved["confidence"]
     );
 }
+
+// --- P2.7 — Kotlin Gradle / FQN-aware import resolver ----------------------
+//
+// Kotlin imports are fully-qualified (`import com.example.helper`). When
+// the same simple name exists in multiple packages globally, tier-3
+// global-unique fails. The caller's FQ import disambiguates: scan files
+// whose path contains the package-as-directory form, find the one that
+// defines the callable.
+//
+// Repowise: resolvers/kotlin_gradle.py also parses settings.gradle for
+// multi-module layouts. Sigil's path-based approach covers the same
+// cases without needing to read settings.gradle — Kotlin's standard
+// `src/main/kotlin/<pkg>/` layout encodes the package in the path.
+
+#[test]
+fn kotlin_fqn_import_picks_right_package_at_confidence_seven() {
+    // Two `helper()` funcs, different packages.
+    // core/.../com/example/Helper.kt:   package com.example; fun helper() {}
+    // other/.../com/other/Helper.kt:    package com.other;   fun helper() {}
+    // app/.../com/example/Main.kt:      import com.example.helper; helper()
+    //
+    // Global-unique fails (2 helpers). With FQN-aware resolution,
+    // `import com.example.helper` → the helper in core's com/example/ dir.
+    // Expected: 0.7 edge pointing at core's Helper.kt.
+    let dir = fresh_dir("kotlin-fqn");
+    write(
+        &dir,
+        "core/src/main/kotlin/com/example/Helper.kt",
+        "package com.example\n\nfun helper() {}\n",
+    );
+    write(
+        &dir,
+        "other/src/main/kotlin/com/other/Helper.kt",
+        "package com.other\n\nfun helper() {}\n",
+    );
+    write(
+        &dir,
+        "app/src/main/kotlin/com/example/Main.kt",
+        "package com.example\n\nimport com.example.helper\n\nfun main() {\n    helper()\n}\n",
+    );
+    let refs = run_index_with_refs(&dir, &[]);
+
+    let resolved = refs
+        .iter()
+        .find(|r| {
+            r["kind"].as_str() == Some("call")
+                && r["file"].as_str() == Some("app/src/main/kotlin/com/example/Main.kt")
+                && r["name"]
+                    .as_str()
+                    .map(|s| s.contains("core/src/main/kotlin/com/example/Helper.kt"))
+                    .unwrap_or(false)
+        })
+        .unwrap_or_else(|| {
+            let all_refs: Vec<_> = refs.iter().map(|r| (
+                r["file"].as_str(),
+                r["name"].as_str(),
+                r["confidence"].as_f64(),
+            )).collect();
+            panic!("expected Kotlin FQN-resolved file edge.\nALL REFS:\n{all_refs:#?}")
+        });
+    assert_eq!(
+        resolved["confidence"].as_f64(),
+        Some(0.7),
+        "Kotlin-FQN-resolved file edge should be at 0.7; got {:?}",
+        resolved["confidence"]
+    );
+}
