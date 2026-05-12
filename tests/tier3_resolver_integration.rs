@@ -1267,3 +1267,65 @@ fn scala_fqn_import_picks_right_package_at_confidence_seven() {
         resolved["confidence"]
     );
 }
+
+// --- P2.11 — C/C++ #include resolver (compile_commands.json) ---------------
+//
+// Repowise's resolver scope (cpp.py, 37 LOC) is narrowly focused: map
+// `#include "foo.h"` → an actual filesystem path using compile_commands
+// `-I/-isystem/-iquote` directories, fallback to importer-relative,
+// fallback to stem match. Does NOT try to chase declaration → definition
+// linkage — that ambiguity is fundamental to C++.
+
+#[test]
+fn cpp_include_resolves_via_compile_commands_at_confidence_seven() {
+    // Two ambiguous helper.h files in include/a and include/b.
+    // compile_commands says main.cpp uses `-Iinclude/a`, so the include
+    // unambiguously resolves to include/a/helper.h. Expected: 0.7 edge.
+    let dir = fresh_dir("cpp-include");
+    write(
+        &dir,
+        "include/a/helper.h",
+        "#pragma once\nvoid helper();\n",
+    );
+    write(
+        &dir,
+        "include/b/helper.h",
+        "#pragma once\nvoid helper();\n",
+    );
+    write(
+        &dir,
+        "src/main.cpp",
+        "#include \"helper.h\"\nint main() {\n    helper();\n    return 0;\n}\n",
+    );
+    write(
+        &dir,
+        "compile_commands.json",
+        "[{\"file\": \"src/main.cpp\", \"directory\": \".\", \"arguments\": [\"c++\", \"-Iinclude/a\", \"-c\", \"src/main.cpp\"]}]\n",
+    );
+    let refs = run_index_with_refs(&dir, &[]);
+
+    let resolved = refs
+        .iter()
+        .find(|r| {
+            r["kind"].as_str() == Some("call")
+                && r["file"].as_str() == Some("src/main.cpp")
+                && r["name"]
+                    .as_str()
+                    .map(|s| s.contains("include/a/helper.h"))
+                    .unwrap_or(false)
+        })
+        .unwrap_or_else(|| {
+            let all_refs: Vec<_> = refs.iter().map(|r| (
+                r["file"].as_str(),
+                r["name"].as_str(),
+                r["confidence"].as_f64(),
+            )).collect();
+            panic!("expected compile_commands-resolved edge.\nALL REFS:\n{all_refs:#?}")
+        });
+    assert_eq!(
+        resolved["confidence"].as_f64(),
+        Some(0.7),
+        "compile_commands-resolved edge should be at 0.7; got {:?}",
+        resolved["confidence"]
+    );
+}

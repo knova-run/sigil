@@ -283,6 +283,9 @@ pub fn build_index(
         all_refs.extend(extra);
         let extra = resolve_jvm_fqn_imports(&all_entities, &all_refs);
         all_refs.extend(extra);
+        let compile_commands = load_compile_commands(root);
+        let extra = resolve_cpp_includes(&all_entities, &all_refs, &compile_commands);
+        all_refs.extend(extra);
     }
 
     // Sort deterministically
@@ -1347,6 +1350,223 @@ fn resolve_cargo_workspace_imports(
             file: r.file.clone(),
             caller: r.caller.clone(),
             name: format!("{}/{func}", hits[0]),
+            ref_kind: "call".to_string(),
+            line: r.line,
+            confidence: Some(0.7),
+        });
+    }
+    additions
+}
+
+/// Parsed `compile_commands.json` — per-source-file include directories
+/// extracted from `-I`, `-isystem`, `-iquote` flags in either the
+/// `arguments` array or the `command` string. Paths are repo-relative.
+/// Mirrors repowise's `context.py:load_compile_commands` +
+/// `extract_include_dirs`.
+#[derive(Debug, Clone, Default)]
+pub struct CompileCommands {
+    /// source_file (repo-relative posix) → ordered list of include dirs
+    /// (repo-relative posix) for that translation unit.
+    per_file: std::collections::HashMap<String, Vec<String>>,
+}
+
+/// Load `compile_commands.json` from the index root or `build/`. Returns
+/// an empty map when absent or unparseable.
+pub fn load_compile_commands(root: &Path) -> CompileCommands {
+    for candidate in &[
+        root.join("compile_commands.json"),
+        root.join("build").join("compile_commands.json"),
+    ] {
+        let Ok(text) = std::fs::read_to_string(candidate) else { continue };
+        let Ok(arr) = serde_json::from_str::<Vec<serde_json::Value>>(&text) else { continue };
+        let mut per_file: std::collections::HashMap<String, Vec<String>> =
+            std::collections::HashMap::new();
+        for entry in arr {
+            let Some(file) = entry.get("file").and_then(|v| v.as_str()) else { continue };
+            let cmd_dir = entry
+                .get("directory")
+                .and_then(|v| v.as_str())
+                .unwrap_or(".");
+            // Tokenize: prefer `arguments` array; else split `command` on whitespace.
+            let tokens: Vec<String> = if let Some(args) = entry.get("arguments").and_then(|v| v.as_array()) {
+                args.iter().filter_map(|v| v.as_str().map(String::from)).collect()
+            } else if let Some(cmd) = entry.get("command").and_then(|v| v.as_str()) {
+                cmd.split_whitespace().map(String::from).collect()
+            } else {
+                Vec::new()
+            };
+            // Extract include dirs from -I / -isystem / -iquote.
+            let mut includes: Vec<String> = Vec::new();
+            let mut i = 0;
+            while i < tokens.len() {
+                let tok = tokens[i].as_str();
+                let (dir, advance) = if tok == "-I" || tok == "-isystem" || tok == "-iquote" {
+                    if i + 1 < tokens.len() { (Some(tokens[i + 1].clone()), 2) } else { (None, 1) }
+                } else if let Some(rest) = tok.strip_prefix("-I") {
+                    (Some(rest.to_string()), 1)
+                } else if let Some(rest) = tok.strip_prefix("-isystem") {
+                    (Some(rest.to_string()), 1)
+                } else {
+                    (None, 1)
+                };
+                if let Some(d) = dir {
+                    // Resolve relative to cmd_dir, then make root-relative.
+                    let absolute = if std::path::Path::new(&d).is_absolute() {
+                        std::path::PathBuf::from(&d)
+                    } else {
+                        std::path::PathBuf::from(cmd_dir).join(&d)
+                    };
+                    // Canonicalise lazily — we only need posix-relative paths
+                    // resolvable against the index root.
+                    let posix = absolute.to_string_lossy().replace('\\', "/");
+                    let normalized = normalize_path(&posix);
+                    let rel = normalized
+                        .strip_prefix("./")
+                        .unwrap_or(&normalized)
+                        .to_string();
+                    includes.push(rel);
+                }
+                i += advance;
+            }
+            // Normalize the file key — make it repo-relative posix.
+            let file_key = std::path::Path::new(file)
+                .to_string_lossy()
+                .replace('\\', "/");
+            let file_key = file_key.strip_prefix("./").unwrap_or(&file_key).to_string();
+            per_file.insert(file_key, includes);
+        }
+        if !per_file.is_empty() {
+            return CompileCommands { per_file };
+        }
+    }
+    CompileCommands::default()
+}
+
+/// Tier-3 file-resolution pass for C/C++ `#include` directives. For each
+/// `#include "foo.h"` from a `.c`/`.cpp`/`.cc`/`.cxx`/etc. source file,
+/// resolve to a real file path using:
+///   1. compile_commands.json `-I/-isystem/-iquote` dirs for that file,
+///   2. relative to the importer's directory,
+/// and emit a 0.7 edge `<file>/<func>` for every call ref in the importer
+/// whose callee is defined in the resolved header. Mirrors repowise's
+/// `cpp.py` 3-step ladder (we omit the stem-match fallback — it
+/// over-binds in practice when sources have header/impl pairs).
+fn resolve_cpp_includes(
+    entities: &[Entity],
+    refs: &[Reference],
+    cc: &CompileCommands,
+) -> Vec<Reference> {
+    use std::collections::{HashMap, HashSet};
+
+    fn is_c_or_cpp_path(file: &str) -> bool {
+        for ext in &[".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".hxx"] {
+            if file.ends_with(ext) {
+                return true;
+            }
+        }
+        false
+    }
+    fn parent_dir(file: &str) -> &str {
+        match file.rfind('/') {
+            Some(i) => &file[..i],
+            None => "",
+        }
+    }
+
+    // file → set of locally-defined callable names.
+    let mut callables: HashMap<&str, HashSet<&str>> = HashMap::new();
+    // Set of every indexed file path (for existence checks).
+    let mut file_set: HashSet<&str> = HashSet::new();
+    for e in entities {
+        file_set.insert(e.file.as_str());
+        if !is_c_or_cpp_path(&e.file) {
+            continue;
+        }
+        if !is_callable_kind(&e.kind) {
+            continue;
+        }
+        callables
+            .entry(e.file.as_str())
+            .or_default()
+            .insert(e.name.as_str());
+    }
+    // file → list of (raw_include_spec) — the bare `helper.h` form sigil
+    // emits as the import entity name.
+    let mut imports_by_file: HashMap<&str, Vec<&str>> = HashMap::new();
+    for e in entities {
+        if e.kind != "import" {
+            continue;
+        }
+        if !is_c_or_cpp_path(&e.file) {
+            continue;
+        }
+        imports_by_file
+            .entry(e.file.as_str())
+            .or_default()
+            .push(e.name.as_str());
+    }
+
+    let mut additions: Vec<Reference> = Vec::new();
+    for r in refs {
+        if r.ref_kind != "call" {
+            continue;
+        }
+        if !is_c_or_cpp_path(&r.file) {
+            continue;
+        }
+        if r.name.contains('.') || r.name.contains('/') || r.name.contains(':') {
+            continue;
+        }
+        let Some(imports) = imports_by_file.get(r.file.as_str()) else { continue };
+
+        // Resolve each include to a real file via compile_commands then
+        // importer-relative probing. Keep the unique-resolution invariant:
+        // we only emit when exactly one resolved header defines the name.
+        let mut hit_files: HashSet<String> = HashSet::new();
+        let include_dirs = cc.per_file.get(r.file.as_str()).cloned().unwrap_or_default();
+        let importer_dir = parent_dir(&r.file).to_string();
+
+        for spec in imports {
+            // 1. compile_commands include dirs.
+            for inc in &include_dirs {
+                let candidate = if inc.is_empty() {
+                    spec.to_string()
+                } else {
+                    format!("{inc}/{spec}")
+                };
+                let normalized = normalize_path(&candidate);
+                if let Some(file) = file_set.get(normalized.as_str()) {
+                    if let Some(names) = callables.get(file) {
+                        if names.contains(r.name.as_str()) {
+                            hit_files.insert((*file).to_string());
+                        }
+                    }
+                }
+            }
+            // 2. Relative to importer's directory.
+            let rel_candidate = if importer_dir.is_empty() {
+                spec.to_string()
+            } else {
+                format!("{importer_dir}/{spec}")
+            };
+            let normalized = normalize_path(&rel_candidate);
+            if let Some(file) = file_set.get(normalized.as_str()) {
+                if let Some(names) = callables.get(file) {
+                    if names.contains(r.name.as_str()) {
+                        hit_files.insert((*file).to_string());
+                    }
+                }
+            }
+        }
+
+        if hit_files.len() != 1 {
+            continue;
+        }
+        let file = hit_files.into_iter().next().unwrap();
+        additions.push(Reference {
+            file: r.file.clone(),
+            caller: r.caller.clone(),
+            name: format!("{file}/{}", r.name),
             ref_kind: "call".to_string(),
             line: r.line,
             confidence: Some(0.7),
