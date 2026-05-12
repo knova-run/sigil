@@ -342,6 +342,113 @@ fn python_abc_subclass_emits_extend_edge_to_abc() {
     assert_eq!(extend_target, Some("ABC"), "got {heritage:?}");
 }
 
+/// Generic fixture-staging helper for the per-language heritage tests.
+/// Copies `tests/fixtures/<fixture_basename>` into a fresh temp dir.
+fn stage_named_fixture(fixture_basename: &str, tag: &str) -> PathBuf {
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let src = PathBuf::from(format!("{manifest}/tests/fixtures/{fixture_basename}"));
+    let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
+    let pid = std::process::id();
+    let dir = std::env::temp_dir().join(format!("sigil-heritage-{tag}-{pid}-{id}"));
+    std::fs::create_dir_all(&dir).expect("create temp dir");
+    std::fs::copy(&src, dir.join(fixture_basename)).expect("copy fixture");
+    dir
+}
+
+/// Run sigil index on a per-language heritage fixture and return entities.
+fn run_index_named(fixture_basename: &str, tag: &str) -> Vec<serde_json::Value> {
+    let dir = stage_named_fixture(fixture_basename, tag);
+    let stdout = run_index_in(&dir);
+    parse_entities(&stdout)
+}
+
+/// Helper assertion: the entity named `class_name` has an `extend` heritage
+/// edge to every name in `expected_extends` and an `implement` edge to
+/// every name in `expected_implements`.
+fn assert_class_heritage(
+    entities: &[serde_json::Value],
+    class_name: &str,
+    expected_extends: &[&str],
+    expected_implements: &[&str],
+) {
+    let class = entities
+        .iter()
+        .find(|e| e["name"] == class_name)
+        .unwrap_or_else(|| panic!("{class_name} entity should be emitted"));
+    let heritage = class["heritage"]
+        .as_array()
+        .unwrap_or_else(|| panic!("heritage field missing on {class_name}: {class:?}"));
+    let mut extends: Vec<&str> = heritage
+        .iter()
+        .filter(|h| h["kind"].as_str() == Some("extend"))
+        .filter_map(|h| h["target"].as_str())
+        .collect();
+    extends.sort();
+    let mut want_ext = expected_extends.to_vec();
+    want_ext.sort();
+    assert_eq!(extends, want_ext, "extend edges on {class_name}: {heritage:?}");
+    let mut implements: Vec<&str> = heritage
+        .iter()
+        .filter(|h| h["kind"].as_str() == Some("implement"))
+        .filter_map(|h| h["target"].as_str())
+        .collect();
+    implements.sort();
+    let mut want_impl = expected_implements.to_vec();
+    want_impl.sort();
+    assert_eq!(
+        implements, want_impl,
+        "implement edges on {class_name}: {heritage:?}"
+    );
+}
+
+#[test]
+fn kotlin_class_supertypes_emit_heritage_edges() {
+    // Kotlin doesn't syntactically distinguish superclass from
+    // interfaces in `class Dog : Animal(), Runnable` — both land as
+    // `extend` edges. Discrimination would need a workspace symbol-table
+    // lookup of whether the target was declared `interface ...`.
+    let entities = run_index_named("sample_kotlin_heritage.kt", "kotlin");
+    assert_class_heritage(&entities, "Dog", &["Animal", "Runnable"], &[]);
+}
+
+#[test]
+fn scala_class_extends_with_mixin_emits_heritage_edges() {
+    // Scala's `extends Animal with Runnable` — both land as `extend`
+    // edges. The base class and mixed-in traits are syntactically
+    // indistinguishable without a symbol-table lookup.
+    let entities = run_index_named("sample_scala_heritage.scala", "scala");
+    assert_class_heritage(&entities, "Dog", &["Animal", "Runnable"], &[]);
+}
+
+#[test]
+fn csharp_class_base_list_emits_heritage_edges() {
+    let entities = run_index_named("sample_csharp_heritage.cs", "csharp");
+    // C# doesn't syntactically distinguish base-class vs interface in the
+    // `: Base, IFoo` list — both land as `extend` edges.
+    assert_class_heritage(&entities, "Dog", &["Animal", "IRunnable"], &[]);
+}
+
+#[test]
+fn swift_class_supertypes_emit_heritage_edges() {
+    let entities = run_index_named("sample_swift_heritage.swift", "swift");
+    // Swift's `class Dog: Animal, Runnable` — first is the superclass,
+    // rest are protocols. Without a symbol-table lookup we can't tell
+    // apart; emit all as `extend` for now.
+    assert_class_heritage(&entities, "Dog", &["Animal", "Runnable"], &[]);
+}
+
+#[test]
+fn cpp_class_base_list_emits_heritage_edges() {
+    let entities = run_index_named("sample_cpp_heritage.cpp", "cpp");
+    assert_class_heritage(&entities, "Dog", &["Animal", "Runnable"], &[]);
+}
+
+#[test]
+fn php_class_extends_implements_emit_heritage_edges() {
+    let entities = run_index_named("sample_php_heritage.php", "php");
+    assert_class_heritage(&entities, "Dog", &["Animal"], &["Runnable"]);
+}
+
 fn stage_rust_fixture() -> PathBuf {
     let manifest = env!("CARGO_MANIFEST_DIR");
     let src = PathBuf::from(format!(

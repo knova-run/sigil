@@ -900,6 +900,7 @@ fn extract_class(
         node.children(&mut cursor)
             .find(|c| c.kind() == "base_class_clause")
     });
+    let mut heritage: Vec<(String, String)> = Vec::new();
     if let Some(bases) = bases {
         let mut cursor = bases.walk();
         for child in bases.children(&mut cursor) {
@@ -919,29 +920,43 @@ fn extract_class(
                                 Some(&full_name),
                                 references,
                             );
+                            let target = node_text(
+                                base_child,
+                                source,
+                            );
+                            if !target.is_empty() {
+                                heritage.push(("extend".to_string(), target));
+                            }
                         }
                     }
                 }
                 // Direct type identifier (without access specifier)
                 "type_identifier" | "qualified_identifier" | "template_type" => {
                     extract_type_ref(child, source, file_path, Some(&full_name), references);
+                    let target =
+                        node_text(child, source);
+                    if !target.is_empty() {
+                        heritage.push(("extend".to_string(), target));
+                    }
                 }
                 _ => {}
             }
         }
     }
 
-    push_symbol(
-        symbols,
-        file_path,
-        full_name.clone(),
-        kind,
+    symbols.push(crate::parser::format::SymbolEntry {
+        file: file_path.to_string(),
+        name: full_name.clone(),
+        kind: kind.to_string(),
         line,
-        parent_ctx,
-        None,
-        None,
-        Some("public".to_string()),
-    );
+        parent: parent_ctx.map(String::from),
+        tokens: None,
+        alias: None,
+        visibility: Some("public".to_string()),
+        sig: None,
+        project: String::new(),
+        heritage,
+    });
 
     // Walk class body with access tracking
     if let Some(body) = find_child_by_field(node, "body") {

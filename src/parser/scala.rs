@@ -633,17 +633,48 @@ fn extract_class_like(
         .child_by_field_name("body")
         .and_then(|body| filter_scala_tokens(extract_tokens(body, source)));
 
-    push_symbol(
-        symbols,
-        file_path,
-        full_name.clone(),
-        kind,
+    // Heritage: Scala's `extends Foo with Bar with Baz` is exposed as an
+    // `extends_clause` child whose children are the parent types. Both
+    // the base class and the mixed-in traits are syntactically
+    // indistinguishable — both land as `extend` edges (same trade-off as
+    // Kotlin / Swift / C# / C++).
+    let mut heritage: Vec<(String, String)> = Vec::new();
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if child.kind() != "extends_clause" {
+            continue;
+        }
+        let mut ec = child.walk();
+        for type_node in child.children(&mut ec) {
+            match type_node.kind() {
+                "type_identifier"
+                | "generic_type"
+                | "compound_type"
+                | "projected_type"
+                | "stable_type_identifier" => {
+                    let target = node_text(type_node, source);
+                    if !target.is_empty() {
+                        heritage.push(("extend".to_string(), target));
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    symbols.push(SymbolEntry {
+        file: file_path.to_string(),
+        name: full_name.clone(),
+        kind: kind.to_string(),
         line,
-        parent_ctx,
+        parent: parent_ctx.map(String::from),
         tokens,
-        None,
-        Some(visibility),
-    );
+        alias: None,
+        visibility: Some(visibility),
+        sig: None,
+        project: String::new(),
+        heritage,
+    });
 
     if let Some(body) = node.child_by_field_name("body") {
         let mut cursor = body.walk();

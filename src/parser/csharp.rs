@@ -753,16 +753,24 @@ fn extract_type_decl(
         name.clone()
     };
 
-    // Extract base type references
+    // Extract base type references + heritage. C# `: Animal, IRunnable`
+    // doesn't syntactically distinguish base class from interfaces —
+    // both land as `extend` edges. (A workspace-level lookup against the
+    // DotNetIndex's namespace_map for `interface X` vs `class X` could
+    // refine this to `implement` for interfaces; deferred.)
+    let mut heritage: Vec<(String, String)> = Vec::new();
     if let Some(base_list) = bases {
         let mut cursor = base_list.walk();
         for child in base_list.children(&mut cursor) {
-            // Look for base types in base_list
             if matches!(
                 child.kind(),
                 "identifier" | "identifier_name" | "generic_name" | "qualified_name"
             ) {
                 extract_type_ref(child, source, file_path, Some(&full_name), references);
+                let target = node_text(child, source);
+                if !target.is_empty() {
+                    heritage.push(("extend".to_string(), target));
+                }
             }
         }
     }
@@ -771,17 +779,19 @@ fn extract_type_decl(
     let tokens = find_child_by_field(node, "body")
         .and_then(|body| filter_csharp_tokens(extract_tokens(body, source)));
 
-    push_symbol(
-        symbols,
-        file_path,
-        full_name.clone(),
-        kind,
+    symbols.push(crate::parser::format::SymbolEntry {
+        file: file_path.to_string(),
+        name: full_name.clone(),
+        kind: kind.to_string(),
         line,
-        parent_ctx,
+        parent: parent_ctx.map(String::from),
         tokens,
-        None,
-        Some(visibility),
-    );
+        alias: None,
+        visibility: Some(visibility),
+        sig: None,
+        project: String::new(),
+        heritage,
+    });
 
     // Walk body with XML-doc tracking so `///` runs before each member
     // attach as that member's doc.

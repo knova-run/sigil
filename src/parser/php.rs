@@ -509,17 +509,44 @@ fn extract_class_like(
         .child_by_field_name("body")
         .and_then(|body| filter_php_tokens(extract_tokens(body, source)));
 
-    push_symbol(
-        symbols,
-        file_path,
-        full_name.clone(),
-        kind,
+    // Heritage: PHP `class Dog extends Animal implements Runnable`
+    // exposes `base_clause` (extend) and `class_interface_clause`
+    // (implement) as direct children.
+    let mut heritage: Vec<(String, String)> = Vec::new();
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        let edge_kind = match child.kind() {
+            "base_clause" => "extend",
+            "class_interface_clause" => "implement",
+            _ => continue,
+        };
+        let mut bc = child.walk();
+        for type_node in child.children(&mut bc) {
+            if matches!(
+                type_node.kind(),
+                "name" | "qualified_name" | "namespace_name_as_prefix" | "namespace_name"
+            ) {
+                let target = node_text(type_node, source);
+                if !target.is_empty() {
+                    heritage.push((edge_kind.to_string(), target));
+                }
+            }
+        }
+    }
+
+    symbols.push(SymbolEntry {
+        file: file_path.to_string(),
+        name: full_name.clone(),
+        kind: kind.to_string(),
         line,
-        parent_ctx,
+        parent: parent_ctx.map(String::from),
         tokens,
-        None,
-        Some(visibility),
-    );
+        alias: None,
+        visibility: Some(visibility),
+        sig: None,
+        project: String::new(),
+        heritage,
+    });
 
     if let Some(body) = node.child_by_field_name("body") {
         let mut cursor = body.walk();

@@ -488,17 +488,39 @@ fn extract_class_like(
     let tokens = first_child_of_kind(node, "class_body")
         .and_then(|body| filter_kotlin_tokens(extract_tokens(body, source)));
 
-    push_symbol(
-        symbols,
-        file_path,
-        full_name.clone(),
-        kind,
+    // Heritage: Kotlin's `class Dog : Animal(), Runnable` exposes its
+    // supertypes via `delegation_specifier` children inside an inner
+    // `class_body`-sibling list. We walk all descendants for
+    // `delegation_specifier` and extract the first user_type / identifier
+    // within each. Discriminating extend (single concrete superclass)
+    // from implement (interfaces) requires a symbol table; for now
+    // every supertype lands as `extend` — same trade-off the Kotlin
+    // grammar makes (no explicit `implements` keyword).
+    let mut heritage: Vec<(String, String)> = Vec::new();
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if child.kind() != "delegation_specifier" {
+            continue;
+        }
+        let target = kotlin_supertype_name(child, source);
+        if !target.is_empty() {
+            heritage.push(("extend".to_string(), target));
+        }
+    }
+
+    symbols.push(SymbolEntry {
+        file: file_path.to_string(),
+        name: full_name.clone(),
+        kind: kind.to_string(),
         line,
-        parent_ctx,
+        parent: parent_ctx.map(String::from),
         tokens,
-        None,
-        Some(visibility),
-    );
+        alias: None,
+        visibility: Some(visibility),
+        sig: None,
+        project: String::new(),
+        heritage,
+    });
 
     if let Some(body) = first_child_of_kind(node, "class_body") {
         let mut cursor = body.walk();
@@ -515,6 +537,40 @@ fn extract_class_like(
             );
         }
     }
+}
+
+/// Pull the supertype name from a Kotlin `delegation_specifier` node.
+/// Common shapes:
+///   * `user_type` (Foo)
+///   * `constructor_invocation` (Foo()) → first user_type child
+///   * `explicit_delegation` (Foo by bar) → first user_type child
+fn kotlin_supertype_name(node: Node, source: &[u8]) -> String {
+    fn extract_user_type(n: Node, source: &[u8]) -> String {
+        // Strip the generic-args / `?` suffix by taking the first type_identifier.
+        let mut cursor = n.walk();
+        for c in n.children(&mut cursor) {
+            if c.kind() == "type_identifier" {
+                return node_text(c, source);
+            }
+        }
+        node_text(n, source)
+    }
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        match child.kind() {
+            "user_type" => return extract_user_type(child, source),
+            "constructor_invocation" | "explicit_delegation" => {
+                let mut inner = child.walk();
+                for c in child.children(&mut inner) {
+                    if c.kind() == "user_type" {
+                        return extract_user_type(c, source);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    String::new()
 }
 
 fn function_name(node: Node, source: &[u8]) -> Option<String> {

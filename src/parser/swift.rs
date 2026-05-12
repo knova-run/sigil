@@ -380,6 +380,29 @@ fn class_like_name(node: Node, source: &[u8]) -> Option<String> {
 }
 
 #[allow(clippy::too_many_arguments)]
+/// Extract the type name from an `inheritance_specifier` node. Tree-
+/// sitter-swift wraps the parent type in either a `user_type` or
+/// `type_identifier` child.
+fn swift_inheritance_target(node: Node, source: &[u8]) -> String {
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        match child.kind() {
+            "user_type" => {
+                let mut inner = child.walk();
+                for c in child.children(&mut inner) {
+                    if c.kind() == "type_identifier" {
+                        return node_text(c, source);
+                    }
+                }
+                return node_text(child, source);
+            }
+            "type_identifier" => return node_text(child, source),
+            _ => {}
+        }
+    }
+    String::new()
+}
+
 fn extract_class_like(
     node: Node,
     source: &[u8],
@@ -405,21 +428,37 @@ fn extract_class_like(
 
     let tokens = body.and_then(|b| filter_swift_tokens(extract_tokens(b, source)));
 
-    // All class-like declarations surface as `class` per the spec — the
-    // distinction between class / struct / enum / actor / extension lives
-    // in the source and is recoverable, but the symbol kind is uniform
-    // so downstream queries don't need to special-case each variant.
-    push_symbol(
-        symbols,
-        file_path,
-        full_name.clone(),
-        "class",
+    // Heritage: Swift's `class Dog: Animal, Runnable` exposes inheritance
+    // via `inheritance_specifier` children. Without a symbol-table lookup
+    // we can't distinguish superclass from adopted protocols — both land
+    // as `extend` edges. (Refinement: the first specifier is always the
+    // superclass when it's a class type; protocols follow. Conservative
+    // here.)
+    let mut heritage: Vec<(String, String)> = Vec::new();
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if child.kind() != "inheritance_specifier" {
+            continue;
+        }
+        let target = swift_inheritance_target(child, source);
+        if !target.is_empty() {
+            heritage.push(("extend".to_string(), target));
+        }
+    }
+
+    symbols.push(SymbolEntry {
+        file: file_path.to_string(),
+        name: full_name.clone(),
+        kind: "class".to_string(),
         line,
-        parent_ctx,
+        parent: parent_ctx.map(String::from),
         tokens,
-        None,
-        Some(visibility),
-    );
+        alias: None,
+        visibility: Some(visibility),
+        sig: None,
+        project: String::new(),
+        heritage,
+    });
 
     if let Some(body) = body {
         let mut cursor = body.walk();
