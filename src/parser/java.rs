@@ -669,22 +669,53 @@ fn extract_class(
         name.clone()
     };
 
-    // Extract superclass reference
+    // Heritage edges. Java's tree-sitter exposes three field names for the
+    // parent-type clauses:
+    //   * `superclass` — `class Foo extends Bar` (single)
+    //   * `interfaces` — `class Foo implements Bar, Baz` (list)
+    //   * `extends_interfaces` — `interface Foo extends Bar, Baz` (list)
+    let mut heritage: Vec<(String, String)> = Vec::new();
     if let Some(superclass) = find_child_by_field(node, "superclass") {
         extract_type_refs(superclass, source, file_path, Some(&full_name), references);
+        let target = get_type_name(superclass, source);
+        if !target.is_empty() {
+            heritage.push(("extend".to_string(), target));
+        }
     }
-
-    // Extract interfaces references
-    if let Some(interfaces) = find_child_by_field(node, "interfaces") {
-        let mut cursor = interfaces.walk();
-        for child in interfaces.children(&mut cursor) {
+    // `interfaces` is a tree-sitter field on class_declaration; interface
+    // declarations expose their parents via an `extends_interfaces` child
+    // node (not a named field on most tree-sitter-java versions). Try the
+    // field first, then scan kind=="extends_interfaces" as a fallback.
+    let parents_clause = find_child_by_field(node, "interfaces")
+        .map(|n| ("implement", n))
+        .or_else(|| find_child_by_field(node, "extends_interfaces").map(|n| ("extend", n)))
+        .or_else(|| {
+            let mut cursor = node.walk();
+            for child in node.children(&mut cursor) {
+                if child.kind() == "extends_interfaces" {
+                    return Some(("extend", child));
+                }
+            }
+            None
+        });
+    if let Some((edge_kind, clause)) = parents_clause {
+        let mut cursor = clause.walk();
+        for child in clause.children(&mut cursor) {
             if child.kind() == "type_list" {
                 let mut type_cursor = child.walk();
                 for type_child in child.children(&mut type_cursor) {
                     extract_type_refs(type_child, source, file_path, Some(&full_name), references);
+                    let target = get_type_name(type_child, source);
+                    if !target.is_empty() {
+                        heritage.push((edge_kind.to_string(), target));
+                    }
                 }
             } else {
                 extract_type_refs(child, source, file_path, Some(&full_name), references);
+                let target = get_type_name(child, source);
+                if !target.is_empty() {
+                    heritage.push((edge_kind.to_string(), target));
+                }
             }
         }
     }
@@ -693,17 +724,21 @@ fn extract_class(
     let tokens = find_child_by_field(node, "body")
         .and_then(|body| filter_java_tokens(extract_tokens(body, source)));
 
-    push_symbol(
-        symbols,
-        file_path,
-        full_name.clone(),
-        kind,
+    // Push the class symbol manually (rather than via push_symbol) so we
+    // can carry the heritage vec through to the SymbolEntry.
+    symbols.push(crate::parser::format::SymbolEntry {
+        file: file_path.to_string(),
+        name: full_name.clone(),
+        kind: kind.to_string(),
         line,
-        parent_ctx,
+        parent: parent_ctx.map(String::from),
         tokens,
-        None,
-        Some(visibility),
-    );
+        alias: None,
+        visibility: Some(visibility),
+        sig: None,
+        project: String::new(),
+        heritage,
+    });
 
     // Walk class body with Javadoc tracking so that `/** … */` blocks before
     // each method/field attach as that member's doc.

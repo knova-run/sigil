@@ -846,11 +846,43 @@ fn extract_class(
         name.clone()
     };
 
-    // Extract type references from class heritage (extends/implements)
+    // Extract type references + heritage from class_heritage clause.
+    // Tree-sitter-typescript shape:
+    //   class_heritage
+    //     extends_clause           ← single base class
+    //       value: identifier
+    //     implements_clause        ← one or more interfaces
+    //       type: type_identifier (one per interface)
+    let mut heritage: Vec<(String, String)> = Vec::new();
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
-        if child.kind() == "class_heritage" {
-            extract_type_refs(child, source, file_path, Some(&full_name), references);
+        if child.kind() != "class_heritage" {
+            continue;
+        }
+        extract_type_refs(child, source, file_path, Some(&full_name), references);
+        let mut h_cursor = child.walk();
+        for heritage_child in child.children(&mut h_cursor) {
+            let edge_kind = match heritage_child.kind() {
+                "extends_clause" => "extend",
+                "implements_clause" => "implement",
+                _ => continue,
+            };
+            let mut hc_cursor = heritage_child.walk();
+            for type_node in heritage_child.children(&mut hc_cursor) {
+                match type_node.kind() {
+                    "identifier"
+                    | "type_identifier"
+                    | "generic_type"
+                    | "nested_type_identifier"
+                    | "member_expression" => {
+                        let target = node_text(type_node, source);
+                        if !target.is_empty() {
+                            heritage.push((edge_kind.to_string(), target));
+                        }
+                    }
+                    _ => {}
+                }
+            }
         }
     }
 
@@ -858,17 +890,20 @@ fn extract_class(
     let tokens = find_child_by_field(node, "body")
         .and_then(|body| filter_ts_tokens(extract_tokens(body, source)));
 
-    push_symbol(
-        symbols,
-        file_path,
-        full_name.clone(),
-        "class",
+    // Push the class symbol manually so we can carry heritage.
+    symbols.push(crate::parser::format::SymbolEntry {
+        file: file_path.to_string(),
+        name: full_name.clone(),
+        kind: "class".to_string(),
         line,
-        parent_ctx,
+        parent: parent_ctx.map(String::from),
         tokens,
-        None,
-        Some(visibility.to_string()),
-    );
+        alias: None,
+        visibility: Some(visibility.to_string()),
+        sig: None,
+        project: String::new(),
+        heritage,
+    });
 
     if let Some(body) = find_child_by_field(node, "body") {
         let mut cursor = body.walk();
@@ -1265,26 +1300,48 @@ fn extract_interface(
         name.clone()
     };
 
-    // Extract type references from extends clause
+    // Extract type references + heritage `extend` edges. An
+    // extends_type_clause wraps one or more (identifier | type_identifier |
+    // generic_type | nested_type_identifier) children — one per parent.
+    let mut heritage: Vec<(String, String)> = Vec::new();
     if let Some(ext) = extends_node {
         extract_type_refs(ext, source, file_path, Some(&full_name), references);
+        let mut cursor = ext.walk();
+        for child in ext.children(&mut cursor) {
+            match child.kind() {
+                "identifier"
+                | "type_identifier"
+                | "generic_type"
+                | "nested_type_identifier"
+                | "member_expression" => {
+                    let target = node_text(child, source);
+                    if !target.is_empty() {
+                        heritage.push(("extend".to_string(), target));
+                    }
+                }
+                _ => {}
+            }
+        }
     }
 
     // Extract tokens from interface body (type references)
     let tokens = find_child_by_field(node, "body")
         .and_then(|body| filter_ts_tokens(extract_tokens(body, source)));
 
-    push_symbol(
-        symbols,
-        file_path,
-        full_name.clone(),
-        "interface",
+    // Push the interface symbol manually so we can carry heritage.
+    symbols.push(crate::parser::format::SymbolEntry {
+        file: file_path.to_string(),
+        name: full_name.clone(),
+        kind: "interface".to_string(),
         line,
-        parent_ctx,
+        parent: parent_ctx.map(String::from),
         tokens,
-        None,
-        Some(visibility.to_string()),
-    );
+        alias: None,
+        visibility: Some(visibility.to_string()),
+        sig: None,
+        project: String::new(),
+        heritage,
+    });
 
     // Walk interface body for method signatures and extract type refs
     if let Some(body) = find_child_by_field(node, "body") {

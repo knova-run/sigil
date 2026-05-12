@@ -93,6 +93,322 @@ fn run_index_with_refs() -> (Vec<serde_json::Value>, Vec<serde_json::Value>) {
     (entities, refs)
 }
 
+/// Java heritage fixture staging — analogous to `stage_fixture` for Go.
+fn stage_java_fixture() -> PathBuf {
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let src = PathBuf::from(format!(
+        "{}/tests/fixtures/sample_java_heritage.java",
+        manifest
+    ));
+    let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
+    let pid = std::process::id();
+    let dir = std::env::temp_dir().join(format!("sigil-heritage-java-{pid}-{id}"));
+    std::fs::create_dir_all(&dir).expect("create temp dir");
+    std::fs::copy(&src, dir.join("sample_java_heritage.java")).expect("copy fixture");
+    dir
+}
+
+fn run_index_java() -> Vec<serde_json::Value> {
+    let dir = stage_java_fixture();
+    let stdout = run_index_in(&dir);
+    parse_entities(&stdout)
+}
+
+#[test]
+fn java_class_extends_emits_extend_heritage_edge() {
+    let entities = run_index_java();
+    let dog = entities
+        .iter()
+        .find(|e| e["name"] == "Dog")
+        .expect("Dog entity should be emitted");
+    let heritage = dog["heritage"]
+        .as_array()
+        .expect("heritage field should be a JSON array on Dog");
+    let extend_edge = heritage
+        .iter()
+        .find(|h| h["kind"].as_str() == Some("extend"))
+        .unwrap_or_else(|| panic!("expected an `extend` edge on Dog; got {heritage:?}"));
+    assert_eq!(
+        extend_edge["target"].as_str(),
+        Some("Animal"),
+        "Dog's extend edge should target Animal; got {extend_edge:?}",
+    );
+}
+
+#[test]
+fn java_interface_extends_emits_extend_edges_per_parent() {
+    // `interface Pet extends Runnable, Swimmer` — each parent interface
+    // should appear as an `extend` edge.
+    let entities = run_index_java();
+    let pet = entities
+        .iter()
+        .find(|e| e["name"] == "Pet")
+        .expect("Pet interface entity should be emitted");
+    let heritage = pet["heritage"]
+        .as_array()
+        .expect("heritage field should be a JSON array on Pet");
+    let mut extends: Vec<&str> = heritage
+        .iter()
+        .filter(|h| h["kind"].as_str() == Some("extend"))
+        .filter_map(|h| h["target"].as_str())
+        .collect();
+    extends.sort();
+    assert_eq!(
+        extends,
+        vec!["Runnable", "Swimmer"],
+        "expected both parent interfaces on Pet's extend edges; got {heritage:?}",
+    );
+}
+
+#[test]
+fn java_class_implements_emits_implement_heritage_edges() {
+    // `class Dog extends Animal implements Runnable, Swimmer` should
+    // produce two `implement` edges, one per interface.
+    let entities = run_index_java();
+    let dog = entities
+        .iter()
+        .find(|e| e["name"] == "Dog")
+        .expect("Dog entity should be emitted");
+    let heritage = dog["heritage"]
+        .as_array()
+        .expect("heritage field should be a JSON array on Dog");
+    let mut implements: Vec<&str> = heritage
+        .iter()
+        .filter(|h| h["kind"].as_str() == Some("implement"))
+        .filter_map(|h| h["target"].as_str())
+        .collect();
+    implements.sort();
+    assert_eq!(
+        implements,
+        vec!["Runnable", "Swimmer"],
+        "expected both interfaces on Dog's implement edges; got {heritage:?}",
+    );
+}
+
+/// TypeScript heritage fixture staging.
+fn stage_ts_fixture() -> PathBuf {
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let src = PathBuf::from(format!(
+        "{}/tests/fixtures/sample_ts_heritage.ts",
+        manifest
+    ));
+    let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
+    let pid = std::process::id();
+    let dir = std::env::temp_dir().join(format!("sigil-heritage-ts-{pid}-{id}"));
+    std::fs::create_dir_all(&dir).expect("create temp dir");
+    std::fs::copy(&src, dir.join("sample_ts_heritage.ts")).expect("copy fixture");
+    dir
+}
+
+fn run_index_ts() -> Vec<serde_json::Value> {
+    let dir = stage_ts_fixture();
+    let stdout = run_index_in(&dir);
+    parse_entities(&stdout)
+}
+
+#[test]
+fn ts_class_extends_and_implements_emit_heritage_edges() {
+    let entities = run_index_ts();
+    let dog = entities
+        .iter()
+        .find(|e| e["name"] == "Dog")
+        .expect("Dog entity should be emitted");
+    let heritage = dog["heritage"]
+        .as_array()
+        .expect("heritage field should be a JSON array on Dog");
+    let extend_target = heritage
+        .iter()
+        .find(|h| h["kind"].as_str() == Some("extend"))
+        .and_then(|h| h["target"].as_str());
+    assert_eq!(extend_target, Some("Animal"), "got {heritage:?}");
+    let mut implements: Vec<&str> = heritage
+        .iter()
+        .filter(|h| h["kind"].as_str() == Some("implement"))
+        .filter_map(|h| h["target"].as_str())
+        .collect();
+    implements.sort();
+    assert_eq!(implements, vec!["Runnable", "Swimmer"], "got {heritage:?}");
+}
+
+#[test]
+fn ts_interface_extends_emits_extend_edges_per_parent() {
+    let entities = run_index_ts();
+    let pet = entities
+        .iter()
+        .find(|e| e["name"] == "Pet")
+        .expect("Pet interface entity should be emitted");
+    let heritage = pet["heritage"]
+        .as_array()
+        .expect("heritage field should be a JSON array on Pet");
+    let mut extends: Vec<&str> = heritage
+        .iter()
+        .filter(|h| h["kind"].as_str() == Some("extend"))
+        .filter_map(|h| h["target"].as_str())
+        .collect();
+    extends.sort();
+    assert_eq!(extends, vec!["Runnable", "Swimmer"], "got {heritage:?}");
+}
+
+fn stage_js_fixture() -> PathBuf {
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let src = PathBuf::from(format!(
+        "{}/tests/fixtures/sample_js_heritage.js",
+        manifest
+    ));
+    let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
+    let pid = std::process::id();
+    let dir = std::env::temp_dir().join(format!("sigil-heritage-js-{pid}-{id}"));
+    std::fs::create_dir_all(&dir).expect("create temp dir");
+    std::fs::copy(&src, dir.join("sample_js_heritage.js")).expect("copy fixture");
+    dir
+}
+
+#[test]
+fn js_class_extends_emits_extend_heritage_edge() {
+    let dir = stage_js_fixture();
+    let stdout = run_index_in(&dir);
+    let entities = parse_entities(&stdout);
+    let dog = entities
+        .iter()
+        .find(|e| e["name"] == "Dog")
+        .expect("Dog class entity should be emitted");
+    let heritage = dog["heritage"]
+        .as_array()
+        .expect("heritage field should be a JSON array on Dog");
+    let extend_target = heritage
+        .iter()
+        .find(|h| h["kind"].as_str() == Some("extend"))
+        .and_then(|h| h["target"].as_str());
+    assert_eq!(
+        extend_target,
+        Some("Animal"),
+        "Dog's extend edge should target Animal; got {heritage:?}",
+    );
+}
+
+fn stage_py_fixture() -> PathBuf {
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let src = PathBuf::from(format!(
+        "{}/tests/fixtures/sample_py_heritage.py",
+        manifest
+    ));
+    let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
+    let pid = std::process::id();
+    let dir = std::env::temp_dir().join(format!("sigil-heritage-py-{pid}-{id}"));
+    std::fs::create_dir_all(&dir).expect("create temp dir");
+    std::fs::copy(&src, dir.join("sample_py_heritage.py")).expect("copy fixture");
+    dir
+}
+
+fn run_index_py() -> Vec<serde_json::Value> {
+    let dir = stage_py_fixture();
+    let stdout = run_index_in(&dir);
+    parse_entities(&stdout)
+}
+
+#[test]
+fn python_multi_inheritance_emits_extend_edges_per_base() {
+    let entities = run_index_py();
+    let dog = entities
+        .iter()
+        .find(|e| e["name"] == "Dog")
+        .expect("Dog class entity should be emitted");
+    let heritage = dog["heritage"]
+        .as_array()
+        .expect("heritage field should be a JSON array on Dog");
+    let mut extends: Vec<&str> = heritage
+        .iter()
+        .filter(|h| h["kind"].as_str() == Some("extend"))
+        .filter_map(|h| h["target"].as_str())
+        .collect();
+    extends.sort();
+    assert_eq!(extends, vec!["Animal", "Mixin"], "got {heritage:?}");
+}
+
+#[test]
+fn python_abc_subclass_emits_extend_edge_to_abc() {
+    let entities = run_index_py();
+    let shape = entities
+        .iter()
+        .find(|e| e["name"] == "Shape")
+        .expect("Shape entity should be emitted");
+    let heritage = shape["heritage"]
+        .as_array()
+        .expect("heritage field should be a JSON array on Shape");
+    let extend_target = heritage
+        .iter()
+        .find(|h| h["kind"].as_str() == Some("extend"))
+        .and_then(|h| h["target"].as_str());
+    assert_eq!(extend_target, Some("ABC"), "got {heritage:?}");
+}
+
+fn stage_rust_fixture() -> PathBuf {
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let src = PathBuf::from(format!(
+        "{}/tests/fixtures/sample_rust_heritage.rs",
+        manifest
+    ));
+    let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
+    let pid = std::process::id();
+    let dir = std::env::temp_dir().join(format!("sigil-heritage-rust-{pid}-{id}"));
+    std::fs::create_dir_all(&dir).expect("create temp dir");
+    std::fs::copy(&src, dir.join("sample_rust_heritage.rs")).expect("copy fixture");
+    dir
+}
+
+fn run_index_rust() -> Vec<serde_json::Value> {
+    let dir = stage_rust_fixture();
+    let stdout = run_index_in(&dir);
+    parse_entities(&stdout)
+}
+
+#[test]
+fn rust_impl_trait_for_type_emits_implement_heritage_edge() {
+    // `impl Display for Widget` — the impl entity (kind="impl" after
+    // normalize_kind, name="Widget") carries an `implement` edge to
+    // `Display`.
+    let entities = run_index_rust();
+    let imp = entities
+        .iter()
+        .find(|e| e["name"] == "Widget" && e["kind"].as_str() == Some("impl"))
+        .expect("impl entity for Widget should be emitted");
+    let heritage = imp["heritage"]
+        .as_array()
+        .expect("heritage field should be a JSON array on the impl");
+    let target = heritage
+        .iter()
+        .find(|h| h["kind"].as_str() == Some("implement"))
+        .and_then(|h| h["target"].as_str());
+    assert_eq!(
+        target,
+        Some("Display"),
+        "expected `implement Display` on the impl entity; got {heritage:?}",
+    );
+}
+
+#[test]
+fn rust_trait_super_bound_emits_extend_heritage_edge() {
+    // `trait Pretty: Display` — the Pretty trait gets an `extend` edge
+    // pointing at Display.
+    let entities = run_index_rust();
+    let pretty = entities
+        .iter()
+        .find(|e| e["name"] == "Pretty")
+        .expect("Pretty trait entity should be emitted");
+    let heritage = pretty["heritage"]
+        .as_array()
+        .expect("heritage field should be a JSON array on Pretty");
+    let target = heritage
+        .iter()
+        .find(|h| h["kind"].as_str() == Some("extend"))
+        .and_then(|h| h["target"].as_str());
+    assert_eq!(
+        target,
+        Some("Display"),
+        "expected `extend Display` on Pretty; got {heritage:?}",
+    );
+}
+
 #[test]
 fn struct_embed_emits_heritage_edge() {
     let stdout = run_index(&[]);

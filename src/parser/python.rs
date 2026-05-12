@@ -370,17 +370,45 @@ fn extract_class(
         name.clone()
     };
 
-    push_symbol(
-        symbols,
-        file_path,
-        full_name.clone(),
-        "class",
+    // Heritage edges. Python's tree-sitter exposes `class Foo(Base, Mixin):`
+    // as a `superclasses` field whose body is an `argument_list` containing
+    // one node per base. Keyword args like `metaclass=Meta` are
+    // `keyword_argument` nodes — we treat the right-hand-side identifier
+    // as an `extend` edge to capture `ABCMeta` / `type`-driven heritage.
+    let mut heritage: Vec<(String, String)> = Vec::new();
+    if let Some(supers) = find_child_by_field(node, "superclasses") {
+        let mut cursor = supers.walk();
+        for child in supers.children(&mut cursor) {
+            let target = match child.kind() {
+                "identifier" | "attribute" | "subscript" => node_text(child, source),
+                "keyword_argument" => {
+                    // `metaclass=ABCMeta` style — record the value.
+                    find_child_by_field(child, "value")
+                        .map(|v| node_text(v, source))
+                        .unwrap_or_default()
+                }
+                _ => String::new(),
+            };
+            if !target.is_empty() {
+                heritage.push(("extend".to_string(), target));
+            }
+        }
+    }
+
+    // Push the class symbol manually so we can carry heritage.
+    symbols.push(crate::parser::format::SymbolEntry {
+        file: file_path.to_string(),
+        name: full_name.clone(),
+        kind: "class".to_string(),
         line,
-        parent_ctx,
+        parent: parent_ctx.map(String::from),
         tokens,
-        None,
-        Some(visibility),
-    );
+        alias: None,
+        visibility: Some(visibility),
+        sig: None,
+        project: String::new(),
+        heritage,
+    });
 
     // Walk class body
     if let Some(body) = find_child_by_field(node, "body") {

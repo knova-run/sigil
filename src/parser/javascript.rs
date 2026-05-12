@@ -674,8 +674,10 @@ fn extract_class(
         name.clone()
     };
 
-    // Extract class heritage references (extends)
-    // Try different tree-sitter node structures for extends clause
+    // Extract class heritage references (extends) — and capture them into
+    // `heritage` for the SymbolEntry. JS has no `implements` keyword; only
+    // `extend` edges land here.
+    let mut heritage: Vec<(String, String)> = Vec::new();
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         match child.kind() {
@@ -695,13 +697,14 @@ fn extract_class(
                             if !super_name.is_empty() && !is_js_builtin_call(&super_name) {
                                 references.push(ReferenceEntry {
                                     file: file_path.to_string(),
-                                    name: super_name,
+                                    name: super_name.clone(),
                                     kind: "type_annotation".to_string(),
                                     line: node_line_range(heritage_child),
                                     caller: Some(full_name.clone()),
                                     project: String::new(),
                                     confidence: None,
                                 });
+                                heritage.push(("extend".to_string(), super_name));
                             }
                         }
                     } else if matches!(heritage_child.kind(), "identifier" | "member_expression") {
@@ -710,13 +713,14 @@ fn extract_class(
                         if !super_name.is_empty() && !is_js_builtin_call(&super_name) {
                             references.push(ReferenceEntry {
                                 file: file_path.to_string(),
-                                name: super_name,
+                                name: super_name.clone(),
                                 kind: "type_annotation".to_string(),
                                 line: node_line_range(heritage_child),
                                 caller: Some(full_name.clone()),
                                 project: String::new(),
                                 confidence: None,
                             });
+                            heritage.push(("extend".to_string(), super_name));
                         }
                     }
                 }
@@ -731,13 +735,14 @@ fn extract_class(
                     if !super_name.is_empty() && !is_js_builtin_call(&super_name) {
                         references.push(ReferenceEntry {
                             file: file_path.to_string(),
-                            name: super_name,
+                            name: super_name.clone(),
                             kind: "type_annotation".to_string(),
                             line: node_line_range(child),
                             caller: Some(full_name.clone()),
                             project: String::new(),
                             confidence: None,
                         });
+                        heritage.push(("extend".to_string(), super_name));
                     }
                 }
             }
@@ -749,17 +754,20 @@ fn extract_class(
     let tokens = find_child_by_field(node, "body")
         .and_then(|body| filter_js_tokens(extract_tokens(body, source)));
 
-    push_symbol(
-        symbols,
-        file_path,
-        full_name.clone(),
-        "class",
+    // Push the class symbol manually so we can carry heritage.
+    symbols.push(crate::parser::format::SymbolEntry {
+        file: file_path.to_string(),
+        name: full_name.clone(),
+        kind: "class".to_string(),
         line,
-        parent_ctx,
+        parent: parent_ctx.map(String::from),
         tokens,
-        None,
-        Some(visibility),
-    );
+        alias: None,
+        visibility: Some(visibility),
+        sig: None,
+        project: String::new(),
+        heritage,
+    });
 
     // Walk class body
     if let Some(body) = find_child_by_field(node, "body") {

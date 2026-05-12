@@ -105,7 +105,7 @@ fn walk_node(
             extract_named_symbol(node, source, file_path, "enum", parent_ctx, symbols);
         }
         "trait_item" => {
-            extract_named_symbol(node, source, file_path, "interface", parent_ctx, symbols);
+            extract_trait(node, source, file_path, parent_ctx, symbols);
         }
         "type_item" => {
             extract_named_symbol(node, source, file_path, "type_alias", parent_ctx, symbols);
@@ -350,6 +350,61 @@ fn extract_rust_const(
     });
 }
 
+/// Extract a `trait_item` with its super-bound heritage.
+///
+/// `trait Pretty: Display + Debug` exposes the super-bound clause as a
+/// `bounds` field — a `trait_bounds` node containing one or more
+/// type_identifier / scoped_type_identifier children. Each parent trait
+/// becomes an `extend` heritage edge on the trait entity.
+fn extract_trait(
+    node: Node,
+    source: &[u8],
+    file_path: &str,
+    parent_ctx: Option<&str>,
+    symbols: &mut Vec<SymbolEntry>,
+) {
+    let name = match find_child_by_field(node, "name") {
+        Some(n) => node_text(n, source),
+        None => return,
+    };
+    let visibility = extract_visibility(node, source);
+    let line = node_line_range(node);
+
+    let mut heritage: Vec<(String, String)> = Vec::new();
+    if let Some(bounds) = find_child_by_field(node, "bounds") {
+        let mut cursor = bounds.walk();
+        for child in bounds.children(&mut cursor) {
+            match child.kind() {
+                "type_identifier"
+                | "scoped_type_identifier"
+                | "generic_type"
+                | "higher_ranked_trait_bound"
+                | "trait_bound" => {
+                    let target = node_text(child, source);
+                    if !target.is_empty() {
+                        heritage.push(("extend".to_string(), target));
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    symbols.push(crate::parser::format::SymbolEntry {
+        file: file_path.to_string(),
+        name,
+        kind: "interface".to_string(),
+        line,
+        parent: parent_ctx.map(String::from),
+        tokens: None,
+        alias: None,
+        visibility: Some(visibility),
+        sig: None,
+        project: String::new(),
+        heritage,
+    });
+}
+
 fn extract_named_symbol(
     node: Node,
     source: &[u8],
@@ -435,18 +490,30 @@ fn extract_impl(
         "impl"
     };
 
-    // impl blocks are containers, no meaningful tokens
-    push_symbol(
-        symbols,
-        file_path,
-        impl_type_name.clone(),
-        kind,
+    // Heritage: for `impl Trait for Type` emit an `implement` edge on the
+    // impl entity targeting the Trait. Bare `impl Type` blocks have no
+    // heritage; inherent methods don't form a heritage relationship.
+    let mut heritage: Vec<(String, String)> = Vec::new();
+    if let Some(t) = trait_name.as_ref() {
+        if !t.is_empty() {
+            heritage.push(("implement".to_string(), t.clone()));
+        }
+    }
+
+    // impl blocks are containers, no meaningful tokens.
+    symbols.push(crate::parser::format::SymbolEntry {
+        file: file_path.to_string(),
+        name: impl_type_name.clone(),
+        kind: kind.to_string(),
         line,
-        None,
-        None,
-        None,
-        Some(visibility),
-    );
+        parent: None,
+        tokens: None,
+        alias: None,
+        visibility: Some(visibility),
+        sig: None,
+        project: String::new(),
+        heritage,
+    });
 
     // Walk children of the body to find methods. Same doc-comment
     // attachment as in `walk_node` — `///` / `/** */` lines immediately
