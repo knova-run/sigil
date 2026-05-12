@@ -290,6 +290,14 @@ pub fn build_index(
         let dotnet = load_dotnet_index(root);
         let extra = resolve_csharp_usings(&all_entities, &all_refs, &dotnet);
         all_refs.extend(extra);
+        let externals = emit_external_sentinels(
+            &all_entities,
+            &go_modules,
+            &cargo_workspace,
+            &swift_spm,
+            tsconfig.as_ref(),
+        );
+        all_entities.extend(externals);
     }
 
     // Sort deterministically
@@ -2541,6 +2549,129 @@ fn resolve_swift_spm_imports(
         });
     }
     additions
+}
+
+/// P5.15 — emit `external:<modpath>` sentinel entities for import targets
+/// that don't resolve to any workspace file.
+///
+/// Repowise's `ResolverContext.add_external_node` emits these so the graph
+/// surfaces every external dependency, distinguishing "unresolved import
+/// we knew about" from "huh, where did this come from." Sigil mirrors the
+/// shape: synthetic entities with `kind: "external"`, `name:
+/// "external:<modpath>"`, `file: "<external>"` (a non-filesystem marker
+/// so `sigil contracts` / `heritage` / `dead-code` consumers can skip
+/// these via path or kind).
+///
+/// Resolution check is language-aware:
+///   * Go: `resolve_go_import` against the workspace's `go.mod`s. If no
+///     module prefix matches, the import lives outside the workspace.
+///   * Rust: `cargo.crates` lookup on the import's crate-name prefix.
+///   * Swift: `swift_spm.targets` membership.
+///   * JS/TS: `resolve_module_path` (incl. tsconfig path-aliases).
+///   * Python: `resolve_module_path` (.py / __init__.py probing).
+///
+/// Other languages (PHP, Kotlin, Scala, Ruby, C#, C/C++) fall through to
+/// a conservative "no sentinel" — they need richer resolvers before we
+/// can confidently say an import is external (e.g. C# would need to
+/// distinguish NuGet from a missing workspace project).
+fn emit_external_sentinels(
+    entities: &[Entity],
+    go: &GoModules,
+    cargo: &CargoWorkspace,
+    swift: &SwiftSpm,
+    tsconfig: Option<&TsconfigPaths>,
+) -> Vec<Entity> {
+    use std::collections::HashSet;
+    let file_set: HashSet<&str> = entities.iter().map(|e| e.file.as_str()).collect();
+
+    // Dedupe by (kind-prefix-stripped) modpath so we don't emit one
+    // sentinel per import statement — one per unique target is enough.
+    let mut emitted: HashSet<String> = HashSet::new();
+    let mut out: Vec<Entity> = Vec::new();
+
+    for e in entities {
+        if e.kind != "import" {
+            continue;
+        }
+        let lang = language_from_file(&e.file);
+        let name = e.name.as_str();
+        // Trim the Python star-import suffix and strip aliases so we
+        // dedupe on the module path itself.
+        let modpath = name.trim_end_matches(".*").to_string();
+        if modpath.is_empty() {
+            continue;
+        }
+
+        let resolves = match lang {
+            Some("go") => resolve_go_import(&modpath, go)
+                .map(|dir| {
+                    // resolve_go_import returns the package dir relative
+                    // to the workspace; the dir is "real" iff at least
+                    // one workspace file sits under it.
+                    file_set.iter().any(|f| {
+                        if dir.is_empty() {
+                            !f.contains('/') // top-level files
+                        } else {
+                            f.starts_with(&format!("{dir}/"))
+                        }
+                    })
+                })
+                .unwrap_or(false),
+            Some("rust") => {
+                // Strip the crate-name prefix from `use foo::bar::baz`-style
+                // imports. Sigil's Rust parser emits the path as
+                // `crate_name::path::to::item` already.
+                let crate_name = modpath.split("::").next().unwrap_or(&modpath);
+                cargo.crates.contains_key(crate_name)
+            }
+            Some("swift") => swift.targets.contains_key(&modpath),
+            Some("javascript") | Some("typescript") => {
+                resolve_module_path(&e.file, &modpath, &file_set, tsconfig).is_some()
+            }
+            Some("python") => {
+                resolve_module_path(&e.file, &modpath, &file_set, tsconfig).is_some()
+            }
+            _ => {
+                // Languages without a manifest resolver yet — be
+                // conservative and skip (no false-positive sentinels).
+                continue;
+            }
+        };
+
+        if resolves {
+            continue;
+        }
+        if !emitted.insert(modpath.clone()) {
+            continue;
+        }
+        let sentinel_name = format!("external:{modpath}");
+        let struct_hash = blake3::hash(sentinel_name.as_bytes())
+            .to_hex()
+            .as_str()
+            .chars()
+            .take(16)
+            .collect();
+        out.push(Entity {
+            file: "<external>".to_string(),
+            name: sentinel_name,
+            kind: "external".to_string(),
+            line_start: 0,
+            line_end: 0,
+            parent: None,
+            qualified_name: None,
+            sig: None,
+            meta: None,
+            body_hash: None,
+            sig_hash: None,
+            struct_hash,
+            visibility: None,
+            rank: None,
+            blast_radius: None,
+            doc: None,
+            heritage: Vec::new(),
+        });
+    }
+    out
 }
 
 /// Convert a CamelCase identifier to Rails-convention snake_case

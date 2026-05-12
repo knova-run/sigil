@@ -45,8 +45,15 @@ fn run_index_with_refs(dir: &PathBuf, extra_args: &[&str]) -> Vec<serde_json::Va
         "sigil failed: {}",
         String::from_utf8_lossy(&output.stderr)
     );
-    String::from_utf8_lossy(&output.stderr)
+    // `--stdout` writes entities to stdout and refs to stderr. Tests look
+    // at both, so concatenate the two streams and parse JSON lines from
+    // the union. (Refs are line-oriented and self-contained, so order
+    // between the two streams doesn't matter.)
+    let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+    let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+    stdout
         .lines()
+        .chain(stderr.lines())
         .filter_map(|l| serde_json::from_str(l).ok())
         .collect()
 }
@@ -1634,5 +1641,119 @@ fn csharp_callee_id_carries_class_and_method() {
         Some("Lib/Helper.cs::Helper::Do"),
         "C# callee_id should be `<file>::<Class>::<Method>`; got {:?}",
         resolved["callee_id"],
+    );
+}
+
+// --- P5.15 — `external:` sentinel entities for unresolved imports ---------
+//
+// Repowise emits a graph node for every import target that doesn't
+// resolve to a workspace file. Sigil mirrors this: after tier-3 resolution
+// runs, walk import entities whose target lives outside the workspace and
+// emit a synthetic `{kind: "external", name: "external:<modpath>"}`
+// entity. Lets downstream consumers (contracts, heritage, future
+// cross-repo) see external dependencies as first-class nodes.
+
+#[test]
+fn go_third_party_import_emits_external_sentinel_entity() {
+    // Workspace's go.mod declares `github.com/acme/myproj`. main.go
+    // imports `github.com/external/lib` — third-party, doesn't resolve
+    // to any workspace file. Expected: an external entity.
+    let dir = fresh_dir("external-go");
+    write(
+        &dir,
+        "go.mod",
+        "module github.com/acme/myproj\n\ngo 1.21\n",
+    );
+    write(
+        &dir,
+        "main.go",
+        "package main\n\nimport \"github.com/external/lib\"\n\nfunc main() {\n    lib.Doit()\n}\n",
+    );
+    let refs = run_index_with_refs(&dir, &[]);
+
+    // The entities (not just refs) live on stderr too. Find the synthetic
+    // external entity by kind+name.
+    let external = refs
+        .iter()
+        .find(|r| {
+            r["kind"].as_str() == Some("external")
+                && r["name"].as_str() == Some("external:github.com/external/lib")
+        })
+        .unwrap_or_else(|| {
+            let all_external: Vec<_> = refs
+                .iter()
+                .filter(|r| r["kind"].as_str() == Some("external"))
+                .map(|r| r["name"].as_str())
+                .collect();
+            panic!("expected external sentinel entity.\nALL external entities: {all_external:?}")
+        });
+    assert_eq!(external["kind"].as_str(), Some("external"));
+}
+
+#[test]
+fn workspace_internal_go_import_does_not_emit_external_sentinel() {
+    // Workspace go.mod = github.com/acme/myproj, and main.go imports
+    // github.com/acme/myproj/internal/utils which IS in the workspace.
+    // Should NOT emit an external entity.
+    let dir = fresh_dir("not-external-go");
+    write(
+        &dir,
+        "go.mod",
+        "module github.com/acme/myproj\n\ngo 1.21\n",
+    );
+    write(
+        &dir,
+        "internal/utils/helper.go",
+        "package utils\n\nfunc Helper() {}\n",
+    );
+    write(
+        &dir,
+        "main.go",
+        "package main\n\nimport \"github.com/acme/myproj/internal/utils\"\n\nfunc main() {\n    utils.Helper()\n}\n",
+    );
+    let refs = run_index_with_refs(&dir, &[]);
+
+    let bad = refs.iter().any(|r| {
+        r["kind"].as_str() == Some("external")
+            && r["name"]
+                .as_str()
+                .map(|s| s.contains("internal/utils"))
+                .unwrap_or(false)
+    });
+    assert!(!bad, "workspace-internal imports must not be flagged external");
+}
+
+#[test]
+fn rust_external_crate_emits_external_sentinel() {
+    // Workspace defines `myapp_core` only. `serde_json` is third-party
+    // → not in cargo.crates → should produce an external entity.
+    let dir = fresh_dir("external-rust");
+    write(
+        &dir,
+        "Cargo.toml",
+        "[workspace]\nmembers = [\"crates/*\"]\n",
+    );
+    write(
+        &dir,
+        "crates/myapp-core/Cargo.toml",
+        "[package]\nname = \"myapp-core\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+    );
+    write(
+        &dir,
+        "crates/myapp-core/src/lib.rs",
+        "use serde_json::Value;\n\npub fn helper() {}\n",
+    );
+    let refs = run_index_with_refs(&dir, &[]);
+
+    let external = refs.iter().find(|r| {
+        r["kind"].as_str() == Some("external")
+            && r["name"]
+                .as_str()
+                .map(|s| s.contains("serde_json"))
+                .unwrap_or(false)
+    });
+    assert!(
+        external.is_some(),
+        "expected external sentinel for `serde_json`"
     );
 }
