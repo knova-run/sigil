@@ -261,10 +261,11 @@ pub fn build_index(
     // promote unique cross-file matches to confidence 0.5. Also appends
     // barrel-follow edges for JS/TS + Python re-exports at confidence 0.7.
     if tier3 && include_refs {
+        let tsconfig = load_tsconfig_paths(root);
         resolve_tier3(&all_entities, &mut all_refs);
-        resolve_tier2b_imported_fallback(&all_entities, &mut all_refs);
+        resolve_tier2b_imported_fallback(&all_entities, &mut all_refs, tsconfig.as_ref());
         resolve_member_call(&all_entities, &mut all_refs);
-        let extra = resolve_barrel_follow(&all_entities, &all_refs);
+        let extra = resolve_barrel_follow(&all_entities, &all_refs, tsconfig.as_ref());
         all_refs.extend(extra);
     }
 
@@ -515,7 +516,11 @@ fn resolve_tier3(entities: &[Entity], refs: &mut [Reference]) {
 ///
 /// Closes the gap for `from utils import *` and other unbound-name
 /// resolutions where global ambiguity is broken by the caller's imports.
-fn resolve_tier2b_imported_fallback(entities: &[Entity], refs: &mut [Reference]) {
+fn resolve_tier2b_imported_fallback(
+    entities: &[Entity],
+    refs: &mut [Reference],
+    tsconfig: Option<&TsconfigPaths>,
+) {
     use std::collections::{HashMap, HashSet};
 
     let file_set: HashSet<&str> = entities.iter().map(|e| e.file.as_str()).collect();
@@ -559,7 +564,7 @@ fn resolve_tier2b_imported_fallback(entities: &[Entity], refs: &mut [Reference])
             // specifier (`utils.*` → `utils`). For `import utils` the
             // specifier is already `utils` — no-op.
             let normalized = module.trim_end_matches(".*");
-            let Some(target) = resolve_module_path(&r.file, normalized, &file_set) else { continue };
+            let Some(target) = resolve_module_path(&r.file, normalized, &file_set, tsconfig) else { continue };
             if let Some(callables) = callables_by_file.get(target.as_str()) {
                 if callables.contains(r.name.as_str()) {
                     hit_files.insert(target);
@@ -706,7 +711,11 @@ fn resolve_member_call(entities: &[Entity], refs: &mut [Reference]) {
 /// languages would need manifest-aware resolvers (Cargo.toml, go.mod,
 /// composer.json, etc.) to map a textual import path to a file; that work
 /// is a separate follow-up.
-fn resolve_barrel_follow(entities: &[Entity], refs: &[Reference]) -> Vec<Reference> {
+fn resolve_barrel_follow(
+    entities: &[Entity],
+    refs: &[Reference],
+    tsconfig: Option<&TsconfigPaths>,
+) -> Vec<Reference> {
     use std::collections::{HashMap, HashSet};
 
     let file_set: HashSet<&str> = entities.iter().map(|e| e.file.as_str()).collect();
@@ -760,7 +769,7 @@ fn resolve_barrel_follow(entities: &[Entity], refs: &[Reference]) -> Vec<Referen
             if already_defined {
                 continue;
             }
-            let Some(resolved) = resolve_module_path(file, src, &file_set) else {
+            let Some(resolved) = resolve_module_path(file, src, &file_set, tsconfig) else {
                 continue;
             };
             barrel_origins.insert((*file, local_name.clone()), resolved);
@@ -790,7 +799,7 @@ fn resolve_barrel_follow(entities: &[Entity], refs: &[Reference]) -> Vec<Referen
         let Some(dot_at) = lhs.rfind('.') else { continue };
         let import_src = &lhs[..dot_at];
         let local_name = &lhs[dot_at + 1..];
-        let Some(resolved_barrel) = resolve_module_path(&r.file, import_src, &file_set) else {
+        let Some(resolved_barrel) = resolve_module_path(&r.file, import_src, &file_set, tsconfig) else {
             continue;
         };
         let key: (&str, String) = (resolved_barrel.as_str(), local_name.to_string());
@@ -819,6 +828,53 @@ fn resolve_barrel_follow(entities: &[Entity], refs: &[Reference]) -> Vec<Referen
     additions
 }
 
+/// Parsed `tsconfig.json` path mappings. Built once per index from
+/// `compilerOptions.paths`. Patterns with a trailing `*` map a prefix to
+/// a target prefix (e.g. `"@/*": ["src/*"]` → ("@/", "src/")). Patterns
+/// without `*` are not currently supported (rare; exact-match aliases
+/// are a follow-up).
+#[derive(Debug, Clone, Default)]
+pub struct TsconfigPaths {
+    /// (prefix, target_prefix) pairs, sorted by prefix length descending so
+    /// the longest match wins on a leftmost-prefix scan.
+    mappings: Vec<(String, String)>,
+}
+
+/// Read `tsconfig.json` at index root and extract the `paths` mapping.
+/// Tolerates a missing or malformed tsconfig by returning None — the
+/// resolver falls back to relative probing in that case.
+pub fn load_tsconfig_paths(root: &Path) -> Option<TsconfigPaths> {
+    let content = std::fs::read_to_string(root.join("tsconfig.json")).ok()?;
+    let v: serde_json::Value = serde_json::from_str(&content).ok()?;
+    let paths = v.get("compilerOptions")?.get("paths")?.as_object()?;
+    let mut mappings: Vec<(String, String)> = Vec::new();
+    for (pattern, targets) in paths {
+        let Some(targets) = targets.as_array() else { continue };
+        let Some(target) = targets.first().and_then(|t| t.as_str()) else { continue };
+        if let (Some(p), Some(t)) = (pattern.strip_suffix('*'), target.strip_suffix('*')) {
+            let target_prefix = t.trim_start_matches("./").to_string();
+            mappings.push((p.to_string(), target_prefix));
+        }
+    }
+    if mappings.is_empty() {
+        return None;
+    }
+    mappings.sort_by_key(|(p, _)| std::cmp::Reverse(p.len()));
+    Some(TsconfigPaths { mappings })
+}
+
+/// Rewrite a JS/TS import specifier using tsconfig path mappings. Returns
+/// None when no pattern matches; otherwise the rewritten path (relative to
+/// the index root, ready to probe in `files`).
+fn apply_tsconfig_paths(module: &str, ts: &TsconfigPaths) -> Option<String> {
+    for (prefix, target) in &ts.mappings {
+        if let Some(rest) = module.strip_prefix(prefix) {
+            return Some(format!("{target}{rest}"));
+        }
+    }
+    None
+}
+
 /// Resolve a textual module specifier (`./utils`, `../pkg/helpers`,
 /// `pkg.helpers`) to a real file path that exists in the index. JS/TS and
 /// Python only — other languages need manifest-aware resolvers.
@@ -834,6 +890,7 @@ fn resolve_module_path(
     from_file: &str,
     module: &str,
     files: &std::collections::HashSet<&str>,
+    tsconfig: Option<&TsconfigPaths>,
 ) -> Option<String> {
     fn parent_dir(file: &str) -> &str {
         match file.rfind('/') {
@@ -841,29 +898,45 @@ fn resolve_module_path(
             None => "",
         }
     }
-    let lang = language_from_file(from_file);
-
-    if matches!(lang, Some("javascript") | Some("typescript"))
-        && (module.starts_with("./") || module.starts_with("../"))
-    {
-        let base = parent_dir(from_file);
-        let joined = if base.is_empty() {
-            module.trim_start_matches("./").to_string()
-        } else {
-            format!("{}/{}", base, module)
-        };
-        let normalized = normalize_path(&joined);
+    fn probe_ts_extensions(stem: &str, files: &std::collections::HashSet<&str>) -> Option<String> {
         for ext in &["ts", "tsx", "js", "jsx", "mjs", "cjs"] {
-            let candidate = format!("{normalized}.{ext}");
+            let candidate = format!("{stem}.{ext}");
             if let Some(hit) = files.get(candidate.as_str()) {
                 return Some((*hit).to_string());
             }
         }
         for ext in &["ts", "tsx", "js", "jsx", "mjs", "cjs"] {
-            let candidate = format!("{normalized}/index.{ext}");
+            let candidate = format!("{stem}/index.{ext}");
             if let Some(hit) = files.get(candidate.as_str()) {
                 return Some((*hit).to_string());
             }
+        }
+        None
+    }
+    let lang = language_from_file(from_file);
+
+    if matches!(lang, Some("javascript") | Some("typescript")) {
+        // tsconfig.json `paths` rewrite — checked first so aliased imports
+        // like `@/utils` get a chance before relative-probing rejects them.
+        // The rewrite yields a path relative to the index root; no further
+        // `parent_dir` resolution needed.
+        if let Some(ts) = tsconfig {
+            if let Some(rewritten) = apply_tsconfig_paths(module, ts) {
+                let normalized = normalize_path(&rewritten);
+                if let Some(hit) = probe_ts_extensions(&normalized, files) {
+                    return Some(hit);
+                }
+            }
+        }
+        if module.starts_with("./") || module.starts_with("../") {
+            let base = parent_dir(from_file);
+            let joined = if base.is_empty() {
+                module.trim_start_matches("./").to_string()
+            } else {
+                format!("{}/{}", base, module)
+            };
+            let normalized = normalize_path(&joined);
+            return probe_ts_extensions(&normalized, files);
         }
         return None;
     }

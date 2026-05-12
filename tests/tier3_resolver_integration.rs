@@ -670,3 +670,127 @@ fn tier2b_does_not_bind_when_multiple_imports_define_same_name() {
         call["confidence"]
     );
 }
+
+// --- P1.4 — TS tsconfig.json paths resolver --------------------------------
+//
+// Real TS projects use path mappings (`"@/*": ["src/*"]`). Without
+// reading tsconfig, sigil's import resolver returns None for aliased
+// imports — barrel-follow can't find the target file.
+//
+// Repowise resolves tsconfig paths in resolvers/typescript.py; sigil
+// extends `resolve_module_path` (src/index.rs) to apply longest-prefix
+// path-mapping before falling through to relative probing.
+
+#[test]
+fn tsconfig_paths_alias_resolves_through_barrel_at_confidence_seven() {
+    // caller.ts:           import { helper } from "@/utils"; helper();
+    // tsconfig.json:       paths: { "@/*": ["src/*"] }
+    // src/utils.ts:        export { helper } from "./internal/h";   (barrel)
+    // src/internal/h.ts:   export function helper() {}
+    //
+    // Without tsconfig support `@/utils` can't be mapped to a file —
+    // barrel-follow stays silent. With tsconfig: `@/utils` → src/utils,
+    // probe → src/utils.ts (the barrel), follow re-export → emit a 0.7
+    // edge pointing at src/internal/h.
+    let dir = fresh_dir("tsconfig-paths");
+    write(
+        &dir,
+        "tsconfig.json",
+        "{\n  \"compilerOptions\": {\n    \"baseUrl\": \".\",\n    \"paths\": { \"@/*\": [\"src/*\"] }\n  }\n}\n",
+    );
+    write(
+        &dir,
+        "src/utils.ts",
+        "export { helper } from \"./internal/h\";\n",
+    );
+    write(
+        &dir,
+        "src/internal/h.ts",
+        "export function helper() {}\n",
+    );
+    write(
+        &dir,
+        "caller.ts",
+        "import { helper } from \"@/utils\";\nfunction driver() { helper(); }\n",
+    );
+    let refs = run_index_with_refs(&dir, &[]);
+
+    let resolved = refs
+        .iter()
+        .find(|r| {
+            r["kind"].as_str() == Some("call")
+                && r["file"].as_str() == Some("caller.ts")
+                && r["name"]
+                    .as_str()
+                    .map(|s| s.contains("src/internal/h"))
+                    .unwrap_or(false)
+        })
+        .unwrap_or_else(|| {
+            let all_refs: Vec<_> = refs.iter().map(|r| (
+                r["file"].as_str(),
+                r["name"].as_str(),
+                r["kind"].as_str(),
+                r["confidence"].as_f64(),
+            )).collect();
+            panic!("expected barrel-resolved edge via tsconfig paths.\nALL REFS:\n{all_refs:#?}")
+        });
+    assert_eq!(
+        resolved["confidence"].as_f64(),
+        Some(0.7),
+        "tsconfig+barrel-follow edge should be at 0.7; got {:?}",
+        resolved["confidence"]
+    );
+}
+
+#[test]
+fn tsconfig_paths_longest_prefix_wins() {
+    // Two aliases — `"@/*": ["src/*"]` and `"@/comp/*": ["src/components/*"]`.
+    // The longer prefix must win for `@/comp/Button`.
+    let dir = fresh_dir("tsconfig-longest");
+    write(
+        &dir,
+        "tsconfig.json",
+        "{\n  \"compilerOptions\": {\n    \"paths\": {\n      \"@/*\": [\"src/*\"],\n      \"@/comp/*\": [\"src/components/*\"]\n    }\n  }\n}\n",
+    );
+    write(
+        &dir,
+        "src/components/Button.ts",
+        "export { useButton } from \"./internal/useButton\";\n",
+    );
+    write(
+        &dir,
+        "src/components/internal/useButton.ts",
+        "export function useButton() {}\n",
+    );
+    write(
+        &dir,
+        "caller.ts",
+        "import { useButton } from \"@/comp/Button\";\nfunction driver() { useButton(); }\n",
+    );
+    let refs = run_index_with_refs(&dir, &[]);
+
+    let resolved = refs
+        .iter()
+        .find(|r| {
+            r["kind"].as_str() == Some("call")
+                && r["file"].as_str() == Some("caller.ts")
+                && r["name"]
+                    .as_str()
+                    .map(|s| s.contains("src/components/internal/useButton"))
+                    .unwrap_or(false)
+        })
+        .unwrap_or_else(|| {
+            let all_refs: Vec<_> = refs.iter().map(|r| (
+                r["file"].as_str(),
+                r["name"].as_str(),
+                r["confidence"].as_f64(),
+            )).collect();
+            panic!("expected longest-prefix tsconfig mapping to win.\nALL REFS:\n{all_refs:#?}")
+        });
+    assert_eq!(
+        resolved["confidence"].as_f64(),
+        Some(0.7),
+        "longest-prefix tsconfig + barrel-follow should be at 0.7; got {:?}",
+        resolved["confidence"]
+    );
+}
