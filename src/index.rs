@@ -262,10 +262,13 @@ pub fn build_index(
     // barrel-follow edges for JS/TS + Python re-exports at confidence 0.7.
     if tier3 && include_refs {
         let tsconfig = load_tsconfig_paths(root);
+        let go_modules = load_go_modules(root);
         resolve_tier3(&all_entities, &mut all_refs);
         resolve_tier2b_imported_fallback(&all_entities, &mut all_refs, tsconfig.as_ref());
         resolve_member_call(&all_entities, &mut all_refs);
         let extra = resolve_barrel_follow(&all_entities, &all_refs, tsconfig.as_ref());
+        all_refs.extend(extra);
+        let extra = resolve_go_module_imports(&all_entities, &all_refs, &go_modules);
         all_refs.extend(extra);
     }
 
@@ -873,6 +876,151 @@ fn apply_tsconfig_paths(module: &str, ts: &TsconfigPaths) -> Option<String> {
         }
     }
     None
+}
+
+/// Parsed `go.mod` files — one entry per workspace module declaration.
+/// Maps the canonical module path (e.g. `github.com/acme/myproj`) to the
+/// filesystem prefix where its packages live (relative to the index root).
+/// A repo with a single `go.mod` at the root has `fs_prefix == ""`;
+/// nested modules at `services/api/go.mod` get `fs_prefix == "services/api"`.
+#[derive(Debug, Clone, Default)]
+pub struct GoModules {
+    /// (canonical_path, fs_prefix) pairs, sorted by canonical-path length
+    /// descending so the longest match wins for a given import.
+    modules: Vec<(String, String)>,
+}
+
+/// Walk the index root for `go.mod` files, parse each `module <path>` line,
+/// and return the resulting prefix map. `vendor/` directories are skipped
+/// to avoid resolving back into vendored dependencies. Limited to a depth
+/// of 4 to bound the walk on large monorepos.
+pub fn load_go_modules(root: &Path) -> GoModules {
+    fn walk(dir: &Path, root: &Path, depth: usize, modules: &mut Vec<(String, String)>) {
+        if depth > 4 {
+            return;
+        }
+        let Ok(read) = std::fs::read_dir(dir) else { return };
+        for entry in read.flatten() {
+            let path = entry.path();
+            let name = entry.file_name();
+            let name_lossy = name.to_string_lossy();
+            if path.is_dir() {
+                if name_lossy == "vendor"
+                    || name_lossy == "node_modules"
+                    || name_lossy == ".git"
+                    || name_lossy == ".sigil"
+                    || name_lossy.starts_with('.')
+                {
+                    continue;
+                }
+                walk(&path, root, depth + 1, modules);
+            } else if name_lossy == "go.mod" {
+                let Ok(content) = std::fs::read_to_string(&path) else { continue };
+                for line in content.lines() {
+                    let line = line.trim();
+                    if let Some(rest) = line.strip_prefix("module ") {
+                        let canonical = rest.trim().trim_matches('"').to_string();
+                        let fs_prefix = dir
+                            .strip_prefix(root)
+                            .ok()
+                            .map(|p| p.to_string_lossy().replace('\\', "/"))
+                            .unwrap_or_default();
+                        modules.push((canonical, fs_prefix));
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    let mut modules = Vec::new();
+    walk(root, root, 0, &mut modules);
+    modules.sort_by_key(|(c, _)| std::cmp::Reverse(c.len()));
+    GoModules { modules }
+}
+
+/// Resolve a Go canonical import path to a workspace-relative directory.
+/// Returns None when no module prefix matches (the import is from outside
+/// the workspace — likely a third-party dependency).
+fn resolve_go_import(canonical: &str, go: &GoModules) -> Option<String> {
+    for (prefix, fs_prefix) in &go.modules {
+        let Some(rest) = canonical.strip_prefix(prefix.as_str()) else { continue };
+        let rest = rest.trim_start_matches('/');
+        let path = match (fs_prefix.as_str(), rest) {
+            ("", "") => return Some(String::new()),
+            ("", r) => r.to_string(),
+            (p, "") => p.to_string(),
+            (p, r) => format!("{p}/{r}"),
+        };
+        return Some(path);
+    }
+    None
+}
+
+/// Tier-3 file-resolution pass for Go. For each tier-2 0.8 call edge whose
+/// name has form `<canonical-path>/<func>` and whose canonical path matches
+/// a known workspace `go.mod`, locate the `.go` file in the corresponding
+/// package directory that defines `<func>` and emit an additional edge at
+/// confidence 0.7 pointing at that file. Mirrors the barrel-follow shape:
+/// `name = "<file>/<func>"`.
+fn resolve_go_module_imports(
+    entities: &[Entity],
+    refs: &[Reference],
+    go: &GoModules,
+) -> Vec<Reference> {
+    use std::collections::HashMap;
+    if go.modules.is_empty() {
+        return Vec::new();
+    }
+    // pkg_dir → (name → file_path) for every Go callable.
+    let mut by_pkg: HashMap<String, HashMap<String, String>> = HashMap::new();
+    for e in entities {
+        if !e.file.ends_with(".go") {
+            continue;
+        }
+        if !is_callable_kind(&e.kind) {
+            continue;
+        }
+        let dir = match e.file.rfind('/') {
+            Some(i) => e.file[..i].to_string(),
+            None => String::new(),
+        };
+        by_pkg
+            .entry(dir)
+            .or_default()
+            .insert(e.name.clone(), e.file.clone());
+    }
+
+    let mut additions: Vec<Reference> = Vec::new();
+    for r in refs {
+        if r.ref_kind != "call" {
+            continue;
+        }
+        if r.confidence != Some(0.8) {
+            continue;
+        }
+        if !r.file.ends_with(".go") {
+            continue;
+        }
+        // Tier-2 Go path form: `<canonical>/<func>`. Split on the last `/`.
+        let Some(slash_at) = r.name.rfind('/') else { continue };
+        let canonical = &r.name[..slash_at];
+        let func = &r.name[slash_at + 1..];
+        if func.is_empty() || func.contains('.') || func.contains('/') {
+            continue;
+        }
+        let Some(pkg_dir) = resolve_go_import(canonical, go) else { continue };
+        let Some(callables) = by_pkg.get(&pkg_dir) else { continue };
+        let Some(file_path) = callables.get(func) else { continue };
+        additions.push(Reference {
+            file: r.file.clone(),
+            caller: r.caller.clone(),
+            name: format!("{file_path}/{func}"),
+            ref_kind: "call".to_string(),
+            line: r.line,
+            confidence: Some(0.7),
+        });
+    }
+    additions
 }
 
 /// Resolve a textual module specifier (`./utils`, `../pkg/helpers`,

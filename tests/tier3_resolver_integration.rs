@@ -794,3 +794,93 @@ fn tsconfig_paths_longest_prefix_wins() {
         resolved["confidence"]
     );
 }
+
+// --- P1.5 — Go go.mod multi-module resolver --------------------------------
+//
+// Go imports are canonical paths (`github.com/acme/foo/internal/utils`).
+// Without reading `go.mod`, sigil's tier-2 emits the canonical path as the
+// edge name but never locates the actual `.go` file that defines the
+// called function. With go.mod awareness, the resolver maps the module
+// prefix to the workspace root and emits an additional file-resolved
+// edge at confidence 0.7 (barrel-follow analog for Go).
+
+#[test]
+fn go_module_path_resolves_to_actual_file_at_confidence_seven() {
+    // go.mod:                       module github.com/acme/myproj
+    // internal/utils/helper.go:     package utils; func Helper() {}
+    // main.go:                      import ".../internal/utils"; utils.Helper()
+    //
+    // Expected: a new call edge pointing at internal/utils/helper.go at 0.7.
+    let dir = fresh_dir("go-mod");
+    write(
+        &dir,
+        "go.mod",
+        "module github.com/acme/myproj\n\ngo 1.21\n",
+    );
+    write(
+        &dir,
+        "internal/utils/helper.go",
+        "package utils\n\nfunc Helper() {}\n",
+    );
+    write(
+        &dir,
+        "main.go",
+        "package main\n\nimport \"github.com/acme/myproj/internal/utils\"\n\nfunc main() {\n    utils.Helper()\n}\n",
+    );
+    let refs = run_index_with_refs(&dir, &[]);
+
+    let resolved = refs
+        .iter()
+        .find(|r| {
+            r["kind"].as_str() == Some("call")
+                && r["file"].as_str() == Some("main.go")
+                && r["name"]
+                    .as_str()
+                    .map(|s| s.contains("internal/utils/helper.go"))
+                    .unwrap_or(false)
+        })
+        .unwrap_or_else(|| {
+            let all_refs: Vec<_> = refs.iter().map(|r| (
+                r["file"].as_str(),
+                r["name"].as_str(),
+                r["confidence"].as_f64(),
+            )).collect();
+            panic!("expected go.mod-resolved file edge.\nALL REFS:\n{all_refs:#?}")
+        });
+    assert_eq!(
+        resolved["confidence"].as_f64(),
+        Some(0.7),
+        "go.mod-resolved file edge should be at 0.7; got {:?}",
+        resolved["confidence"]
+    );
+}
+
+#[test]
+fn go_third_party_import_does_not_emit_phantom_file_edge() {
+    // go.mod declares our module, but the caller imports a third-party
+    // package (`github.com/external/lib`). The resolver must not invent
+    // a file edge — only workspace-internal imports get the 0.7 promotion.
+    let dir = fresh_dir("go-third-party");
+    write(
+        &dir,
+        "go.mod",
+        "module github.com/acme/myproj\n\ngo 1.21\n",
+    );
+    write(
+        &dir,
+        "main.go",
+        "package main\n\nimport \"github.com/external/lib\"\n\nfunc main() {\n    lib.Doit()\n}\n",
+    );
+    let refs = run_index_with_refs(&dir, &[]);
+
+    // No edge should mention a fabricated .go file path under external/lib.
+    let bad = refs.iter().any(|r| {
+        r["kind"].as_str() == Some("call")
+            && r["confidence"].as_f64() == Some(0.7)
+            && r["name"]
+                .as_str()
+                .map(|s| s.contains(".go") && s.contains("Doit"))
+                .unwrap_or(false)
+    });
+    assert!(!bad, "third-party imports must not produce phantom .go file edges");
+}
