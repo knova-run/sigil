@@ -263,12 +263,15 @@ pub fn build_index(
     if tier3 && include_refs {
         let tsconfig = load_tsconfig_paths(root);
         let go_modules = load_go_modules(root);
+        let php_psr4 = load_php_psr4(root);
         resolve_tier3(&all_entities, &mut all_refs);
         resolve_tier2b_imported_fallback(&all_entities, &mut all_refs, tsconfig.as_ref());
         resolve_member_call(&all_entities, &mut all_refs);
         let extra = resolve_barrel_follow(&all_entities, &all_refs, tsconfig.as_ref());
         all_refs.extend(extra);
         let extra = resolve_go_module_imports(&all_entities, &all_refs, &go_modules);
+        all_refs.extend(extra);
+        let extra = resolve_php_psr4_imports(&all_entities, &all_refs, &php_psr4);
         all_refs.extend(extra);
     }
 
@@ -1010,6 +1013,151 @@ fn resolve_go_module_imports(
         }
         let Some(pkg_dir) = resolve_go_import(canonical, go) else { continue };
         let Some(callables) = by_pkg.get(&pkg_dir) else { continue };
+        let Some(file_path) = callables.get(func) else { continue };
+        additions.push(Reference {
+            file: r.file.clone(),
+            caller: r.caller.clone(),
+            name: format!("{file_path}/{func}"),
+            ref_kind: "call".to_string(),
+            line: r.line,
+            confidence: Some(0.7),
+        });
+    }
+    additions
+}
+
+/// Parsed `composer.json` `autoload.psr-4` (and `autoload-dev.psr-4`)
+/// mappings — namespace prefix → filesystem directory (relative to the
+/// index root). Sorted by namespace length descending so the longest
+/// match wins on a prefix scan.
+#[derive(Debug, Clone, Default)]
+pub struct PhpPsr4 {
+    /// (namespace_prefix_with_trailing_backslash, fs_dir_with_trailing_slash)
+    /// e.g. ("App\\", "src/") for `"App\\": "src/"`.
+    mappings: Vec<(String, String)>,
+}
+
+/// Read `composer.json` at index root and extract PSR-4 mappings from
+/// both `autoload.psr-4` and `autoload-dev.psr-4`. Tolerates missing or
+/// malformed files by returning an empty mapping.
+pub fn load_php_psr4(root: &Path) -> PhpPsr4 {
+    let Ok(content) = std::fs::read_to_string(root.join("composer.json")) else {
+        return PhpPsr4::default();
+    };
+    let Ok(v) = serde_json::from_str::<serde_json::Value>(&content) else {
+        return PhpPsr4::default();
+    };
+    let mut mappings: Vec<(String, String)> = Vec::new();
+    for section in &["autoload", "autoload-dev"] {
+        let Some(psr4) = v.get(section).and_then(|s| s.get("psr-4")).and_then(|p| p.as_object())
+        else {
+            continue;
+        };
+        for (namespace, target) in psr4 {
+            let Some(dir) = target.as_str() else { continue };
+            // Normalize: namespace must end in `\\`, dir in `/`.
+            let ns = if namespace.ends_with('\\') {
+                namespace.clone()
+            } else {
+                format!("{namespace}\\")
+            };
+            let fs = dir.trim_start_matches("./").to_string();
+            let fs = if fs.ends_with('/') || fs.is_empty() {
+                fs
+            } else {
+                format!("{fs}/")
+            };
+            mappings.push((ns, fs));
+        }
+    }
+    mappings.sort_by_key(|(n, _)| std::cmp::Reverse(n.len()));
+    PhpPsr4 { mappings }
+}
+
+/// Apply the longest-prefix PSR-4 mapping to a fully-qualified namespace
+/// path (e.g. `App\Service`). Returns the filesystem directory (with a
+/// trailing `/`) under the index root, or None when no prefix matches.
+fn apply_php_psr4(namespace: &str, psr4: &PhpPsr4) -> Option<String> {
+    let ns_with_trail = format!("{namespace}\\");
+    for (prefix, fs_dir) in &psr4.mappings {
+        if let Some(rest) = ns_with_trail.strip_prefix(prefix.as_str()) {
+            let suffix = rest.trim_end_matches('\\').replace('\\', "/");
+            let out = match (fs_dir.as_str(), suffix.as_str()) {
+                (fs, "") => fs.to_string(),
+                (fs, s) => format!("{fs}{s}/"),
+            };
+            return Some(out);
+        }
+    }
+    None
+}
+
+/// Tier-3 file-resolution pass for PHP. For each tier-2 0.8 call edge in
+/// a `.php` file whose name has form `<canonical-namespace-path>/<rest>`,
+/// strip the trailing function name from the canonical, PSR-4 the
+/// remaining namespace to a directory, scan files in that directory for
+/// a callable matching the function name, and emit a 0.7 edge with
+/// `<file>/<rest_or_func>`.
+///
+/// Today this covers PHP free-function imports (`use function Foo\bar`)
+/// — the case where the parser actually emits a call ref. Static-method
+/// and instantiation refs are a parser-side follow-up.
+fn resolve_php_psr4_imports(
+    entities: &[Entity],
+    refs: &[Reference],
+    psr4: &PhpPsr4,
+) -> Vec<Reference> {
+    use std::collections::HashMap;
+    if psr4.mappings.is_empty() {
+        return Vec::new();
+    }
+    // dir → (callable_name → file_path) for every PHP callable.
+    let mut by_dir: HashMap<String, HashMap<String, String>> = HashMap::new();
+    for e in entities {
+        if !e.file.ends_with(".php") {
+            continue;
+        }
+        if !is_callable_kind(&e.kind) {
+            continue;
+        }
+        let dir = match e.file.rfind('/') {
+            Some(i) => format!("{}/", &e.file[..i]),
+            None => String::new(),
+        };
+        by_dir
+            .entry(dir)
+            .or_default()
+            .insert(e.name.clone(), e.file.clone());
+    }
+
+    let mut additions: Vec<Reference> = Vec::new();
+    for r in refs {
+        if r.ref_kind != "call" {
+            continue;
+        }
+        if r.confidence != Some(0.8) {
+            continue;
+        }
+        if !r.file.ends_with(".php") {
+            continue;
+        }
+        // Tier-2 PHP form: `<canonical>/<rest>`. Split on last `/`.
+        let Some(slash_at) = r.name.rfind('/') else { continue };
+        let canonical = &r.name[..slash_at];
+        let rest = &r.name[slash_at + 1..];
+        // Canonical uses `\` separators. Split off the trailing leaf as
+        // the function name when `rest` is empty (function-import form).
+        let (namespace, func) = if rest.is_empty() {
+            let Some(bs_at) = canonical.rfind('\\') else { continue };
+            (&canonical[..bs_at], &canonical[bs_at + 1..])
+        } else {
+            (canonical, rest)
+        };
+        if func.is_empty() || func.contains('\\') || func.contains('/') {
+            continue;
+        }
+        let Some(fs_dir) = apply_php_psr4(namespace, psr4) else { continue };
+        let Some(callables) = by_dir.get(&fs_dir) else { continue };
         let Some(file_path) = callables.get(func) else { continue };
         additions.push(Reference {
             file: r.file.clone(),

@@ -884,3 +884,64 @@ fn go_third_party_import_does_not_emit_phantom_file_edge() {
     });
     assert!(!bad, "third-party imports must not produce phantom .go file edges");
 }
+
+// --- P1.6 — PHP composer.json PSR-4 resolver -------------------------------
+//
+// PSR-4 maps namespace prefixes to directories (e.g. `App\\` → `src/`).
+// Tier-2 emits PHP call edges with form `<canonical-namespace-path>/<rest>`
+// at 0.8. With composer.json awareness, the resolver maps the namespace
+// prefix to a filesystem directory, scans the directory for a callable
+// matching the trailing leaf, and emits an additional 0.7 file-resolved
+// edge.
+
+#[test]
+fn php_psr4_function_import_resolves_to_actual_file_at_confidence_seven() {
+    // composer.json:               "autoload": { "psr-4": { "App\\": "src/" } }
+    // src/Service/Mailer.php:      namespace App\Service; function send_email() {}
+    // index.php:                   use function App\Service\send_email;
+    //                              function driver() { send_email(); }
+    //
+    // Expected: a 0.7 edge pointing at src/Service/Mailer.php.
+    let dir = fresh_dir("php-psr4");
+    write(
+        &dir,
+        "composer.json",
+        "{\n  \"autoload\": { \"psr-4\": { \"App\\\\\": \"src/\" } }\n}\n",
+    );
+    write(
+        &dir,
+        "src/Service/Mailer.php",
+        "<?php\nnamespace App\\Service;\n\nfunction send_email() {}\n",
+    );
+    write(
+        &dir,
+        "index.php",
+        "<?php\nuse function App\\Service\\send_email;\n\nfunction driver() {\n    send_email();\n}\n",
+    );
+    let refs = run_index_with_refs(&dir, &[]);
+
+    let resolved = refs
+        .iter()
+        .find(|r| {
+            r["kind"].as_str() == Some("call")
+                && r["file"].as_str() == Some("index.php")
+                && r["name"]
+                    .as_str()
+                    .map(|s| s.contains("src/Service/Mailer.php"))
+                    .unwrap_or(false)
+        })
+        .unwrap_or_else(|| {
+            let all_refs: Vec<_> = refs.iter().map(|r| (
+                r["file"].as_str(),
+                r["name"].as_str(),
+                r["confidence"].as_f64(),
+            )).collect();
+            panic!("expected PSR-4-resolved file edge.\nALL REFS:\n{all_refs:#?}")
+        });
+    assert_eq!(
+        resolved["confidence"].as_f64(),
+        Some(0.7),
+        "PSR-4-resolved file edge should be at 0.7; got {:?}",
+        resolved["confidence"]
+    );
+}
