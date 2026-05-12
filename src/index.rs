@@ -278,6 +278,9 @@ pub fn build_index(
         all_refs.extend(extra);
         let extra = resolve_rails_autoload(&all_entities, &all_refs);
         all_refs.extend(extra);
+        let swift_spm = load_swift_spm(root);
+        let extra = resolve_swift_spm_imports(&all_entities, &all_refs, &swift_spm);
+        all_refs.extend(extra);
     }
 
     // Sort deterministically
@@ -1350,6 +1353,270 @@ fn resolve_cargo_workspace_imports(
     additions
 }
 
+/// Parsed Swift Package Manager target map. Each `Package.swift` declares
+/// `.target(name:)` / `.executableTarget(name:)` / `.testTarget(name:)`
+/// entries. Without an explicit `path:`, sources live under
+/// `Sources/<TargetName>/` (or `Tests/<TargetName>/` for testTargets).
+/// Mirrors repowise's `swift_spm.py` regex approach — no Swift parser
+/// dependency needed.
+#[derive(Debug, Clone, Default)]
+pub struct SwiftSpm {
+    /// target_name → directory (relative to the index root).
+    targets: std::collections::HashMap<String, String>,
+}
+
+/// Walk the index root for `Package.swift` files, regex-extract their
+/// targets, and merge into one map. The directory each target sits under
+/// is the Package.swift's parent dir joined with the target's `path:`
+/// (or the `Sources/<name>` / `Tests/<name>` default).
+pub fn load_swift_spm(root: &Path) -> SwiftSpm {
+    fn walk(dir: &Path, root: &Path, depth: usize, out: &mut std::collections::HashMap<String, String>) {
+        if depth > 4 {
+            return;
+        }
+        let Ok(read) = std::fs::read_dir(dir) else { return };
+        for entry in read.flatten() {
+            let path = entry.path();
+            let name = entry.file_name();
+            let name_lossy = name.to_string_lossy();
+            if path.is_dir() {
+                if name_lossy.starts_with('.')
+                    || name_lossy == "node_modules"
+                    || name_lossy == ".sigil"
+                    || name_lossy == ".build"
+                {
+                    continue;
+                }
+                walk(&path, root, depth + 1, out);
+            } else if name_lossy == "Package.swift" {
+                let Ok(text) = std::fs::read_to_string(&path) else { continue };
+                let pkg_dir = path
+                    .parent()
+                    .and_then(|p| p.strip_prefix(root).ok())
+                    .map(|p| p.to_string_lossy().replace('\\', "/"))
+                    .unwrap_or_default();
+                for (target_name, target_path) in parse_package_swift(&text) {
+                    let full = if pkg_dir.is_empty() {
+                        target_path
+                    } else {
+                        format!("{pkg_dir}/{target_path}")
+                    };
+                    out.entry(target_name).or_insert(full);
+                }
+            }
+        }
+    }
+    let mut targets = std::collections::HashMap::new();
+    walk(root, root, 0, &mut targets);
+    SwiftSpm { targets }
+}
+
+/// Extract `(target_name, source_dir)` pairs from Package.swift text via
+/// regex. Recognises `.target`, `.executableTarget`, `.testTarget`,
+/// `.systemLibrary`, `.binaryTarget`, `.plugin`. `path:`-less targets
+/// default to `Sources/<name>` (test targets default to `Tests/<name>`).
+fn parse_package_swift(text: &str) -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    let chars: Vec<char> = text.chars().collect();
+    // Iterate over each `.<kind>(` occurrence and capture the matched
+    // body up to the matching `)`. Simple paren-balance, no full Swift
+    // parse — covers the 95% case repowise targets.
+    let kinds = [
+        "target",
+        "executableTarget",
+        "testTarget",
+        "systemLibrary",
+        "binaryTarget",
+        "plugin",
+    ];
+    let mut i = 0;
+    while i < chars.len() {
+        if chars[i] != '.' {
+            i += 1;
+            continue;
+        }
+        let mut matched: Option<&str> = None;
+        for kind in kinds {
+            let end = i + 1 + kind.len();
+            if end <= chars.len()
+                && chars[i + 1..end].iter().collect::<String>() == kind
+                && end < chars.len()
+                && (chars[end] == '(' || chars[end].is_whitespace())
+            {
+                matched = Some(kind);
+                break;
+            }
+        }
+        let Some(kind) = matched else {
+            i += 1;
+            continue;
+        };
+        // Find the opening `(`.
+        let mut p = i + 1 + kind.len();
+        while p < chars.len() && chars[p].is_whitespace() {
+            p += 1;
+        }
+        if p >= chars.len() || chars[p] != '(' {
+            i += 1;
+            continue;
+        }
+        // Capture body to matching `)`, respecting one level of nesting
+        // (e.g. dependencies: [.product(...)]).
+        let body_start = p + 1;
+        let mut depth = 1;
+        let mut q = body_start;
+        while q < chars.len() && depth > 0 {
+            match chars[q] {
+                '(' => depth += 1,
+                ')' => depth -= 1,
+                _ => {}
+            }
+            q += 1;
+        }
+        if depth != 0 {
+            break;
+        }
+        let body: String = chars[body_start..q - 1].iter().collect();
+        i = q;
+        // Extract `name: "..."` and optional `path: "..."` from body.
+        let Some(name) = scan_swift_string_arg(&body, "name") else { continue };
+        let path = scan_swift_string_arg(&body, "path");
+        let target_dir = match path {
+            Some(p) => p.trim_start_matches("./").to_string(),
+            None => {
+                let base = if kind == "testTarget" { "Tests" } else { "Sources" };
+                format!("{base}/{name}")
+            }
+        };
+        out.push((name, target_dir));
+    }
+    out
+}
+
+/// Find `<key>:\s*"..."` inside a Swift call body. Returns the unquoted
+/// string. Returns None if the key isn't present.
+fn scan_swift_string_arg(body: &str, key: &str) -> Option<String> {
+    let mut idx = 0;
+    while idx < body.len() {
+        let rest = &body[idx..];
+        let Some(found) = rest.find(key) else { return None };
+        let after = idx + found + key.len();
+        // Must be immediately followed by optional whitespace + `:`.
+        let mut p = after;
+        let bytes = body.as_bytes();
+        while p < bytes.len() && bytes[p].is_ascii_whitespace() {
+            p += 1;
+        }
+        if p >= bytes.len() || bytes[p] != b':' {
+            idx = after;
+            continue;
+        }
+        p += 1;
+        while p < bytes.len() && bytes[p].is_ascii_whitespace() {
+            p += 1;
+        }
+        if p >= bytes.len() || bytes[p] != b'"' {
+            idx = after;
+            continue;
+        }
+        p += 1;
+        let value_start = p;
+        while p < bytes.len() && bytes[p] != b'"' {
+            p += 1;
+        }
+        if p > bytes.len() {
+            return None;
+        }
+        return Some(body[value_start..p].to_string());
+    }
+    None
+}
+
+/// Tier-3 file-resolution pass for Swift SPM. For each `.swift` call ref
+/// whose name has no receiver (bare call) and whose caller's file imports
+/// an SPM target, scan files under that target's source dir for a
+/// callable matching the name. Emits a 0.7 file-resolved edge when
+/// exactly one target's directory yields a hit.
+fn resolve_swift_spm_imports(
+    entities: &[Entity],
+    refs: &[Reference],
+    spm: &SwiftSpm,
+) -> Vec<Reference> {
+    use std::collections::{HashMap, HashSet};
+    if spm.targets.is_empty() {
+        return Vec::new();
+    }
+    // dir-prefix → (name → file_path) for every Swift callable.
+    let mut by_dir: HashMap<String, HashMap<String, String>> = HashMap::new();
+    for e in entities {
+        if !e.file.ends_with(".swift") {
+            continue;
+        }
+        if !is_callable_kind(&e.kind) {
+            continue;
+        }
+        by_dir
+            .entry(e.file.clone())
+            .or_default()
+            .insert(e.name.clone(), e.file.clone());
+    }
+    // file → list of imported target names.
+    let mut imports_by_file: HashMap<&str, Vec<&str>> = HashMap::new();
+    for e in entities {
+        if e.kind != "import" {
+            continue;
+        }
+        if !e.file.ends_with(".swift") {
+            continue;
+        }
+        imports_by_file
+            .entry(e.file.as_str())
+            .or_default()
+            .push(e.name.as_str());
+    }
+
+    let mut additions: Vec<Reference> = Vec::new();
+    for r in refs {
+        if r.ref_kind != "call" {
+            continue;
+        }
+        if !r.file.ends_with(".swift") {
+            continue;
+        }
+        // Bare names only (member/scoped calls are owned elsewhere).
+        if r.name.contains('.') || r.name.contains('/') || r.name.contains(':') {
+            continue;
+        }
+        let Some(imports) = imports_by_file.get(r.file.as_str()) else { continue };
+        let mut hit_files: HashSet<String> = HashSet::new();
+        for module in imports {
+            let Some(target_dir) = spm.targets.get(*module) else { continue };
+            let target_prefix = format!("{}/", target_dir.trim_end_matches('/'));
+            for (file, names) in by_dir.iter() {
+                if !file.starts_with(target_prefix.as_str()) {
+                    continue;
+                }
+                if names.contains_key(r.name.as_str()) {
+                    hit_files.insert(file.clone());
+                }
+            }
+        }
+        if hit_files.len() != 1 {
+            continue;
+        }
+        let file = hit_files.into_iter().next().unwrap();
+        additions.push(Reference {
+            file: r.file.clone(),
+            caller: r.caller.clone(),
+            name: format!("{file}/{}", r.name),
+            ref_kind: "call".to_string(),
+            line: r.line,
+            confidence: Some(0.7),
+        });
+    }
+    additions
+}
+
 /// Convert a CamelCase identifier to Rails-convention snake_case
 /// (`UserMailer` → `user_mailer`, `APIController` → `api_controller`).
 /// Treats consecutive uppercase runs as a single acronym to match
@@ -1621,6 +1888,27 @@ mod tests {
         assert_eq!(camel_to_snake("V2Api"), "v2_api");
         // Single-token leaf — no insertion needed.
         assert_eq!(camel_to_snake("Foo"), "foo");
+    }
+
+    #[test]
+    fn parse_package_swift_handles_common_target_shapes() {
+        let text = r#"
+            let package = Package(
+                name: "MyLib",
+                targets: [
+                    .target(name: "Bare"),
+                    .target(name: "WithPath", path: "Custom/Dir"),
+                    .executableTarget(name: "App", dependencies: ["Bare"]),
+                    .testTarget(name: "BareTests"),
+                ]
+            )
+        "#;
+        let pairs = parse_package_swift(text);
+        let map: std::collections::HashMap<_, _> = pairs.into_iter().collect();
+        assert_eq!(map.get("Bare").map(String::as_str), Some("Sources/Bare"));
+        assert_eq!(map.get("WithPath").map(String::as_str), Some("Custom/Dir"));
+        assert_eq!(map.get("App").map(String::as_str), Some("Sources/App"));
+        assert_eq!(map.get("BareTests").map(String::as_str), Some("Tests/BareTests"));
     }
 
     #[test]

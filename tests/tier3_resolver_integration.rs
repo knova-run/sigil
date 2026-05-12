@@ -1075,3 +1075,73 @@ fn rails_autoload_picks_app_conventional_file_at_confidence_seven() {
         resolved["confidence"]
     );
 }
+
+// --- P2.10 — Swift Package.swift target resolver ---------------------------
+//
+// Swift Package Manager declares `targets` in `Package.swift`; each target's
+// sources live under `Sources/<TargetName>/` by default (overridable via
+// `path:`). The Swift import entity carries only the target name
+// (`import MyCore`); without SPM awareness, a call to `helper()` after
+// `import MyCore` can't be located when the same function name exists in
+// multiple targets.
+//
+// Repowise: resolvers/swift_spm.py uses regex over Package.swift —
+// sigil mirrors that approach (no Swift parser dependency).
+
+#[test]
+fn swift_spm_target_resolves_call_when_global_unique_ambiguous_at_confidence_seven() {
+    // Sources/MyCore/Helper.swift:    public func helper() {}
+    // Sources/OtherLib/Helper.swift:  public func helper() {}   (same name)
+    // Sources/App/main.swift:         import MyCore; helper()
+    //
+    // Global-unique fails (2 helpers). With SPM the caller's
+    // `import MyCore` disambiguates → 0.7 edge pointing at
+    // Sources/MyCore/Helper.swift.
+    let dir = fresh_dir("swift-spm");
+    write(
+        &dir,
+        "Package.swift",
+        "import PackageDescription\n\nlet package = Package(\n    name: \"MyLib\",\n    targets: [\n        .target(name: \"MyCore\"),\n        .target(name: \"OtherLib\"),\n        .executableTarget(name: \"App\", dependencies: [\"MyCore\"]),\n    ]\n)\n",
+    );
+    write(
+        &dir,
+        "Sources/MyCore/Helper.swift",
+        "public func helper() {}\n",
+    );
+    write(
+        &dir,
+        "Sources/OtherLib/Helper.swift",
+        "public func helper() {}\n",
+    );
+    write(
+        &dir,
+        "Sources/App/main.swift",
+        "import MyCore\n\nhelper()\n",
+    );
+    let refs = run_index_with_refs(&dir, &[]);
+
+    let resolved = refs
+        .iter()
+        .find(|r| {
+            r["kind"].as_str() == Some("call")
+                && r["file"].as_str() == Some("Sources/App/main.swift")
+                && r["name"]
+                    .as_str()
+                    .map(|s| s.contains("Sources/MyCore/Helper.swift"))
+                    .unwrap_or(false)
+        })
+        .unwrap_or_else(|| {
+            let all_refs: Vec<_> = refs.iter().map(|r| (
+                r["file"].as_str(),
+                r["name"].as_str(),
+                r["confidence"].as_f64(),
+            )).collect();
+            panic!("expected SPM-resolved file edge.\nALL REFS:\n{all_refs:#?}")
+        });
+    assert_eq!(
+        resolved["confidence"].as_f64(),
+        Some(0.7),
+        "SPM-resolved file edge should be at 0.7; got {:?}",
+        resolved["confidence"]
+    );
+}
