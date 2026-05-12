@@ -306,3 +306,367 @@ fn no_tier3_flag_skips_both_passes() {
         call["confidence"]
     );
 }
+
+// --- P0.1 — self/this member-call resolution -------------------------------
+//
+// Repowise's `_resolve_member_call` Strategy 3 (call_resolver.py:289-302):
+// when the call's receiver is `self` (Python/Ruby) or `this`
+// (Java/Kotlin/JS/TS/C#/Swift), the binding is *unambiguously* the caller's
+// own class. Look up the method on that class — confidence 0.95.
+//
+// Currently sigil leaves these refs unresolved: tier-3 skips any ref whose
+// `name` contains `.`, so `self.b()` is invisible to global-unique
+// resolution. This is the highest-impact gap — likely doubles resolved-edge
+// count for OO codebases.
+
+#[test]
+fn python_self_call_resolves_to_sibling_method_at_confidence_ninety_five() {
+    // class Foo { def a(self): self.b() }
+    // The `self.b()` call must resolve to `Foo.b` in the same file, at
+    // confidence 0.95.
+    let dir = fresh_dir("py-self");
+    write(
+        &dir,
+        "foo.py",
+        "class Foo:\n    def a(self):\n        self.b()\n    def b(self):\n        pass\n",
+    );
+    let refs = run_index_with_refs(&dir, &[]);
+
+    let call = refs
+        .iter()
+        .find(|r| {
+            r["kind"].as_str() == Some("call")
+                && r["file"].as_str() == Some("foo.py")
+                && r["name"].as_str() == Some("self.b")
+        })
+        .unwrap_or_else(|| {
+            let all_refs: Vec<_> = refs.iter().map(|r| (
+                r["file"].as_str(),
+                r["name"].as_str(),
+                r["caller"].as_str(),
+                r["kind"].as_str(),
+                r["confidence"].as_f64(),
+            )).collect();
+            panic!("expected self.b() call in refs.\nALL REFS:\n{all_refs:#?}")
+        });
+    assert_eq!(
+        call["confidence"].as_f64(),
+        Some(0.95),
+        "self.b() should resolve via member-call Strategy 3 at 0.95; got {:?}",
+        call["confidence"]
+    );
+}
+
+#[test]
+fn java_this_call_resolves_to_sibling_method_at_confidence_ninety_five() {
+    // class Foo { void a() { this.b(); } void b() {} }
+    // Same resolver must handle Java's `this.X()` receiver. Confidence 0.95.
+    let dir = fresh_dir("java-this");
+    write(
+        &dir,
+        "Foo.java",
+        "class Foo {\n    void a() {\n        this.b();\n    }\n    void b() {}\n}\n",
+    );
+    let refs = run_index_with_refs(&dir, &[]);
+
+    let call = refs
+        .iter()
+        .find(|r| {
+            r["kind"].as_str() == Some("call")
+                && r["file"].as_str() == Some("Foo.java")
+                && r["name"].as_str() == Some("this.b")
+        })
+        .unwrap_or_else(|| {
+            let all_refs: Vec<_> = refs.iter().map(|r| (
+                r["file"].as_str(),
+                r["name"].as_str(),
+                r["caller"].as_str(),
+                r["kind"].as_str(),
+                r["confidence"].as_f64(),
+            )).collect();
+            panic!("expected this.b() call in refs.\nALL REFS:\n{all_refs:#?}")
+        });
+    assert_eq!(
+        call["confidence"].as_f64(),
+        Some(0.95),
+        "this.b() should resolve via member-call Strategy 3 at 0.95; got {:?}",
+        call["confidence"]
+    );
+}
+
+#[test]
+fn self_call_does_not_bind_to_other_class_in_same_file() {
+    // class Foo { def a(self): self.b() }   # NO `b` method on Foo
+    // class Bar { def b(self): pass }        # `b` exists, but on Bar
+    //
+    // Tempting wrong behavior: the resolver finds *some* method named `b`
+    // in this file and binds. Correct behavior: refuse — `self.b()` from
+    // inside Foo's method can only mean Foo.b, which doesn't exist.
+    let dir = fresh_dir("py-self-wrong-class");
+    write(
+        &dir,
+        "foo.py",
+        "class Foo:\n    def a(self):\n        self.b()\n\nclass Bar:\n    def b(self):\n        pass\n",
+    );
+    let refs = run_index_with_refs(&dir, &[]);
+
+    let call = refs
+        .iter()
+        .find(|r| {
+            r["kind"].as_str() == Some("call")
+                && r["file"].as_str() == Some("foo.py")
+                && r["name"].as_str() == Some("self.b")
+        })
+        .expect("self.b() call should be in refs");
+    assert!(
+        call["confidence"].is_null() || call.get("confidence").is_none(),
+        "self.b() from Foo must NOT bind to Bar.b; got {:?}",
+        call["confidence"]
+    );
+}
+
+#[test]
+fn no_tier3_flag_also_skips_self_this_pass() {
+    // --no-tier3 must skip the member-call upgrade. Same Python fixture
+    // as the tracer; with the flag, self.b() must stay unresolved (not 0.95).
+    let dir = fresh_dir("no-tier3-self");
+    write(
+        &dir,
+        "foo.py",
+        "class Foo:\n    def a(self):\n        self.b()\n    def b(self):\n        pass\n",
+    );
+    let refs = run_index_with_refs(&dir, &["--no-tier3"]);
+
+    let call = refs
+        .iter()
+        .find(|r| {
+            r["kind"].as_str() == Some("call")
+                && r["file"].as_str() == Some("foo.py")
+                && r["name"].as_str() == Some("self.b")
+        })
+        .expect("self.b() call should be in refs");
+    assert_ne!(
+        call["confidence"].as_f64(),
+        Some(0.95),
+        "--no-tier3 must skip the self/this upgrade; got {:?}",
+        call["confidence"]
+    );
+}
+
+// --- P0.2 — known-class receiver (Strategy 2) ------------------------------
+//
+// Repowise call_resolver.py:273-288. When the call is `ClassName.method()`
+// and `ClassName` is a known class in the index, the binding is
+// unambiguous: it's that class's method. Same-file → 0.93; class imported
+// into caller's file via a known import → 0.88.
+
+#[test]
+fn python_same_file_class_method_call_resolves_at_confidence_ninety_three() {
+    // class Foo: @staticmethod def create(): pass
+    // def driver(): Foo.create()
+    // Same file, no import. Confidence 0.93.
+    let dir = fresh_dir("py-class-same-file");
+    write(
+        &dir,
+        "foo.py",
+        "class Foo:\n    @staticmethod\n    def create():\n        pass\n\ndef driver():\n    Foo.create()\n",
+    );
+    let refs = run_index_with_refs(&dir, &[]);
+
+    let call = refs
+        .iter()
+        .find(|r| {
+            r["kind"].as_str() == Some("call")
+                && r["file"].as_str() == Some("foo.py")
+                && r["name"].as_str() == Some("Foo.create")
+        })
+        .unwrap_or_else(|| {
+            let all_refs: Vec<_> = refs.iter().map(|r| (
+                r["file"].as_str(),
+                r["name"].as_str(),
+                r["caller"].as_str(),
+                r["kind"].as_str(),
+                r["confidence"].as_f64(),
+            )).collect();
+            panic!("expected Foo.create call.\nALL REFS:\n{all_refs:#?}")
+        });
+    assert_eq!(
+        call["confidence"].as_f64(),
+        Some(0.93),
+        "same-file known-class receiver should resolve at 0.93; got {:?}",
+        call["confidence"]
+    );
+}
+
+#[test]
+fn python_imported_class_method_call_resolves_at_confidence_eighty_eight() {
+    // foo.py:    class Foo: @staticmethod def create(): pass
+    // caller.py: from foo import Foo
+    //            def driver(): Foo.create()
+    //
+    // Tier-2 already emits Foo.create at 0.8 (the import alias is present).
+    // The receiver-aware Strategy 2 upgrades to 0.88 because `Foo` resolves
+    // to a *unique* class entity with a `create` method in the index.
+    let dir = fresh_dir("py-imported-class");
+    write(
+        &dir,
+        "foo.py",
+        "class Foo:\n    @staticmethod\n    def create():\n        pass\n",
+    );
+    write(
+        &dir,
+        "caller.py",
+        "from foo import Foo\n\ndef driver():\n    Foo.create()\n",
+    );
+    let refs = run_index_with_refs(&dir, &[]);
+
+    let call = refs
+        .iter()
+        .find(|r| {
+            r["kind"].as_str() == Some("call")
+                && r["file"].as_str() == Some("caller.py")
+                && r["name"].as_str() == Some("Foo.create")
+        })
+        .unwrap_or_else(|| {
+            let all_refs: Vec<_> = refs.iter().map(|r| (
+                r["file"].as_str(),
+                r["name"].as_str(),
+                r["caller"].as_str(),
+                r["kind"].as_str(),
+                r["confidence"].as_f64(),
+            )).collect();
+            panic!("expected Foo.create call from caller.py.\nALL REFS:\n{all_refs:#?}")
+        });
+    assert_eq!(
+        call["confidence"].as_f64(),
+        Some(0.88),
+        "imported known-class receiver should resolve at 0.88; got {:?}",
+        call["confidence"]
+    );
+}
+
+#[test]
+fn imported_class_resolution_does_not_cross_language() {
+    // Python caller, Rust-only class with same name. The receiver-aware
+    // resolver must NOT promote — `Foo.create()` in Python can't be
+    // bound to a Rust class.
+    let dir = fresh_dir("xlang-class");
+    write(
+        &dir,
+        "caller.py",
+        "def driver():\n    Foo.create()\n",
+    );
+    write(
+        &dir,
+        "defs.rs",
+        "struct Foo;\nimpl Foo {\n    pub fn create() {}\n}\n",
+    );
+    let refs = run_index_with_refs(&dir, &[]);
+
+    let call = refs
+        .iter()
+        .find(|r| {
+            r["kind"].as_str() == Some("call")
+                && r["file"].as_str() == Some("caller.py")
+                && r["name"].as_str() == Some("Foo.create")
+        })
+        .expect("Foo.create() call should be in refs");
+    assert_ne!(
+        call["confidence"].as_f64(),
+        Some(0.88),
+        "Strategy 2 must not cross language boundaries; got {:?}",
+        call["confidence"]
+    );
+}
+
+// --- P0.3 — tier-2b fallback (imported-file scan) --------------------------
+//
+// Repowise call_resolver.py:228-234. When a bare-name call has no same-file
+// def, no import-alias binding, and the global-unique check fails (>1
+// match), scan the caller's imports — if exactly one imported file defines
+// that name as callable, bind at 0.85.
+//
+// Closes the gap for `from utils import *` style and other unbound-name
+// resolutions where the global ambiguity is broken by the caller's imports.
+
+#[test]
+fn python_star_import_resolves_bare_call_to_imported_file_at_confidence_eighty_five() {
+    // caller.py:   from utils import *
+    //              def driver(): helper()
+    // utils.py:    def helper(): pass
+    // other.py:    def helper(): pass   # second def → global-unique fails
+    //
+    // Tier-3 global-unique sees 2 global matches → unresolved.
+    // Tier-2b sees `from utils import *` in caller; `utils.py` has
+    // `helper` → bind at 0.85.
+    let dir = fresh_dir("py-star-import");
+    write(
+        &dir,
+        "utils.py",
+        "def helper():\n    pass\n",
+    );
+    write(
+        &dir,
+        "other.py",
+        "def helper():\n    pass\n",
+    );
+    write(
+        &dir,
+        "caller.py",
+        "from utils import *\n\ndef driver():\n    helper()\n",
+    );
+    let refs = run_index_with_refs(&dir, &[]);
+
+    let call = refs
+        .iter()
+        .find(|r| {
+            r["kind"].as_str() == Some("call")
+                && r["file"].as_str() == Some("caller.py")
+                && r["name"].as_str() == Some("helper")
+        })
+        .unwrap_or_else(|| {
+            let all_refs: Vec<_> = refs.iter().map(|r| (
+                r["file"].as_str(),
+                r["name"].as_str(),
+                r["kind"].as_str(),
+                r["confidence"].as_f64(),
+            )).collect();
+            panic!("expected helper() call from caller.py.\nALL REFS:\n{all_refs:#?}")
+        });
+    assert_eq!(
+        call["confidence"].as_f64(),
+        Some(0.85),
+        "tier-2b star-import scan should resolve at 0.85; got {:?}",
+        call["confidence"]
+    );
+}
+
+#[test]
+fn tier2b_does_not_bind_when_multiple_imports_define_same_name() {
+    // caller.py imports BOTH utils and helpers via star; both define
+    // `do_thing`. Ambiguous — tier-2b must NOT bind.
+    let dir = fresh_dir("tier2b-ambig");
+    write(&dir, "utils.py", "def do_thing():\n    pass\n");
+    write(&dir, "helpers.py", "def do_thing():\n    pass\n");
+    write(
+        &dir,
+        "caller.py",
+        "from utils import *\nfrom helpers import *\n\ndef driver():\n    do_thing()\n",
+    );
+    let refs = run_index_with_refs(&dir, &[]);
+
+    let call = refs
+        .iter()
+        .find(|r| {
+            r["kind"].as_str() == Some("call")
+                && r["file"].as_str() == Some("caller.py")
+                && r["name"].as_str() == Some("do_thing")
+        })
+        .expect("do_thing() call should be in refs");
+    assert_ne!(
+        call["confidence"].as_f64(),
+        Some(0.85),
+        "tier-2b must NOT bind when multiple imports define the name; got {:?}",
+        call["confidence"]
+    );
+}

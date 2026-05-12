@@ -262,6 +262,8 @@ pub fn build_index(
     // barrel-follow edges for JS/TS + Python re-exports at confidence 0.7.
     if tier3 && include_refs {
         resolve_tier3(&all_entities, &mut all_refs);
+        resolve_tier2b_imported_fallback(&all_entities, &mut all_refs);
+        resolve_member_call(&all_entities, &mut all_refs);
         let extra = resolve_barrel_follow(&all_entities, &all_refs);
         all_refs.extend(extra);
     }
@@ -499,6 +501,192 @@ fn resolve_tier3(entities: &[Entity], refs: &mut [Reference]) {
             .collect();
         if same_lang_defs.len() == 1 {
             r.confidence = Some(0.5);
+        }
+    }
+}
+
+/// P0.3 — tier-2b fallback (imported-file scan).
+///
+/// Ports repowise's tier-2b free-call branch (call_resolver.py:228-234).
+/// When a bare-name call has no same-file def and no specific import alias
+/// — and `resolve_tier3`'s global-unique check failed (0 or >1 matches) —
+/// scan the caller's `import` entities. If exactly one of the resolved
+/// imported files defines the called name as a callable, bind at 0.85.
+///
+/// Closes the gap for `from utils import *` and other unbound-name
+/// resolutions where global ambiguity is broken by the caller's imports.
+fn resolve_tier2b_imported_fallback(entities: &[Entity], refs: &mut [Reference]) {
+    use std::collections::{HashMap, HashSet};
+
+    let file_set: HashSet<&str> = entities.iter().map(|e| e.file.as_str()).collect();
+
+    // file → set of locally-defined callable names.
+    let mut callables_by_file: HashMap<&str, HashSet<&str>> = HashMap::new();
+    // file → list of import module specifiers.
+    let mut imports_by_file: HashMap<&str, Vec<&str>> = HashMap::new();
+    for e in entities {
+        if is_callable_kind(&e.kind) {
+            callables_by_file
+                .entry(e.file.as_str())
+                .or_default()
+                .insert(e.name.as_str());
+        }
+        if e.kind == "import" {
+            imports_by_file
+                .entry(e.file.as_str())
+                .or_default()
+                .push(e.name.as_str());
+        }
+    }
+
+    for r in refs.iter_mut() {
+        if r.ref_kind != "call" {
+            continue;
+        }
+        // Bare names only.
+        if r.name.contains('.') || r.name.contains("::") || r.name.contains('/') {
+            continue;
+        }
+        // Don't downgrade higher-confidence bindings; >0.85 already wins.
+        if matches!(r.confidence, Some(c) if c > 0.85) {
+            continue;
+        }
+        let Some(imports) = imports_by_file.get(r.file.as_str()) else { continue };
+        // Distinct imported files that contain the called name.
+        let mut hit_files: HashSet<String> = HashSet::new();
+        for module in imports {
+            // Strip Python star-import suffix `.*` to recover the module
+            // specifier (`utils.*` → `utils`). For `import utils` the
+            // specifier is already `utils` — no-op.
+            let normalized = module.trim_end_matches(".*");
+            let Some(target) = resolve_module_path(&r.file, normalized, &file_set) else { continue };
+            if let Some(callables) = callables_by_file.get(target.as_str()) {
+                if callables.contains(r.name.as_str()) {
+                    hit_files.insert(target);
+                }
+            }
+        }
+        if hit_files.len() == 1 {
+            r.confidence = Some(0.85);
+        }
+    }
+}
+
+/// Member-call resolution — ports repowise's `_resolve_member_call`
+/// (call_resolver.py:247-313). Handles two strategies today:
+///
+///   * **Strategy 3 — `self`/`this` (0.95):** receiver is `self` (Python/Ruby)
+///     or `this` (Java/Kotlin/JS/TS/C#/Swift). The binding is unambiguously
+///     the caller's own class. Look up the method on that class.
+///   * **Strategy 2 — known-class receiver (0.93 same-file):** receiver is
+///     the bare name of a class entity in the same file. The binding is the
+///     static/class method by that name.
+///
+/// Imported-class variant of Strategy 2 (0.88) is a follow-on once the
+/// caller-side import table is exposed here. Strategy 1 (module-alias
+/// receiver) is owned by per-parser tier-2 resolvers today.
+///
+/// Built on shared (file, class, method) and (file, class) indices over
+/// `kind=="method"` / `kind=="class"` entities. Runs after `resolve_tier3`,
+/// which skips names containing `.` so member calls are untouched.
+fn resolve_member_call(entities: &[Entity], refs: &mut [Reference]) {
+    use std::collections::{HashMap, HashSet};
+
+    // (file, class_name, method_leaf) — every method definition.
+    let mut methods: HashSet<(&str, &str, &str)> = HashSet::new();
+    // (file, class_name) — every class definition.
+    let mut classes: HashSet<(&str, &str)> = HashSet::new();
+    // class_name → list of files defining `class class_name` with a method
+    // of name X (filled by walking entities once). Used for Strategy-2
+    // imported-class lookup (global-unique check). Key is (class, method).
+    let mut global_class_methods: HashMap<(&str, &str), Vec<&str>> = HashMap::new();
+    for e in entities {
+        if e.kind == "class" {
+            classes.insert((e.file.as_str(), e.name.as_str()));
+            continue;
+        }
+        if e.kind != "method" {
+            continue;
+        }
+        let Some(parent) = e.parent.as_deref() else { continue };
+        let leaf = e
+            .name
+            .strip_prefix(&format!("{parent}."))
+            .or_else(|| e.name.strip_prefix(&format!("{parent}::")))
+            .unwrap_or(e.name.as_str());
+        methods.insert((e.file.as_str(), parent, leaf));
+        global_class_methods
+            .entry((parent, leaf))
+            .or_default()
+            .push(e.file.as_str());
+    }
+
+    for r in refs.iter_mut() {
+        if r.ref_kind != "call" {
+            continue;
+        }
+        // Split `receiver.leaf`. One-level chains only.
+        let Some((head, leaf)) = r.name.rsplit_once('.') else { continue };
+        if head.contains('.') || leaf.is_empty() {
+            continue;
+        }
+        // Don't downgrade higher-confidence bindings.
+        if matches!(r.confidence, Some(c) if c >= 0.95) {
+            continue;
+        }
+
+        // Strategy 3: self/this receiver — binding is the caller's class.
+        if head == "self" || head == "this" {
+            if r.confidence.is_some() {
+                continue;
+            }
+            let Some(caller) = r.caller.as_deref() else { continue };
+            // The caller field shape varies by parser:
+            //   * Python emits `caller = "Foo.a"` (parent.leaf form)
+            //   * Rust/PHP emit `caller = "Foo::a"` (parent::leaf form)
+            //   * Java emits `caller = "Foo"` (the class itself, no method leaf)
+            // Strip method-leaf suffix when a separator is present; otherwise
+            // the caller string is already the parent class.
+            let parent_class = caller
+                .rsplit_once("::")
+                .or_else(|| caller.rsplit_once('.'))
+                .map(|(p, _)| p)
+                .unwrap_or(caller);
+            if methods.contains(&(r.file.as_str(), parent_class, leaf)) {
+                r.confidence = Some(0.95);
+            }
+            continue;
+        }
+
+        // Strategy 2 (same-file): receiver is a class defined in this file.
+        if classes.contains(&(r.file.as_str(), head))
+            && methods.contains(&(r.file.as_str(), head, leaf))
+        {
+            if r.confidence.is_none() {
+                r.confidence = Some(0.93);
+            }
+            continue;
+        }
+
+        // Strategy 2 (imported): receiver names a class whose definition
+        // lives in a different file, and that class has the called method.
+        // We approximate "imported into caller's file" with a same-language
+        // global-unique check — if exactly one file in the index defines
+        // `class head` with method `leaf` (same language as the caller),
+        // the binding is unambiguous. Upgrades tier-2's 0.8 to 0.88.
+        let caller_lang = language_from_file(&r.file);
+        if let Some(files) = global_class_methods.get(&(head, leaf)) {
+            let same_lang: Vec<&&str> = files
+                .iter()
+                .filter(|f| language_from_file(f) == caller_lang)
+                .collect();
+            if same_lang.len() == 1 {
+                match r.confidence {
+                    None => r.confidence = Some(0.88),
+                    Some(c) if c <= 0.85 => r.confidence = Some(0.88),
+                    _ => {}
+                }
+            }
         }
     }
 }
