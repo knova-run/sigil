@@ -281,7 +281,7 @@ pub fn build_index(
         let swift_spm = load_swift_spm(root);
         let extra = resolve_swift_spm_imports(&all_entities, &all_refs, &swift_spm);
         all_refs.extend(extra);
-        let extra = resolve_kotlin_fqn_imports(&all_entities, &all_refs);
+        let extra = resolve_jvm_fqn_imports(&all_entities, &all_refs);
         all_refs.extend(extra);
     }
 
@@ -1355,40 +1355,62 @@ fn resolve_cargo_workspace_imports(
     additions
 }
 
-/// Tier-3 file-resolution pass for Kotlin FQN imports. Kotlin source
-/// stores its package in the `<root>/<pkg>/<File>.kt` layout (under
-/// `src/main/kotlin/` or `src/main/java/` in standard Gradle projects).
-/// For each `.kt` call ref whose name matches an `import com.x.y.<name>`
-/// in the caller, find files under `*/com/x/y/` that define a callable
-/// with that name. Emit a 0.7 file-resolved edge when exactly one
-/// matches.
+/// Tier-3 file-resolution pass for JVM-family FQN imports (Kotlin, Scala).
+/// Both languages put source under `<root>/<pkg-as-dirs>/<File>.<ext>` in
+/// standard build-tool layouts (Gradle `src/main/kotlin`, sbt
+/// `src/main/scala`). FQ imports encode the disambiguation: scan files
+/// under `*/<pkg>/` for the callable.
 ///
-/// Path-based rather than settings.gradle-based: Kotlin's standard layout
-/// encodes the package in the directory tree, so we get the same
-/// disambiguation as repowise's `kotlin_gradle.py` without parsing
-/// `settings.gradle(.kts)`. Multi-module / non-standard `srcDirs(...)`
-/// layouts are a follow-up.
-fn resolve_kotlin_fqn_imports(entities: &[Entity], refs: &[Reference]) -> Vec<Reference> {
+/// Kotlin imports come in two shapes:
+///   * `com.example.helper` — top-level function/property.
+///   * `com.example.MyClass.method` — class member.
+///
+/// Scala imports always carry the class as the second-to-last segment
+/// (`com.example.Helper.helper` for `object Helper { def helper }`).
+///
+/// We treat both shapes uniformly: the *last* segment is the call leaf;
+/// everything before is the package-as-directories. For Scala this means
+/// scanning `*/com/example/Helper/` (wrong) — so we additionally try
+/// stripping the last two segments when the last segment doesn't match
+/// the call leaf. Path-based rather than settings.gradle/build.sbt-based;
+/// non-standard `srcDirs(...)` layouts are a follow-up.
+fn resolve_jvm_fqn_imports(entities: &[Entity], refs: &[Reference]) -> Vec<Reference> {
     use std::collections::{HashMap, HashSet};
 
-    // file → set of callable names defined locally.
-    let mut callables: HashMap<&str, HashSet<&str>> = HashMap::new();
+    fn is_jvm_path(file: &str) -> bool {
+        file.ends_with(".kt") || file.ends_with(".kts") || file.ends_with(".scala")
+    }
+
+    // file → set of callable names defined locally (incl. methods stored
+    // under their `Class.method` qualified form).
+    let mut callables: HashMap<&str, HashSet<String>> = HashMap::new();
     for e in entities {
-        if !e.file.ends_with(".kt") && !e.file.ends_with(".kts") {
+        if !is_jvm_path(&e.file) {
             continue;
         }
         if !is_callable_kind(&e.kind) && e.kind != "class" {
             continue;
         }
-        callables.entry(e.file.as_str()).or_default().insert(e.name.as_str());
+        let set = callables.entry(e.file.as_str()).or_default();
+        set.insert(e.name.clone());
+        // For methods stored as `Class.method`, also index the bare leaf
+        // — Scala/Kotlin tier-2 emits the call as the bare leaf name.
+        if let Some(parent) = e.parent.as_deref() {
+            let leaf = e
+                .name
+                .strip_prefix(&format!("{parent}."))
+                .or_else(|| e.name.strip_prefix(&format!("{parent}::")))
+                .unwrap_or(e.name.as_str());
+            set.insert(leaf.to_string());
+        }
     }
-    // file → list of FQN imports (e.g. `com.example.helper`).
+    // file → list of FQN imports.
     let mut imports_by_file: HashMap<&str, Vec<&str>> = HashMap::new();
     for e in entities {
         if e.kind != "import" {
             continue;
         }
-        if !e.file.ends_with(".kt") && !e.file.ends_with(".kts") {
+        if !is_jvm_path(&e.file) {
             continue;
         }
         imports_by_file
@@ -1402,7 +1424,7 @@ fn resolve_kotlin_fqn_imports(entities: &[Entity], refs: &[Reference]) -> Vec<Re
         if r.ref_kind != "call" {
             continue;
         }
-        if !r.file.ends_with(".kt") && !r.file.ends_with(".kts") {
+        if !is_jvm_path(&r.file) {
             continue;
         }
         if r.name.contains('.') || r.name.contains('/') || r.name.contains(':') {
@@ -1411,25 +1433,36 @@ fn resolve_kotlin_fqn_imports(entities: &[Entity], refs: &[Reference]) -> Vec<Re
         let Some(imports) = imports_by_file.get(r.file.as_str()) else { continue };
         let mut hit_files: HashSet<&str> = HashSet::new();
         for import in imports {
-            // `com.example.helper` → leaf=helper, package=com.example.
-            // The leaf must match the call name; star imports skipped.
+            // The import's last segment is the leaf — must match the
+            // call name. Star imports skipped.
             let Some(dot_at) = import.rfind('.') else { continue };
             let leaf = &import[dot_at + 1..];
             if leaf == "*" || leaf != r.name {
                 continue;
             }
-            let package_path = import[..dot_at].replace('.', "/");
-            let needle = format!("/{package_path}/");
-            // Scan callable-bearing .kt files whose path contains the
-            // package-as-directory form and defines the called name.
+            // Try the package-as-dirs form. Two interpretations:
+            //   (a) everything before the leaf  (Kotlin top-level)
+            //   (b) everything before the parent-class.leaf (Scala member,
+            //       where the second-to-last segment is the Object/Class)
+            // Try (a) first; if it yields no matches, fall back to (b).
+            let needle_a = format!("/{}/", import[..dot_at].replace('.', "/"));
+            let mut local_hits: HashSet<&str> = HashSet::new();
             for (file, names) in callables.iter() {
-                if !file.contains(needle.as_str()) {
-                    continue;
-                }
-                if names.contains(r.name.as_str()) {
-                    hit_files.insert(*file);
+                if file.contains(needle_a.as_str()) && names.contains(r.name.as_str()) {
+                    local_hits.insert(*file);
                 }
             }
+            if local_hits.is_empty() {
+                if let Some(second_dot) = import[..dot_at].rfind('.') {
+                    let needle_b = format!("/{}/", import[..second_dot].replace('.', "/"));
+                    for (file, names) in callables.iter() {
+                        if file.contains(needle_b.as_str()) && names.contains(r.name.as_str()) {
+                            local_hits.insert(*file);
+                        }
+                    }
+                }
+            }
+            hit_files.extend(local_hits);
         }
         if hit_files.len() != 1 {
             continue;

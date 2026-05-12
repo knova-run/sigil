@@ -1212,3 +1212,58 @@ fn kotlin_fqn_import_picks_right_package_at_confidence_seven() {
         resolved["confidence"]
     );
 }
+
+// --- P2.8 — Scala build-tool / FQN-aware import resolver -------------------
+//
+// Scala imports are fully-qualified (`import com.example.Helper.helper`).
+// Same path-based disambiguation as Kotlin: scan `*/com/example/` for the
+// callable. Repowise's `scala_build.py` parses sbt/Mill build files for
+// non-standard layouts — the standard `src/main/scala/<pkg>/` layout is
+// covered by path heuristics alone.
+
+#[test]
+fn scala_fqn_import_picks_right_package_at_confidence_seven() {
+    // Two `helper()` methods, different packages — global-unique fails.
+    let dir = fresh_dir("scala-fqn");
+    write(
+        &dir,
+        "core/src/main/scala/com/example/Helper.scala",
+        "package com.example\n\nobject Helper {\n  def helper(): Unit = {}\n}\n",
+    );
+    write(
+        &dir,
+        "other/src/main/scala/com/other/Helper.scala",
+        "package com.other\n\nobject Helper {\n  def helper(): Unit = {}\n}\n",
+    );
+    write(
+        &dir,
+        "app/src/main/scala/com/example/Main.scala",
+        "package com.example\n\nimport com.example.Helper.helper\n\nobject Main {\n  def main(args: Array[String]): Unit = {\n    helper()\n  }\n}\n",
+    );
+    let refs = run_index_with_refs(&dir, &[]);
+
+    let resolved = refs
+        .iter()
+        .find(|r| {
+            r["kind"].as_str() == Some("call")
+                && r["file"].as_str() == Some("app/src/main/scala/com/example/Main.scala")
+                && r["name"]
+                    .as_str()
+                    .map(|s| s.contains("core/src/main/scala/com/example/Helper.scala"))
+                    .unwrap_or(false)
+        })
+        .unwrap_or_else(|| {
+            let all_refs: Vec<_> = refs.iter().map(|r| (
+                r["file"].as_str(),
+                r["name"].as_str(),
+                r["confidence"].as_f64(),
+            )).collect();
+            panic!("expected Scala FQN-resolved file edge.\nALL REFS:\n{all_refs:#?}")
+        });
+    assert_eq!(
+        resolved["confidence"].as_f64(),
+        Some(0.7),
+        "Scala-FQN-resolved file edge should be at 0.7; got {:?}",
+        resolved["confidence"]
+    );
+}
