@@ -583,6 +583,24 @@ fn scan_js_ts(file: &str, text: &str, ext: &str) -> Vec<ContractRow> {
     }
     // socket.io event-level (server `on` + client `emit`).
     emit_socketio_rows(file, text, language, &mut out);
+    // bullmq: `new Queue('emails')` = enqueuer (consumer of the queue
+    // surface); `new Worker('emails', ...)` = handler (provider). Gate
+    // on the bullmq import so generic `new Queue(...)` test-class
+    // constructors don't trigger.
+    let uses_bullmq = text.contains("bullmq") || text.contains("bull");
+    if uses_bullmq {
+        for (i, line) in text.lines().enumerate() {
+            if let Some(caps) = bullmq_queue_re().captures(line) {
+                let name = caps[1].to_string();
+                push_task_row(&mut out, file, (i + 1) as u32, &name, "consumer", language, "bullmq");
+                continue;
+            }
+            if let Some(caps) = bullmq_worker_re().captures(line) {
+                let name = caps[1].to_string();
+                push_task_row(&mut out, file, (i + 1) as u32, &name, "provider", language, "bullmq");
+            }
+        }
+    }
     // Redis / NATS pub-sub for JS/TS files.
     emit_pubsub_rows(file, text, language, &mut out);
     out
@@ -742,6 +760,22 @@ fn scan_go(file: &str, text: &str) -> Vec<ContractRow> {
                 framework: "grpc".to_string(),
             });
             continue;
+        }
+        // asynq (Go task queue): `NewTask("name", ...)` consumer +
+        // `mux.HandleFunc("name", ...)` provider. Gated on the asynq
+        // import to avoid HandleFunc collisions with net/http.
+        let uses_asynq = text.contains("hibiken/asynq") || text.contains("\"asynq\"");
+        if uses_asynq {
+            if let Some(caps) = asynq_new_task_re().captures(line) {
+                let name = caps[1].to_string();
+                push_task_row(&mut out, file, (i + 1) as u32, &name, "consumer", "go", "asynq");
+                continue;
+            }
+            if let Some(caps) = asynq_handle_re().captures(line) {
+                let name = caps[1].to_string();
+                push_task_row(&mut out, file, (i + 1) as u32, &name, "provider", "go", "asynq");
+                continue;
+            }
         }
         if let Some(caps) = go_route_re().captures(line) {
             let raw_verb = caps[1].to_string();
@@ -1054,6 +1088,15 @@ fn scan_ruby(file: &str, text: &str) -> Vec<ContractRow> {
     for (i, line) in text.lines().enumerate() {
         if let Some(caps) = ws_action_cable_re().captures(line) {
             push_ws_provider(&mut out, file, (i + 1) as u32, &caps[1], "ruby", "actioncable");
+        }
+    }
+    // Sidekiq workers (multi-line: class + include Sidekiq::Worker)
+    emit_sidekiq_provider_rows(file, text, &mut out);
+    // Sidekiq enqueuers: `EmailWorker.perform_async(...)`
+    for (i, line) in text.lines().enumerate() {
+        if let Some(caps) = sidekiq_call_re().captures(line) {
+            let name = caps[1].to_string();
+            push_task_row(&mut out, file, (i + 1) as u32, &name, "consumer", "ruby", "sidekiq");
         }
     }
     emit_pubsub_rows(file, text, "ruby", &mut out);
@@ -1675,6 +1718,178 @@ fn scan_csharp(file: &str, text: &str) -> Vec<ContractRow> {
     out
 }
 
+// ─── Task queue contracts ────────────────────────────────────────────────────
+//
+// Named-task contracts represent cross-process work hand-offs. The
+// provider is the worker that handles the task; the consumer is the
+// code that enqueues it. contract_id is `task::<name>`.
+//
+// Frameworks covered: Celery (Python), Sidekiq (Ruby), bullmq (Node),
+// RQ (Python), asynq (Go). Hangfire (C#) and gocelery share the same
+// regex shape as their language siblings and get caught incidentally.
+
+fn celery_task_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `@app.task` (bare) or `@app.task(name='emails.send_welcome')`.
+        // Captures the explicit name if present; bare decorators are
+        // handled by a follow-up function-name lookup.
+        Regex::new(r#"@(?:app|celery|celery_app|tasks)\.task(?:\s*\(\s*(?:[^)]*?name\s*=\s*['"]([^'"]+)['"])?[^)]*\))?\s*$"#).unwrap()
+    })
+}
+
+fn celery_call_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `<name>.delay(...)` or `<name>.apply_async(...)`. The name
+        // captured is the local function reference; cross-repo matching
+        // joins on the registered Celery task name (which is the
+        // function name by default).
+        Regex::new(r#"\b([A-Za-z_][A-Za-z0-9_]*)\.(?:delay|apply_async)\s*\("#).unwrap()
+    })
+}
+
+fn rq_enqueue_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `queue.enqueue('myapp.tasks.send_email', ...)`. Always uses a
+        // string task path (rq's preferred form for cross-module calls).
+        Regex::new(r#"\b\w+\.enqueue\s*\(\s*['"]([A-Za-z_][\w.]*)['"]"#).unwrap()
+    })
+}
+
+fn sidekiq_worker_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `include Sidekiq::Worker` / `include Sidekiq::Job` — the
+        // CLASS in scope is the task provider. We need the class name
+        // from the surrounding `class X` line, so the scan is two-pass.
+        Regex::new(r#"include\s+Sidekiq::(?:Worker|Job)"#).unwrap()
+    })
+}
+
+fn sidekiq_call_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `EmailWorker.perform_async(...)` / `.perform_in(1.hour, ...)`.
+        Regex::new(r#"\b([A-Z][A-Za-z0-9_]*)\.(?:perform_async|perform_in|perform_at|perform_later)\s*\("#).unwrap()
+    })
+}
+
+fn bullmq_queue_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `new Queue('emails')` — consumer side (the enqueuer). Worker
+        // is detected separately. Capture queue name.
+        Regex::new(r#"\bnew\s+Queue\s*\(\s*['"`]([^'"`]+)['"`]"#).unwrap()
+    })
+}
+
+fn bullmq_worker_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(r#"\bnew\s+Worker\s*\(\s*['"`]([^'"`]+)['"`]"#).unwrap()
+    })
+}
+
+fn asynq_new_task_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `asynq.NewTask("email:send", payload)` — consumer.
+        Regex::new(r#"\basynq\.NewTask\s*\(\s*"([^"]+)""#).unwrap()
+    })
+}
+
+fn asynq_handle_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `mux.HandleFunc("email:send", handler)` — provider, only when
+        // file uses asynq.
+        Regex::new(r#"\bmux\.HandleFunc\s*\(\s*"([^"]+)""#).unwrap()
+    })
+}
+
+fn push_task_row(
+    out: &mut Vec<ContractRow>, file: &str, line_no: u32,
+    name: &str, role: &str, language: &str, framework: &str,
+) {
+    out.push(ContractRow {
+        contract_id: format!("task::{name}"),
+        kind: "task".to_string(),
+        role: role.to_string(),
+        method: None,
+        path: Some(name.to_string()),
+        topic: Some(name.to_string()),
+        file: file.to_string(),
+        line: line_no,
+        language: language.to_string(),
+        framework: framework.to_string(),
+    });
+}
+
+/// Emit Celery task provider rows. Two-pass: when a `@app.task` line
+/// fires, look ahead for `def <name>(...)` on the next non-decorator
+/// line and use the function name as the default task name.
+fn emit_celery_provider_rows(file: &str, text: &str, out: &mut Vec<ContractRow>) {
+    let lines: Vec<&str> = text.lines().collect();
+    for i in 0..lines.len() {
+        let Some(caps) = celery_task_re().captures(lines[i]) else { continue };
+        // Explicit name= wins; else look ahead.
+        let name = if let Some(m) = caps.get(1) {
+            m.as_str().to_string()
+        } else {
+            let mut j = i + 1;
+            let mut found = None;
+            while j < lines.len() && j < i + 6 {
+                let l = lines[j].trim_start();
+                if l.is_empty() || l.starts_with('#') || l.starts_with('@') {
+                    j += 1; continue;
+                }
+                static DEF_RE: OnceLock<Regex> = OnceLock::new();
+                let def = DEF_RE.get_or_init(|| Regex::new(r"^def\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(").unwrap());
+                if let Some(dc) = def.captures(l) {
+                    found = Some(dc[1].to_string());
+                }
+                break;
+            }
+            match found { Some(n) => n, None => continue }
+        };
+        push_task_row(out, file, (i + 1) as u32, &name, "provider", "python", "celery");
+    }
+}
+
+/// Emit Sidekiq Worker provider rows. Like Celery, we need the class
+/// name from the surrounding scope. We walk lines: when a `class X`
+/// line is followed by an `include Sidekiq::Worker/Job` within ~10
+/// lines, X is a task provider.
+fn emit_sidekiq_provider_rows(file: &str, text: &str, out: &mut Vec<ContractRow>) {
+    static CLASS_RE: OnceLock<Regex> = OnceLock::new();
+    let class_re = CLASS_RE.get_or_init(|| Regex::new(r"^\s*class\s+([A-Z][A-Za-z0-9_]*)").unwrap());
+    let lines: Vec<&str> = text.lines().collect();
+    let mut current_class: Option<(String, usize)> = None;
+    for (i, line) in lines.iter().enumerate() {
+        if let Some(c) = class_re.captures(line) {
+            current_class = Some((c[1].to_string(), i + 1));
+        }
+        if sidekiq_worker_re().is_match(line)
+            && let Some((cls, class_line)) = &current_class
+        {
+            push_task_row(out, file, *class_line as u32, cls, "provider", "ruby", "sidekiq");
+            current_class = None; // emit once per class
+        }
+    }
+}
+
+fn kafka_send_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(
+            r#"\b[A-Za-z_][A-Za-z0-9_]*\.send\(\s*['"]([A-Za-z_][\w./:\-]*)['"]"#,
+        )
+        .unwrap()
+    })
+}
+
 // ─── WebSocket contracts ─────────────────────────────────────────────────────
 //
 // Two contract shapes:
@@ -1853,19 +2068,6 @@ fn emit_socketio_rows(file: &str, text: &str, language: &str, out: &mut Vec<Cont
             }
         }
     }
-}
-
-fn kafka_send_re() -> &'static Regex {
-    static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| {
-        // Matches `<producer>.send('topic', ...)`. Distinguishing from HTTP
-        // verbs is by the bare `.send(` shape with a string literal first
-        // arg — typical of Kafka/NATS publisher idioms.
-        Regex::new(
-            r#"\b[A-Za-z_][A-Za-z0-9_]*\.send\(\s*['"]([A-Za-z_][\w./:\-]*)['"]"#,
-        )
-        .unwrap()
-    })
 }
 
 // ─── Python gRPC ─────────────────────────────────────────────────────────────
@@ -2268,6 +2470,23 @@ fn scan_python(file: &str, text: &str) -> Vec<ContractRow> {
                 language: "python".to_string(),
                 framework: "kafka".to_string(),
             });
+        }
+    }
+    // Celery task providers (multi-line lookup for @app.task + def name)
+    emit_celery_provider_rows(file, text, &mut out);
+    // Celery / RQ enqueuers per-line
+    for (i, line) in text.lines().enumerate() {
+        // Celery .delay() / .apply_async()
+        if let Some(caps) = celery_call_re().captures(line) {
+            let name = caps[1].to_string();
+            push_task_row(&mut out, file, (i + 1) as u32, &name, "consumer", "python", "celery");
+            continue;
+        }
+        // RQ queue.enqueue('module.task', ...)
+        if let Some(caps) = rq_enqueue_re().captures(line) {
+            let name = caps[1].to_string();
+            push_task_row(&mut out, file, (i + 1) as u32, &name, "consumer", "python", "rq");
+            continue;
         }
     }
     // Redis / NATS pub-sub for Python files.

@@ -877,6 +877,155 @@ func main() {
     assert!(!subs.is_empty(), "expected NATS subscribers; got {nats:?}");
 }
 
+// ───── Batch 3: Task queue contracts (Celery/Sidekiq/bullmq/RQ/asynq) ─────
+
+#[test]
+fn detects_celery_task_provider_and_consumer() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("tasks.py"),
+        r#"from celery import Celery
+app = Celery('myapp')
+
+@app.task(name='emails.send_welcome')
+def send_welcome(user_id):
+    pass
+
+@app.task
+def cleanup_old_data():
+    pass
+"#,
+    ).unwrap();
+    fs::write(
+        tmp.path().join("caller.py"),
+        r#"from .tasks import send_welcome
+send_welcome.delay(user_id=42)
+send_welcome.apply_async(args=[42])
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let tasks: Vec<_> = rows.iter().filter(|r| r["framework"] == "celery").collect();
+    let triples: Vec<(&str, &str)> = tasks.iter()
+        .map(|r| (r["contract_id"].as_str().unwrap(),
+                  r["role"].as_str().unwrap())).collect();
+    assert!(triples.iter().any(|t| t == &("task::emails.send_welcome", "provider")),
+        "Celery provider; got {triples:?}");
+    assert!(triples.iter().any(|t| t == &("task::send_welcome", "consumer")),
+        "Celery .delay() consumer; got {triples:?}");
+}
+
+#[test]
+fn detects_sidekiq_worker_and_perform_async() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("email_worker.rb"),
+        r#"class EmailWorker
+  include Sidekiq::Worker
+  sidekiq_options queue: 'critical'
+
+  def perform(user_id)
+    UserMailer.welcome(user_id).deliver_now
+  end
+end
+"#,
+    ).unwrap();
+    fs::write(
+        tmp.path().join("caller.rb"),
+        r#"EmailWorker.perform_async(42)
+EmailWorker.perform_in(1.hour, 42)
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let ids: Vec<(&str, &str)> = rows.iter()
+        .filter(|r| r["framework"] == "sidekiq")
+        .map(|r| (r["contract_id"].as_str().unwrap(),
+                  r["role"].as_str().unwrap())).collect();
+    assert!(ids.contains(&("task::EmailWorker", "provider")),
+        "Sidekiq Worker provider; got {ids:?}");
+    assert!(ids.contains(&("task::EmailWorker", "consumer")),
+        "Sidekiq perform_async consumer; got {ids:?}");
+}
+
+#[test]
+fn detects_bullmq_queue_and_worker() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("queue.ts"),
+        r#"import { Queue, Worker } from 'bullmq';
+const emailQueue = new Queue('emails');
+const worker = new Worker('emails', async (job) => {});
+emailQueue.add('welcome', { userId: 1 });
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let ids: Vec<(&str, &str)> = rows.iter()
+        .filter(|r| r["framework"] == "bullmq")
+        .map(|r| (r["contract_id"].as_str().unwrap(),
+                  r["role"].as_str().unwrap())).collect();
+    assert!(ids.contains(&("task::emails", "consumer")),
+        "new Queue('emails') = enqueuer/consumer-side; got {ids:?}");
+    assert!(ids.contains(&("task::emails", "provider")),
+        "new Worker('emails') = handler/provider; got {ids:?}");
+}
+
+#[test]
+fn detects_python_rq_enqueue() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("rq_caller.py"),
+        r#"from rq import Queue
+queue = Queue('default')
+queue.enqueue('myapp.tasks.send_email', user_id=1)
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let ids: Vec<&str> = rows.iter()
+        .filter(|r| r["framework"] == "rq")
+        .map(|r| r["contract_id"].as_str().unwrap()).collect();
+    assert!(ids.contains(&"task::myapp.tasks.send_email"),
+        "rq enqueue(string); got {ids:?}");
+}
+
+#[test]
+fn detects_asynq_go_task() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("asynq_worker.go"),
+        r#"package main
+
+import "github.com/hibiken/asynq"
+
+func main() {
+    client := asynq.NewClient(...)
+    task := asynq.NewTask("email:send", payload)
+    client.Enqueue(task)
+
+    mux := asynq.NewServeMux()
+    mux.HandleFunc("email:send", handleEmail)
+}
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let ids: Vec<(&str, &str)> = rows.iter()
+        .filter(|r| r["framework"] == "asynq")
+        .map(|r| (r["contract_id"].as_str().unwrap(),
+                  r["role"].as_str().unwrap())).collect();
+    assert!(ids.contains(&("task::email:send", "consumer")),
+        "asynq NewTask = consumer/enqueuer; got {ids:?}");
+    assert!(ids.contains(&("task::email:send", "provider")),
+        "asynq HandleFunc = provider; got {ids:?}");
+}
+
 // ───── Batch 2: WebSocket contracts (URL routes + socket.io events) ─────
 
 #[test]
