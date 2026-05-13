@@ -209,6 +209,24 @@ fn walk_node(
         }
         "property_declaration" => {
             extract_property(node, source, file_path, parent_ctx, symbols, references);
+            // Walk the value expression too — `let s = Session()` /
+            // `var sessions = [Session(), Session()]` / closure-based
+            // property initializers all contain call_expressions and
+            // identifiers we need for ref extraction. QA on Alamofire
+            // showed `Session(...)` constructor calls (445 in tests)
+            // were dropped because this arm `return`ed before
+            // recursing. Walk children explicitly under a property-
+            // scoped caller_ctx so inner calls attribute correctly.
+            let prop_name = first_child_of_kind(node, "pattern")
+                .and_then(|p| first_child_of_kind(p, "simple_identifier"))
+                .map(|n| node_text(n, source));
+            let new_ctx = prop_name
+                .as_deref()
+                .map(|n| qualify(parent_ctx, n));
+            let ctx_for_walk = new_ctx.as_deref().or(parent_ctx);
+            walk_swift_children_with_docs(
+                node, source, file_path, ctx_for_walk, symbols, texts, references, depth,
+            );
             return;
         }
         "enum_entry" => {
@@ -1080,6 +1098,35 @@ mod tests {
         assert!(imports.iter().any(|s| s.name == "UIKit"));
         let import_refs: Vec<_> = refs.iter().filter(|r| r.kind == "import").collect();
         assert_eq!(import_refs.len(), 2);
+    }
+
+    #[test]
+    fn swift_property_value_constructor_calls_captured() {
+        // Regression: QA pass on Alamofire showed 445 `Session(...)`
+        // constructor calls in Tests/ but sigil callers Session
+        // returned only 48 (44 type_annotation + 4 call). The
+        // `property_declaration` arm in walk_node returned early
+        // without walking the value expression, so the call_expression
+        // inside `let s = Session()` was never visited.
+        let source = b"public class Session { public init() {} }\n\
+                       class CacheTests {\n\
+                           func setUp() {\n\
+                               let s = Session()\n\
+                               let t = Session()\n\
+                           }\n\
+                       }\n\
+                       let global1 = Session()\n";
+        let (_, _, refs) = parse_file(source, "swift", "t.swift").unwrap();
+        let calls: Vec<_> = refs
+            .iter()
+            .filter(|r| r.kind == "call" && r.name == "Session")
+            .collect();
+        assert!(
+            calls.len() >= 3,
+            "expected ≥3 Session() constructor call refs; got {} -> {:?}",
+            calls.len(),
+            refs.iter().map(|r| (&r.kind, &r.name)).collect::<Vec<_>>(),
+        );
     }
 
     #[test]
