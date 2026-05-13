@@ -243,19 +243,83 @@ fn member_canonical_names(member_path: &Path) -> Vec<String> {
         }
     }
 
-    // Cargo.toml — [package] name (workspace roots without [package] yield none)
+    // Cargo.toml. Two shapes to handle:
+    //   * single-crate repo: `[package] name = "foo"` at the root.
+    //   * Cargo workspace: `[workspace] members = ["foo", "foo-macros", …]`
+    //     where each member crate has its own `Cargo.toml` with
+    //     `[package] name`. Tokio / tracing / axum all use this shape.
+    //
+    // For workspace members we register every inner crate name (dash
+    // variant + Rust-import underscore variant) as a canonical alias.
+    // `use tokio_stream::StreamExt` resolves a crate whose Cargo
+    // manifest says `name = "tokio-stream"`.
     let cargo = member_path.join("Cargo.toml");
     if let Ok(text) = std::fs::read_to_string(&cargo)
         && let Ok(doc) = toml::from_str::<toml::Value>(&text)
-        && let Some(name) = doc
+    {
+        // Single-package root.
+        if let Some(name) = doc
             .get("package")
             .and_then(|p| p.get("name"))
             .and_then(|n| n.as_str())
-    {
-        out.push(name.to_string());
+        {
+            push_crate_aliases(&mut out, name);
+        }
+        // Cargo workspace root.
+        if let Some(members) = doc
+            .get("workspace")
+            .and_then(|w| w.get("members"))
+            .and_then(|m| m.as_array())
+        {
+            for member in members {
+                let Some(rel) = member.as_str() else { continue };
+                // MVP: handle literal paths and a single trailing `/*`
+                // glob (matches the same convention as `parse_manifest`).
+                let candidates: Vec<PathBuf> = if let Some(prefix) = rel.strip_suffix("/*") {
+                    let dir = member_path.join(prefix);
+                    std::fs::read_dir(&dir)
+                        .into_iter()
+                        .flatten()
+                        .flatten()
+                        .map(|e| e.path())
+                        .filter(|p| p.is_dir())
+                        .collect()
+                } else if rel.contains('*') {
+                    Vec::new() // unsupported elaborate glob — silently skip
+                } else {
+                    vec![member_path.join(rel)]
+                };
+                for crate_dir in candidates {
+                    let inner = crate_dir.join("Cargo.toml");
+                    let Ok(inner_text) = std::fs::read_to_string(&inner) else { continue };
+                    let Ok(inner_doc) = toml::from_str::<toml::Value>(&inner_text) else { continue };
+                    if let Some(name) = inner_doc
+                        .get("package")
+                        .and_then(|p| p.get("name"))
+                        .and_then(|n| n.as_str())
+                    {
+                        push_crate_aliases(&mut out, name);
+                    }
+                }
+            }
+        }
     }
 
     out
+}
+
+/// Push a Rust crate's name plus its `use`-form alias (dashes → underscores)
+/// onto the canonical-name list. `tokio-stream` ⇒ register both
+/// `tokio-stream` (for Cargo.toml dep matching) and `tokio_stream`
+/// (for `use tokio_stream::...` modpath alignment).
+fn push_crate_aliases(out: &mut Vec<String>, name: &str) {
+    if name.is_empty() {
+        return;
+    }
+    out.push(name.to_string());
+    if name.contains('-') {
+        out.push(name.replace('-', "_"));
+    }
 }
 
 /// Read the set of dependency names this member declares in its
