@@ -295,7 +295,7 @@ fn walk_node(
             );
         }
         "declaration" => {
-            extract_declaration(node, source, file_path, parent_ctx, access, symbols);
+            extract_declaration(node, source, file_path, parent_ctx, access, symbols, references);
         }
         "class_specifier" | "struct_specifier" => {
             extract_class(
@@ -375,6 +375,17 @@ fn walk_node(
         }
         "new_expression" => {
             extract_new_ref(node, source, file_path, parent_ctx, references);
+        }
+        // Struct/class field declarations carry a `type` field that
+        // names a user type — surface as a type_annotation ref. Without
+        // this, `struct Foo { Bar field; }` doesn't surface under
+        // `callers Bar` even though `Bar` is clearly used here.
+        // (Catch2 QA: SectionInfo had only 4 callers despite many
+        // field/parameter sites.)
+        "field_declaration" => {
+            if let Some(type_node) = find_child_by_field(node, "type") {
+                extract_type_ref(type_node, source, file_path, parent_ctx, references);
+            }
         }
 
         _ => {}
@@ -631,6 +642,33 @@ fn get_type_name(node: Node, source: &[u8]) -> String {
     }
 }
 
+/// Walk a function declarator subtree emitting type_annotation refs
+/// for every parameter's declared type. Tree-sitter-cpp puts parameters
+/// inside `parameter_list` inside the declarator; each entry is a
+/// `parameter_declaration` with a `type` field pointing at a
+/// `type_identifier` / `qualified_identifier` / `template_type`.
+fn emit_cpp_param_type_refs(
+    declarator: Node,
+    source: &[u8],
+    file_path: &str,
+    parent_ctx: Option<&str>,
+    references: &mut Vec<ReferenceEntry>,
+) {
+    let mut stack = vec![declarator];
+    while let Some(n) = stack.pop() {
+        if n.kind() == "parameter_declaration" {
+            if let Some(t) = find_child_by_field(n, "type") {
+                extract_type_ref(t, source, file_path, parent_ctx, references);
+            }
+            continue;
+        }
+        let mut c = n.walk();
+        for child in n.children(&mut c) {
+            stack.push(child);
+        }
+    }
+}
+
 /// Extract a type reference if it's a user-defined type.
 fn extract_type_ref(
     node: Node,
@@ -707,6 +745,14 @@ fn extract_function(
         extract_type_ref(type_node, source, file_path, Some(&full_name), references);
     }
 
+    // Walk parameter declarations for their type refs. Catch2 QA pass
+    // surfaced that `void foo(SectionInfo const& s)` style parameter
+    // types weren't emitted as type_annotation refs — the C++ parser
+    // only handled return types and base classes. Drill into the
+    // declarator subtree (it contains the parameter_list) and emit a
+    // ref for each parameter_declaration's `type` field.
+    emit_cpp_param_type_refs(declarator, source, file_path, Some(&full_name), references);
+
     // Extract tokens from function body
     let tokens = find_child_by_field(node, "body")
         .and_then(|body| filter_cpp_tokens(extract_tokens(body, source)));
@@ -731,12 +777,20 @@ fn extract_declaration(
     parent_ctx: Option<&str>,
     access: &str,
     symbols: &mut Vec<SymbolEntry>,
+    references: &mut Vec<ReferenceEntry>,
 ) {
     // Skip declarations inside function bodies
     if let Some(p) = node.parent()
         && (p.kind() == "compound_statement" || p.kind() == "case_statement")
     {
         return;
+    }
+
+    // Emit a type_annotation ref for the declared type so
+    // `void foo(SectionInfo s)` and `SectionInfo info;` both surface
+    // under `callers SectionInfo`. Mirrors Swift / Go's coverage.
+    if let Some(type_node) = find_child_by_field(node, "type") {
+        extract_type_ref(type_node, source, file_path, parent_ctx, references);
     }
 
     let line = node_line_range(node);
@@ -1459,6 +1513,31 @@ private:
 
         let hidden = find_sym(&symbols, "Point.hidden");
         assert_eq!(hidden.visibility.as_deref(), Some("private"));
+    }
+
+    #[test]
+    fn test_cpp_parameter_and_field_type_refs() {
+        // Regression: Catch2 QA showed `SectionInfo` with 4 callers
+        // despite 36 source mentions. Parameter types (`void foo(Bar
+        // const& b)`) and struct field types (`struct Foo { Bar
+        // field; }`) weren't emitted as type_annotation refs.
+        let source = b"struct SectionInfo { int x; };\n\
+                       struct Holder {\n\
+                           SectionInfo info;\n\
+                       };\n\
+                       void use_it(SectionInfo const& s) {}\n\
+                       SectionInfo make_one(SectionInfo seed) { return seed; }\n";
+        let (_, _, refs) = parse_file(source, "cpp", "test.cpp").unwrap();
+        let sect_refs: Vec<_> = refs
+            .iter()
+            .filter(|r| r.kind == "type_annotation" && r.name == "SectionInfo")
+            .collect();
+        assert!(
+            sect_refs.len() >= 4,
+            "expected ≥4 SectionInfo type_annotation refs (1 field + 1 param + 1 return + 1 param); got {} -> {:?}",
+            sect_refs.len(),
+            refs.iter().map(|r| (&r.kind, &r.name)).collect::<Vec<_>>(),
+        );
     }
 
     #[test]

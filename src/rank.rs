@@ -319,9 +319,15 @@ fn compute_blast(
     let mut blast: HashMap<EntityKey, BlastRadius> = HashMap::new();
     for e in entities {
         // Match by literal entity name AND by its qualified-name form
-        // (so a Ruby class named `Faraday.Connection` (entity-name
-        // convention with `.`) also matches refs aliased under
-        // `Faraday::Connection`).
+        // AND by its bare_leaf form. The qualified-name fallback catches
+        // entities where the parser stores `name` with one separator
+        // and refs use another (Ruby `Faraday.Connection` entity vs
+        // `Faraday::Connection.new` refs). The bare_leaf fallback
+        // catches entities with mixed-separator qualified_names that
+        // don't match either format directly (rspec-core
+        // `RSpec.Core.Runner` with `qualified_name=RSpec.Core::Runner`
+        // never matches refs that use `RSpec::Core::Runner` — but
+        // `Runner` does match the leaf-indexed aliases).
         let mut hits: Vec<&Reference> = refs_to_name
             .get(e.name.as_str())
             .cloned()
@@ -335,8 +341,17 @@ fn compute_blast(
                 }
             }
         }
+        if let Some(leaf) = crate::query::index::bare_leaf(&e.name) {
+            if leaf != e.name {
+                if let Some(extra) = refs_to_name.get(leaf) {
+                    for r in extra {
+                        hits.push(r);
+                    }
+                }
+            }
+        }
         // Dedup by pointer identity to avoid double-counting refs that
-        // matched both `e.name` and `e.qualified_name`.
+        // matched multiple lookup paths.
         let direct: Vec<&Reference> = {
             let mut seen: HashSet<*const Reference> = HashSet::new();
             hits.into_iter()
@@ -692,6 +707,36 @@ mod tests {
         assert!(
             br.direct_callers >= 2,
             "expected ≥2 direct callers from `Faraday::Connection.new` refs; got {}",
+            br.direct_callers
+        );
+    }
+
+    #[test]
+    fn blast_radius_handles_mixed_separator_qualified_name() {
+        // QA pass on rspec-core: entity name `RSpec.Core.Runner` with
+        // qualified_name `RSpec.Core::Runner` (parser emits parent
+        // with `.`-separators joined to leaf by `::`). Real refs use
+        // `RSpec::Core::Runner.run` (all `::`). Neither entity.name
+        // nor entity.qualified_name matches that ref form directly.
+        // The bare_leaf of the entity (`Runner`) DOES match the
+        // leaf-indexed alias keys though.
+        let mut e = ent("a.rb", "RSpec.Core.Runner", "class");
+        e.qualified_name = Some("RSpec.Core::Runner".to_string()); // mixed
+        let mut entities = vec![e];
+        let refs = vec![
+            refr("b.rb", Some("u"), "RSpec::Core::Runner.run"),
+            refr("c.rb", Some("u"), "RSpec::Core::Runner.new"),
+            refr("d.rb", Some("u"), "RSpec::Core::Runner.autorun"),
+        ];
+        let ranked = rank(&entities, &refs);
+        apply_blast_radius(&mut entities, &ranked);
+        let br = entities[0]
+            .blast_radius
+            .as_ref()
+            .expect("bare_leaf fallback should rescue this");
+        assert!(
+            br.direct_callers >= 3,
+            "expected ≥3 direct callers via bare_leaf fallback; got {}",
             br.direct_callers
         );
     }

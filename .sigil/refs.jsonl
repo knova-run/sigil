@@ -11405,523 +11405,547 @@
 {"file":"src/parser/cpp.rs","caller":"walk_node","name":"extract_string","kind":"call","line":368,"confidence":0.5}
 {"file":"src/parser/cpp.rs","caller":"walk_node","name":"extract_call_ref","kind":"call","line":374,"confidence":0.95}
 {"file":"src/parser/cpp.rs","caller":"walk_node","name":"extract_new_ref","kind":"call","line":377,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"walk_node","name":"walk_cpp_children_with_docs","kind":"call","line":386,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"Node","kind":"type_annotation","line":393}
-{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"Option","kind":"type_annotation","line":396}
-{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"Vec","kind":"type_annotation","line":398}
-{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"SymbolEntry","kind":"type_annotation","line":398}
-{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"Vec","kind":"type_annotation","line":399}
-{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"TextEntry","kind":"type_annotation","line":399}
-{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"Vec","kind":"type_annotation","line":400}
-{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"ReferenceEntry","kind":"type_annotation","line":400}
-{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"node.walk","kind":"call","line":403}
-{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"Vec::new","kind":"call","line":404}
-{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"node.children","kind":"call","line":405}
-{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"child.kind","kind":"call","line":406}
-{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"cpp_doxygen_text","kind":"call","line":407,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"pending_docs.push","kind":"call","line":408}
-{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"pending_docs.clear","kind":"call","line":410}
-{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"walk_node","kind":"call","line":412,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"pending_docs.is_empty","kind":"call","line":425}
-{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"cpp_item_name","kind":"call","line":426,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"texts.push","kind":"call","line":427}
-{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"file_path.to_string","kind":"call","line":428}
-{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"\"docstring\".to_string","kind":"call","line":429}
-{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"node_line_range","kind":"call","line":430,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"pending_docs.join","kind":"call","line":431}
-{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"String::new","kind":"call","line":433}
-{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"pending_docs.clear","kind":"call","line":436}
-{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"walk_node","kind":"call","line":438,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"cpp_doxygen_text","name":"Node","kind":"type_annotation","line":452}
-{"file":"src/parser/cpp.rs","caller":"cpp_doxygen_text","name":"Option","kind":"type_annotation","line":452}
-{"file":"src/parser/cpp.rs","caller":"cpp_doxygen_text","name":"String","kind":"type_annotation","line":452}
-{"file":"src/parser/cpp.rs","caller":"cpp_doxygen_text","name":"node_text","kind":"call","line":453,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"cpp_doxygen_text","name":"raw.starts_with","kind":"call","line":454}
-{"file":"src/parser/cpp.rs","caller":"cpp_doxygen_text","name":"raw.starts_with","kind":"call","line":454}
-{"file":"src/parser/cpp.rs","caller":"cpp_doxygen_text","name":"strip_doc_comment_prefix","kind":"call","line":455,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"cpp_doxygen_text","name":"raw.starts_with","kind":"call","line":456}
-{"file":"src/parser/cpp.rs","caller":"cpp_doxygen_text","name":"raw.starts_with","kind":"call","line":456}
-{"file":"src/parser/cpp.rs","caller":"cpp_doxygen_text","name":"strip_block_comment","kind":"call","line":457,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"Option","kind":"type_annotation","line":463}
-{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"Node","kind":"type_annotation","line":463}
-{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"Option","kind":"type_annotation","line":463}
-{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"String","kind":"type_annotation","line":463}
-{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"node.kind","kind":"call","line":464}
-{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"n.to_string","kind":"call","line":467}
-{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"find_child_by_field(node, \"name\")\n            .map","kind":"call","line":474}
-{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"find_child_by_field","kind":"call","line":474,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"qualify","kind":"call","line":475}
-{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"node_text","kind":"call","line":475,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"find_child_by_field","kind":"call","line":478,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"extract_declarator_name","kind":"call","line":479,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"name.is_empty","kind":"call","line":480}
-{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"qualify","kind":"call","line":483}
-{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"find_child_by_field(node, \"name\").map","kind":"call","line":487}
-{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"find_child_by_field","kind":"call","line":487,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"node_text","kind":"call","line":487,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"node.walk","kind":"call","line":492}
-{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"node.children","kind":"call","line":493}
-{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"ch.kind","kind":"call","line":494}
-{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"find_child_by_field","kind":"call","line":496,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"extract_declarator_name","kind":"call","line":497,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"name.is_empty","kind":"call","line":498}
-{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"qualify","kind":"call","line":499}
-{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"extract_declarator_name","kind":"call","line":503,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"name.is_empty","kind":"call","line":504}
-{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"qualify","kind":"call","line":505}
-{"file":"src/parser/cpp.rs","caller":"extract_call_ref","name":"Node","kind":"type_annotation","line":523}
-{"file":"src/parser/cpp.rs","caller":"extract_call_ref","name":"Option","kind":"type_annotation","line":526}
-{"file":"src/parser/cpp.rs","caller":"extract_call_ref","name":"Vec","kind":"type_annotation","line":527}
-{"file":"src/parser/cpp.rs","caller":"extract_call_ref","name":"ReferenceEntry","kind":"type_annotation","line":527}
-{"file":"src/parser/cpp.rs","caller":"extract_call_ref","name":"find_child_by_field","kind":"call","line":529,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_call_ref","name":"get_call_name","kind":"call","line":534,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"extract_call_ref","name":"name.is_empty","kind":"call","line":535}
-{"file":"src/parser/cpp.rs","caller":"extract_call_ref","name":"is_cpp_builtin_call","kind":"call","line":535,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"extract_call_ref","name":"func.kind","kind":"call","line":540}
-{"file":"src/parser/cpp.rs","caller":"extract_call_ref","name":"node_line_range","kind":"call","line":545,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_call_ref","name":"references.push","kind":"call","line":546}
-{"file":"src/parser/cpp.rs","caller":"extract_call_ref","name":"file_path.to_string","kind":"call","line":547}
-{"file":"src/parser/cpp.rs","caller":"extract_call_ref","name":"\"call\".to_string","kind":"call","line":549}
-{"file":"src/parser/cpp.rs","caller":"extract_call_ref","name":"parent_ctx.map","kind":"call","line":551}
-{"file":"src/parser/cpp.rs","caller":"extract_call_ref","name":"String::new","kind":"call","line":552}
-{"file":"src/parser/cpp.rs","caller":"extract_new_ref","name":"Node","kind":"type_annotation","line":559}
-{"file":"src/parser/cpp.rs","caller":"extract_new_ref","name":"Option","kind":"type_annotation","line":562}
-{"file":"src/parser/cpp.rs","caller":"extract_new_ref","name":"Vec","kind":"type_annotation","line":563}
-{"file":"src/parser/cpp.rs","caller":"extract_new_ref","name":"ReferenceEntry","kind":"type_annotation","line":563}
-{"file":"src/parser/cpp.rs","caller":"extract_new_ref","name":"find_child_by_field","kind":"call","line":565,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_new_ref","name":"get_type_name","kind":"call","line":570,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"extract_new_ref","name":"name.is_empty","kind":"call","line":571}
-{"file":"src/parser/cpp.rs","caller":"extract_new_ref","name":"is_cpp_builtin_call","kind":"call","line":571,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"extract_new_ref","name":"is_cpp_primitive_type","kind":"call","line":571,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"extract_new_ref","name":"node_line_range","kind":"call","line":575,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_new_ref","name":"references.push","kind":"call","line":576}
-{"file":"src/parser/cpp.rs","caller":"extract_new_ref","name":"file_path.to_string","kind":"call","line":577}
-{"file":"src/parser/cpp.rs","caller":"extract_new_ref","name":"\"instantiation\".to_string","kind":"call","line":579}
-{"file":"src/parser/cpp.rs","caller":"extract_new_ref","name":"parent_ctx.map","kind":"call","line":581}
-{"file":"src/parser/cpp.rs","caller":"extract_new_ref","name":"String::new","kind":"call","line":582}
-{"file":"src/parser/cpp.rs","caller":"get_call_name","name":"Node","kind":"type_annotation","line":588}
-{"file":"src/parser/cpp.rs","caller":"get_call_name","name":"String","kind":"type_annotation","line":588}
-{"file":"src/parser/cpp.rs","caller":"get_call_name","name":"node.kind","kind":"call","line":589}
-{"file":"src/parser/cpp.rs","caller":"get_call_name","name":"node_text","kind":"call","line":590,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"get_call_name","name":"node_text","kind":"call","line":591,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"get_call_name","name":"find_child_by_field","kind":"call","line":594,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"get_call_name","name":"find_child_by_field","kind":"call","line":595,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"get_call_name","name":"get_call_name","kind":"call","line":596,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"get_call_name","name":"node_text","kind":"call","line":597,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"get_call_name","name":"arg_name.is_empty","kind":"call","line":598}
-{"file":"src/parser/cpp.rs","caller":"get_call_name","name":"node_text","kind":"call","line":604,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"get_call_name","name":"String::new","kind":"call","line":607}
-{"file":"src/parser/cpp.rs","caller":"get_call_name","name":"node_text","kind":"call","line":610,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"get_call_name","name":"String::new","kind":"call","line":611}
-{"file":"src/parser/cpp.rs","caller":"get_type_name","name":"Node","kind":"type_annotation","line":616}
-{"file":"src/parser/cpp.rs","caller":"get_type_name","name":"String","kind":"type_annotation","line":616}
-{"file":"src/parser/cpp.rs","caller":"get_type_name","name":"node.kind","kind":"call","line":617}
-{"file":"src/parser/cpp.rs","caller":"get_type_name","name":"node_text","kind":"call","line":618,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"get_type_name","name":"node.walk","kind":"call","line":621}
-{"file":"src/parser/cpp.rs","caller":"get_type_name","name":"node.children","kind":"call","line":622}
-{"file":"src/parser/cpp.rs","caller":"get_type_name","name":"child.kind","kind":"call","line":623}
-{"file":"src/parser/cpp.rs","caller":"get_type_name","name":"node_text","kind":"call","line":624,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"get_type_name","name":"String::new","kind":"call","line":627}
+{"file":"src/parser/cpp.rs","caller":"walk_node","name":"find_child_by_field","kind":"call","line":386,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"walk_node","name":"extract_type_ref","kind":"call","line":387,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"walk_node","name":"walk_cpp_children_with_docs","kind":"call","line":397,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"Node","kind":"type_annotation","line":404}
+{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"Option","kind":"type_annotation","line":407}
+{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"Vec","kind":"type_annotation","line":409}
+{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"SymbolEntry","kind":"type_annotation","line":409}
+{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"Vec","kind":"type_annotation","line":410}
+{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"TextEntry","kind":"type_annotation","line":410}
+{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"Vec","kind":"type_annotation","line":411}
+{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"ReferenceEntry","kind":"type_annotation","line":411}
+{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"node.walk","kind":"call","line":414}
+{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"Vec::new","kind":"call","line":415}
+{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"node.children","kind":"call","line":416}
+{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"child.kind","kind":"call","line":417}
+{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"cpp_doxygen_text","kind":"call","line":418,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"pending_docs.push","kind":"call","line":419}
+{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"pending_docs.clear","kind":"call","line":421}
+{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"walk_node","kind":"call","line":423,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"pending_docs.is_empty","kind":"call","line":436}
+{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"cpp_item_name","kind":"call","line":437,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"texts.push","kind":"call","line":438}
+{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"file_path.to_string","kind":"call","line":439}
+{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"\"docstring\".to_string","kind":"call","line":440}
+{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"node_line_range","kind":"call","line":441,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"pending_docs.join","kind":"call","line":442}
+{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"String::new","kind":"call","line":444}
+{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"pending_docs.clear","kind":"call","line":447}
+{"file":"src/parser/cpp.rs","caller":"walk_cpp_children_with_docs","name":"walk_node","kind":"call","line":449,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"cpp_doxygen_text","name":"Node","kind":"type_annotation","line":463}
+{"file":"src/parser/cpp.rs","caller":"cpp_doxygen_text","name":"Option","kind":"type_annotation","line":463}
+{"file":"src/parser/cpp.rs","caller":"cpp_doxygen_text","name":"String","kind":"type_annotation","line":463}
+{"file":"src/parser/cpp.rs","caller":"cpp_doxygen_text","name":"node_text","kind":"call","line":464,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"cpp_doxygen_text","name":"raw.starts_with","kind":"call","line":465}
+{"file":"src/parser/cpp.rs","caller":"cpp_doxygen_text","name":"raw.starts_with","kind":"call","line":465}
+{"file":"src/parser/cpp.rs","caller":"cpp_doxygen_text","name":"strip_doc_comment_prefix","kind":"call","line":466,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"cpp_doxygen_text","name":"raw.starts_with","kind":"call","line":467}
+{"file":"src/parser/cpp.rs","caller":"cpp_doxygen_text","name":"raw.starts_with","kind":"call","line":467}
+{"file":"src/parser/cpp.rs","caller":"cpp_doxygen_text","name":"strip_block_comment","kind":"call","line":468,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"Option","kind":"type_annotation","line":474}
+{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"Node","kind":"type_annotation","line":474}
+{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"Option","kind":"type_annotation","line":474}
+{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"String","kind":"type_annotation","line":474}
+{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"node.kind","kind":"call","line":475}
+{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"n.to_string","kind":"call","line":478}
+{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"find_child_by_field(node, \"name\")\n            .map","kind":"call","line":485}
+{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"find_child_by_field","kind":"call","line":485,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"qualify","kind":"call","line":486}
+{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"node_text","kind":"call","line":486,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"find_child_by_field","kind":"call","line":489,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"extract_declarator_name","kind":"call","line":490,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"name.is_empty","kind":"call","line":491}
+{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"qualify","kind":"call","line":494}
+{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"find_child_by_field(node, \"name\").map","kind":"call","line":498}
+{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"find_child_by_field","kind":"call","line":498,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"node_text","kind":"call","line":498,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"node.walk","kind":"call","line":503}
+{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"node.children","kind":"call","line":504}
+{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"ch.kind","kind":"call","line":505}
+{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"find_child_by_field","kind":"call","line":507,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"extract_declarator_name","kind":"call","line":508,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"name.is_empty","kind":"call","line":509}
+{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"qualify","kind":"call","line":510}
+{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"extract_declarator_name","kind":"call","line":514,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"name.is_empty","kind":"call","line":515}
+{"file":"src/parser/cpp.rs","caller":"cpp_item_name","name":"qualify","kind":"call","line":516}
+{"file":"src/parser/cpp.rs","caller":"extract_call_ref","name":"Node","kind":"type_annotation","line":534}
+{"file":"src/parser/cpp.rs","caller":"extract_call_ref","name":"Option","kind":"type_annotation","line":537}
+{"file":"src/parser/cpp.rs","caller":"extract_call_ref","name":"Vec","kind":"type_annotation","line":538}
+{"file":"src/parser/cpp.rs","caller":"extract_call_ref","name":"ReferenceEntry","kind":"type_annotation","line":538}
+{"file":"src/parser/cpp.rs","caller":"extract_call_ref","name":"find_child_by_field","kind":"call","line":540,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_call_ref","name":"get_call_name","kind":"call","line":545,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"extract_call_ref","name":"name.is_empty","kind":"call","line":546}
+{"file":"src/parser/cpp.rs","caller":"extract_call_ref","name":"is_cpp_builtin_call","kind":"call","line":546,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"extract_call_ref","name":"func.kind","kind":"call","line":551}
+{"file":"src/parser/cpp.rs","caller":"extract_call_ref","name":"node_line_range","kind":"call","line":556,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_call_ref","name":"references.push","kind":"call","line":557}
+{"file":"src/parser/cpp.rs","caller":"extract_call_ref","name":"file_path.to_string","kind":"call","line":558}
+{"file":"src/parser/cpp.rs","caller":"extract_call_ref","name":"\"call\".to_string","kind":"call","line":560}
+{"file":"src/parser/cpp.rs","caller":"extract_call_ref","name":"parent_ctx.map","kind":"call","line":562}
+{"file":"src/parser/cpp.rs","caller":"extract_call_ref","name":"String::new","kind":"call","line":563}
+{"file":"src/parser/cpp.rs","caller":"extract_new_ref","name":"Node","kind":"type_annotation","line":570}
+{"file":"src/parser/cpp.rs","caller":"extract_new_ref","name":"Option","kind":"type_annotation","line":573}
+{"file":"src/parser/cpp.rs","caller":"extract_new_ref","name":"Vec","kind":"type_annotation","line":574}
+{"file":"src/parser/cpp.rs","caller":"extract_new_ref","name":"ReferenceEntry","kind":"type_annotation","line":574}
+{"file":"src/parser/cpp.rs","caller":"extract_new_ref","name":"find_child_by_field","kind":"call","line":576,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_new_ref","name":"get_type_name","kind":"call","line":581,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"extract_new_ref","name":"name.is_empty","kind":"call","line":582}
+{"file":"src/parser/cpp.rs","caller":"extract_new_ref","name":"is_cpp_builtin_call","kind":"call","line":582,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"extract_new_ref","name":"is_cpp_primitive_type","kind":"call","line":582,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"extract_new_ref","name":"node_line_range","kind":"call","line":586,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_new_ref","name":"references.push","kind":"call","line":587}
+{"file":"src/parser/cpp.rs","caller":"extract_new_ref","name":"file_path.to_string","kind":"call","line":588}
+{"file":"src/parser/cpp.rs","caller":"extract_new_ref","name":"\"instantiation\".to_string","kind":"call","line":590}
+{"file":"src/parser/cpp.rs","caller":"extract_new_ref","name":"parent_ctx.map","kind":"call","line":592}
+{"file":"src/parser/cpp.rs","caller":"extract_new_ref","name":"String::new","kind":"call","line":593}
+{"file":"src/parser/cpp.rs","caller":"get_call_name","name":"Node","kind":"type_annotation","line":599}
+{"file":"src/parser/cpp.rs","caller":"get_call_name","name":"String","kind":"type_annotation","line":599}
+{"file":"src/parser/cpp.rs","caller":"get_call_name","name":"node.kind","kind":"call","line":600}
+{"file":"src/parser/cpp.rs","caller":"get_call_name","name":"node_text","kind":"call","line":601,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"get_call_name","name":"node_text","kind":"call","line":602,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"get_call_name","name":"find_child_by_field","kind":"call","line":605,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"get_call_name","name":"find_child_by_field","kind":"call","line":606,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"get_call_name","name":"get_call_name","kind":"call","line":607,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"get_call_name","name":"node_text","kind":"call","line":608,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"get_call_name","name":"arg_name.is_empty","kind":"call","line":609}
+{"file":"src/parser/cpp.rs","caller":"get_call_name","name":"node_text","kind":"call","line":615,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"get_call_name","name":"String::new","kind":"call","line":618}
+{"file":"src/parser/cpp.rs","caller":"get_call_name","name":"node_text","kind":"call","line":621,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"get_call_name","name":"String::new","kind":"call","line":622}
+{"file":"src/parser/cpp.rs","caller":"get_type_name","name":"Node","kind":"type_annotation","line":627}
+{"file":"src/parser/cpp.rs","caller":"get_type_name","name":"String","kind":"type_annotation","line":627}
+{"file":"src/parser/cpp.rs","caller":"get_type_name","name":"node.kind","kind":"call","line":628}
 {"file":"src/parser/cpp.rs","caller":"get_type_name","name":"node_text","kind":"call","line":629,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"get_type_name","name":"String::new","kind":"call","line":630}
-{"file":"src/parser/cpp.rs","caller":"extract_type_ref","name":"Node","kind":"type_annotation","line":636}
-{"file":"src/parser/cpp.rs","caller":"extract_type_ref","name":"Option","kind":"type_annotation","line":639}
-{"file":"src/parser/cpp.rs","caller":"extract_type_ref","name":"Vec","kind":"type_annotation","line":640}
-{"file":"src/parser/cpp.rs","caller":"extract_type_ref","name":"ReferenceEntry","kind":"type_annotation","line":640}
-{"file":"src/parser/cpp.rs","caller":"extract_type_ref","name":"get_type_name","kind":"call","line":642,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"extract_type_ref","name":"name.is_empty","kind":"call","line":643}
-{"file":"src/parser/cpp.rs","caller":"extract_type_ref","name":"is_cpp_primitive_type","kind":"call","line":643,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"extract_type_ref","name":"node_line_range","kind":"call","line":647,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_type_ref","name":"references.push","kind":"call","line":648}
-{"file":"src/parser/cpp.rs","caller":"extract_type_ref","name":"file_path.to_string","kind":"call","line":649}
-{"file":"src/parser/cpp.rs","caller":"extract_type_ref","name":"\"type_annotation\".to_string","kind":"call","line":651}
-{"file":"src/parser/cpp.rs","caller":"extract_type_ref","name":"parent_ctx.map","kind":"call","line":653}
-{"file":"src/parser/cpp.rs","caller":"extract_type_ref","name":"String::new","kind":"call","line":654}
-{"file":"src/parser/cpp.rs","caller":"extract_function","name":"Node","kind":"type_annotation","line":661}
-{"file":"src/parser/cpp.rs","caller":"extract_function","name":"Option","kind":"type_annotation","line":664}
-{"file":"src/parser/cpp.rs","caller":"extract_function","name":"Vec","kind":"type_annotation","line":666}
-{"file":"src/parser/cpp.rs","caller":"extract_function","name":"SymbolEntry","kind":"type_annotation","line":666}
-{"file":"src/parser/cpp.rs","caller":"extract_function","name":"Vec","kind":"type_annotation","line":667}
-{"file":"src/parser/cpp.rs","caller":"extract_function","name":"ReferenceEntry","kind":"type_annotation","line":667}
-{"file":"src/parser/cpp.rs","caller":"extract_function","name":"find_child_by_field","kind":"call","line":669,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_function","name":"extract_declarator_name","kind":"call","line":674,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"extract_function","name":"name.is_empty","kind":"call","line":675}
-{"file":"src/parser/cpp.rs","caller":"extract_function","name":"node_line_range","kind":"call","line":679,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_function","name":"extract_signature_to_brace","kind":"call","line":680,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_function","name":"parent_ctx.is_some","kind":"call","line":682}
-{"file":"src/parser/cpp.rs","caller":"extract_function","name":"name.clone","kind":"call","line":691}
-{"file":"src/parser/cpp.rs","caller":"extract_function","name":"parent_ctx.is_some","kind":"call","line":694}
-{"file":"src/parser/cpp.rs","caller":"extract_function","name":"access.to_string","kind":"call","line":695}
-{"file":"src/parser/cpp.rs","caller":"extract_function","name":"has_storage_class","kind":"call","line":697,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"extract_function","name":"\"private\".to_string","kind":"call","line":699}
-{"file":"src/parser/cpp.rs","caller":"extract_function","name":"\"public\".to_string","kind":"call","line":701}
-{"file":"src/parser/cpp.rs","caller":"extract_function","name":"find_child_by_field","kind":"call","line":706,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_function","name":"extract_type_ref","kind":"call","line":707,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"extract_function","name":"find_child_by_field(node, \"body\")\n        .and_then","kind":"call","line":711}
-{"file":"src/parser/cpp.rs","caller":"extract_function","name":"find_child_by_field","kind":"call","line":711,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_function","name":"filter_cpp_tokens","kind":"call","line":712,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"extract_function","name":"extract_tokens","kind":"call","line":712,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_function","name":"push_symbol","kind":"call","line":714,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"Node","kind":"type_annotation","line":728}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"Option","kind":"type_annotation","line":731}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"Vec","kind":"type_annotation","line":733}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"SymbolEntry","kind":"type_annotation","line":733}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"node.parent","kind":"call","line":736}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"p.kind","kind":"call","line":737}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"p.kind","kind":"call","line":737}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"node_line_range","kind":"call","line":742,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"parent_ctx.is_some","kind":"call","line":744}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"access.to_string","kind":"call","line":745}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"has_storage_class","kind":"call","line":747,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"\"private\".to_string","kind":"call","line":749}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"\"public\".to_string","kind":"call","line":751}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"node.walk","kind":"call","line":755}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"node.children","kind":"call","line":756}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"child.kind","kind":"call","line":757}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"extract_declarator_name","kind":"call","line":759,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"name.is_empty","kind":"call","line":760}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"collapse_whitespace","kind":"call","line":761,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"node_text(node, source).trim","kind":"call","line":761}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"node_text","kind":"call","line":761,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"parent_ctx.is_some","kind":"call","line":767}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"push_symbol","kind":"call","line":773,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"visibility.clone","kind":"call","line":782}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"find_child_by_field","kind":"call","line":787,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"extract_declarator_name","kind":"call","line":788,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"name.is_empty","kind":"call","line":789}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"is_constexpr_or_const","kind":"call","line":793,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"parent_ctx.is_some","kind":"call","line":796}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"find_child_by_field(child, \"value\")\n                                .map","kind":"call","line":810}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"find_child_by_field","kind":"call","line":810,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"truncate_sig","kind":"call","line":811,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"node_text","kind":"call","line":811,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"symbols.push","kind":"call","line":815}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"file_path.to_string","kind":"call","line":816}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"kind.to_string","kind":"call","line":818}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"parent_ctx.map","kind":"call","line":820}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"visibility.clone","kind":"call","line":823}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"String::new","kind":"call","line":825}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"Vec::new","kind":"call","line":826}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"extract_declarator_name","kind":"call","line":832,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"name.is_empty","kind":"call","line":833}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"parent_ctx.is_some","kind":"call","line":834}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"push_symbol","kind":"call","line":844,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"visibility.clone","kind":"call","line":853}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"Node","kind":"type_annotation","line":864}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"Option","kind":"type_annotation","line":868}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"Vec","kind":"type_annotation","line":869}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"SymbolEntry","kind":"type_annotation","line":869}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"Vec","kind":"type_annotation","line":870}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"TextEntry","kind":"type_annotation","line":870}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"Vec","kind":"type_annotation","line":871}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"ReferenceEntry","kind":"type_annotation","line":871}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"find_child_by_field(node, \"name\")\n        .map(|n| node_text(n, source))\n        .unwrap_or_default","kind":"call","line":874}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"find_child_by_field(node, \"name\")\n        .map","kind":"call","line":874}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"find_child_by_field","kind":"call","line":874,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"node_text","kind":"call","line":875,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"name.is_empty","kind":"call","line":878}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"node_line_range","kind":"call","line":882,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"name.clone","kind":"call","line":892}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"find_child_by_field(node, \"base_class_clause\").or_else","kind":"call","line":897}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"find_child_by_field","kind":"call","line":897,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"node.walk","kind":"call","line":899}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"node.children(&mut cursor)\n            .find","kind":"call","line":900}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"node.children","kind":"call","line":900}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"c.kind","kind":"call","line":901}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"Vec::new","kind":"call","line":903}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"bases.walk","kind":"call","line":905}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"bases.children","kind":"call","line":906}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"child.kind","kind":"call","line":907}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"child.walk","kind":"call","line":910}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"child.children","kind":"call","line":911}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"extract_type_ref","kind":"call","line":916,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"node_text","kind":"call","line":923,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"target.is_empty","kind":"call","line":927}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"heritage.push","kind":"call","line":928}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"\"extend\".to_string","kind":"call","line":928}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"extract_type_ref","kind":"call","line":935,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"node_text","kind":"call","line":937,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"target.is_empty","kind":"call","line":938}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"heritage.push","kind":"call","line":939}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"\"extend\".to_string","kind":"call","line":939}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"symbols.push","kind":"call","line":947}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"file_path.to_string","kind":"call","line":948}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"full_name.clone","kind":"call","line":949}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"kind.to_string","kind":"call","line":950}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"parent_ctx.map","kind":"call","line":952}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"\"public\".to_string","kind":"call","line":955}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"String::new","kind":"call","line":957}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"find_child_by_field","kind":"call","line":962,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"default_access.to_string","kind":"call","line":969}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"body.walk","kind":"call","line":971}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"body.children","kind":"call","line":972}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"child.kind","kind":"call","line":973}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"node_text(child, source)\n                    .trim_end_matches(':')\n                    .trim()\n                    .to_string","kind":"call","line":974}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"node_text(child, source)\n                    .trim_end_matches(':')\n                    .trim","kind":"call","line":974}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"node_text(child, source)\n                    .trim_end_matches","kind":"call","line":974}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"node_text","kind":"call","line":974,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"text.as_str","kind":"call","line":978}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"\"public\".to_string","kind":"call","line":979}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"\"internal\".to_string","kind":"call","line":980}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"\"private\".to_string","kind":"call","line":981}
-{"file":"src/parser/cpp.rs","caller":"extract_class","name":"walk_node","kind":"call","line":986,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"Node","kind":"type_annotation","line":1002}
-{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"Option","kind":"type_annotation","line":1005}
-{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"Vec","kind":"type_annotation","line":1006}
-{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"SymbolEntry","kind":"type_annotation","line":1006}
-{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"find_child_by_field(node, \"name\")\n        .map(|n| node_text(n, source))\n        .unwrap_or_default","kind":"call","line":1008}
-{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"find_child_by_field(node, \"name\")\n        .map","kind":"call","line":1008}
-{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"find_child_by_field","kind":"call","line":1008,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"node_text","kind":"call","line":1009,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"name.is_empty","kind":"call","line":1012}
-{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"node_line_range","kind":"call","line":1016,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"name.clone","kind":"call","line":1021}
-{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"push_symbol","kind":"call","line":1024,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"full_name.clone","kind":"call","line":1027}
-{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"\"public\".to_string","kind":"call","line":1033}
-{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"find_child_by_field","kind":"call","line":1037,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"body.walk","kind":"call","line":1038}
-{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"body.children","kind":"call","line":1039}
-{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"child.kind","kind":"call","line":1040}
-{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"find_child_by_field","kind":"call","line":1041,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"node_text","kind":"call","line":1043,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"node_line_range","kind":"call","line":1044,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"push_symbol","kind":"call","line":1045,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"\"public\".to_string","kind":"call","line":1054}
-{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"Node","kind":"type_annotation","line":1063}
-{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"Option","kind":"type_annotation","line":1066}
-{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"Vec","kind":"type_annotation","line":1067}
-{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"SymbolEntry","kind":"type_annotation","line":1067}
-{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"Vec","kind":"type_annotation","line":1068}
-{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"TextEntry","kind":"type_annotation","line":1068}
-{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"Vec","kind":"type_annotation","line":1069}
-{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"ReferenceEntry","kind":"type_annotation","line":1069}
-{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"find_child_by_field(node, \"name\")\n        .map(|n| node_text(n, source))\n        .unwrap_or_default","kind":"call","line":1072}
-{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"find_child_by_field(node, \"name\")\n        .map","kind":"call","line":1072}
-{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"find_child_by_field","kind":"call","line":1072,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"node_text","kind":"call","line":1073,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"name.is_empty","kind":"call","line":1077}
-{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"find_child_by_field","kind":"call","line":1078,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"body.walk","kind":"call","line":1079}
-{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"body.children","kind":"call","line":1080}
-{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"walk_node","kind":"call","line":1081,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"node_line_range","kind":"call","line":1097,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"name.clone","kind":"call","line":1101}
-{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"push_symbol","kind":"call","line":1104,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"full_name.clone","kind":"call","line":1107}
-{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"\"public\".to_string","kind":"call","line":1113}
-{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"find_child_by_field","kind":"call","line":1116,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"body.walk","kind":"call","line":1117}
-{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"body.children","kind":"call","line":1118}
-{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"walk_node","kind":"call","line":1119,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"extract_typedef","name":"Node","kind":"type_annotation","line":1135}
-{"file":"src/parser/cpp.rs","caller":"extract_typedef","name":"Option","kind":"type_annotation","line":1138}
-{"file":"src/parser/cpp.rs","caller":"extract_typedef","name":"Vec","kind":"type_annotation","line":1139}
-{"file":"src/parser/cpp.rs","caller":"extract_typedef","name":"SymbolEntry","kind":"type_annotation","line":1139}
-{"file":"src/parser/cpp.rs","caller":"extract_typedef","name":"node_line_range","kind":"call","line":1141,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_typedef","name":"node.walk","kind":"call","line":1142}
-{"file":"src/parser/cpp.rs","caller":"extract_typedef","name":"node.children","kind":"call","line":1143}
-{"file":"src/parser/cpp.rs","caller":"extract_typedef","name":"child.kind","kind":"call","line":1144}
-{"file":"src/parser/cpp.rs","caller":"extract_typedef","name":"child.kind","kind":"call","line":1144}
-{"file":"src/parser/cpp.rs","caller":"extract_typedef","name":"node_text","kind":"call","line":1145,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_typedef","name":"push_symbol","kind":"call","line":1151,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_typedef","name":"\"public\".to_string","kind":"call","line":1160}
-{"file":"src/parser/cpp.rs","caller":"extract_using_alias","name":"Node","kind":"type_annotation","line":1167}
-{"file":"src/parser/cpp.rs","caller":"extract_using_alias","name":"Option","kind":"type_annotation","line":1170}
-{"file":"src/parser/cpp.rs","caller":"extract_using_alias","name":"Vec","kind":"type_annotation","line":1171}
-{"file":"src/parser/cpp.rs","caller":"extract_using_alias","name":"SymbolEntry","kind":"type_annotation","line":1171}
-{"file":"src/parser/cpp.rs","caller":"extract_using_alias","name":"find_child_by_field","kind":"call","line":1173,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_using_alias","name":"node_text","kind":"call","line":1174,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_using_alias","name":"node_line_range","kind":"call","line":1178,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_using_alias","name":"push_symbol","kind":"call","line":1185,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_using_alias","name":"\"public\".to_string","kind":"call","line":1194}
-{"file":"src/parser/cpp.rs","caller":"extract_using","name":"Vec","kind":"type_annotation","line":1198}
-{"file":"src/parser/cpp.rs","caller":"extract_using","name":"SymbolEntry","kind":"type_annotation","line":1198}
-{"file":"src/parser/cpp.rs","caller":"extract_using","name":"Node","kind":"type_annotation","line":1198}
-{"file":"src/parser/cpp.rs","caller":"extract_using","name":"node_line_range","kind":"call","line":1199,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_using","name":"node_text","kind":"call","line":1200,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_using","name":"text\n        .strip_prefix(\"using\")\n        .unwrap_or(&text)\n        .trim()\n        .strip_suffix(';')\n        .unwrap_or(&text)\n        .trim()\n        .to_string","kind":"call","line":1202}
-{"file":"src/parser/cpp.rs","caller":"extract_using","name":"text\n        .strip_prefix(\"using\")\n        .unwrap_or(&text)\n        .trim()\n        .strip_suffix(';')\n        .unwrap_or(&text)\n        .trim","kind":"call","line":1202}
-{"file":"src/parser/cpp.rs","caller":"extract_using","name":"text\n        .strip_prefix(\"using\")\n        .unwrap_or(&text)\n        .trim()\n        .strip_suffix(';')\n        .unwrap_or","kind":"call","line":1202}
-{"file":"src/parser/cpp.rs","caller":"extract_using","name":"text\n        .strip_prefix(\"using\")\n        .unwrap_or(&text)\n        .trim()\n        .strip_suffix","kind":"call","line":1202}
-{"file":"src/parser/cpp.rs","caller":"extract_using","name":"text\n        .strip_prefix(\"using\")\n        .unwrap_or(&text)\n        .trim","kind":"call","line":1202}
-{"file":"src/parser/cpp.rs","caller":"extract_using","name":"text\n        .strip_prefix(\"using\")\n        .unwrap_or","kind":"call","line":1202}
-{"file":"src/parser/cpp.rs","caller":"extract_using","name":"text\n        .strip_prefix","kind":"call","line":1202}
-{"file":"src/parser/cpp.rs","caller":"extract_using","name":"name.is_empty","kind":"call","line":1211}
-{"file":"src/parser/cpp.rs","caller":"extract_using","name":"push_symbol","kind":"call","line":1212,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_using","name":"\"private\".to_string","kind":"call","line":1221}
-{"file":"src/parser/cpp.rs","caller":"extract_include","name":"Node","kind":"type_annotation","line":1227}
-{"file":"src/parser/cpp.rs","caller":"extract_include","name":"Vec","kind":"type_annotation","line":1230}
-{"file":"src/parser/cpp.rs","caller":"extract_include","name":"SymbolEntry","kind":"type_annotation","line":1230}
-{"file":"src/parser/cpp.rs","caller":"extract_include","name":"Vec","kind":"type_annotation","line":1231}
-{"file":"src/parser/cpp.rs","caller":"extract_include","name":"ReferenceEntry","kind":"type_annotation","line":1231}
-{"file":"src/parser/cpp.rs","caller":"extract_include","name":"node_line_range","kind":"call","line":1233,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_include","name":"find_child_by_field","kind":"call","line":1234,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_include","name":"node_text","kind":"call","line":1235,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_include","name":"path\n            .trim_start_matches(['<', '\"'])\n            .trim_end_matches(['>', '\"'])\n            .to_string","kind":"call","line":1236}
-{"file":"src/parser/cpp.rs","caller":"extract_include","name":"path\n            .trim_start_matches(['<', '\"'])\n            .trim_end_matches","kind":"call","line":1236}
-{"file":"src/parser/cpp.rs","caller":"extract_include","name":"path\n            .trim_start_matches","kind":"call","line":1236}
-{"file":"src/parser/cpp.rs","caller":"extract_include","name":"push_symbol","kind":"call","line":1240,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_include","name":"path.clone","kind":"call","line":1243}
-{"file":"src/parser/cpp.rs","caller":"extract_include","name":"\"private\".to_string","kind":"call","line":1249}
-{"file":"src/parser/cpp.rs","caller":"extract_include","name":"references.push","kind":"call","line":1252}
-{"file":"src/parser/cpp.rs","caller":"extract_include","name":"file_path.to_string","kind":"call","line":1253}
-{"file":"src/parser/cpp.rs","caller":"extract_include","name":"\"import\".to_string","kind":"call","line":1255}
-{"file":"src/parser/cpp.rs","caller":"extract_include","name":"String::new","kind":"call","line":1258}
-{"file":"src/parser/cpp.rs","caller":"extract_macro","name":"Vec","kind":"type_annotation","line":1264}
-{"file":"src/parser/cpp.rs","caller":"extract_macro","name":"SymbolEntry","kind":"type_annotation","line":1264}
-{"file":"src/parser/cpp.rs","caller":"extract_macro","name":"Node","kind":"type_annotation","line":1264}
-{"file":"src/parser/cpp.rs","caller":"extract_macro","name":"find_child_by_field","kind":"call","line":1265,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_macro","name":"node_text","kind":"call","line":1266,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_macro","name":"node_line_range","kind":"call","line":1270,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_macro","name":"node.kind","kind":"call","line":1271}
-{"file":"src/parser/cpp.rs","caller":"extract_macro","name":"find_child_by_field(node, \"value\").map","kind":"call","line":1281}
-{"file":"src/parser/cpp.rs","caller":"extract_macro","name":"find_child_by_field","kind":"call","line":1281,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_macro","name":"truncate_sig","kind":"call","line":1281,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_macro","name":"node_text(v, source).trim","kind":"call","line":1281}
-{"file":"src/parser/cpp.rs","caller":"extract_macro","name":"node_text","kind":"call","line":1281,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_macro","name":"symbols.push","kind":"call","line":1286}
-{"file":"src/parser/cpp.rs","caller":"extract_macro","name":"file_path.to_string","kind":"call","line":1287}
-{"file":"src/parser/cpp.rs","caller":"extract_macro","name":"kind.to_string","kind":"call","line":1289}
-{"file":"src/parser/cpp.rs","caller":"extract_macro","name":"\"public\".to_string","kind":"call","line":1294}
-{"file":"src/parser/cpp.rs","caller":"extract_macro","name":"String::new","kind":"call","line":1296}
-{"file":"src/parser/cpp.rs","caller":"extract_macro","name":"Vec::new","kind":"call","line":1297}
-{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"Node","kind":"type_annotation","line":1301}
-{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"String","kind":"type_annotation","line":1301}
-{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"node.kind","kind":"call","line":1302}
-{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"node_text","kind":"call","line":1303,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"node_text","kind":"call","line":1306,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"find_child_by_field(node, \"declarator\")\n            .map(|d| extract_declarator_name(d, source))\n            .unwrap_or_default","kind":"call","line":1308}
-{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"find_child_by_field(node, \"declarator\")\n            .map","kind":"call","line":1308}
-{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"find_child_by_field","kind":"call","line":1308,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"extract_declarator_name","kind":"call","line":1309,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"find_child_by_field(node, \"declarator\")\n            .map(|d| extract_declarator_name(d, source))\n            .unwrap_or_default","kind":"call","line":1311}
-{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"find_child_by_field(node, \"declarator\")\n            .map","kind":"call","line":1311}
-{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"find_child_by_field","kind":"call","line":1311,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"extract_declarator_name","kind":"call","line":1312,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"find_child_by_field(node, \"declarator\")\n            .map(|d| extract_declarator_name(d, source))\n            .unwrap_or_default","kind":"call","line":1314}
-{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"find_child_by_field(node, \"declarator\")\n            .map","kind":"call","line":1314}
-{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"find_child_by_field","kind":"call","line":1314,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"extract_declarator_name","kind":"call","line":1315,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"node.walk","kind":"call","line":1318}
-{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"node.children","kind":"call","line":1319}
-{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"extract_declarator_name","kind":"call","line":1320,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"name.is_empty","kind":"call","line":1321}
-{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"String::new","kind":"call","line":1325}
-{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"node_text","kind":"call","line":1329,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"String::new","kind":"call","line":1331}
-{"file":"src/parser/cpp.rs","caller":"is_constexpr_or_const","name":"Node","kind":"type_annotation","line":1342}
-{"file":"src/parser/cpp.rs","caller":"is_constexpr_or_const","name":"node.walk","kind":"call","line":1343}
-{"file":"src/parser/cpp.rs","caller":"is_constexpr_or_const","name":"node.children","kind":"call","line":1344}
-{"file":"src/parser/cpp.rs","caller":"is_constexpr_or_const","name":"node_text","kind":"call","line":1346,"confidence":0.5}
-{"file":"src/parser/cpp.rs","caller":"has_storage_class","name":"Node","kind":"type_annotation","line":1355}
-{"file":"src/parser/cpp.rs","caller":"has_storage_class","name":"node.walk","kind":"call","line":1356}
-{"file":"src/parser/cpp.rs","caller":"has_storage_class","name":"node.children","kind":"call","line":1357}
-{"file":"src/parser/cpp.rs","caller":"has_storage_class","name":"child.kind","kind":"call","line":1358}
-{"file":"src/parser/cpp.rs","caller":"has_storage_class","name":"node_text","kind":"call","line":1359,"confidence":0.5}
-{"file":"src/parser/cpp.rs","name":"super::*","kind":"import","line":1370}
-{"file":"src/parser/cpp.rs","name":"crate::parser::treesitter::parse_file","kind":"import","line":1371}
-{"file":"src/parser/cpp.rs","caller":"find_sym","name":"SymbolEntry","kind":"type_annotation","line":1373}
-{"file":"src/parser/cpp.rs","caller":"find_sym","name":"SymbolEntry","kind":"type_annotation","line":1373}
-{"file":"src/parser/cpp.rs","caller":"find_sym","name":"symbols\n            .iter()\n            .find(|s| s.name == name)\n            .unwrap_or_else","kind":"call","line":1374}
-{"file":"src/parser/cpp.rs","caller":"find_sym","name":"symbols\n            .iter()\n            .find","kind":"call","line":1374}
-{"file":"src/parser/cpp.rs","caller":"find_sym","name":"symbols\n            .iter","kind":"call","line":1374}
-{"file":"src/parser/cpp.rs","caller":"cpp_bare_call_gets_tier1_confidence","name":"parse_file(source, \"cpp\", \"t.cpp\").unwrap","kind":"call","line":1383}
-{"file":"src/parser/cpp.rs","caller":"cpp_bare_call_gets_tier1_confidence","name":"parse_file","kind":"call","line":1383,"confidence":0.8}
-{"file":"src/parser/cpp.rs","caller":"cpp_bare_call_gets_tier1_confidence","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1383,"confidence":0.8}
-{"file":"src/parser/cpp.rs","caller":"cpp_bare_call_gets_tier1_confidence","name":"refs\n            .iter()\n            .find(|r| r.kind == \"call\" && r.name == \"helper\")\n            .expect","kind":"call","line":1384}
-{"file":"src/parser/cpp.rs","caller":"cpp_bare_call_gets_tier1_confidence","name":"refs\n            .iter()\n            .find","kind":"call","line":1384}
-{"file":"src/parser/cpp.rs","caller":"cpp_bare_call_gets_tier1_confidence","name":"refs\n            .iter","kind":"call","line":1384}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_functions","name":"parse_file(source, \"cpp\", \"test.cpp\").unwrap","kind":"call","line":1400}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_functions","name":"parse_file","kind":"call","line":1400,"confidence":0.8}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_functions","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1400,"confidence":0.8}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_functions","name":"find_sym","kind":"call","line":1402,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_functions","name":"find_sym","kind":"call","line":1407,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_class","name":"parse_file(source, \"cpp\", \"test.cpp\").unwrap","kind":"call","line":1427}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_class","name":"parse_file","kind":"call","line":1427,"confidence":0.8}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_class","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1427,"confidence":0.8}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_class","name":"find_sym","kind":"call","line":1429,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_class","name":"find_sym","kind":"call","line":1432,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_class","name":"find_sym","kind":"call","line":1436,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_class","name":"find_sym","kind":"call","line":1439,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_struct","name":"parse_file(source, \"cpp\", \"test.cpp\").unwrap","kind":"call","line":1452}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_struct","name":"parse_file","kind":"call","line":1452,"confidence":0.8}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_struct","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1452,"confidence":0.8}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_struct","name":"find_sym","kind":"call","line":1454,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_struct","name":"find_sym","kind":"call","line":1457,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_struct","name":"find_sym","kind":"call","line":1460,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_namespace","name":"parse_file(source, \"cpp\", \"test.cpp\").unwrap","kind":"call","line":1474}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_namespace","name":"parse_file","kind":"call","line":1474,"confidence":0.8}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_namespace","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1474,"confidence":0.8}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_namespace","name":"find_sym","kind":"call","line":1476,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_namespace","name":"find_sym","kind":"call","line":1479,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_namespace","name":"find_sym","kind":"call","line":1482,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_namespace","name":"find_sym","kind":"call","line":1485,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_enum","name":"parse_file(source, \"cpp\", \"test.cpp\").unwrap","kind":"call","line":1501}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_enum","name":"parse_file","kind":"call","line":1501,"confidence":0.8}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_enum","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1501,"confidence":0.8}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_enum","name":"find_sym","kind":"call","line":1503,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_enum","name":"find_sym","kind":"call","line":1506,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_enum","name":"find_sym","kind":"call","line":1509,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_template","name":"parse_file(source, \"cpp\", \"test.cpp\").unwrap","kind":"call","line":1525}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_template","name":"parse_file","kind":"call","line":1525,"confidence":0.8}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_template","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1525,"confidence":0.8}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_template","name":"find_sym","kind":"call","line":1527,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_template","name":"find_sym","kind":"call","line":1530,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_template","name":"find_sym","kind":"call","line":1533,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_using","name":"parse_file(source, \"cpp\", \"test.cpp\").unwrap","kind":"call","line":1542}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_using","name":"parse_file","kind":"call","line":1542,"confidence":0.8}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_using","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1542,"confidence":0.8}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_using","name":"symbols\n            .iter()\n            .find(|s| s.name.contains(\"namespace std\"))\n            .unwrap","kind":"call","line":1544}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_using","name":"symbols\n            .iter()\n            .find","kind":"call","line":1544}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_using","name":"symbols\n            .iter","kind":"call","line":1544}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_using","name":"s.name.contains","kind":"call","line":1546}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_using","name":"symbols.iter().find(|s| s.name.contains(\"string\")).unwrap","kind":"call","line":1550}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_using","name":"symbols.iter().find","kind":"call","line":1550}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_using","name":"symbols.iter","kind":"call","line":1550}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_using","name":"s.name.contains","kind":"call","line":1550}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_using","name":"find_sym","kind":"call","line":1553,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_includes","name":"parse_file(source, \"cpp\", \"test.cpp\").unwrap","kind":"call","line":1561}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_includes","name":"parse_file","kind":"call","line":1561,"confidence":0.8}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_includes","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1561,"confidence":0.8}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_includes","name":"symbols.iter().find(|s| s.name == \"iostream\").unwrap","kind":"call","line":1563}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_includes","name":"symbols.iter().find","kind":"call","line":1563}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_includes","name":"symbols.iter","kind":"call","line":1563}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_includes","name":"symbols.iter().find(|s| s.name == \"myheader.h\").unwrap","kind":"call","line":1566}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_includes","name":"symbols.iter().find","kind":"call","line":1566}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_includes","name":"symbols.iter","kind":"call","line":1566}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_anonymous_namespace","name":"parse_file(source, \"cpp\", \"test.cpp\").unwrap","kind":"call","line":1575}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_anonymous_namespace","name":"parse_file","kind":"call","line":1575,"confidence":0.8}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_anonymous_namespace","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1575,"confidence":0.8}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_anonymous_namespace","name":"find_sym","kind":"call","line":1578,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_anonymous_namespace","name":"find_sym","kind":"call","line":1581,"confidence":0.95}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_comments","name":"parse_file(source, \"cpp\", \"test.cpp\").unwrap","kind":"call","line":1591}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_comments","name":"parse_file","kind":"call","line":1591,"confidence":0.8}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_comments","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1591,"confidence":0.8}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_call_references","name":"parse_file(source, \"cpp\", \"test.cpp\").unwrap","kind":"call","line":1602}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_call_references","name":"parse_file","kind":"call","line":1602,"confidence":0.8}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_call_references","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1602,"confidence":0.8}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_call_references","name":"refs.iter().filter(|r| r.kind == \"call\").collect","kind":"call","line":1604}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_call_references","name":"refs.iter().filter","kind":"call","line":1604}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_call_references","name":"refs.iter","kind":"call","line":1604}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_include_references","name":"parse_file(source, \"cpp\", \"test.cpp\").unwrap","kind":"call","line":1613}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_include_references","name":"parse_file","kind":"call","line":1613,"confidence":0.8}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_include_references","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1613,"confidence":0.8}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_include_references","name":"refs.iter().filter(|r| r.kind == \"import\").collect","kind":"call","line":1615}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_include_references","name":"refs.iter().filter","kind":"call","line":1615}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_include_references","name":"refs.iter","kind":"call","line":1615}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_instantiation_references","name":"parse_file(source, \"cpp\", \"test.cpp\").unwrap","kind":"call","line":1627}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_instantiation_references","name":"parse_file","kind":"call","line":1627,"confidence":0.8}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_instantiation_references","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1627,"confidence":0.8}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_instantiation_references","name":"refs.iter().filter(|r| r.kind == \"instantiation\").collect","kind":"call","line":1629}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_instantiation_references","name":"refs.iter().filter","kind":"call","line":1629}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_instantiation_references","name":"refs.iter","kind":"call","line":1629}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_type_references","name":"parse_file(source, \"cpp\", \"test.cpp\").unwrap","kind":"call","line":1643}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_type_references","name":"parse_file","kind":"call","line":1643,"confidence":0.8}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_type_references","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1643,"confidence":0.8}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_type_references","name":"refs\n            .iter()\n            .filter(|r| r.kind == \"type_annotation\")\n            .collect","kind":"call","line":1645}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_type_references","name":"refs\n            .iter()\n            .filter","kind":"call","line":1645}
-{"file":"src/parser/cpp.rs","caller":"test_cpp_type_references","name":"refs\n            .iter","kind":"call","line":1645}
+{"file":"src/parser/cpp.rs","caller":"get_type_name","name":"node.walk","kind":"call","line":632}
+{"file":"src/parser/cpp.rs","caller":"get_type_name","name":"node.children","kind":"call","line":633}
+{"file":"src/parser/cpp.rs","caller":"get_type_name","name":"child.kind","kind":"call","line":634}
+{"file":"src/parser/cpp.rs","caller":"get_type_name","name":"node_text","kind":"call","line":635,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"get_type_name","name":"String::new","kind":"call","line":638}
+{"file":"src/parser/cpp.rs","caller":"get_type_name","name":"node_text","kind":"call","line":640,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"get_type_name","name":"String::new","kind":"call","line":641}
+{"file":"src/parser/cpp.rs","caller":"emit_cpp_param_type_refs","name":"Node","kind":"type_annotation","line":651}
+{"file":"src/parser/cpp.rs","caller":"emit_cpp_param_type_refs","name":"Option","kind":"type_annotation","line":654}
+{"file":"src/parser/cpp.rs","caller":"emit_cpp_param_type_refs","name":"Vec","kind":"type_annotation","line":655}
+{"file":"src/parser/cpp.rs","caller":"emit_cpp_param_type_refs","name":"ReferenceEntry","kind":"type_annotation","line":655}
+{"file":"src/parser/cpp.rs","caller":"emit_cpp_param_type_refs","name":"stack.pop","kind":"call","line":658}
+{"file":"src/parser/cpp.rs","caller":"emit_cpp_param_type_refs","name":"n.kind","kind":"call","line":659}
+{"file":"src/parser/cpp.rs","caller":"emit_cpp_param_type_refs","name":"find_child_by_field","kind":"call","line":660,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"emit_cpp_param_type_refs","name":"extract_type_ref","kind":"call","line":661,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"emit_cpp_param_type_refs","name":"n.walk","kind":"call","line":665}
+{"file":"src/parser/cpp.rs","caller":"emit_cpp_param_type_refs","name":"n.children","kind":"call","line":666}
+{"file":"src/parser/cpp.rs","caller":"emit_cpp_param_type_refs","name":"stack.push","kind":"call","line":667}
+{"file":"src/parser/cpp.rs","caller":"extract_type_ref","name":"Node","kind":"type_annotation","line":674}
+{"file":"src/parser/cpp.rs","caller":"extract_type_ref","name":"Option","kind":"type_annotation","line":677}
+{"file":"src/parser/cpp.rs","caller":"extract_type_ref","name":"Vec","kind":"type_annotation","line":678}
+{"file":"src/parser/cpp.rs","caller":"extract_type_ref","name":"ReferenceEntry","kind":"type_annotation","line":678}
+{"file":"src/parser/cpp.rs","caller":"extract_type_ref","name":"get_type_name","kind":"call","line":680,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"extract_type_ref","name":"name.is_empty","kind":"call","line":681}
+{"file":"src/parser/cpp.rs","caller":"extract_type_ref","name":"is_cpp_primitive_type","kind":"call","line":681,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"extract_type_ref","name":"node_line_range","kind":"call","line":685,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_type_ref","name":"references.push","kind":"call","line":686}
+{"file":"src/parser/cpp.rs","caller":"extract_type_ref","name":"file_path.to_string","kind":"call","line":687}
+{"file":"src/parser/cpp.rs","caller":"extract_type_ref","name":"\"type_annotation\".to_string","kind":"call","line":689}
+{"file":"src/parser/cpp.rs","caller":"extract_type_ref","name":"parent_ctx.map","kind":"call","line":691}
+{"file":"src/parser/cpp.rs","caller":"extract_type_ref","name":"String::new","kind":"call","line":692}
+{"file":"src/parser/cpp.rs","caller":"extract_function","name":"Node","kind":"type_annotation","line":699}
+{"file":"src/parser/cpp.rs","caller":"extract_function","name":"Option","kind":"type_annotation","line":702}
+{"file":"src/parser/cpp.rs","caller":"extract_function","name":"Vec","kind":"type_annotation","line":704}
+{"file":"src/parser/cpp.rs","caller":"extract_function","name":"SymbolEntry","kind":"type_annotation","line":704}
+{"file":"src/parser/cpp.rs","caller":"extract_function","name":"Vec","kind":"type_annotation","line":705}
+{"file":"src/parser/cpp.rs","caller":"extract_function","name":"ReferenceEntry","kind":"type_annotation","line":705}
+{"file":"src/parser/cpp.rs","caller":"extract_function","name":"find_child_by_field","kind":"call","line":707,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_function","name":"extract_declarator_name","kind":"call","line":712,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"extract_function","name":"name.is_empty","kind":"call","line":713}
+{"file":"src/parser/cpp.rs","caller":"extract_function","name":"node_line_range","kind":"call","line":717,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_function","name":"extract_signature_to_brace","kind":"call","line":718,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_function","name":"parent_ctx.is_some","kind":"call","line":720}
+{"file":"src/parser/cpp.rs","caller":"extract_function","name":"name.clone","kind":"call","line":729}
+{"file":"src/parser/cpp.rs","caller":"extract_function","name":"parent_ctx.is_some","kind":"call","line":732}
+{"file":"src/parser/cpp.rs","caller":"extract_function","name":"access.to_string","kind":"call","line":733}
+{"file":"src/parser/cpp.rs","caller":"extract_function","name":"has_storage_class","kind":"call","line":735,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"extract_function","name":"\"private\".to_string","kind":"call","line":737}
+{"file":"src/parser/cpp.rs","caller":"extract_function","name":"\"public\".to_string","kind":"call","line":739}
+{"file":"src/parser/cpp.rs","caller":"extract_function","name":"find_child_by_field","kind":"call","line":744,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_function","name":"extract_type_ref","kind":"call","line":745,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"extract_function","name":"emit_cpp_param_type_refs","kind":"call","line":754,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"extract_function","name":"find_child_by_field(node, \"body\")\n        .and_then","kind":"call","line":757}
+{"file":"src/parser/cpp.rs","caller":"extract_function","name":"find_child_by_field","kind":"call","line":757,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_function","name":"filter_cpp_tokens","kind":"call","line":758,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"extract_function","name":"extract_tokens","kind":"call","line":758,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_function","name":"push_symbol","kind":"call","line":760,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"Node","kind":"type_annotation","line":774}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"Option","kind":"type_annotation","line":777}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"Vec","kind":"type_annotation","line":779}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"SymbolEntry","kind":"type_annotation","line":779}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"Vec","kind":"type_annotation","line":780}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"ReferenceEntry","kind":"type_annotation","line":780}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"node.parent","kind":"call","line":783}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"p.kind","kind":"call","line":784}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"p.kind","kind":"call","line":784}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"find_child_by_field","kind":"call","line":792,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"extract_type_ref","kind":"call","line":793,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"node_line_range","kind":"call","line":796,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"parent_ctx.is_some","kind":"call","line":798}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"access.to_string","kind":"call","line":799}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"has_storage_class","kind":"call","line":801,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"\"private\".to_string","kind":"call","line":803}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"\"public\".to_string","kind":"call","line":805}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"node.walk","kind":"call","line":809}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"node.children","kind":"call","line":810}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"child.kind","kind":"call","line":811}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"extract_declarator_name","kind":"call","line":813,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"name.is_empty","kind":"call","line":814}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"collapse_whitespace","kind":"call","line":815,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"node_text(node, source).trim","kind":"call","line":815}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"node_text","kind":"call","line":815,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"parent_ctx.is_some","kind":"call","line":821}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"push_symbol","kind":"call","line":827,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"visibility.clone","kind":"call","line":836}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"find_child_by_field","kind":"call","line":841,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"extract_declarator_name","kind":"call","line":842,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"name.is_empty","kind":"call","line":843}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"is_constexpr_or_const","kind":"call","line":847,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"parent_ctx.is_some","kind":"call","line":850}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"find_child_by_field(child, \"value\")\n                                .map","kind":"call","line":864}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"find_child_by_field","kind":"call","line":864,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"truncate_sig","kind":"call","line":865,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"node_text","kind":"call","line":865,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"symbols.push","kind":"call","line":869}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"file_path.to_string","kind":"call","line":870}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"kind.to_string","kind":"call","line":872}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"parent_ctx.map","kind":"call","line":874}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"visibility.clone","kind":"call","line":877}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"String::new","kind":"call","line":879}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"Vec::new","kind":"call","line":880}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"extract_declarator_name","kind":"call","line":886,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"name.is_empty","kind":"call","line":887}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"parent_ctx.is_some","kind":"call","line":888}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"push_symbol","kind":"call","line":898,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_declaration","name":"visibility.clone","kind":"call","line":907}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"Node","kind":"type_annotation","line":918}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"Option","kind":"type_annotation","line":922}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"Vec","kind":"type_annotation","line":923}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"SymbolEntry","kind":"type_annotation","line":923}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"Vec","kind":"type_annotation","line":924}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"TextEntry","kind":"type_annotation","line":924}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"Vec","kind":"type_annotation","line":925}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"ReferenceEntry","kind":"type_annotation","line":925}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"find_child_by_field(node, \"name\")\n        .map(|n| node_text(n, source))\n        .unwrap_or_default","kind":"call","line":928}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"find_child_by_field(node, \"name\")\n        .map","kind":"call","line":928}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"find_child_by_field","kind":"call","line":928,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"node_text","kind":"call","line":929,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"name.is_empty","kind":"call","line":932}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"node_line_range","kind":"call","line":936,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"name.clone","kind":"call","line":946}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"find_child_by_field(node, \"base_class_clause\").or_else","kind":"call","line":951}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"find_child_by_field","kind":"call","line":951,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"node.walk","kind":"call","line":953}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"node.children(&mut cursor)\n            .find","kind":"call","line":954}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"node.children","kind":"call","line":954}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"c.kind","kind":"call","line":955}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"Vec::new","kind":"call","line":957}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"bases.walk","kind":"call","line":959}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"bases.children","kind":"call","line":960}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"child.kind","kind":"call","line":961}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"child.walk","kind":"call","line":964}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"child.children","kind":"call","line":965}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"extract_type_ref","kind":"call","line":970,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"node_text","kind":"call","line":977,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"target.is_empty","kind":"call","line":981}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"heritage.push","kind":"call","line":982}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"\"extend\".to_string","kind":"call","line":982}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"extract_type_ref","kind":"call","line":989,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"node_text","kind":"call","line":991,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"target.is_empty","kind":"call","line":992}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"heritage.push","kind":"call","line":993}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"\"extend\".to_string","kind":"call","line":993}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"symbols.push","kind":"call","line":1001}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"file_path.to_string","kind":"call","line":1002}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"full_name.clone","kind":"call","line":1003}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"kind.to_string","kind":"call","line":1004}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"parent_ctx.map","kind":"call","line":1006}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"\"public\".to_string","kind":"call","line":1009}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"String::new","kind":"call","line":1011}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"find_child_by_field","kind":"call","line":1016,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"default_access.to_string","kind":"call","line":1023}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"body.walk","kind":"call","line":1025}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"body.children","kind":"call","line":1026}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"child.kind","kind":"call","line":1027}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"node_text(child, source)\n                    .trim_end_matches(':')\n                    .trim()\n                    .to_string","kind":"call","line":1028}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"node_text(child, source)\n                    .trim_end_matches(':')\n                    .trim","kind":"call","line":1028}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"node_text(child, source)\n                    .trim_end_matches","kind":"call","line":1028}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"node_text","kind":"call","line":1028,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"text.as_str","kind":"call","line":1032}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"\"public\".to_string","kind":"call","line":1033}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"\"internal\".to_string","kind":"call","line":1034}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"\"private\".to_string","kind":"call","line":1035}
+{"file":"src/parser/cpp.rs","caller":"extract_class","name":"walk_node","kind":"call","line":1040,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"Node","kind":"type_annotation","line":1056}
+{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"Option","kind":"type_annotation","line":1059}
+{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"Vec","kind":"type_annotation","line":1060}
+{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"SymbolEntry","kind":"type_annotation","line":1060}
+{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"find_child_by_field(node, \"name\")\n        .map(|n| node_text(n, source))\n        .unwrap_or_default","kind":"call","line":1062}
+{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"find_child_by_field(node, \"name\")\n        .map","kind":"call","line":1062}
+{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"find_child_by_field","kind":"call","line":1062,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"node_text","kind":"call","line":1063,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"name.is_empty","kind":"call","line":1066}
+{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"node_line_range","kind":"call","line":1070,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"name.clone","kind":"call","line":1075}
+{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"push_symbol","kind":"call","line":1078,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"full_name.clone","kind":"call","line":1081}
+{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"\"public\".to_string","kind":"call","line":1087}
+{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"find_child_by_field","kind":"call","line":1091,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"body.walk","kind":"call","line":1092}
+{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"body.children","kind":"call","line":1093}
+{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"child.kind","kind":"call","line":1094}
+{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"find_child_by_field","kind":"call","line":1095,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"node_text","kind":"call","line":1097,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"node_line_range","kind":"call","line":1098,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"push_symbol","kind":"call","line":1099,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_enum","name":"\"public\".to_string","kind":"call","line":1108}
+{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"Node","kind":"type_annotation","line":1117}
+{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"Option","kind":"type_annotation","line":1120}
+{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"Vec","kind":"type_annotation","line":1121}
+{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"SymbolEntry","kind":"type_annotation","line":1121}
+{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"Vec","kind":"type_annotation","line":1122}
+{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"TextEntry","kind":"type_annotation","line":1122}
+{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"Vec","kind":"type_annotation","line":1123}
+{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"ReferenceEntry","kind":"type_annotation","line":1123}
+{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"find_child_by_field(node, \"name\")\n        .map(|n| node_text(n, source))\n        .unwrap_or_default","kind":"call","line":1126}
+{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"find_child_by_field(node, \"name\")\n        .map","kind":"call","line":1126}
+{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"find_child_by_field","kind":"call","line":1126,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"node_text","kind":"call","line":1127,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"name.is_empty","kind":"call","line":1131}
+{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"find_child_by_field","kind":"call","line":1132,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"body.walk","kind":"call","line":1133}
+{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"body.children","kind":"call","line":1134}
+{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"walk_node","kind":"call","line":1135,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"node_line_range","kind":"call","line":1151,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"name.clone","kind":"call","line":1155}
+{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"push_symbol","kind":"call","line":1158,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"full_name.clone","kind":"call","line":1161}
+{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"\"public\".to_string","kind":"call","line":1167}
+{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"find_child_by_field","kind":"call","line":1170,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"body.walk","kind":"call","line":1171}
+{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"body.children","kind":"call","line":1172}
+{"file":"src/parser/cpp.rs","caller":"extract_namespace","name":"walk_node","kind":"call","line":1173,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"extract_typedef","name":"Node","kind":"type_annotation","line":1189}
+{"file":"src/parser/cpp.rs","caller":"extract_typedef","name":"Option","kind":"type_annotation","line":1192}
+{"file":"src/parser/cpp.rs","caller":"extract_typedef","name":"Vec","kind":"type_annotation","line":1193}
+{"file":"src/parser/cpp.rs","caller":"extract_typedef","name":"SymbolEntry","kind":"type_annotation","line":1193}
+{"file":"src/parser/cpp.rs","caller":"extract_typedef","name":"node_line_range","kind":"call","line":1195,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_typedef","name":"node.walk","kind":"call","line":1196}
+{"file":"src/parser/cpp.rs","caller":"extract_typedef","name":"node.children","kind":"call","line":1197}
+{"file":"src/parser/cpp.rs","caller":"extract_typedef","name":"child.kind","kind":"call","line":1198}
+{"file":"src/parser/cpp.rs","caller":"extract_typedef","name":"child.kind","kind":"call","line":1198}
+{"file":"src/parser/cpp.rs","caller":"extract_typedef","name":"node_text","kind":"call","line":1199,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_typedef","name":"push_symbol","kind":"call","line":1205,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_typedef","name":"\"public\".to_string","kind":"call","line":1214}
+{"file":"src/parser/cpp.rs","caller":"extract_using_alias","name":"Node","kind":"type_annotation","line":1221}
+{"file":"src/parser/cpp.rs","caller":"extract_using_alias","name":"Option","kind":"type_annotation","line":1224}
+{"file":"src/parser/cpp.rs","caller":"extract_using_alias","name":"Vec","kind":"type_annotation","line":1225}
+{"file":"src/parser/cpp.rs","caller":"extract_using_alias","name":"SymbolEntry","kind":"type_annotation","line":1225}
+{"file":"src/parser/cpp.rs","caller":"extract_using_alias","name":"find_child_by_field","kind":"call","line":1227,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_using_alias","name":"node_text","kind":"call","line":1228,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_using_alias","name":"node_line_range","kind":"call","line":1232,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_using_alias","name":"push_symbol","kind":"call","line":1239,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_using_alias","name":"\"public\".to_string","kind":"call","line":1248}
+{"file":"src/parser/cpp.rs","caller":"extract_using","name":"Vec","kind":"type_annotation","line":1252}
+{"file":"src/parser/cpp.rs","caller":"extract_using","name":"SymbolEntry","kind":"type_annotation","line":1252}
+{"file":"src/parser/cpp.rs","caller":"extract_using","name":"Node","kind":"type_annotation","line":1252}
+{"file":"src/parser/cpp.rs","caller":"extract_using","name":"node_line_range","kind":"call","line":1253,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_using","name":"node_text","kind":"call","line":1254,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_using","name":"text\n        .strip_prefix(\"using\")\n        .unwrap_or(&text)\n        .trim()\n        .strip_suffix(';')\n        .unwrap_or(&text)\n        .trim()\n        .to_string","kind":"call","line":1256}
+{"file":"src/parser/cpp.rs","caller":"extract_using","name":"text\n        .strip_prefix(\"using\")\n        .unwrap_or(&text)\n        .trim()\n        .strip_suffix(';')\n        .unwrap_or(&text)\n        .trim","kind":"call","line":1256}
+{"file":"src/parser/cpp.rs","caller":"extract_using","name":"text\n        .strip_prefix(\"using\")\n        .unwrap_or(&text)\n        .trim()\n        .strip_suffix(';')\n        .unwrap_or","kind":"call","line":1256}
+{"file":"src/parser/cpp.rs","caller":"extract_using","name":"text\n        .strip_prefix(\"using\")\n        .unwrap_or(&text)\n        .trim()\n        .strip_suffix","kind":"call","line":1256}
+{"file":"src/parser/cpp.rs","caller":"extract_using","name":"text\n        .strip_prefix(\"using\")\n        .unwrap_or(&text)\n        .trim","kind":"call","line":1256}
+{"file":"src/parser/cpp.rs","caller":"extract_using","name":"text\n        .strip_prefix(\"using\")\n        .unwrap_or","kind":"call","line":1256}
+{"file":"src/parser/cpp.rs","caller":"extract_using","name":"text\n        .strip_prefix","kind":"call","line":1256}
+{"file":"src/parser/cpp.rs","caller":"extract_using","name":"name.is_empty","kind":"call","line":1265}
+{"file":"src/parser/cpp.rs","caller":"extract_using","name":"push_symbol","kind":"call","line":1266,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_using","name":"\"private\".to_string","kind":"call","line":1275}
+{"file":"src/parser/cpp.rs","caller":"extract_include","name":"Node","kind":"type_annotation","line":1281}
+{"file":"src/parser/cpp.rs","caller":"extract_include","name":"Vec","kind":"type_annotation","line":1284}
+{"file":"src/parser/cpp.rs","caller":"extract_include","name":"SymbolEntry","kind":"type_annotation","line":1284}
+{"file":"src/parser/cpp.rs","caller":"extract_include","name":"Vec","kind":"type_annotation","line":1285}
+{"file":"src/parser/cpp.rs","caller":"extract_include","name":"ReferenceEntry","kind":"type_annotation","line":1285}
+{"file":"src/parser/cpp.rs","caller":"extract_include","name":"node_line_range","kind":"call","line":1287,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_include","name":"find_child_by_field","kind":"call","line":1288,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_include","name":"node_text","kind":"call","line":1289,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_include","name":"path\n            .trim_start_matches(['<', '\"'])\n            .trim_end_matches(['>', '\"'])\n            .to_string","kind":"call","line":1290}
+{"file":"src/parser/cpp.rs","caller":"extract_include","name":"path\n            .trim_start_matches(['<', '\"'])\n            .trim_end_matches","kind":"call","line":1290}
+{"file":"src/parser/cpp.rs","caller":"extract_include","name":"path\n            .trim_start_matches","kind":"call","line":1290}
+{"file":"src/parser/cpp.rs","caller":"extract_include","name":"push_symbol","kind":"call","line":1294,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_include","name":"path.clone","kind":"call","line":1297}
+{"file":"src/parser/cpp.rs","caller":"extract_include","name":"\"private\".to_string","kind":"call","line":1303}
+{"file":"src/parser/cpp.rs","caller":"extract_include","name":"references.push","kind":"call","line":1306}
+{"file":"src/parser/cpp.rs","caller":"extract_include","name":"file_path.to_string","kind":"call","line":1307}
+{"file":"src/parser/cpp.rs","caller":"extract_include","name":"\"import\".to_string","kind":"call","line":1309}
+{"file":"src/parser/cpp.rs","caller":"extract_include","name":"String::new","kind":"call","line":1312}
+{"file":"src/parser/cpp.rs","caller":"extract_macro","name":"Vec","kind":"type_annotation","line":1318}
+{"file":"src/parser/cpp.rs","caller":"extract_macro","name":"SymbolEntry","kind":"type_annotation","line":1318}
+{"file":"src/parser/cpp.rs","caller":"extract_macro","name":"Node","kind":"type_annotation","line":1318}
+{"file":"src/parser/cpp.rs","caller":"extract_macro","name":"find_child_by_field","kind":"call","line":1319,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_macro","name":"node_text","kind":"call","line":1320,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_macro","name":"node_line_range","kind":"call","line":1324,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_macro","name":"node.kind","kind":"call","line":1325}
+{"file":"src/parser/cpp.rs","caller":"extract_macro","name":"find_child_by_field(node, \"value\").map","kind":"call","line":1335}
+{"file":"src/parser/cpp.rs","caller":"extract_macro","name":"find_child_by_field","kind":"call","line":1335,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_macro","name":"truncate_sig","kind":"call","line":1335,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_macro","name":"node_text(v, source).trim","kind":"call","line":1335}
+{"file":"src/parser/cpp.rs","caller":"extract_macro","name":"node_text","kind":"call","line":1335,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_macro","name":"symbols.push","kind":"call","line":1340}
+{"file":"src/parser/cpp.rs","caller":"extract_macro","name":"file_path.to_string","kind":"call","line":1341}
+{"file":"src/parser/cpp.rs","caller":"extract_macro","name":"kind.to_string","kind":"call","line":1343}
+{"file":"src/parser/cpp.rs","caller":"extract_macro","name":"\"public\".to_string","kind":"call","line":1348}
+{"file":"src/parser/cpp.rs","caller":"extract_macro","name":"String::new","kind":"call","line":1350}
+{"file":"src/parser/cpp.rs","caller":"extract_macro","name":"Vec::new","kind":"call","line":1351}
+{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"Node","kind":"type_annotation","line":1355}
+{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"String","kind":"type_annotation","line":1355}
+{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"node.kind","kind":"call","line":1356}
+{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"node_text","kind":"call","line":1357,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"node_text","kind":"call","line":1360,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"find_child_by_field(node, \"declarator\")\n            .map(|d| extract_declarator_name(d, source))\n            .unwrap_or_default","kind":"call","line":1362}
+{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"find_child_by_field(node, \"declarator\")\n            .map","kind":"call","line":1362}
+{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"find_child_by_field","kind":"call","line":1362,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"extract_declarator_name","kind":"call","line":1363,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"find_child_by_field(node, \"declarator\")\n            .map(|d| extract_declarator_name(d, source))\n            .unwrap_or_default","kind":"call","line":1365}
+{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"find_child_by_field(node, \"declarator\")\n            .map","kind":"call","line":1365}
+{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"find_child_by_field","kind":"call","line":1365,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"extract_declarator_name","kind":"call","line":1366,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"find_child_by_field(node, \"declarator\")\n            .map(|d| extract_declarator_name(d, source))\n            .unwrap_or_default","kind":"call","line":1368}
+{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"find_child_by_field(node, \"declarator\")\n            .map","kind":"call","line":1368}
+{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"find_child_by_field","kind":"call","line":1368,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"extract_declarator_name","kind":"call","line":1369,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"node.walk","kind":"call","line":1372}
+{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"node.children","kind":"call","line":1373}
+{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"extract_declarator_name","kind":"call","line":1374,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"name.is_empty","kind":"call","line":1375}
+{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"String::new","kind":"call","line":1379}
+{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"node_text","kind":"call","line":1383,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"extract_declarator_name","name":"String::new","kind":"call","line":1385}
+{"file":"src/parser/cpp.rs","caller":"is_constexpr_or_const","name":"Node","kind":"type_annotation","line":1396}
+{"file":"src/parser/cpp.rs","caller":"is_constexpr_or_const","name":"node.walk","kind":"call","line":1397}
+{"file":"src/parser/cpp.rs","caller":"is_constexpr_or_const","name":"node.children","kind":"call","line":1398}
+{"file":"src/parser/cpp.rs","caller":"is_constexpr_or_const","name":"node_text","kind":"call","line":1400,"confidence":0.5}
+{"file":"src/parser/cpp.rs","caller":"has_storage_class","name":"Node","kind":"type_annotation","line":1409}
+{"file":"src/parser/cpp.rs","caller":"has_storage_class","name":"node.walk","kind":"call","line":1410}
+{"file":"src/parser/cpp.rs","caller":"has_storage_class","name":"node.children","kind":"call","line":1411}
+{"file":"src/parser/cpp.rs","caller":"has_storage_class","name":"child.kind","kind":"call","line":1412}
+{"file":"src/parser/cpp.rs","caller":"has_storage_class","name":"node_text","kind":"call","line":1413,"confidence":0.5}
+{"file":"src/parser/cpp.rs","name":"super::*","kind":"import","line":1424}
+{"file":"src/parser/cpp.rs","name":"crate::parser::treesitter::parse_file","kind":"import","line":1425}
+{"file":"src/parser/cpp.rs","caller":"find_sym","name":"SymbolEntry","kind":"type_annotation","line":1427}
+{"file":"src/parser/cpp.rs","caller":"find_sym","name":"SymbolEntry","kind":"type_annotation","line":1427}
+{"file":"src/parser/cpp.rs","caller":"find_sym","name":"symbols\n            .iter()\n            .find(|s| s.name == name)\n            .unwrap_or_else","kind":"call","line":1428}
+{"file":"src/parser/cpp.rs","caller":"find_sym","name":"symbols\n            .iter()\n            .find","kind":"call","line":1428}
+{"file":"src/parser/cpp.rs","caller":"find_sym","name":"symbols\n            .iter","kind":"call","line":1428}
+{"file":"src/parser/cpp.rs","caller":"cpp_bare_call_gets_tier1_confidence","name":"parse_file(source, \"cpp\", \"t.cpp\").unwrap","kind":"call","line":1437}
+{"file":"src/parser/cpp.rs","caller":"cpp_bare_call_gets_tier1_confidence","name":"parse_file","kind":"call","line":1437,"confidence":0.8}
+{"file":"src/parser/cpp.rs","caller":"cpp_bare_call_gets_tier1_confidence","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1437,"confidence":0.8}
+{"file":"src/parser/cpp.rs","caller":"cpp_bare_call_gets_tier1_confidence","name":"refs\n            .iter()\n            .find(|r| r.kind == \"call\" && r.name == \"helper\")\n            .expect","kind":"call","line":1438}
+{"file":"src/parser/cpp.rs","caller":"cpp_bare_call_gets_tier1_confidence","name":"refs\n            .iter()\n            .find","kind":"call","line":1438}
+{"file":"src/parser/cpp.rs","caller":"cpp_bare_call_gets_tier1_confidence","name":"refs\n            .iter","kind":"call","line":1438}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_functions","name":"parse_file(source, \"cpp\", \"test.cpp\").unwrap","kind":"call","line":1454}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_functions","name":"parse_file","kind":"call","line":1454,"confidence":0.8}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_functions","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1454,"confidence":0.8}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_functions","name":"find_sym","kind":"call","line":1456,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_functions","name":"find_sym","kind":"call","line":1461,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_class","name":"parse_file(source, \"cpp\", \"test.cpp\").unwrap","kind":"call","line":1481}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_class","name":"parse_file","kind":"call","line":1481,"confidence":0.8}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_class","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1481,"confidence":0.8}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_class","name":"find_sym","kind":"call","line":1483,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_class","name":"find_sym","kind":"call","line":1486,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_class","name":"find_sym","kind":"call","line":1490,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_class","name":"find_sym","kind":"call","line":1493,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_struct","name":"parse_file(source, \"cpp\", \"test.cpp\").unwrap","kind":"call","line":1506}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_struct","name":"parse_file","kind":"call","line":1506,"confidence":0.8}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_struct","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1506,"confidence":0.8}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_struct","name":"find_sym","kind":"call","line":1508,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_struct","name":"find_sym","kind":"call","line":1511,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_struct","name":"find_sym","kind":"call","line":1514,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_parameter_and_field_type_refs","name":"parse_file(source, \"cpp\", \"test.cpp\").unwrap","kind":"call","line":1530}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_parameter_and_field_type_refs","name":"parse_file","kind":"call","line":1530,"confidence":0.8}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_parameter_and_field_type_refs","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1530,"confidence":0.8}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_parameter_and_field_type_refs","name":"refs\n            .iter()\n            .filter(|r| r.kind == \"type_annotation\" && r.name == \"SectionInfo\")\n            .collect","kind":"call","line":1531}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_parameter_and_field_type_refs","name":"refs\n            .iter()\n            .filter","kind":"call","line":1531}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_parameter_and_field_type_refs","name":"refs\n            .iter","kind":"call","line":1531}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_namespace","name":"parse_file(source, \"cpp\", \"test.cpp\").unwrap","kind":"call","line":1553}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_namespace","name":"parse_file","kind":"call","line":1553,"confidence":0.8}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_namespace","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1553,"confidence":0.8}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_namespace","name":"find_sym","kind":"call","line":1555,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_namespace","name":"find_sym","kind":"call","line":1558,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_namespace","name":"find_sym","kind":"call","line":1561,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_namespace","name":"find_sym","kind":"call","line":1564,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_enum","name":"parse_file(source, \"cpp\", \"test.cpp\").unwrap","kind":"call","line":1580}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_enum","name":"parse_file","kind":"call","line":1580,"confidence":0.8}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_enum","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1580,"confidence":0.8}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_enum","name":"find_sym","kind":"call","line":1582,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_enum","name":"find_sym","kind":"call","line":1585,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_enum","name":"find_sym","kind":"call","line":1588,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_template","name":"parse_file(source, \"cpp\", \"test.cpp\").unwrap","kind":"call","line":1604}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_template","name":"parse_file","kind":"call","line":1604,"confidence":0.8}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_template","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1604,"confidence":0.8}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_template","name":"find_sym","kind":"call","line":1606,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_template","name":"find_sym","kind":"call","line":1609,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_template","name":"find_sym","kind":"call","line":1612,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_using","name":"parse_file(source, \"cpp\", \"test.cpp\").unwrap","kind":"call","line":1621}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_using","name":"parse_file","kind":"call","line":1621,"confidence":0.8}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_using","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1621,"confidence":0.8}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_using","name":"symbols\n            .iter()\n            .find(|s| s.name.contains(\"namespace std\"))\n            .unwrap","kind":"call","line":1623}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_using","name":"symbols\n            .iter()\n            .find","kind":"call","line":1623}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_using","name":"symbols\n            .iter","kind":"call","line":1623}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_using","name":"s.name.contains","kind":"call","line":1625}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_using","name":"symbols.iter().find(|s| s.name.contains(\"string\")).unwrap","kind":"call","line":1629}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_using","name":"symbols.iter().find","kind":"call","line":1629}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_using","name":"symbols.iter","kind":"call","line":1629}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_using","name":"s.name.contains","kind":"call","line":1629}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_using","name":"find_sym","kind":"call","line":1632,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_includes","name":"parse_file(source, \"cpp\", \"test.cpp\").unwrap","kind":"call","line":1640}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_includes","name":"parse_file","kind":"call","line":1640,"confidence":0.8}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_includes","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1640,"confidence":0.8}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_includes","name":"symbols.iter().find(|s| s.name == \"iostream\").unwrap","kind":"call","line":1642}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_includes","name":"symbols.iter().find","kind":"call","line":1642}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_includes","name":"symbols.iter","kind":"call","line":1642}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_includes","name":"symbols.iter().find(|s| s.name == \"myheader.h\").unwrap","kind":"call","line":1645}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_includes","name":"symbols.iter().find","kind":"call","line":1645}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_includes","name":"symbols.iter","kind":"call","line":1645}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_anonymous_namespace","name":"parse_file(source, \"cpp\", \"test.cpp\").unwrap","kind":"call","line":1654}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_anonymous_namespace","name":"parse_file","kind":"call","line":1654,"confidence":0.8}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_anonymous_namespace","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1654,"confidence":0.8}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_anonymous_namespace","name":"find_sym","kind":"call","line":1657,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_anonymous_namespace","name":"find_sym","kind":"call","line":1660,"confidence":0.95}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_comments","name":"parse_file(source, \"cpp\", \"test.cpp\").unwrap","kind":"call","line":1670}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_comments","name":"parse_file","kind":"call","line":1670,"confidence":0.8}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_comments","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1670,"confidence":0.8}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_call_references","name":"parse_file(source, \"cpp\", \"test.cpp\").unwrap","kind":"call","line":1681}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_call_references","name":"parse_file","kind":"call","line":1681,"confidence":0.8}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_call_references","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1681,"confidence":0.8}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_call_references","name":"refs.iter().filter(|r| r.kind == \"call\").collect","kind":"call","line":1683}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_call_references","name":"refs.iter().filter","kind":"call","line":1683}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_call_references","name":"refs.iter","kind":"call","line":1683}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_include_references","name":"parse_file(source, \"cpp\", \"test.cpp\").unwrap","kind":"call","line":1692}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_include_references","name":"parse_file","kind":"call","line":1692,"confidence":0.8}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_include_references","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1692,"confidence":0.8}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_include_references","name":"refs.iter().filter(|r| r.kind == \"import\").collect","kind":"call","line":1694}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_include_references","name":"refs.iter().filter","kind":"call","line":1694}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_include_references","name":"refs.iter","kind":"call","line":1694}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_instantiation_references","name":"parse_file(source, \"cpp\", \"test.cpp\").unwrap","kind":"call","line":1706}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_instantiation_references","name":"parse_file","kind":"call","line":1706,"confidence":0.8}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_instantiation_references","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1706,"confidence":0.8}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_instantiation_references","name":"refs.iter().filter(|r| r.kind == \"instantiation\").collect","kind":"call","line":1708}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_instantiation_references","name":"refs.iter().filter","kind":"call","line":1708}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_instantiation_references","name":"refs.iter","kind":"call","line":1708}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_type_references","name":"parse_file(source, \"cpp\", \"test.cpp\").unwrap","kind":"call","line":1722}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_type_references","name":"parse_file","kind":"call","line":1722,"confidence":0.8}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_type_references","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1722,"confidence":0.8}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_type_references","name":"refs\n            .iter()\n            .filter(|r| r.kind == \"type_annotation\")\n            .collect","kind":"call","line":1724}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_type_references","name":"refs\n            .iter()\n            .filter","kind":"call","line":1724}
+{"file":"src/parser/cpp.rs","caller":"test_cpp_type_references","name":"refs\n            .iter","kind":"call","line":1724}
 {"file":"src/parser/csharp.rs","name":"tree_sitter::{Node, Tree}","kind":"import","line":3}
 {"file":"src/parser/csharp.rs","name":"crate::parser::format::{ReferenceEntry, SymbolEntry, TextEntry}","kind":"import","line":5}
 {"file":"src/parser/csharp.rs","name":"crate::parser::helpers::*","kind":"import","line":6}
@@ -20927,99 +20951,108 @@
 {"file":"src/rank.rs","caller":"compute_blast","name":"refs_to_name.entry(h).or_default","kind":"call","line":314}
 {"file":"src/rank.rs","caller":"compute_blast","name":"refs_to_name.entry","kind":"call","line":314}
 {"file":"src/rank.rs","caller":"compute_blast","name":"HashMap::new","kind":"call","line":319}
-{"file":"src/rank.rs","caller":"compute_blast","name":"refs_to_name\n            .get(e.name.as_str())\n            .cloned()\n            .unwrap_or_default","kind":"call","line":325}
-{"file":"src/rank.rs","caller":"compute_blast","name":"refs_to_name\n            .get(e.name.as_str())\n            .cloned","kind":"call","line":325}
-{"file":"src/rank.rs","caller":"compute_blast","name":"refs_to_name\n            .get","kind":"call","line":325}
-{"file":"src/rank.rs","caller":"compute_blast","name":"e.name.as_str","kind":"call","line":326}
-{"file":"src/rank.rs","caller":"compute_blast","name":"e.qualified_name.as_deref","kind":"call","line":329}
-{"file":"src/rank.rs","caller":"compute_blast","name":"refs_to_name.get","kind":"call","line":331}
-{"file":"src/rank.rs","caller":"compute_blast","name":"hits.push","kind":"call","line":333}
-{"file":"src/rank.rs","caller":"compute_blast","name":"HashSet::new","kind":"call","line":341}
-{"file":"src/rank.rs","caller":"compute_blast","name":"hits.into_iter()\n                .filter(|r| seen.insert(*r as *const Reference))\n                .collect","kind":"call","line":342}
-{"file":"src/rank.rs","caller":"compute_blast","name":"hits.into_iter()\n                .filter","kind":"call","line":342}
-{"file":"src/rank.rs","caller":"compute_blast","name":"hits.into_iter","kind":"call","line":342}
-{"file":"src/rank.rs","caller":"compute_blast","name":"seen.insert","kind":"call","line":343}
-{"file":"src/rank.rs","caller":"compute_blast","name":"direct.len","kind":"call","line":346}
-{"file":"src/rank.rs","caller":"compute_blast","name":"direct.iter().map(|r| r.file.as_str()).collect","kind":"call","line":347}
-{"file":"src/rank.rs","caller":"compute_blast","name":"direct.iter().map","kind":"call","line":347}
-{"file":"src/rank.rs","caller":"compute_blast","name":"direct.iter","kind":"call","line":347}
-{"file":"src/rank.rs","caller":"compute_blast","name":"r.file.as_str","kind":"call","line":347}
-{"file":"src/rank.rs","caller":"compute_blast","name":"direct_files.len","kind":"call","line":348}
-{"file":"src/rank.rs","caller":"compute_blast","name":"transitive_caller_count","kind":"call","line":349,"confidence":0.95}
-{"file":"src/rank.rs","caller":"compute_blast","name":"blast.insert","kind":"call","line":351}
-{"file":"src/rank.rs","caller":"compute_blast","name":"EntityKey::from_entity","kind":"call","line":352}
-{"file":"src/rank.rs","caller":"transitive_caller_count","name":"HashMap","kind":"type_annotation","line":368}
-{"file":"src/rank.rs","caller":"transitive_caller_count","name":"Vec","kind":"type_annotation","line":368}
-{"file":"src/rank.rs","caller":"transitive_caller_count","name":"Reference","kind":"type_annotation","line":368}
-{"file":"src/rank.rs","caller":"transitive_caller_count","name":"String","kind":"type_annotation","line":368}
-{"file":"src/rank.rs","caller":"transitive_caller_count","name":"HashSet::new","kind":"call","line":374}
-{"file":"src/rank.rs","caller":"transitive_caller_count","name":"VecDeque::new","kind":"call","line":376}
-{"file":"src/rank.rs","caller":"transitive_caller_count","name":"queue.push_back","kind":"call","line":377}
-{"file":"src/rank.rs","caller":"transitive_caller_count","name":"visited.insert","kind":"call","line":378}
-{"file":"src/rank.rs","caller":"transitive_caller_count","name":"queue.pop_front","kind":"call","line":381}
-{"file":"src/rank.rs","caller":"transitive_caller_count","name":"refs_to_name.get","kind":"call","line":385}
-{"file":"src/rank.rs","caller":"transitive_caller_count","name":"r.caller.as_deref","kind":"call","line":389}
-{"file":"src/rank.rs","caller":"transitive_caller_count","name":"visited.insert","kind":"call","line":392}
-{"file":"src/rank.rs","caller":"transitive_caller_count","name":"queue.push_back","kind":"call","line":394}
-{"file":"src/rank.rs","name":"super::*","kind":"import","line":403}
-{"file":"src/rank.rs","name":"crate::entity::{Entity, Reference}","kind":"import","line":404}
-{"file":"src/rank.rs","caller":"ent","name":"Entity","kind":"type_annotation","line":409}
-{"file":"src/rank.rs","caller":"ent","name":"file.to_string","kind":"call","line":411}
-{"file":"src/rank.rs","caller":"ent","name":"name.to_string","kind":"call","line":412}
-{"file":"src/rank.rs","caller":"ent","name":"kind.to_string","kind":"call","line":413}
-{"file":"src/rank.rs","caller":"ent","name":"\"deadbeef\".to_string","kind":"call","line":422}
-{"file":"src/rank.rs","caller":"ent","name":"Vec::new","kind":"call","line":427}
-{"file":"src/rank.rs","caller":"refr","name":"Option","kind":"type_annotation","line":431}
-{"file":"src/rank.rs","caller":"refr","name":"Reference","kind":"type_annotation","line":431}
-{"file":"src/rank.rs","caller":"refr","name":"file.to_string","kind":"call","line":433}
-{"file":"src/rank.rs","caller":"refr","name":"caller.map","kind":"call","line":434}
-{"file":"src/rank.rs","caller":"refr","name":"name.to_string","kind":"call","line":435}
-{"file":"src/rank.rs","caller":"refr","name":"\"call\".to_string","kind":"call","line":436}
-{"file":"src/rank.rs","caller":"empty_input_produces_empty_output","name":"rank","kind":"call","line":449,"confidence":0.95}
-{"file":"src/rank.rs","caller":"entities_without_refs_get_uniform_rank","name":"rank","kind":"call","line":460,"confidence":0.95}
-{"file":"src/rank.rs","caller":"more_referenced_file_outranks_less_referenced","name":"rank","kind":"call","line":486,"confidence":0.95}
-{"file":"src/rank.rs","caller":"pagerank_scores_sum_to_approximately_one","name":"rank","kind":"call","line":506,"confidence":0.95}
-{"file":"src/rank.rs","caller":"pagerank_scores_sum_to_approximately_one","name":"r.file_rank.values().sum","kind":"call","line":507}
-{"file":"src/rank.rs","caller":"pagerank_scores_sum_to_approximately_one","name":"r.file_rank.values","kind":"call","line":507}
-{"file":"src/rank.rs","caller":"self_loops_do_not_inflate_rank","name":"rank","kind":"call","line":520,"confidence":0.95}
-{"file":"src/rank.rs","caller":"self_loops_do_not_inflate_rank","name":"rank","kind":"call","line":521,"confidence":0.95}
-{"file":"src/rank.rs","caller":"ambiguous_names_split_edge_weight","name":"rank","kind":"call","line":539,"confidence":0.95}
-{"file":"src/rank.rs","caller":"blast_direct_counts_match_ref_table","name":"rank","kind":"call","line":558,"confidence":0.95}
-{"file":"src/rank.rs","caller":"blast_direct_counts_match_ref_table","name":"EntityKey::from_entity","kind":"call","line":559}
-{"file":"src/rank.rs","caller":"blast_entity_with_no_callers_is_zero","name":"rank","kind":"call","line":568,"confidence":0.95}
-{"file":"src/rank.rs","caller":"blast_entity_with_no_callers_is_zero","name":"EntityKey::from_entity","kind":"call","line":569}
-{"file":"src/rank.rs","caller":"blast_transitive_chain_respects_depth","name":"rank","kind":"call","line":592,"confidence":0.95}
-{"file":"src/rank.rs","caller":"blast_transitive_chain_respects_depth","name":"EntityKey::from_entity","kind":"call","line":593}
-{"file":"src/rank.rs","caller":"blast_transitive_chain_respects_depth","name":"rank_with_config","kind":"call","line":597,"confidence":0.95}
-{"file":"src/rank.rs","caller":"blast_transitive_chain_respects_depth","name":"RankConfig::default","kind":"call","line":600}
-{"file":"src/rank.rs","caller":"blast_transitive_chain_respects_depth","name":"EntityKey::from_entity","kind":"call","line":602}
-{"file":"src/rank.rs","caller":"blast_handles_cycles_without_panic","name":"rank","kind":"call","line":615,"confidence":0.95}
-{"file":"src/rank.rs","caller":"blast_handles_cycles_without_panic","name":"EntityKey::from_entity","kind":"call","line":616}
-{"file":"src/rank.rs","caller":"blast_same_name_in_different_files_gets_distinct_keys","name":"rank","kind":"call","line":629,"confidence":0.95}
-{"file":"src/rank.rs","caller":"blast_same_name_in_different_files_gets_distinct_keys","name":"EntityKey::from_entity","kind":"call","line":633}
-{"file":"src/rank.rs","caller":"blast_same_name_in_different_files_gets_distinct_keys","name":"EntityKey::from_entity","kind":"call","line":634}
-{"file":"src/rank.rs","caller":"apply_blast_radius_populates_matching_entities","name":"rank","kind":"call","line":655,"confidence":0.95}
-{"file":"src/rank.rs","caller":"apply_blast_radius_populates_matching_entities","name":"apply_blast_radius","kind":"call","line":656,"confidence":0.95}
-{"file":"src/rank.rs","caller":"apply_blast_radius_populates_matching_entities","name":"entities[0].blast_radius.unwrap","kind":"call","line":658}
-{"file":"src/rank.rs","caller":"apply_blast_radius_populates_matching_entities","name":"entities[1].blast_radius.unwrap","kind":"call","line":662}
-{"file":"src/rank.rs","caller":"blast_radius_handles_qualified_ref_names","name":"ent","kind":"call","line":679,"confidence":0.95}
-{"file":"src/rank.rs","caller":"blast_radius_handles_qualified_ref_names","name":"\"Faraday::Connection\".to_string","kind":"call","line":680}
-{"file":"src/rank.rs","caller":"blast_radius_handles_qualified_ref_names","name":"rank","kind":"call","line":686,"confidence":0.95}
-{"file":"src/rank.rs","caller":"blast_radius_handles_qualified_ref_names","name":"apply_blast_radius","kind":"call","line":687,"confidence":0.95}
-{"file":"src/rank.rs","caller":"blast_radius_handles_qualified_ref_names","name":"entities[0]\n            .blast_radius\n            .as_ref()\n            .expect","kind":"call","line":688}
-{"file":"src/rank.rs","caller":"blast_radius_handles_qualified_ref_names","name":"entities[0]\n            .blast_radius\n            .as_ref","kind":"call","line":688}
-{"file":"src/rank.rs","caller":"apply_blast_radius_leaves_unmatched_none","name":"RankedIndex::default","kind":"call","line":704}
-{"file":"src/rank.rs","caller":"apply_blast_radius_leaves_unmatched_none","name":"apply_blast_radius","kind":"call","line":705,"confidence":0.95}
-{"file":"src/rank.rs","caller":"rank_manifest_roundtrips_through_json","name":"RankConfig::default","kind":"call","line":713}
-{"file":"src/rank.rs","caller":"rank_manifest_roundtrips_through_json","name":"rank_with_config","kind":"call","line":714,"confidence":0.95}
-{"file":"src/rank.rs","caller":"rank_manifest_roundtrips_through_json","name":"RankManifest::from_ranked","kind":"call","line":716}
-{"file":"src/rank.rs","caller":"rank_manifest_roundtrips_through_json","name":"serde_json::to_string(&manifest).unwrap","kind":"call","line":722}
-{"file":"src/rank.rs","caller":"rank_manifest_roundtrips_through_json","name":"serde_json::to_string","kind":"call","line":722}
-{"file":"src/rank.rs","caller":"rank_manifest_roundtrips_through_json","name":"serde_json::from_str(&json).unwrap","kind":"call","line":723}
-{"file":"src/rank.rs","caller":"rank_manifest_roundtrips_through_json","name":"serde_json::from_str","kind":"call","line":723}
-{"file":"src/rank.rs","caller":"config_knobs_take_effect","name":"RankConfig::default","kind":"call","line":737}
-{"file":"src/rank.rs","caller":"config_knobs_take_effect","name":"rank_with_config","kind":"call","line":739,"confidence":0.95}
-{"file":"src/rank.rs","caller":"config_knobs_take_effect","name":"EntityKey::from_entity","kind":"call","line":740}
+{"file":"src/rank.rs","caller":"compute_blast","name":"refs_to_name\n            .get(e.name.as_str())\n            .cloned()\n            .unwrap_or_default","kind":"call","line":331}
+{"file":"src/rank.rs","caller":"compute_blast","name":"refs_to_name\n            .get(e.name.as_str())\n            .cloned","kind":"call","line":331}
+{"file":"src/rank.rs","caller":"compute_blast","name":"refs_to_name\n            .get","kind":"call","line":331}
+{"file":"src/rank.rs","caller":"compute_blast","name":"e.name.as_str","kind":"call","line":332}
+{"file":"src/rank.rs","caller":"compute_blast","name":"e.qualified_name.as_deref","kind":"call","line":335}
+{"file":"src/rank.rs","caller":"compute_blast","name":"refs_to_name.get","kind":"call","line":337}
+{"file":"src/rank.rs","caller":"compute_blast","name":"hits.push","kind":"call","line":339}
+{"file":"src/rank.rs","caller":"compute_blast","name":"crate::query::index::bare_leaf","kind":"call","line":344}
+{"file":"src/rank.rs","caller":"compute_blast","name":"refs_to_name.get","kind":"call","line":346}
+{"file":"src/rank.rs","caller":"compute_blast","name":"hits.push","kind":"call","line":348}
+{"file":"src/rank.rs","caller":"compute_blast","name":"HashSet::new","kind":"call","line":356}
+{"file":"src/rank.rs","caller":"compute_blast","name":"hits.into_iter()\n                .filter(|r| seen.insert(*r as *const Reference))\n                .collect","kind":"call","line":357}
+{"file":"src/rank.rs","caller":"compute_blast","name":"hits.into_iter()\n                .filter","kind":"call","line":357}
+{"file":"src/rank.rs","caller":"compute_blast","name":"hits.into_iter","kind":"call","line":357}
+{"file":"src/rank.rs","caller":"compute_blast","name":"seen.insert","kind":"call","line":358}
+{"file":"src/rank.rs","caller":"compute_blast","name":"direct.len","kind":"call","line":361}
+{"file":"src/rank.rs","caller":"compute_blast","name":"direct.iter().map(|r| r.file.as_str()).collect","kind":"call","line":362}
+{"file":"src/rank.rs","caller":"compute_blast","name":"direct.iter().map","kind":"call","line":362}
+{"file":"src/rank.rs","caller":"compute_blast","name":"direct.iter","kind":"call","line":362}
+{"file":"src/rank.rs","caller":"compute_blast","name":"r.file.as_str","kind":"call","line":362}
+{"file":"src/rank.rs","caller":"compute_blast","name":"direct_files.len","kind":"call","line":363}
+{"file":"src/rank.rs","caller":"compute_blast","name":"transitive_caller_count","kind":"call","line":364,"confidence":0.95}
+{"file":"src/rank.rs","caller":"compute_blast","name":"blast.insert","kind":"call","line":366}
+{"file":"src/rank.rs","caller":"compute_blast","name":"EntityKey::from_entity","kind":"call","line":367}
+{"file":"src/rank.rs","caller":"transitive_caller_count","name":"HashMap","kind":"type_annotation","line":383}
+{"file":"src/rank.rs","caller":"transitive_caller_count","name":"Vec","kind":"type_annotation","line":383}
+{"file":"src/rank.rs","caller":"transitive_caller_count","name":"Reference","kind":"type_annotation","line":383}
+{"file":"src/rank.rs","caller":"transitive_caller_count","name":"String","kind":"type_annotation","line":383}
+{"file":"src/rank.rs","caller":"transitive_caller_count","name":"HashSet::new","kind":"call","line":389}
+{"file":"src/rank.rs","caller":"transitive_caller_count","name":"VecDeque::new","kind":"call","line":391}
+{"file":"src/rank.rs","caller":"transitive_caller_count","name":"queue.push_back","kind":"call","line":392}
+{"file":"src/rank.rs","caller":"transitive_caller_count","name":"visited.insert","kind":"call","line":393}
+{"file":"src/rank.rs","caller":"transitive_caller_count","name":"queue.pop_front","kind":"call","line":396}
+{"file":"src/rank.rs","caller":"transitive_caller_count","name":"refs_to_name.get","kind":"call","line":400}
+{"file":"src/rank.rs","caller":"transitive_caller_count","name":"r.caller.as_deref","kind":"call","line":404}
+{"file":"src/rank.rs","caller":"transitive_caller_count","name":"visited.insert","kind":"call","line":407}
+{"file":"src/rank.rs","caller":"transitive_caller_count","name":"queue.push_back","kind":"call","line":409}
+{"file":"src/rank.rs","name":"super::*","kind":"import","line":418}
+{"file":"src/rank.rs","name":"crate::entity::{Entity, Reference}","kind":"import","line":419}
+{"file":"src/rank.rs","caller":"ent","name":"Entity","kind":"type_annotation","line":424}
+{"file":"src/rank.rs","caller":"ent","name":"file.to_string","kind":"call","line":426}
+{"file":"src/rank.rs","caller":"ent","name":"name.to_string","kind":"call","line":427}
+{"file":"src/rank.rs","caller":"ent","name":"kind.to_string","kind":"call","line":428}
+{"file":"src/rank.rs","caller":"ent","name":"\"deadbeef\".to_string","kind":"call","line":437}
+{"file":"src/rank.rs","caller":"ent","name":"Vec::new","kind":"call","line":442}
+{"file":"src/rank.rs","caller":"refr","name":"Option","kind":"type_annotation","line":446}
+{"file":"src/rank.rs","caller":"refr","name":"Reference","kind":"type_annotation","line":446}
+{"file":"src/rank.rs","caller":"refr","name":"file.to_string","kind":"call","line":448}
+{"file":"src/rank.rs","caller":"refr","name":"caller.map","kind":"call","line":449}
+{"file":"src/rank.rs","caller":"refr","name":"name.to_string","kind":"call","line":450}
+{"file":"src/rank.rs","caller":"refr","name":"\"call\".to_string","kind":"call","line":451}
+{"file":"src/rank.rs","caller":"empty_input_produces_empty_output","name":"rank","kind":"call","line":464,"confidence":0.95}
+{"file":"src/rank.rs","caller":"entities_without_refs_get_uniform_rank","name":"rank","kind":"call","line":475,"confidence":0.95}
+{"file":"src/rank.rs","caller":"more_referenced_file_outranks_less_referenced","name":"rank","kind":"call","line":501,"confidence":0.95}
+{"file":"src/rank.rs","caller":"pagerank_scores_sum_to_approximately_one","name":"rank","kind":"call","line":521,"confidence":0.95}
+{"file":"src/rank.rs","caller":"pagerank_scores_sum_to_approximately_one","name":"r.file_rank.values().sum","kind":"call","line":522}
+{"file":"src/rank.rs","caller":"pagerank_scores_sum_to_approximately_one","name":"r.file_rank.values","kind":"call","line":522}
+{"file":"src/rank.rs","caller":"self_loops_do_not_inflate_rank","name":"rank","kind":"call","line":535,"confidence":0.95}
+{"file":"src/rank.rs","caller":"self_loops_do_not_inflate_rank","name":"rank","kind":"call","line":536,"confidence":0.95}
+{"file":"src/rank.rs","caller":"ambiguous_names_split_edge_weight","name":"rank","kind":"call","line":554,"confidence":0.95}
+{"file":"src/rank.rs","caller":"blast_direct_counts_match_ref_table","name":"rank","kind":"call","line":573,"confidence":0.95}
+{"file":"src/rank.rs","caller":"blast_direct_counts_match_ref_table","name":"EntityKey::from_entity","kind":"call","line":574}
+{"file":"src/rank.rs","caller":"blast_entity_with_no_callers_is_zero","name":"rank","kind":"call","line":583,"confidence":0.95}
+{"file":"src/rank.rs","caller":"blast_entity_with_no_callers_is_zero","name":"EntityKey::from_entity","kind":"call","line":584}
+{"file":"src/rank.rs","caller":"blast_transitive_chain_respects_depth","name":"rank","kind":"call","line":607,"confidence":0.95}
+{"file":"src/rank.rs","caller":"blast_transitive_chain_respects_depth","name":"EntityKey::from_entity","kind":"call","line":608}
+{"file":"src/rank.rs","caller":"blast_transitive_chain_respects_depth","name":"rank_with_config","kind":"call","line":612,"confidence":0.95}
+{"file":"src/rank.rs","caller":"blast_transitive_chain_respects_depth","name":"RankConfig::default","kind":"call","line":615}
+{"file":"src/rank.rs","caller":"blast_transitive_chain_respects_depth","name":"EntityKey::from_entity","kind":"call","line":617}
+{"file":"src/rank.rs","caller":"blast_handles_cycles_without_panic","name":"rank","kind":"call","line":630,"confidence":0.95}
+{"file":"src/rank.rs","caller":"blast_handles_cycles_without_panic","name":"EntityKey::from_entity","kind":"call","line":631}
+{"file":"src/rank.rs","caller":"blast_same_name_in_different_files_gets_distinct_keys","name":"rank","kind":"call","line":644,"confidence":0.95}
+{"file":"src/rank.rs","caller":"blast_same_name_in_different_files_gets_distinct_keys","name":"EntityKey::from_entity","kind":"call","line":648}
+{"file":"src/rank.rs","caller":"blast_same_name_in_different_files_gets_distinct_keys","name":"EntityKey::from_entity","kind":"call","line":649}
+{"file":"src/rank.rs","caller":"apply_blast_radius_populates_matching_entities","name":"rank","kind":"call","line":670,"confidence":0.95}
+{"file":"src/rank.rs","caller":"apply_blast_radius_populates_matching_entities","name":"apply_blast_radius","kind":"call","line":671,"confidence":0.95}
+{"file":"src/rank.rs","caller":"apply_blast_radius_populates_matching_entities","name":"entities[0].blast_radius.unwrap","kind":"call","line":673}
+{"file":"src/rank.rs","caller":"apply_blast_radius_populates_matching_entities","name":"entities[1].blast_radius.unwrap","kind":"call","line":677}
+{"file":"src/rank.rs","caller":"blast_radius_handles_qualified_ref_names","name":"ent","kind":"call","line":694,"confidence":0.95}
+{"file":"src/rank.rs","caller":"blast_radius_handles_qualified_ref_names","name":"\"Faraday::Connection\".to_string","kind":"call","line":695}
+{"file":"src/rank.rs","caller":"blast_radius_handles_qualified_ref_names","name":"rank","kind":"call","line":701,"confidence":0.95}
+{"file":"src/rank.rs","caller":"blast_radius_handles_qualified_ref_names","name":"apply_blast_radius","kind":"call","line":702,"confidence":0.95}
+{"file":"src/rank.rs","caller":"blast_radius_handles_qualified_ref_names","name":"entities[0]\n            .blast_radius\n            .as_ref()\n            .expect","kind":"call","line":703}
+{"file":"src/rank.rs","caller":"blast_radius_handles_qualified_ref_names","name":"entities[0]\n            .blast_radius\n            .as_ref","kind":"call","line":703}
+{"file":"src/rank.rs","caller":"blast_radius_handles_mixed_separator_qualified_name","name":"ent","kind":"call","line":723,"confidence":0.95}
+{"file":"src/rank.rs","caller":"blast_radius_handles_mixed_separator_qualified_name","name":"\"RSpec.Core::Runner\".to_string","kind":"call","line":724}
+{"file":"src/rank.rs","caller":"blast_radius_handles_mixed_separator_qualified_name","name":"rank","kind":"call","line":731,"confidence":0.95}
+{"file":"src/rank.rs","caller":"blast_radius_handles_mixed_separator_qualified_name","name":"apply_blast_radius","kind":"call","line":732,"confidence":0.95}
+{"file":"src/rank.rs","caller":"blast_radius_handles_mixed_separator_qualified_name","name":"entities[0]\n            .blast_radius\n            .as_ref()\n            .expect","kind":"call","line":733}
+{"file":"src/rank.rs","caller":"blast_radius_handles_mixed_separator_qualified_name","name":"entities[0]\n            .blast_radius\n            .as_ref","kind":"call","line":733}
+{"file":"src/rank.rs","caller":"apply_blast_radius_leaves_unmatched_none","name":"RankedIndex::default","kind":"call","line":749}
+{"file":"src/rank.rs","caller":"apply_blast_radius_leaves_unmatched_none","name":"apply_blast_radius","kind":"call","line":750,"confidence":0.95}
+{"file":"src/rank.rs","caller":"rank_manifest_roundtrips_through_json","name":"RankConfig::default","kind":"call","line":758}
+{"file":"src/rank.rs","caller":"rank_manifest_roundtrips_through_json","name":"rank_with_config","kind":"call","line":759,"confidence":0.95}
+{"file":"src/rank.rs","caller":"rank_manifest_roundtrips_through_json","name":"RankManifest::from_ranked","kind":"call","line":761}
+{"file":"src/rank.rs","caller":"rank_manifest_roundtrips_through_json","name":"serde_json::to_string(&manifest).unwrap","kind":"call","line":767}
+{"file":"src/rank.rs","caller":"rank_manifest_roundtrips_through_json","name":"serde_json::to_string","kind":"call","line":767}
+{"file":"src/rank.rs","caller":"rank_manifest_roundtrips_through_json","name":"serde_json::from_str(&json).unwrap","kind":"call","line":768}
+{"file":"src/rank.rs","caller":"rank_manifest_roundtrips_through_json","name":"serde_json::from_str","kind":"call","line":768}
+{"file":"src/rank.rs","caller":"config_knobs_take_effect","name":"RankConfig::default","kind":"call","line":782}
+{"file":"src/rank.rs","caller":"config_knobs_take_effect","name":"rank_with_config","kind":"call","line":784,"confidence":0.95}
+{"file":"src/rank.rs","caller":"config_knobs_take_effect","name":"EntityKey::from_entity","kind":"call","line":785}
 {"file":"src/review.rs","name":"std::collections::{HashMap, HashSet}","kind":"import","line":16}
 {"file":"src/review.rs","name":"std::path::Path","kind":"import","line":17}
 {"file":"src/review.rs","name":"anyhow::{Context as _, Result}","kind":"import","line":19}
