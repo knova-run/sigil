@@ -1734,8 +1734,11 @@ fn main() {
                 project_root: root.clone(),
             };
             let Some(ctx) = sigil::context::build_context(&idx, &q, &opts) else {
-                eprintln!("no entity matches `{}`", q);
-                eprintln!("hint: try `sigil search {}` to find similar symbols", q);
+                let nm = sigil::context::build_no_match(&idx, &q);
+                match sigil::context::render_no_match(&nm, fmt, pretty) {
+                    sigil::context::NoMatchOutput::Stdout(s) => println!("{}", s),
+                    sigil::context::NoMatchOutput::Stderr(s) => eprintln!("{}", s),
+                }
                 std::process::exit(2);
             };
             match fmt {

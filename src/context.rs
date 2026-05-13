@@ -237,6 +237,102 @@ pub fn resolve<'a>(idx: &'a Index, query: &str) -> Vec<&'a Entity> {
     matches
 }
 
+/// No-match response payload for `sigil context <q>` when no entity
+/// resolves. Emitted as JSON on stdout under `--format agent` and
+/// `--format json` so script consumers can branch on a parseable shape
+/// instead of regexing stderr. Short keys mirror the `Agent` view.
+#[derive(Debug, Clone, Serialize)]
+pub struct NoMatch {
+    pub q: String,
+    pub resolved: bool,
+    pub reason: String,
+    pub candidates: Vec<Candidate>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct Candidate {
+    pub f: String,
+    pub n: String,
+    pub k: String,
+    pub l: u32,
+}
+
+/// Build the `{q, resolved: false, reason, candidates}` payload for
+/// `sigil context` queries that fail to resolve. Candidates come from
+/// `Index::search(Scope::All, limit=10)` — a substring scan over symbol
+/// names and file paths.
+pub fn build_no_match(idx: &Index, q: &str) -> NoMatch {
+    let hits = idx.search(q, crate::query::index::Scope::All, None, None, 10);
+    let mut candidates: Vec<Candidate> = hits
+        .into_iter()
+        .map(|h| match h {
+            crate::query::index::SearchHit::Symbol(e) => Candidate {
+                f: e.file.clone(),
+                n: e.name.clone(),
+                k: e.kind.clone(),
+                l: e.line_start,
+            },
+            crate::query::index::SearchHit::File(fh) => Candidate {
+                f: fh.path.clone(),
+                n: std::path::Path::new(&fh.path)
+                    .file_name()
+                    .map(|s| s.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| fh.path.clone()),
+                k: "file".to_string(),
+                l: 0,
+            },
+        })
+        .collect();
+    if candidates.is_empty() {
+        for name in crate::query::suggest_similar(idx, q, 10) {
+            if let Some(e) = idx.entities_by_name(&name).next() {
+                candidates.push(Candidate {
+                    f: e.file.clone(),
+                    n: e.name.clone(),
+                    k: e.kind.clone(),
+                    l: e.line_start,
+                });
+            }
+        }
+    }
+    NoMatch {
+        q: q.to_string(),
+        resolved: false,
+        reason: format!("no entity matches `{}`", q),
+        candidates,
+    }
+}
+
+/// Output of [`render_no_match`]: which stream the caller should print
+/// to. Keeps the CLI thin and lets unit tests assert routing without
+/// capturing process streams.
+#[derive(Debug)]
+pub enum NoMatchOutput {
+    Stdout(String),
+    Stderr(String),
+}
+
+pub fn render_no_match(nm: &NoMatch, format: ContextFormat, pretty: bool) -> NoMatchOutput {
+    match format {
+        ContextFormat::Agent => NoMatchOutput::Stdout(
+            serde_json::to_string(nm).expect("NoMatch serializes infallibly"),
+        ),
+        ContextFormat::Full => {
+            let json = if pretty {
+                serde_json::to_string_pretty(nm)
+            } else {
+                serde_json::to_string(nm)
+            }
+            .expect("NoMatch serializes infallibly");
+            NoMatchOutput::Stdout(json)
+        }
+        ContextFormat::Markdown => NoMatchOutput::Stderr(format!(
+            "no entity matches `{}`\nhint: try `sigil search {}` to find similar symbols",
+            nm.q, nm.q
+        )),
+    }
+}
+
 /// Primary entry point. Pure over `Index`.
 pub fn build_context(idx: &Index, query: &str, opts: &ContextOptions) -> Option<Context> {
     let resolved = resolve(idx, query);
@@ -899,6 +995,147 @@ mod tests {
             vec![],
         );
         assert!(build_context(&idx, "nonexistent", &ContextOptions::default()).is_none());
+    }
+
+    #[test]
+    fn render_no_match_agent_emits_compact_json_on_stdout() {
+        let nm = NoMatch {
+            q: "fooz".to_string(),
+            resolved: false,
+            reason: "no entity matches `fooz`".to_string(),
+            candidates: vec![Candidate {
+                f: "src/a.rs".to_string(),
+                n: "foo".to_string(),
+                k: "function".to_string(),
+                l: 12,
+            }],
+        };
+        let out = render_no_match(&nm, ContextFormat::Agent, false);
+        let body = match out {
+            NoMatchOutput::Stdout(s) => s,
+            NoMatchOutput::Stderr(_) => panic!("agent format must emit on stdout"),
+        };
+        // Compact JSON: no newlines or pretty indent.
+        assert!(!body.contains('\n'), "agent format should be compact");
+        let v: serde_json::Value = serde_json::from_str(&body).expect("valid JSON");
+        assert_eq!(v["q"], "fooz");
+        assert_eq!(v["resolved"], false);
+        assert_eq!(v["reason"], "no entity matches `fooz`");
+        assert_eq!(v["candidates"][0]["n"], "foo");
+        assert_eq!(v["candidates"][0]["f"], "src/a.rs");
+        assert_eq!(v["candidates"][0]["k"], "function");
+        assert_eq!(v["candidates"][0]["l"], 12);
+    }
+
+    #[test]
+    fn render_no_match_full_pretty_emits_pretty_json_on_stdout() {
+        let nm = NoMatch {
+            q: "fooz".to_string(),
+            resolved: false,
+            reason: "no entity matches `fooz`".to_string(),
+            candidates: vec![],
+        };
+        let out = render_no_match(&nm, ContextFormat::Full, true);
+        let body = match out {
+            NoMatchOutput::Stdout(s) => s,
+            NoMatchOutput::Stderr(_) => panic!("json format must emit on stdout"),
+        };
+        assert!(body.contains('\n'), "pretty JSON should span multiple lines");
+        let v: serde_json::Value = serde_json::from_str(&body).expect("valid JSON");
+        assert_eq!(v["q"], "fooz");
+    }
+
+    #[test]
+    fn render_no_match_markdown_emits_stderr_text() {
+        let nm = NoMatch {
+            q: "fooz".to_string(),
+            resolved: false,
+            reason: "no entity matches `fooz`".to_string(),
+            candidates: vec![],
+        };
+        let out = render_no_match(&nm, ContextFormat::Markdown, false);
+        let body = match out {
+            NoMatchOutput::Stderr(s) => s,
+            NoMatchOutput::Stdout(_) => panic!("markdown format must emit on stderr"),
+        };
+        assert!(body.contains("no entity matches"));
+        assert!(body.contains("fooz"));
+    }
+
+    #[test]
+    fn build_no_match_falls_back_to_suggest_similar_on_typo() {
+        // "proess_dta" has no substring overlap with "process_data" but
+        // is within edit-distance bounds. search() returns empty; the
+        // fallback should fill candidates by name-similarity.
+        let idx = Index::build(
+            vec![ent_full(
+                "src/lib.rs",
+                "process_data",
+                "function",
+                None,
+                None,
+                None,
+                0,
+            )],
+            vec![],
+        );
+        let direct = idx.search("proess_dta", crate::query::index::Scope::All, None, None, 10);
+        assert!(direct.is_empty(), "precondition: search must miss");
+
+        let nm = build_no_match(&idx, "proess_dta");
+        assert!(
+            nm.candidates.iter().any(|c| c.n == "process_data"),
+            "expected typo fallback to surface `process_data`, got: {:?}",
+            nm.candidates.iter().map(|c| &c.n).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn build_no_match_surfaces_file_matches_with_basename() {
+        let idx = Index::build(
+            vec![ent_full(
+                "src/auth_helpers.rs",
+                "something_else",
+                "function",
+                None,
+                None,
+                None,
+                0,
+            )],
+            vec![],
+        );
+        let nm = build_no_match(&idx, "auth_helpers");
+        let file_hits: Vec<_> = nm.candidates.iter().filter(|c| c.k == "file").collect();
+        assert_eq!(file_hits.len(), 1);
+        assert_eq!(file_hits[0].f, "src/auth_helpers.rs");
+        assert_eq!(file_hits[0].n, "auth_helpers.rs", "n is the basename");
+        assert_eq!(file_hits[0].l, 0);
+    }
+
+    #[test]
+    fn build_no_match_returns_substring_match_as_candidate() {
+        let idx = Index::build(
+            vec![ent_full(
+                "src/lib.rs",
+                "process_data",
+                "function",
+                None,
+                None,
+                None,
+                0,
+            )],
+            vec![],
+        );
+        let nm = build_no_match(&idx, "process");
+        assert_eq!(nm.q, "process");
+        assert!(!nm.resolved);
+        assert!(!nm.reason.is_empty(), "reason should be a human-readable string");
+        assert_eq!(nm.candidates.len(), 1);
+        let c = &nm.candidates[0];
+        assert_eq!(c.n, "process_data");
+        assert_eq!(c.f, "src/lib.rs");
+        assert_eq!(c.k, "function");
+        assert_eq!(c.l, 10);
     }
 
     #[test]
