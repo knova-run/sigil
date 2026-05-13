@@ -1635,6 +1635,83 @@ fn imported_class_strategy2_carries_callee_id() {
     );
 }
 
+// --- Issue #27 — Member-call Strategy 1 (module-alias receiver) -----------
+//
+// Repowise's _resolve_member_call Strategy 1/1b (call_resolver.py:247-272):
+// when the receiver is a module alias bound by an import in the caller's
+// file, the binding is the function/method by that name in the alias's
+// target file. Confidence 0.88 — symmetric with Strategy 2 imported.
+
+#[test]
+fn python_module_import_receiver_resolves_at_confidence_eighty_eight() {
+    // `import utils` + `utils.run()` — receiver `utils` matches an import
+    // entity whose name is "utils". Strategy 1 should resolve `run` to
+    // utils.py at confidence 0.88.
+    let dir = fresh_dir("strategy1-python-import");
+    write(&dir, "utils.py", "def run():\n    pass\n");
+    write(
+        &dir,
+        "caller.py",
+        "import utils\n\ndef driver():\n    utils.run()\n",
+    );
+    let refs = run_index_with_refs(&dir, &[]);
+
+    let call = refs
+        .iter()
+        .find(|r| {
+            r["kind"].as_str() == Some("call")
+                && r["file"].as_str() == Some("caller.py")
+                && r["name"].as_str() == Some("utils.run")
+        })
+        .expect("utils.run() call should be in refs");
+    assert_eq!(
+        call["confidence"].as_f64(),
+        Some(0.88),
+        "module-alias receiver Strategy 1 should resolve at 0.88; got {:?}",
+        call["confidence"]
+    );
+    assert_eq!(
+        call["callee_id"].as_str(),
+        Some("utils.py::run"),
+        "Strategy 1 callee_id should point at the target file's function"
+    );
+}
+
+#[test]
+fn python_alias_import_receiver_resolves_at_confidence_eighty_eight() {
+    // `import numpy as np` + `np.array()` — receiver `np` matches the
+    // alias of an import whose target is `numpy`. Within-workspace
+    // version: `import inner as alias` + `alias.helper()`.
+    let dir = fresh_dir("strategy1-python-alias");
+    write(&dir, "inner.py", "def helper():\n    pass\n");
+    write(
+        &dir,
+        "caller.py",
+        "import inner as alias\n\ndef driver():\n    alias.helper()\n",
+    );
+    let refs = run_index_with_refs(&dir, &[]);
+
+    let call = refs
+        .iter()
+        .find(|r| {
+            r["kind"].as_str() == Some("call")
+                && r["file"].as_str() == Some("caller.py")
+                && r["name"].as_str() == Some("alias.helper")
+        })
+        .expect("alias.helper() call should be in refs");
+    assert_eq!(
+        call["confidence"].as_f64(),
+        Some(0.88),
+        "aliased-module receiver Strategy 1 should resolve at 0.88; got {:?}",
+        call["confidence"]
+    );
+    assert_eq!(
+        call["callee_id"].as_str(),
+        Some("inner.py::helper"),
+        "Strategy 1 callee_id should point at the alias's target file"
+    );
+}
+
 #[test]
 fn tier2b_imported_fallback_carries_callee_id() {
     // resolve_tier2b_imported_fallback (0.85) — the binding is the

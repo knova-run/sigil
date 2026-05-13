@@ -374,7 +374,7 @@ fn extract_array_items(
             blast_radius: None,
             doc: None,
             heritage: Vec::new(),
-        });
+            alias: None,        });
 
         // Recurse into object items to extract their properties as children
         if let serde_json::Value::Object(nested_map) = item {
@@ -449,7 +449,7 @@ fn extract_object_entities(
             blast_radius: None,
             doc: None,
             heritage: Vec::new(),
-        });
+            alias: None,        });
 
         // Recurse into nested objects
         if let serde_json::Value::Object(nested_map) = value {

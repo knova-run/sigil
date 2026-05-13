@@ -741,7 +741,7 @@ mod tests {
             }),
             doc: None,
             heritage: Vec::new(),
-        }
+            alias: None,        }
     }
 
     fn manifest(file_rank: &[(&str, f64)]) -> RankManifest {

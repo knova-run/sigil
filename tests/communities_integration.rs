@@ -32,7 +32,7 @@ fn ent(file: &str, name: &str) -> Entity {
         blast_radius: None,
         doc: None,
         heritage: Vec::new(),
-    }
+        alias: None,    }
 }
 
 fn refr(file: &str, caller: &str, target: &str) -> Reference {

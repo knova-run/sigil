@@ -649,7 +649,7 @@ mod tests {
             blast_radius: None,
             doc: None,
             heritage: Vec::new(),
-        }
+            alias: None,        }
     }
 
     fn refr(file: &str, caller: Option<&str>, name: &str) -> Reference {

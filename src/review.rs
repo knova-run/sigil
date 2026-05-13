@@ -459,7 +459,7 @@ mod tests {
             blast_radius: None,
             doc: None,
             heritage: Vec::new(),
-        };
+            alias: None,        };
         EntityDiff {
             change,
             name: name.to_string(),

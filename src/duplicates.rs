@@ -240,7 +240,7 @@ mod tests {
             blast_radius: None,
             doc: None,
             heritage: Vec::new(),
-        }
+            alias: None,        }
     }
 
     #[test]

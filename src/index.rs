@@ -128,6 +128,7 @@ pub fn parse_single_file(
             blast_radius: None,
             doc,
             heritage,
+            alias: sym.alias.clone(),
         });
     }
 
@@ -282,7 +283,9 @@ pub fn build_index(
         let swift_spm = load_swift_spm(root);
         let extra = resolve_swift_spm_imports(&all_entities, &all_refs, &swift_spm);
         all_refs.extend(extra);
-        let extra = resolve_jvm_fqn_imports(&all_entities, &all_refs);
+        let gradle = load_gradle_settings(root);
+        let sbt = load_sbt_modules(root);
+        let extra = resolve_jvm_fqn_imports(&all_entities, &all_refs, &gradle, &sbt);
         all_refs.extend(extra);
         let compile_commands = load_compile_commands(root);
         let extra = resolve_cpp_includes(&all_entities, &all_refs, &compile_commands);
@@ -651,9 +654,47 @@ fn resolve_member_call(entities: &[Entity], refs: &mut [Reference]) {
     // of name X (filled by walking entities once). Used for Strategy-2
     // imported-class lookup (global-unique check). Key is (class, method).
     let mut global_class_methods: HashMap<(&str, &str), Vec<&str>> = HashMap::new();
+    // Strategy 1 (module-alias receiver): per-file `local_name →
+    // import_target` table. local_name is alias when present (`import
+    // foo as f` → `f`), otherwise the trailing segment of name (plain
+    // `import foo` → `foo`). import_target is the import entity's
+    // unaliased name (`foo` / `./utils` / `numpy`). The receiver in a
+    // member call is matched against local_name; the target gets
+    // resolved to a workspace file via filename-stem lookup.
+    let mut file_aliases: HashMap<&str, HashMap<String, &str>> = HashMap::new();
+    // Per-file callable index used by Strategy 1 to verify that the
+    // target file actually defines the called leaf. Keyed by the
+    // leaf name (bare or qualified-tail) so `utils.run()` finds
+    // `def run` in utils.py.
+    let mut file_callables: HashMap<&str, HashSet<&str>> = HashMap::new();
     for e in entities {
+        if is_callable_kind(&e.kind) {
+            file_callables.entry(e.file.as_str()).or_default().insert(e.name.as_str());
+            if let Some(parent) = e.parent.as_deref() {
+                let leaf = e.name
+                    .strip_prefix(&format!("{parent}."))
+                    .or_else(|| e.name.strip_prefix(&format!("{parent}::")))
+                    .unwrap_or(e.name.as_str());
+                file_callables.entry(e.file.as_str()).or_default().insert(leaf);
+            }
+        }
         if e.kind == "class" {
             classes.insert((e.file.as_str(), e.name.as_str()));
+            file_callables.entry(e.file.as_str()).or_default().insert(e.name.as_str());
+            continue;
+        }
+        if e.kind == "import" {
+            let local = e.alias.clone().unwrap_or_else(|| {
+                e.name
+                    .rsplit(|c| c == '.' || c == '/')
+                    .next()
+                    .unwrap_or(&e.name)
+                    .to_string()
+            });
+            file_aliases
+                .entry(e.file.as_str())
+                .or_default()
+                .insert(local, e.name.as_str());
             continue;
         }
         if e.kind != "method" {
@@ -670,6 +711,17 @@ fn resolve_member_call(entities: &[Entity], refs: &mut [Reference]) {
             .entry((parent, leaf))
             .or_default()
             .push(e.file.as_str());
+    }
+
+    // file-stem → file map for Strategy 1's import-target → file lookup.
+    // For `import utils` we look up `utils` and find `utils.py` etc.
+    let mut file_by_stem: HashMap<&str, &str> = HashMap::new();
+    for f in file_callables.keys() {
+        let stem = std::path::Path::new(f)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or(f);
+        file_by_stem.entry(stem).or_insert(*f);
     }
 
     for r in refs.iter_mut() {
@@ -741,6 +793,43 @@ fn resolve_member_call(entities: &[Entity], refs: &mut [Reference]) {
                     _ => {}
                 }
                 r.callee_id = Some(format!("{target_file}::{head}::{leaf}"));
+                continue;
+            }
+        }
+
+        // Strategy 1 (module-alias receiver): receiver `head` is a
+        // local binding from an import in the caller's file. Look up
+        // the import's target module, resolve it to a workspace file by
+        // filename-stem, and verify the target defines a callable named
+        // `leaf`. Repowise's `_resolve_member_call` Strategy 1/1b lives
+        // at the same 0.88 tier as Strategy 2 imported.
+        if let Some(aliases) = file_aliases.get(r.file.as_str()) {
+            if let Some(target_module) = aliases.get(head) {
+                // Map import target ("utils" / "./utils" / "numpy") to
+                // a workspace file via stem match. Strip leading `./`
+                // and any trailing-segment after the final separator,
+                // then look up the bare stem.
+                let cleaned = target_module
+                    .trim_start_matches("./")
+                    .trim_start_matches("../");
+                let stem = cleaned
+                    .rsplit(|c| c == '/' || c == '.')
+                    .next()
+                    .unwrap_or(cleaned);
+                if let Some(target_file) = file_by_stem.get(stem) {
+                    if file_callables
+                        .get(target_file)
+                        .map(|s| s.contains(leaf))
+                        .unwrap_or(false)
+                    {
+                        match r.confidence {
+                            None => r.confidence = Some(0.88),
+                            Some(c) if c <= 0.85 => r.confidence = Some(0.88),
+                            _ => {}
+                        }
+                        r.callee_id = Some(format!("{target_file}::{leaf}"));
+                    }
+                }
             }
         }
     }
@@ -2177,6 +2266,108 @@ fn resolve_cpp_includes(
     additions
 }
 
+/// Parsed Gradle workspace map. `settings.gradle(.kts)` `include(":a:b")`
+/// directives declare submodules at arbitrary file-system paths, with
+/// optional `project(":a:b").projectDir = file("custom/path")` overrides.
+/// Issue #28 — without this, JVM FQN resolution only worked for the
+/// default `<module>/src/main/kotlin` layout.
+#[derive(Debug, Clone, Default)]
+pub struct GradleSettings {
+    /// `:a:b:c` style module path → directory (relative to root).
+    pub module_dirs: std::collections::HashMap<String, String>,
+    /// Per-module source roots. Defaults to `src/main/kotlin` +
+    /// `src/main/java` under each module dir when no explicit `srcDirs`
+    /// is declared.
+    pub src_roots: std::collections::HashMap<String, Vec<String>>,
+}
+
+impl GradleSettings {
+    /// Source roots that could host a class file matching the FQN
+    /// `pkg.sub.Class`. Tries every module's roots; the resolver
+    /// then prefix-matches `<root>/<pkg-as-dirs>/`.
+    pub fn candidate_roots(&self) -> Vec<&str> {
+        self.src_roots
+            .values()
+            .flatten()
+            .map(|s| s.as_str())
+            .collect()
+    }
+}
+
+/// Read settings.gradle(.kts) at the index root, regex-extract
+/// `include(":a:b:c")` directives, and build a (module → dir) map.
+/// For each declared module also try its build.gradle(.kts) for
+/// `srcDirs(...)` overrides; default to `src/main/kotlin` +
+/// `src/main/java` when absent.
+pub fn load_gradle_settings(root: &Path) -> GradleSettings {
+    use std::collections::HashMap;
+    let mut out = GradleSettings::default();
+    let candidates = [root.join("settings.gradle"), root.join("settings.gradle.kts")];
+    let Some(settings_path) = candidates.iter().find(|p| p.exists()).cloned() else {
+        return out;
+    };
+    let Ok(text) = std::fs::read_to_string(&settings_path) else {
+        return out;
+    };
+
+    // Match `include(":a", ":b:c", project(":d"))` — any `":x:y"` literal.
+    // We intentionally stay regex-light: find each `"` `:` `"` literal and
+    // extract module paths.
+    let mut module_paths: Vec<String> = Vec::new();
+    for cap in regex::Regex::new(r#""(:[A-Za-z0-9_\-:]+)""#)
+        .expect("static regex")
+        .captures_iter(&text)
+    {
+        module_paths.push(cap[1].to_string());
+    }
+
+    // Project-dir overrides: `project(":a:b").projectDir = file("custom/path")`
+    let override_re = regex::Regex::new(
+        r#"project\(\s*"(:[A-Za-z0-9_\-:]+)"\s*\)\.projectDir\s*=\s*file\(\s*"([^"]+)"\s*\)"#,
+    )
+    .expect("static regex");
+    let mut overrides: HashMap<String, String> = HashMap::new();
+    for cap in override_re.captures_iter(&text) {
+        overrides.insert(cap[1].to_string(), cap[2].to_string());
+    }
+
+    for module in module_paths {
+        // Default dir: strip leading `:` and replace remaining `:` with `/`.
+        let default_dir = module.trim_start_matches(':').replace(':', "/");
+        let dir = overrides.get(&module).cloned().unwrap_or(default_dir);
+
+        // Per-module srcDirs: look at <root>/<dir>/build.gradle(.kts).
+        let mut srcs: Vec<String> = Vec::new();
+        let build_candidates = [
+            root.join(&dir).join("build.gradle"),
+            root.join(&dir).join("build.gradle.kts"),
+        ];
+        if let Some(bp) = build_candidates.iter().find(|p| p.exists()) {
+            if let Ok(btxt) = std::fs::read_to_string(bp) {
+                let src_re = regex::Regex::new(r#"srcDirs?\s*\(\s*"([^"]+)""#)
+                    .expect("static regex");
+                for cap in src_re.captures_iter(&btxt) {
+                    let rel = cap[1].to_string();
+                    let joined = if rel.starts_with('/') {
+                        rel.trim_start_matches('/').to_string()
+                    } else {
+                        format!("{dir}/{rel}")
+                    };
+                    srcs.push(joined);
+                }
+            }
+        }
+        if srcs.is_empty() {
+            // Conventional default — both Kotlin and Java live alongside.
+            srcs.push(format!("{dir}/src/main/kotlin"));
+            srcs.push(format!("{dir}/src/main/java"));
+        }
+        out.src_roots.insert(module.clone(), srcs);
+        out.module_dirs.insert(module, dir);
+    }
+    out
+}
+
 /// Tier-3 file-resolution pass for JVM-family FQN imports (Kotlin, Scala).
 /// Both languages put source under `<root>/<pkg-as-dirs>/<File>.<ext>` in
 /// standard build-tool layouts (Gradle `src/main/kotlin`, sbt
@@ -2196,7 +2387,79 @@ fn resolve_cpp_includes(
 /// stripping the last two segments when the last segment doesn't match
 /// the call leaf. Path-based rather than settings.gradle/build.sbt-based;
 /// non-standard `srcDirs(...)` layouts are a follow-up.
-fn resolve_jvm_fqn_imports(entities: &[Entity], refs: &[Reference]) -> Vec<Reference> {
+/// Parsed sbt/Mill workspace map. Real Scala projects use:
+/// - `build.sbt` — sbt subprojects via `lazy val mod = project.in(file("dir"))`
+/// - `build.sc` — Mill modules at the file's parent directory
+///
+/// Issue #29 — without this, JVM FQN resolution misses non-standard
+/// Scala layouts (e.g. modules under `subprojects/foo/`).
+#[derive(Debug, Clone, Default)]
+pub struct SbtModules {
+    /// Module name → source root candidates.
+    pub src_roots: std::collections::HashMap<String, Vec<String>>,
+}
+
+/// Read `build.sbt` and any `build.sc` file at the index root.
+/// sbt: regex-extract `project.in(file("..."))` and treat the dir as
+/// hosting `src/main/scala`. Mill: each `build.sc` defines a module at
+/// its parent directory hosting `src/`.
+pub fn load_sbt_modules(root: &Path) -> SbtModules {
+    use std::collections::HashMap;
+    let mut roots: HashMap<String, Vec<String>> = HashMap::new();
+
+    // sbt: `lazy val core = project.in(file("modules/core"))` style.
+    let sbt_path = root.join("build.sbt");
+    if let Ok(text) = std::fs::read_to_string(&sbt_path) {
+        let re = regex::Regex::new(
+            r#"lazy\s+val\s+(\w+)\s*=\s*project\s*\.in\s*\(\s*file\(\s*"([^"]+)"\s*\)"#,
+        ).expect("static regex");
+        for cap in re.captures_iter(&text) {
+            let name = cap[1].to_string();
+            let dir = cap[2].to_string();
+            let r = roots.entry(name).or_default();
+            r.push(format!("{dir}/src/main/scala"));
+            r.push(format!("{dir}/src/main/java"));
+        }
+    }
+
+    // Mill: walk for build.sc files (depth-bounded). Each defines a
+    // module at its parent directory.
+    fn walk(dir: &Path, root: &Path, depth: usize, out: &mut HashMap<String, Vec<String>>) {
+        if depth > 4 { return; }
+        let Ok(read) = std::fs::read_dir(dir) else { return };
+        for entry in read.flatten() {
+            let p = entry.path();
+            let name = entry.file_name();
+            let name_s = name.to_string_lossy();
+            if p.is_dir() {
+                if name_s.starts_with('.') || name_s == "node_modules" || name_s == ".sigil" || name_s == "out" || name_s == "target" {
+                    continue;
+                }
+                walk(&p, root, depth + 1, out);
+            } else if name_s == "build.sc" {
+                let Some(parent) = p.parent() else { continue };
+                let Ok(rel) = parent.strip_prefix(root) else { continue };
+                let rel_s = rel.to_string_lossy();
+                if rel_s.is_empty() { continue; }
+                let base = rel_s.to_string();
+                let module_name = base.split('/').next_back().unwrap_or(&base).to_string();
+                let entry = out.entry(module_name).or_default();
+                entry.push(format!("{base}/src"));
+                entry.push(format!("{base}/src/main/scala"));
+            }
+        }
+    }
+    walk(root, root, 0, &mut roots);
+
+    SbtModules { src_roots: roots }
+}
+
+fn resolve_jvm_fqn_imports(
+    entities: &[Entity],
+    refs: &[Reference],
+    gradle: &GradleSettings,
+    sbt: &SbtModules,
+) -> Vec<Reference> {
     use std::collections::{HashMap, HashSet};
 
     fn is_jvm_path(file: &str) -> bool {
@@ -2279,6 +2542,24 @@ fn resolve_jvm_fqn_imports(entities: &[Entity], refs: &[Reference]) -> Vec<Refer
                     let needle_b = format!("/{}/", import[..second_dot].replace('.', "/"));
                     for (file, names) in callables.iter() {
                         if file.contains(needle_b.as_str()) && names.contains(r.name.as_str()) {
+                            local_hits.insert(*file);
+                        }
+                    }
+                }
+            }
+            // Manifest-aware fallback (issue #28/#29): if neither
+            // path-based form found a hit, try Gradle + sbt source
+            // roots. For each candidate root, check whether the file
+            // sits under `<root>/<pkg-as-dirs>/`. Closes coverage for
+            // non-standard `srcDirs(...)` / `projectDir` layouts.
+            if local_hits.is_empty() {
+                let pkg_path = import[..dot_at].replace('.', "/");
+                let mut roots: Vec<&str> = gradle.candidate_roots();
+                roots.extend(sbt.src_roots.values().flatten().map(|s| s.as_str()));
+                for root in &roots {
+                    let needle = format!("{root}/{pkg_path}/");
+                    for (file, names) in callables.iter() {
+                        if file.contains(needle.as_str()) && names.contains(r.name.as_str()) {
                             local_hits.insert(*file);
                         }
                     }
@@ -2683,7 +2964,7 @@ fn emit_external_sentinels(
             blast_radius: None,
             doc: None,
             heritage: Vec::new(),
-        });
+            alias: None,        });
     }
     out
 }
@@ -2962,7 +3243,7 @@ mod tests {
             blast_radius: None,
             doc: None,
             heritage: Vec::new(),
-        }
+            alias: None,        }
     }
 
     fn synth_call(file: &str, name: &str, confidence: Option<f64>) -> Reference {
@@ -3583,5 +3864,106 @@ mod tests {
         assert_eq!(c.kind, "constant");
         assert_eq!(c.parent.as_deref(), Some("Config"));
         assert_eq!(c.sig.as_deref(), Some("3"));
+    }
+
+    // --- Issue #28 — Gradle settings.gradle(.kts) resolver -----------
+
+    #[test]
+    fn gradle_settings_include_parses_module_paths() {
+        // settings.gradle.kts: include(":app", ":lib:io", ":lib:net")
+        // → module_dirs maps each path to a directory.
+        let tmp = tempfile::TempDir::new().unwrap();
+        std::fs::write(
+            tmp.path().join("settings.gradle.kts"),
+            "rootProject.name = \"demo\"\ninclude(\":app\", \":lib:io\")\ninclude(\":lib:net\")\n",
+        ).unwrap();
+        let g = load_gradle_settings(tmp.path());
+        assert_eq!(g.module_dirs.get(":app").map(String::as_str), Some("app"));
+        assert_eq!(g.module_dirs.get(":lib:io").map(String::as_str), Some("lib/io"));
+        assert_eq!(g.module_dirs.get(":lib:net").map(String::as_str), Some("lib/net"));
+    }
+
+    #[test]
+    fn gradle_settings_projectdir_override_takes_precedence() {
+        // project(":lib:io").projectDir = file("modules/io") relocates
+        // the module to a custom path.
+        let tmp = tempfile::TempDir::new().unwrap();
+        std::fs::write(
+            tmp.path().join("settings.gradle.kts"),
+            "include(\":lib:io\")\nproject(\":lib:io\").projectDir = file(\"modules/io\")\n",
+        ).unwrap();
+        let g = load_gradle_settings(tmp.path());
+        assert_eq!(g.module_dirs.get(":lib:io").map(String::as_str), Some("modules/io"));
+        // Default src roots reflect the override.
+        let roots = g.src_roots.get(":lib:io").expect("src_roots");
+        assert!(roots.iter().any(|r| r == "modules/io/src/main/kotlin"));
+        assert!(roots.iter().any(|r| r == "modules/io/src/main/java"));
+    }
+
+    #[test]
+    fn gradle_settings_srcdirs_override_in_build_gradle() {
+        // Per-module build.gradle.kts with `srcDirs("kt")` overrides
+        // the default src/main/kotlin convention.
+        let tmp = tempfile::TempDir::new().unwrap();
+        std::fs::write(
+            tmp.path().join("settings.gradle.kts"),
+            "include(\":lib:io\")\n",
+        ).unwrap();
+        std::fs::create_dir_all(tmp.path().join("lib/io")).unwrap();
+        std::fs::write(
+            tmp.path().join("lib/io/build.gradle.kts"),
+            "kotlin { sourceSets[\"main\"].kotlin.srcDirs(\"kt\") }\n",
+        ).unwrap();
+        let g = load_gradle_settings(tmp.path());
+        let roots = g.src_roots.get(":lib:io").expect("src_roots");
+        assert!(roots.iter().any(|r| r == "lib/io/kt"),
+            "expected srcDirs override `lib/io/kt`; got {:?}", roots);
+    }
+
+    #[test]
+    fn gradle_settings_no_manifest_returns_empty() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let g = load_gradle_settings(tmp.path());
+        assert!(g.module_dirs.is_empty());
+        assert!(g.src_roots.is_empty());
+    }
+
+    // --- Issue #29 — Scala sbt + Mill manifest resolver --------------
+
+    #[test]
+    fn sbt_modules_lazy_val_project_in_file_parses_dir() {
+        // `lazy val core = project.in(file("modules/core"))` →
+        // src_roots["core"] = [modules/core/src/main/scala, ...]
+        let tmp = tempfile::TempDir::new().unwrap();
+        std::fs::write(
+            tmp.path().join("build.sbt"),
+            "lazy val core = project.in(file(\"modules/core\"))\nlazy val api = project.in(file(\"api\"))\n",
+        ).unwrap();
+        let s = load_sbt_modules(tmp.path());
+        let core = s.src_roots.get("core").expect("core module");
+        assert!(core.iter().any(|r| r == "modules/core/src/main/scala"));
+        let api = s.src_roots.get("api").expect("api module");
+        assert!(api.iter().any(|r| r == "api/src/main/scala"));
+    }
+
+    #[test]
+    fn sbt_modules_mill_build_sc_treats_parent_as_module() {
+        // Each Mill build.sc declares a module at its parent dir.
+        let tmp = tempfile::TempDir::new().unwrap();
+        std::fs::create_dir_all(tmp.path().join("services/io")).unwrap();
+        std::fs::write(
+            tmp.path().join("services/io/build.sc"),
+            "import mill._, scalalib._\nobject io extends ScalaModule { def scalaVersion = \"3.3.0\" }\n",
+        ).unwrap();
+        let s = load_sbt_modules(tmp.path());
+        let io = s.src_roots.get("io").expect("Mill `io` module");
+        assert!(io.iter().any(|r| r == "services/io/src"));
+    }
+
+    #[test]
+    fn sbt_modules_no_manifest_returns_empty() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let s = load_sbt_modules(tmp.path());
+        assert!(s.src_roots.is_empty());
     }
 }

@@ -338,7 +338,7 @@ mod tests {
             blast_radius: Some(BlastRadius::default()),
             doc: None,
             heritage: Vec::new(),
-        }
+            alias: None,        }
     }
 
     fn ent_ranked(
