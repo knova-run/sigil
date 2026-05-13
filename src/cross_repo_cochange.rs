@@ -102,6 +102,21 @@ pub fn mine(parent: &Path, cfg: &CrossRepoConfig) -> Result<Vec<CrossRepoEdge>> 
     Ok(correlate(events, cfg))
 }
 
+/// Workspace-aware variant. Takes explicit `(member_name, member_path)`
+/// pairs instead of sibling-walking a parent dir. Used by
+/// `workspace::workspace_index` so cross-repo co-change folds into the
+/// workspace pipeline regardless of where members live on disk.
+pub fn mine_members<'a, I>(members: I, cfg: &CrossRepoConfig) -> Result<Vec<CrossRepoEdge>>
+where
+    I: IntoIterator<Item = (&'a str, &'a Path)>,
+{
+    let mut events: Vec<ChangeEvent> = Vec::new();
+    for (name, path) in members {
+        events.extend(commit_events(path, name, cfg.commits_per_repo)?);
+    }
+    Ok(correlate(events, cfg))
+}
+
 fn discover_child_repos(parent: &Path) -> Vec<PathBuf> {
     let mut repos = Vec::new();
     let entries = match std::fs::read_dir(parent) {

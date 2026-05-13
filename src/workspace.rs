@@ -19,8 +19,8 @@ pub struct WorkspaceManifest {
     pub members: Vec<WorkspaceMember>,
 }
 
-/// One entry in `members.json`. `disabled` is omitted from JSON when
-/// false to keep diffs small (the common case).
+/// One entry in `members.json`. `disabled` and `is_primary` are omitted
+/// from JSON when false to keep diffs small (the common case).
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct WorkspaceMember {
     pub name: String,
@@ -30,6 +30,13 @@ pub struct WorkspaceMember {
     pub description: Option<String>,
     #[serde(default, skip_serializing_if = "is_false")]
     pub disabled: bool,
+    /// First-added member is auto-marked primary. `workspace set-default`
+    /// flips it. Repowise calls this `is_primary` on its RepoEntry —
+    /// matches that schema. Downstream consumers (MCP, doc landing
+    /// pages, default-repo query routing) read this to pick a "main"
+    /// repo when none is specified.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub is_primary: bool,
 }
 
 fn is_false(b: &bool) -> bool { !*b }
@@ -195,16 +202,55 @@ pub fn add(
         desired_name
     };
 
+    // First-added enabled member becomes the primary. Subsequent adds
+    // don't change which member is primary — use `set_primary` for that.
+    let is_primary = !disabled
+        && !manifest.members.iter().any(|m| m.is_primary);
+
     let member = WorkspaceMember {
         name: final_name,
         path: canonical_str,
         added_at: now_rfc3339(),
         description: description.map(str::to_string),
         disabled,
+        is_primary,
     };
     manifest.members.push(member.clone());
     write_manifest(workspace_root, &manifest)?;
     Ok(member)
+}
+
+/// Flip the `is_primary` flag onto exactly the named member; clears it
+/// on all others. Returns the canonical name of the new primary.
+pub fn set_primary(workspace_root: &Path, name_or_path: &str) -> Result<String> {
+    let mut manifest = read_manifest(workspace_root)?;
+
+    let canonical_input = canonicalize_input(Path::new(name_or_path)).ok();
+    let canonical_str = canonical_input.as_ref().map(|p| p.to_string_lossy().to_string());
+
+    let idx = manifest.members.iter().position(|m| {
+        m.name == name_or_path || canonical_str.as_deref().is_some_and(|c| m.path == c)
+    });
+    let Some(idx) = idx else {
+        return Err(anyhow!(
+            "'{}' is not a member of {}",
+            name_or_path,
+            workspace_root.display()
+        ));
+    };
+    if manifest.members[idx].disabled {
+        return Err(anyhow!(
+            "'{}' is disabled — enable it before making it the default repo",
+            manifest.members[idx].name
+        ));
+    }
+    let new_name = manifest.members[idx].name.clone();
+    for m in &mut manifest.members {
+        m.is_primary = false;
+    }
+    manifest.members[idx].is_primary = true;
+    write_manifest(workspace_root, &manifest)?;
+    Ok(new_name)
 }
 
 /// Maximum cross-repo emissions per external sentinel. Prevents
@@ -1016,6 +1062,14 @@ pub fn remove(workspace_root: &Path, name_or_path: &str) -> Result<bool> {
     let canonical_str = canonical_input.as_ref().map(|p| p.to_string_lossy().to_string());
 
     let before = manifest.members.len();
+    let removed_was_primary = manifest
+        .members
+        .iter()
+        .any(|m| {
+            (m.name == name_or_path
+                || canonical_str.as_deref().is_some_and(|c| m.path == c))
+                && m.is_primary
+        });
     manifest.members.retain(|m| {
         let name_matches = m.name == name_or_path;
         let path_matches = canonical_str.as_deref().is_some_and(|c| m.path == c);
@@ -1032,6 +1086,16 @@ pub fn remove(workspace_root: &Path, name_or_path: &str) -> Result<bool> {
         return Ok(false);
     }
 
+    // If we just removed the primary, promote the next enabled member
+    // so the workspace always has a primary (when at least one member
+    // remains enabled).
+    if removed_was_primary
+        && !manifest.members.iter().any(|m| m.is_primary)
+        && let Some(next) = manifest.members.iter_mut().find(|m| !m.disabled)
+    {
+        next.is_primary = true;
+    }
+
     write_manifest(workspace_root, &manifest)?;
     Ok(true)
 }
@@ -1045,6 +1109,14 @@ pub struct MemberStamp {
     pub entities_mtime_ms: i128,
     pub refs_len: u64,
     pub refs_mtime_ms: i128,
+    /// `git rev-parse HEAD` at index time. Lets downstream consumers
+    /// know whether the member's source moved since the last workspace
+    /// index, independent of whether its `.sigil/` files were rewritten
+    /// (e.g. a commit that touched only test fixtures sigil ignores).
+    /// Mirrors repowise's `RepoEntry.last_commit_at_index`. Absent when
+    /// the member isn't a git repo or `git rev-parse` fails.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_commit_sha: Option<String>,
 }
 
 /// Top-level workspace stamp manifest. Keyed by member name. Lives at
@@ -1061,6 +1133,177 @@ fn stamp_manifest_path(workspace_root: &Path) -> PathBuf {
 
 fn cross_repo_refs_path(workspace_root: &Path) -> PathBuf {
     workspace_root.join(".sigil-workspace").join("cross_repo_refs.jsonl")
+}
+
+fn co_changes_path(workspace_root: &Path) -> PathBuf {
+    workspace_root.join(".sigil-workspace").join("co_changes.jsonl")
+}
+
+fn contract_links_path(workspace_root: &Path) -> PathBuf {
+    workspace_root.join(".sigil-workspace").join("contract_links.jsonl")
+}
+
+/// Output row for cross-repo contract matching. Joins a provider in
+/// one member with one or more consumers in others by normalized
+/// `contract_id`. Mirrors repowise's `ContractLink` shape so downstream
+/// consumers (and our own future MCP wrapper, if any) can read either
+/// without an adapter.
+#[derive(Debug, Serialize)]
+pub struct ContractLink {
+    pub contract_id: String,
+    pub contract_type: String, // "http" | "grpc" | "topic"
+    pub provider_repo: String,
+    pub provider_file: String,
+    pub provider_line: u32,
+    pub provider_framework: String,
+    pub consumer_repo: String,
+    pub consumer_file: String,
+    pub consumer_line: u32,
+    pub consumer_framework: String,
+}
+
+/// Match providers in one workspace member against consumers in
+/// another, joined by normalized `contract_id` (`http::METHOD::PATH`,
+/// `grpc::Service/Method`, `topic::name`). One link per
+/// (contract_id, provider_repo, consumer_repo) — the highest-confidence
+/// pair when multiple sites exist.
+pub fn resolve_workspace_contract_links(workspace_root: &Path) -> Result<usize> {
+    use crate::contracts::ContractRow;
+    let members: Vec<WorkspaceMember> = list(workspace_root)?
+        .into_iter()
+        .filter(|m| !m.disabled)
+        .collect();
+
+    let path = contract_links_path(workspace_root);
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).ok();
+    }
+
+    if members.len() < 2 {
+        std::fs::write(&path, "")?;
+        return Ok(0);
+    }
+
+    // Per-contract: providers list + consumers list grouped by member.
+    type Site = (String, ContractRow);
+    let mut providers: std::collections::HashMap<String, Vec<Site>> = std::collections::HashMap::new();
+    let mut consumers: std::collections::HashMap<String, Vec<Site>> = std::collections::HashMap::new();
+
+    for m in &members {
+        let mp = std::path::Path::new(&m.path);
+        for c in crate::contracts::extract_from_root(mp) {
+            let id = c.contract_id.clone();
+            match c.role.as_str() {
+                "provider" | "publisher" => {
+                    providers.entry(id).or_default().push((m.name.clone(), c));
+                }
+                "consumer" | "subscriber" => {
+                    consumers.entry(id).or_default().push((m.name.clone(), c));
+                }
+                _ => {}
+            }
+        }
+    }
+
+    let mut out_lines: Vec<String> = Vec::new();
+    let mut seen: std::collections::HashSet<(String, String, String)> = std::collections::HashSet::new();
+    for (id, prov_sites) in &providers {
+        let Some(cons_sites) = consumers.get(id) else { continue };
+        for (p_member, p_row) in prov_sites {
+            for (c_member, c_row) in cons_sites {
+                if p_member == c_member {
+                    continue;
+                }
+                // Dedupe to one link per (contract, provider_repo, consumer_repo)
+                let key = (id.clone(), p_member.clone(), c_member.clone());
+                if !seen.insert(key) {
+                    continue;
+                }
+                let link = ContractLink {
+                    contract_id: id.clone(),
+                    contract_type: p_row.kind.clone(),
+                    provider_repo: p_member.clone(),
+                    provider_file: p_row.file.clone(),
+                    provider_line: p_row.line,
+                    provider_framework: p_row.framework.clone(),
+                    consumer_repo: c_member.clone(),
+                    consumer_file: c_row.file.clone(),
+                    consumer_line: c_row.line,
+                    consumer_framework: c_row.framework.clone(),
+                };
+                out_lines.push(serde_json::to_string(&link)?);
+            }
+        }
+    }
+
+    let body = if out_lines.is_empty() {
+        String::new()
+    } else {
+        let mut s = out_lines.join("\n");
+        s.push('\n');
+        s
+    };
+    std::fs::write(&path, body)
+        .with_context(|| format!("writing {}", path.display()))?;
+    Ok(out_lines.len())
+}
+
+/// Run cross-repo co-change mining across every enabled member and
+/// write `co_changes.jsonl`. Reuses the existing `cross_repo_cochange`
+/// engine — shape matches repowise's `CrossRepoCoChange` so downstream
+/// consumers don't need adapter code.
+pub fn resolve_workspace_co_changes(workspace_root: &Path) -> Result<usize> {
+    let members: Vec<WorkspaceMember> = list(workspace_root)?
+        .into_iter()
+        .filter(|m| !m.disabled)
+        .collect();
+    let path = co_changes_path(workspace_root);
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).ok();
+    }
+    if members.len() < 2 {
+        std::fs::write(&path, "")?;
+        return Ok(0);
+    }
+    let cfg = crate::cross_repo_cochange::CrossRepoConfig::default();
+    let pairs: Vec<(String, PathBuf)> = members
+        .iter()
+        .map(|m| (m.name.clone(), PathBuf::from(&m.path)))
+        .collect();
+    let iter = pairs
+        .iter()
+        .map(|(n, p)| (n.as_str(), p.as_path()));
+    let edges = crate::cross_repo_cochange::mine_members(iter, &cfg)?;
+    let mut body = String::new();
+    for e in &edges {
+        body.push_str(&serde_json::to_string(e)?);
+        body.push('\n');
+    }
+    std::fs::write(&path, body)
+        .with_context(|| format!("writing {}", path.display()))?;
+    Ok(edges.len())
+}
+
+/// `git rev-parse HEAD` at `repo_path`. Returns `None` when the path
+/// isn't a git repo, has no commits yet, or git is unavailable. Cheap
+/// — runs once per member per `workspace index`.
+fn git_head_sha(repo_path: &Path) -> Option<String> {
+    let output = std::process::Command::new("git")
+        .arg("-C")
+        .arg(repo_path)
+        .arg("rev-parse")
+        .arg("HEAD")
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let s = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if s.len() == 40 && s.chars().all(|c| c.is_ascii_hexdigit()) {
+        Some(s)
+    } else {
+        None
+    }
 }
 
 fn stamp_file(p: &Path) -> Result<(u64, i128)> {
@@ -1168,6 +1411,7 @@ pub fn workspace_index_with_options(workspace_root: &Path, full: bool) -> Result
         } else {
             (0, 0)
         };
+        let last_commit_sha = git_head_sha(&path);
 
         stamps.members.insert(
             member.name.clone(),
@@ -1176,6 +1420,7 @@ pub fn workspace_index_with_options(workspace_root: &Path, full: bool) -> Result
                 entities_mtime_ms: e_mtime,
                 refs_len: r_len,
                 refs_mtime_ms: r_mtime,
+                last_commit_sha,
             },
         );
     }
@@ -1219,11 +1464,34 @@ pub fn workspace_index_with_options(workspace_root: &Path, full: bool) -> Result
     // `Index::load_workspace` already appends this file on every query.
     let cross_emitted = resolve_workspace_cross_repo(workspace_root)?;
 
+    // Repowise-parity: mine cross-repo co-change edges from each
+    // member's git log and write `co_changes.jsonl`. Best-effort — a
+    // git failure on one member doesn't abort the whole index.
+    let co_change_count = match resolve_workspace_co_changes(workspace_root) {
+        Ok(n) => n,
+        Err(e) => {
+            eprintln!("workspace index: co-change mining failed: {} (skipped)", e);
+            0
+        }
+    };
+
+    // Repowise-parity: match HTTP / gRPC / topic contracts across
+    // members by normalized contract_id, write `contract_links.jsonl`.
+    let contract_link_count = match resolve_workspace_contract_links(workspace_root) {
+        Ok(n) => n,
+        Err(e) => {
+            eprintln!("workspace index: contract matching failed: {} (skipped)", e);
+            0
+        }
+    };
+
     eprintln!(
-        "workspace index: stamped {} member(s){}, {} cross-repo ref(s)",
+        "workspace index: stamped {} member(s){}, {} cross-repo ref(s), {} co-change edge(s), {} contract link(s)",
         stamps.members.len(),
         if warnings > 0 { format!(" ({} skipped)", warnings) } else { String::new() },
-        cross_emitted
+        cross_emitted,
+        co_change_count,
+        contract_link_count,
     );
     Ok(())
 }

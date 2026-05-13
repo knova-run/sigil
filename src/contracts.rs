@@ -52,9 +52,25 @@ pub struct ContractRow {
 ///   - lowercase
 ///   - collapse `:param`, `{name}`, `[name]` → `{param}`
 pub fn normalize_http_path(path: &str) -> String {
-    let no_query = match path.split_once('?') {
-        Some((head, _)) => head,
-        None => path,
+    // Strip scheme + host so that a consumer's `axios.get('http://api/users')`
+    // collapses to `/users` and joins with a provider's `@app.get('/users')`.
+    // Mirrors repowise's `_extract_path_from_url`.
+    let stripped: &str = if let Some(rest) = path.strip_prefix("http://") {
+        rest.split_once('/').map(|(_, p)| p).unwrap_or("")
+    } else if let Some(rest) = path.strip_prefix("https://") {
+        rest.split_once('/').map(|(_, p)| p).unwrap_or("")
+    } else {
+        path
+    };
+    // The strip above drops the leading slash; re-add it.
+    let with_slash: String = if stripped.starts_with('/') {
+        stripped.to_string()
+    } else {
+        format!("/{stripped}")
+    };
+    let no_query = match with_slash.split_once('?') {
+        Some((head, _)) => head.to_string(),
+        None => with_slash,
     };
     let lower = no_query.to_ascii_lowercase();
     let trimmed: String = if lower.len() > 1 && lower.ends_with('/') {

@@ -1502,6 +1502,212 @@ fn workspace_bulk_add_skips_already_registered_members() {
         "idempotent: re-applying must not duplicate");
 }
 
+// ---------------------------------------------------------------------------
+// Gaps closed vs repowise: primary repo, git SHA stamp, co-change wiring,
+// cross-repo contracts. See WORKSPACE_INDEXING_PLAN.md and the comparison
+// audit in the v0.6.x changelog.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn workspace_first_added_member_is_primary_by_default() {
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let a = tmp.path().join("a");
+    let b = tmp.path().join("b");
+    fs::create_dir_all(&ws).unwrap();
+    init_repo(&a);
+    init_repo(&b);
+
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", a.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", b.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+
+    let v: serde_json::Value = serde_json::from_str(
+        &fs::read_to_string(ws.join(".sigil-workspace/members.json")).unwrap()
+    ).unwrap();
+    let members = v["members"].as_array().unwrap();
+    // First added is primary; subsequent are not.
+    assert_eq!(members[0]["name"].as_str(), Some("a"));
+    assert_eq!(members[0]["is_primary"].as_bool(), Some(true),
+        "first added should be primary; got {:?}", members[0]);
+    assert!(members[1].get("is_primary").is_none(),
+        "non-primary members should not serialize the flag");
+}
+
+#[test]
+fn workspace_set_default_flips_primary() {
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let a = tmp.path().join("a");
+    let b = tmp.path().join("b");
+    fs::create_dir_all(&ws).unwrap();
+    init_repo(&a);
+    init_repo(&b);
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", a.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", b.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+
+    let out = sigil(&["workspace", "set-default", "b", "--root", ws.to_str().unwrap()]);
+    assert!(out.status.success(), "set-default: {}", String::from_utf8_lossy(&out.stderr));
+
+    let v: serde_json::Value = serde_json::from_str(
+        &fs::read_to_string(ws.join(".sigil-workspace/members.json")).unwrap()
+    ).unwrap();
+    let by_name: std::collections::HashMap<&str, &serde_json::Value> = v["members"]
+        .as_array().unwrap().iter()
+        .map(|m| (m["name"].as_str().unwrap(), m))
+        .collect();
+    assert!(by_name["a"].get("is_primary").is_none(),
+        "old primary's flag must be cleared; got {:?}", by_name["a"]);
+    assert_eq!(by_name["b"]["is_primary"].as_bool(), Some(true),
+        "new primary must be marked; got {:?}", by_name["b"]);
+}
+
+#[test]
+fn workspace_remove_primary_promotes_next_member() {
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let a = tmp.path().join("a");
+    let b = tmp.path().join("b");
+    fs::create_dir_all(&ws).unwrap();
+    init_repo(&a);
+    init_repo(&b);
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", a.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", b.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+
+    sigil(&["workspace", "remove", "a", "--root", ws.to_str().unwrap()]);
+
+    let v: serde_json::Value = serde_json::from_str(
+        &fs::read_to_string(ws.join(".sigil-workspace/members.json")).unwrap()
+    ).unwrap();
+    let members = v["members"].as_array().unwrap();
+    assert_eq!(members.len(), 1);
+    assert_eq!(members[0]["name"].as_str(), Some("b"));
+    assert_eq!(members[0]["is_primary"].as_bool(), Some(true),
+        "removing the primary must promote the next remaining member");
+}
+
+#[test]
+fn workspace_index_writes_cross_repo_contract_links() {
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let api = tmp.path().join("api");
+    let client = tmp.path().join("client");
+    fs::create_dir_all(&ws).unwrap();
+    init_repo(&api);
+    init_repo(&client);
+
+    // API repo declares a FastAPI route — provider for GET /users
+    fs::write(
+        api.join("app.py"),
+        "from fastapi import FastAPI\n\
+         app = FastAPI()\n\
+         @app.get('/users')\n\
+         def list_users():\n\
+             return []\n",
+    ).unwrap();
+
+    // Client repo calls /users with axios — consumer for the same path
+    fs::write(
+        client.join("client.js"),
+        "import axios from 'axios';\n\
+         axios.get('http://api.example.com/users');\n",
+    ).unwrap();
+
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", api.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", client.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    let out = sigil(&["workspace", "index", "--root", ws.to_str().unwrap()]);
+    assert!(out.status.success(), "index: {}", String::from_utf8_lossy(&out.stderr));
+
+    let path = ws.join(".sigil-workspace/contract_links.jsonl");
+    assert!(path.exists(), "contract_links.jsonl must exist at {}", path.display());
+    let text = fs::read_to_string(&path).unwrap();
+    let rows: Vec<serde_json::Value> = text.lines().filter(|l| !l.is_empty())
+        .map(|l| serde_json::from_str(l).unwrap()).collect();
+    assert!(!rows.is_empty(), "expected at least one contract link");
+
+    // Must have a link with api as provider and client as consumer for
+    // contract_id `http::GET::/users`
+    let link = rows.iter().find(|r| r["contract_id"].as_str() == Some("http::GET::/users"));
+    let link = link.unwrap_or_else(|| panic!("missing GET /users link; rows={rows:?}"));
+    assert_eq!(link["provider_repo"].as_str(), Some("api"));
+    assert_eq!(link["consumer_repo"].as_str(), Some("client"));
+    assert_eq!(link["contract_type"].as_str(), Some("http"));
+}
+
+#[test]
+fn workspace_index_writes_co_changes_jsonl() {
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let a = tmp.path().join("a");
+    let b = tmp.path().join("b");
+    fs::create_dir_all(&ws).unwrap();
+    init_repo(&a);
+    init_repo(&b);
+
+    // Make a coordinated commit in both repos within the same time
+    // window so the co-change miner finds at least one edge.
+    fs::write(a.join("a.txt"), "x").unwrap();
+    git(&["add", "."], &a);
+    git(&["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "a"], &a);
+    fs::write(b.join("b.txt"), "y").unwrap();
+    git(&["add", "."], &b);
+    git(&["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "b"], &b);
+
+    write_fake_sigil(&a, "{}\n", "");
+    write_fake_sigil(&b, "{}\n", "");
+
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", a.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", b.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    let out = sigil(&["workspace", "index", "--root", ws.to_str().unwrap()]);
+    assert!(out.status.success(), "index: {}", String::from_utf8_lossy(&out.stderr));
+
+    let path = ws.join(".sigil-workspace/co_changes.jsonl");
+    assert!(path.exists(), "co_changes.jsonl must exist");
+    let text = fs::read_to_string(&path).unwrap();
+    // We don't assert exact count — git timing is OS-dependent. But for
+    // two repos with commits seconds apart, we should get at least one edge.
+    let rows: Vec<serde_json::Value> = text.lines().filter(|l| !l.is_empty())
+        .map(|l| serde_json::from_str(l).expect("co_changes row must be JSON"))
+        .collect();
+    assert!(!rows.is_empty(), "expected at least one co-change edge; got empty");
+    for r in &rows {
+        assert!(r.get("source_repo").is_some());
+        assert!(r.get("target_repo").is_some());
+        assert!(r.get("strength").is_some());
+        assert!(r.get("last_date").is_some(), "schema parity with repowise");
+    }
+}
+
+#[test]
+fn workspace_index_captures_git_sha_per_member() {
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let a = tmp.path().join("a");
+    fs::create_dir_all(&ws).unwrap();
+    init_repo(&a);
+    // Make a real commit so `git rev-parse HEAD` resolves.
+    fs::write(a.join("README.md"), "hello").unwrap();
+    git(&["add", "."], &a);
+    git(&["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "init"], &a);
+    write_fake_sigil(&a, "{}\n", "");
+
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", a.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "index", "--root", ws.to_str().unwrap()]);
+
+    let v: serde_json::Value = serde_json::from_str(
+        &fs::read_to_string(ws.join(".sigil-workspace/manifest.json")).unwrap()
+    ).unwrap();
+    let stamp = &v["members"]["a"];
+    let sha = stamp["last_commit_sha"].as_str().expect("last_commit_sha must be present");
+    assert_eq!(sha.len(), 40, "SHA must be 40-char hex; got {sha}");
+    assert!(sha.chars().all(|c| c.is_ascii_hexdigit()), "SHA must be hex; got {sha}");
+}
+
 #[test]
 fn workspace_install_writes_post_commit_hooks_into_each_member() {
     let tmp = TempDir::new().unwrap();

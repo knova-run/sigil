@@ -956,6 +956,17 @@ enum WorkspaceAction {
         #[arg(long)]
         json: bool,
     },
+    /// Set which workspace member is the primary / default. Downstream
+    /// consumers (MCP servers, doc landing pages) use this to pick a
+    /// "main" repo when no `--root <member>` is specified. First-added
+    /// enabled member is auto-primary; this command flips the flag.
+    #[command(name = "set-default")]
+    SetDefault {
+        /// Member name or canonical path.
+        target: String,
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
+    },
     /// Mark a member as enabled (default). Enabled members are included
     /// in `workspace index`, union-load, and cross-repo resolution.
     Enable {
@@ -2064,6 +2075,15 @@ fn main() {
                     }
                     Err(e) => {
                         eprintln!("workspace list: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+            WorkspaceAction::SetDefault { target, root } => {
+                match sigil::workspace::set_primary(&root, &target) {
+                    Ok(name) => eprintln!("workspace: primary now '{}'", name),
+                    Err(e) => {
+                        eprintln!("workspace set-default: {}", e);
                         std::process::exit(1);
                     }
                 }
