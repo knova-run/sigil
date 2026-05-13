@@ -19191,599 +19191,635 @@
 {"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"Result","kind":"type_annotation","line":199}
 {"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"Vec","kind":"type_annotation","line":199}
 {"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"Reference","kind":"type_annotation","line":199}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"name.contains","kind":"call","line":200}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"String::from","kind":"call","line":202}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"sql.push_str","kind":"call","line":208}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"sql.push","kind":"call","line":210}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"kind_filter.is_some","kind":"call","line":211}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"sql.push_str","kind":"call","line":212}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"sql.push_str","kind":"call","line":214}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"sql.push_str","kind":"call","line":216}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"self.conn.prepare","kind":"call","line":219}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"stmt\n                .query_map","kind":"call","line":221}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"stmt\n                .query_map","kind":"call","line":224}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"stmt\n                .query_map","kind":"call","line":227}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"stmt\n                .query_map","kind":"call","line":230}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callees","name":"Option","kind":"type_annotation","line":243}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callees","name":"Result","kind":"type_annotation","line":245}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callees","name":"Vec","kind":"type_annotation","line":245}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callees","name":"Reference","kind":"type_annotation","line":245}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callees","name":"String::from","kind":"call","line":246}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callees","name":"kind_filter.is_some","kind":"call","line":251}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callees","name":"sql.push_str","kind":"call","line":252}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callees","name":"sql.push_str","kind":"call","line":254}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callees","name":"sql.push_str","kind":"call","line":256}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callees","name":"self.conn.prepare","kind":"call","line":258}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callees","name":"stmt.query_map","kind":"call","line":260}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callees","name":"stmt.query_map","kind":"call","line":263}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_file_symbols","name":"Option","kind":"type_annotation","line":281}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_file_symbols","name":"Result","kind":"type_annotation","line":283}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_file_symbols","name":"Vec","kind":"type_annotation","line":283}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_file_symbols","name":"Entity","kind":"type_annotation","line":283}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_file_symbols","name":"String::from","kind":"call","line":284}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_file_symbols","name":"kind_filter.is_some","kind":"call","line":290}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_file_symbols","name":"sql.push_str","kind":"call","line":291}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_file_symbols","name":"sql.push_str","kind":"call","line":293}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_file_symbols","name":"sql.push_str","kind":"call","line":295}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_file_symbols","name":"self.conn.prepare","kind":"call","line":297}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_file_symbols","name":"stmt.query_map","kind":"call","line":299}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_file_symbols","name":"stmt.query_map","kind":"call","line":302}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_children","name":"Option","kind":"type_annotation","line":314}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_children","name":"Result","kind":"type_annotation","line":316}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_children","name":"Vec","kind":"type_annotation","line":316}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_children","name":"Entity","kind":"type_annotation","line":316}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_children","name":"String::from","kind":"call","line":317}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_children","name":"kind_filter.is_some","kind":"call","line":323}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_children","name":"sql.push_str","kind":"call","line":324}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_children","name":"sql.push_str","kind":"call","line":326}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_children","name":"sql.push_str","kind":"call","line":328}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_children","name":"self.conn.prepare","kind":"call","line":330}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_children","name":"stmt.query_map","kind":"call","line":332}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_children","name":"stmt.query_map","kind":"call","line":335}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"Scope","kind":"type_annotation","line":348}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"Option","kind":"type_annotation","line":349}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"Option","kind":"type_annotation","line":350}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"Result","kind":"type_annotation","line":352}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"Vec","kind":"type_annotation","line":352}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"SearchHitOwned","kind":"type_annotation","line":352}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"query.is_empty","kind":"call","line":353}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"Vec::new","kind":"call","line":354}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"Vec::new","kind":"call","line":359}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"self.search_symbols_impl","kind":"call","line":362,"confidence":0.95,"callee_id":"src/query/duckdb_backend.rs::DuckDbBackend::search_symbols_impl"}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"remaining_limit","kind":"call","line":362,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"hits.len","kind":"call","line":362}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"hits.push","kind":"call","line":363}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"SearchHitOwned::Symbol","kind":"call","line":363,"confidence":0.8}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"crate::query::SearchHitOwned/Symbol","kind":"call","line":363,"confidence":0.8}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"hits.len","kind":"call","line":364}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"self.search_files_impl","kind":"call","line":371,"confidence":0.95,"callee_id":"src/query/duckdb_backend.rs::DuckDbBackend::search_files_impl"}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"remaining_limit","kind":"call","line":371,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"hits.len","kind":"call","line":371}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"hits.push","kind":"call","line":372}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"SearchHitOwned::File","kind":"call","line":372,"confidence":0.8}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"crate::query::SearchHitOwned/File","kind":"call","line":372,"confidence":0.8}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"hits.len","kind":"call","line":373}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_symbols_impl","name":"Option","kind":"type_annotation","line":385}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_symbols_impl","name":"Option","kind":"type_annotation","line":386}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_symbols_impl","name":"Result","kind":"type_annotation","line":388}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_symbols_impl","name":"Vec","kind":"type_annotation","line":388}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_symbols_impl","name":"Entity","kind":"type_annotation","line":388}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_symbols_impl","name":"String::from","kind":"call","line":390}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_symbols_impl","name":"kind_filter.is_some","kind":"call","line":396}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_symbols_impl","name":"sql.push_str","kind":"call","line":397}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_symbols_impl","name":"path_prefix.is_some","kind":"call","line":399}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_symbols_impl","name":"sql.push_str","kind":"call","line":400}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_symbols_impl","name":"sql.push_str","kind":"call","line":402}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_symbols_impl","name":"sql.push_str","kind":"call","line":404}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_symbols_impl","name":"self.conn.prepare","kind":"call","line":406}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_symbols_impl","name":"stmt\n                .query_map","kind":"call","line":408}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_symbols_impl","name":"stmt\n                .query_map","kind":"call","line":411}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_symbols_impl","name":"stmt\n                .query_map","kind":"call","line":414}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_symbols_impl","name":"stmt\n                .query_map","kind":"call","line":417}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_files_impl","name":"Option","kind":"type_annotation","line":427}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_files_impl","name":"Result","kind":"type_annotation","line":429}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_files_impl","name":"Vec","kind":"type_annotation","line":429}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_files_impl","name":"FileHit","kind":"type_annotation","line":429}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_files_impl","name":"String::from","kind":"call","line":436}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_files_impl","name":"path_prefix.is_some","kind":"call","line":441}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_files_impl","name":"sql.push_str","kind":"call","line":442}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_files_impl","name":"sql.push_str","kind":"call","line":444}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_files_impl","name":"sql.push_str","kind":"call","line":446}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_files_impl","name":"self.conn.prepare","kind":"call","line":448}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_files_impl","name":"stmt.query_map","kind":"call","line":450}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_files_impl","name":"stmt.query_map","kind":"call","line":455}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_files_impl","name":"rows\n            .into_iter()\n            .map(|(path, count)| FileHit {\n                lang: lang_for(&path).map(|s| s.to_string()),\n                path,\n                entity_count: count as usize,\n            })\n            .collect","kind":"call","line":460}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_files_impl","name":"rows\n            .into_iter()\n            .map","kind":"call","line":460}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_files_impl","name":"rows\n            .into_iter","kind":"call","line":460}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_files_impl","name":"lang_for(&path).map","kind":"call","line":463}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_files_impl","name":"lang_for","kind":"call","line":463,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_files_impl","name":"s.to_string","kind":"call","line":463}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_dir_overview","name":"Option","kind":"type_annotation","line":479}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_dir_overview","name":"Result","kind":"type_annotation","line":479}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_dir_overview","name":"Vec","kind":"type_annotation","line":479}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_dir_overview","name":"DirSummary","kind":"type_annotation","line":479}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_dir_overview","name":"self.distinct_files","kind":"call","line":480,"confidence":0.95,"callee_id":"src/query/duckdb_backend.rs::DuckDbBackend::distinct_files"}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_dir_overview","name":"BTreeMap::new","kind":"call","line":482,"confidence":0.8}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_dir_overview","name":"std::collections::BTreeMap/new","kind":"call","line":482,"confidence":0.8}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_dir_overview","name":"parent_dir(f).to_string","kind":"call","line":484}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_dir_overview","name":"parent_dir","kind":"call","line":484,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_dir_overview","name":"by_dir.entry(dir).or_default","kind":"call","line":485}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_dir_overview","name":"by_dir.entry","kind":"call","line":485}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_dir_overview","name":"lang_for","kind":"call","line":487,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_dir_overview","name":"entry.1.insert","kind":"call","line":488}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_dir_overview","name":"lang.to_string","kind":"call","line":488}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_dir_overview","name":"by_dir\n            .into_iter()\n            .map(|(path, (file_count, langs))| DirSummary {\n                path,\n                file_count,\n                langs: langs.into_iter().collect(),\n            })\n            .collect","kind":"call","line":491}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_dir_overview","name":"by_dir\n            .into_iter()\n            .map","kind":"call","line":491}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_dir_overview","name":"by_dir\n            .into_iter","kind":"call","line":491}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_dir_overview","name":"langs.into_iter().collect","kind":"call","line":496}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_dir_overview","name":"langs.into_iter","kind":"call","line":496}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"Option","kind":"type_annotation","line":505}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"Result","kind":"type_annotation","line":507}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"Vec","kind":"type_annotation","line":507}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"Option","kind":"type_annotation","line":507}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"String","kind":"type_annotation","line":507}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"String","kind":"type_annotation","line":507}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"String","kind":"type_annotation","line":507}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"self.distinct_files","kind":"call","line":508,"confidence":0.95,"callee_id":"src/query/duckdb_backend.rs::DuckDbBackend::distinct_files"}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"files.sort","kind":"call","line":509}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"BTreeMap::new","kind":"call","line":511,"confidence":0.8}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"std::collections::BTreeMap/new","kind":"call","line":511,"confidence":0.8}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"parent_dir(&f).to_string","kind":"call","line":513}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"parent_dir","kind":"call","line":513,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"by_dir.entry(dir).or_default().push","kind":"call","line":514}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"by_dir.entry(dir).or_default","kind":"call","line":514}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"by_dir.entry","kind":"call","line":514}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"Vec::new","kind":"call","line":516}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"entries.sort","kind":"call","line":518}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"entries.len","kind":"call","line":519}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"entries.truncate","kind":"call","line":520}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"lang_for(&f).map","kind":"call","line":523}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"lang_for","kind":"call","line":523,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"s.to_string","kind":"call","line":523}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"out.push","kind":"call","line":524}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"dir.clone","kind":"call","line":524}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.distinct_files","name":"Option","kind":"type_annotation","line":530}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.distinct_files","name":"Result","kind":"type_annotation","line":530}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.distinct_files","name":"Vec","kind":"type_annotation","line":530}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.distinct_files","name":"String","kind":"type_annotation","line":530}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.distinct_files","name":"String::from","kind":"call","line":531}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.distinct_files","name":"path_prefix.is_some","kind":"call","line":532}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.distinct_files","name":"sql.push_str","kind":"call","line":533}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.distinct_files","name":"self.conn.prepare","kind":"call","line":535}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.distinct_files","name":"stmt.query_map","kind":"call","line":537}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.distinct_files","name":"stmt.query_map","kind":"call","line":540}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.list_projects","name":"Result","kind":"type_annotation","line":550}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.list_projects","name":"Vec","kind":"type_annotation","line":550}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.list_projects","name":"String","kind":"type_annotation","line":550}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.db_path","name":"PathBuf","kind":"type_annotation","line":556}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.db_path","name":"self.root.join","kind":"call","line":557}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.exec_query","name":"Result","kind":"type_annotation","line":565}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.exec_query","name":"QueryResult","kind":"type_annotation","line":565}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.exec_query","name":"self.conn.prepare","kind":"call","line":566}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.exec_query","name":"stmt.query","kind":"call","line":571}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.exec_query","name":"it\n            .as_ref()\n            .map(|s| s.column_names().into_iter().map(String::from).collect())\n            .unwrap_or_default","kind":"call","line":572}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.exec_query","name":"it\n            .as_ref()\n            .map","kind":"call","line":572}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.exec_query","name":"it\n            .as_ref","kind":"call","line":572}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.exec_query","name":"s.column_names().into_iter().map(String::from).collect","kind":"call","line":574}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.exec_query","name":"s.column_names().into_iter().map","kind":"call","line":574}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.exec_query","name":"s.column_names().into_iter","kind":"call","line":574}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.exec_query","name":"s.column_names","kind":"call","line":574}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.exec_query","name":"columns.len","kind":"call","line":576}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.exec_query","name":"Vec::new","kind":"call","line":577}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.exec_query","name":"it.next","kind":"call","line":578}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.exec_query","name":"Vec::with_capacity","kind":"call","line":579}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.exec_query","name":"r.push","kind":"call","line":581}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.exec_query","name":"format_cell","kind":"call","line":581,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.exec_query","name":"rows.push","kind":"call","line":583}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult","name":"Vec","kind":"type_annotation","line":593}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult","name":"String","kind":"type_annotation","line":593}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult","name":"Vec","kind":"type_annotation","line":594}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult","name":"Vec","kind":"type_annotation","line":594}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult","name":"String","kind":"type_annotation","line":594}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"String","kind":"type_annotation","line":601}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"s.chars().count","kind":"call","line":603}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"s.chars","kind":"call","line":603}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"s.to_string","kind":"call","line":604}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"s.chars().take(max_cell_width.saturating_sub(1)).collect","kind":"call","line":606}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"s.chars().take","kind":"call","line":606}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"s.chars","kind":"call","line":606}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"max_cell_width.saturating_sub","kind":"call","line":606}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"out.push","kind":"call","line":607}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"String::with_capacity","kind":"call","line":611}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"self.columns.is_empty","kind":"call","line":612}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"\"_(no columns)_\\n\".to_string","kind":"call","line":613}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"out.push_str","kind":"call","line":615}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"out.push_str","kind":"call","line":616}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"self\n                .columns\n                .iter()\n                .map(|c| truncate(c))\n                .collect::<Vec<_>>()\n                .join","kind":"call","line":617}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"self\n                .columns\n                .iter()\n                .map","kind":"call","line":617}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"self\n                .columns\n                .iter","kind":"call","line":617}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"truncate","kind":"call","line":620}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"out.push_str","kind":"call","line":624}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"out.push_str","kind":"call","line":626}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"out.push","kind":"call","line":628}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"out.push_str","kind":"call","line":630}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"out.push_str","kind":"call","line":631}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"row.iter()\n                    .map(|c| truncate(c))\n                    .collect::<Vec<_>>()\n                    .join","kind":"call","line":632}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"row.iter()\n                    .map","kind":"call","line":632}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"row.iter","kind":"call","line":632}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"truncate","kind":"call","line":633}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"out.push_str","kind":"call","line":637}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"out.push_str","kind":"call","line":639}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_json","name":"String","kind":"type_annotation","line":647}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_json","name":"self\n            .rows\n            .iter()\n            .map(|row| {\n                let mut m = serde_json::Map::new();\n                for (i, col) in self.columns.iter().enumerate() {\n                    let v = row.get(i).cloned().unwrap_or_default();\n                    m.insert(col.clone(), serde_json::Value::String(v));\n                }\n                m\n            })\n            .collect","kind":"call","line":648}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_json","name":"self\n            .rows\n            .iter()\n            .map","kind":"call","line":648}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_json","name":"self\n            .rows\n            .iter","kind":"call","line":648}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_json","name":"serde_json::Map::new","kind":"call","line":652}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_json","name":"self.columns.iter().enumerate","kind":"call","line":653}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_json","name":"self.columns.iter","kind":"call","line":653}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_json","name":"row.get(i).cloned().unwrap_or_default","kind":"call","line":654}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_json","name":"row.get(i).cloned","kind":"call","line":654}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_json","name":"row.get","kind":"call","line":654}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_json","name":"m.insert","kind":"call","line":655}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_json","name":"col.clone","kind":"call","line":655}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_json","name":"serde_json::Value::String","kind":"call","line":655}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_json","name":"serde_json::to_string_pretty(&objs).unwrap_or_default","kind":"call","line":661}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_json","name":"serde_json::to_string_pretty","kind":"call","line":661}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_json","name":"serde_json::to_string(&objs).unwrap_or_default","kind":"call","line":663}
-{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_json","name":"serde_json::to_string","kind":"call","line":663}
-{"file":"src/query/duckdb_backend.rs","caller":"format_cell","name":"duckdb::Row","kind":"type_annotation","line":673}
-{"file":"src/query/duckdb_backend.rs","caller":"format_cell","name":"String","kind":"type_annotation","line":673}
-{"file":"src/query/duckdb_backend.rs","name":"duckdb::types::ValueRef","kind":"import","line":674}
-{"file":"src/query/duckdb_backend.rs","caller":"format_cell","name":"row.get_ref","kind":"call","line":675}
-{"file":"src/query/duckdb_backend.rs","caller":"format_cell","name":"String::new","kind":"call","line":676}
-{"file":"src/query/duckdb_backend.rs","caller":"format_cell","name":"b.to_string","kind":"call","line":677}
-{"file":"src/query/duckdb_backend.rs","caller":"format_cell","name":"v.to_string","kind":"call","line":678}
-{"file":"src/query/duckdb_backend.rs","caller":"format_cell","name":"v.to_string","kind":"call","line":679}
-{"file":"src/query/duckdb_backend.rs","caller":"format_cell","name":"v.to_string","kind":"call","line":680}
-{"file":"src/query/duckdb_backend.rs","caller":"format_cell","name":"v.to_string","kind":"call","line":681}
-{"file":"src/query/duckdb_backend.rs","caller":"format_cell","name":"v.to_string","kind":"call","line":682}
-{"file":"src/query/duckdb_backend.rs","caller":"format_cell","name":"v.to_string","kind":"call","line":683}
-{"file":"src/query/duckdb_backend.rs","caller":"format_cell","name":"v.to_string","kind":"call","line":684}
-{"file":"src/query/duckdb_backend.rs","caller":"format_cell","name":"v.to_string","kind":"call","line":685}
-{"file":"src/query/duckdb_backend.rs","caller":"format_cell","name":"v.to_string","kind":"call","line":686}
-{"file":"src/query/duckdb_backend.rs","caller":"format_cell","name":"v.to_string","kind":"call","line":687}
-{"file":"src/query/duckdb_backend.rs","caller":"format_cell","name":"v.to_string","kind":"call","line":688}
-{"file":"src/query/duckdb_backend.rs","caller":"format_cell","name":"String::from_utf8_lossy(t).into_owned","kind":"call","line":689}
-{"file":"src/query/duckdb_backend.rs","caller":"format_cell","name":"String::from_utf8_lossy","kind":"call","line":689}
-{"file":"src/query/duckdb_backend.rs","caller":"format_cell","name":"\"<blob>\".to_string","kind":"call","line":690}
-{"file":"src/query/duckdb_backend.rs","caller":"populate","name":"Path","kind":"type_annotation","line":698}
-{"file":"src/query/duckdb_backend.rs","caller":"populate","name":"Connection","kind":"type_annotation","line":698}
-{"file":"src/query/duckdb_backend.rs","caller":"populate","name":"Result","kind":"type_annotation","line":698}
-{"file":"src/query/duckdb_backend.rs","caller":"populate","name":"sigil_dir.join","kind":"call","line":699}
-{"file":"src/query/duckdb_backend.rs","caller":"populate","name":"sigil_dir.join","kind":"call","line":700}
-{"file":"src/query/duckdb_backend.rs","caller":"populate","name":"entities_path.exists","kind":"call","line":715}
-{"file":"src/query/duckdb_backend.rs","caller":"populate","name":"empty_entities_table_sql().to_string","kind":"call","line":722}
-{"file":"src/query/duckdb_backend.rs","caller":"populate","name":"empty_entities_table_sql","kind":"call","line":722,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"populate","name":"refs_path.exists","kind":"call","line":724}
-{"file":"src/query/duckdb_backend.rs","caller":"populate","name":"empty_refs_table_sql().to_string","kind":"call","line":731}
-{"file":"src/query/duckdb_backend.rs","caller":"populate","name":"empty_refs_table_sql","kind":"call","line":731,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"populate","name":"conn.execute_batch(&format!(\n        \"{entities_sql}\n         {refs_sql}\n         CREATE INDEX idx_entities_name ON entities(name);\n         CREATE INDEX idx_entities_file ON entities(file);\n         CREATE INDEX idx_refs_name   ON refs(name);\n         CREATE INDEX idx_refs_caller ON refs(caller);\n         CREATE INDEX idx_refs_file   ON refs(file);\",\n    ))\n    .context","kind":"call","line":736}
-{"file":"src/query/duckdb_backend.rs","caller":"populate","name":"conn.execute_batch","kind":"call","line":736}
-{"file":"src/query/duckdb_backend.rs","caller":"row_to_reference","name":"duckdb::Row","kind":"type_annotation","line":810}
-{"file":"src/query/duckdb_backend.rs","caller":"row_to_reference","name":"duckdb::Result","kind":"type_annotation","line":810}
-{"file":"src/query/duckdb_backend.rs","caller":"row_to_reference","name":"Reference","kind":"type_annotation","line":810}
-{"file":"src/query/duckdb_backend.rs","caller":"remaining_limit","name":"total.saturating_sub","kind":"call","line":829}
-{"file":"src/query/duckdb_backend.rs","caller":"parent_dir","name":"file.rsplit_once","kind":"call","line":837}
-{"file":"src/query/duckdb_backend.rs","caller":"lang_for","name":"Option","kind":"type_annotation","line":847}
-{"file":"src/query/duckdb_backend.rs","caller":"lang_for","name":"file.rsplit_once('.').map","kind":"call","line":848}
-{"file":"src/query/duckdb_backend.rs","caller":"lang_for","name":"file.rsplit_once","kind":"call","line":848}
-{"file":"src/query/duckdb_backend.rs","caller":"lang_for","name":"crate::parser::languages::detect_language","kind":"call","line":849}
-{"file":"src/query/duckdb_backend.rs","caller":"row_to_entity","name":"duckdb::Row","kind":"type_annotation","line":871}
-{"file":"src/query/duckdb_backend.rs","caller":"row_to_entity","name":"duckdb::Result","kind":"type_annotation","line":871}
-{"file":"src/query/duckdb_backend.rs","caller":"row_to_entity","name":"Entity","kind":"type_annotation","line":871}
-{"file":"src/query/duckdb_backend.rs","caller":"row_to_entity","name":"Vec::new","kind":"call","line":889}
-{"file":"src/query/duckdb_backend.rs","caller":"path_for_sql","name":"Path","kind":"type_annotation","line":896}
-{"file":"src/query/duckdb_backend.rs","caller":"path_for_sql","name":"String","kind":"type_annotation","line":896}
-{"file":"src/query/duckdb_backend.rs","caller":"path_for_sql","name":"p.display().to_string().replace","kind":"call","line":897}
-{"file":"src/query/duckdb_backend.rs","caller":"path_for_sql","name":"p.display().to_string","kind":"call","line":897}
-{"file":"src/query/duckdb_backend.rs","caller":"path_for_sql","name":"p.display","kind":"call","line":897}
-{"file":"src/query/duckdb_backend.rs","caller":"Stamp.load","name":"Path","kind":"type_annotation","line":911}
-{"file":"src/query/duckdb_backend.rs","caller":"Stamp.load","name":"Result","kind":"type_annotation","line":911}
-{"file":"src/query/duckdb_backend.rs","caller":"Stamp.load","name":"std::fs::read_to_string(path)\n            .with_context","kind":"call","line":912}
-{"file":"src/query/duckdb_backend.rs","caller":"Stamp.load","name":"std::fs::read_to_string","kind":"call","line":912}
-{"file":"src/query/duckdb_backend.rs","caller":"Stamp.load","name":"serde_json::from_str(&text).map_err","kind":"call","line":914}
-{"file":"src/query/duckdb_backend.rs","caller":"Stamp.load","name":"serde_json::from_str","kind":"call","line":914}
-{"file":"src/query/duckdb_backend.rs","caller":"Stamp.save","name":"Path","kind":"type_annotation","line":917}
-{"file":"src/query/duckdb_backend.rs","caller":"Stamp.save","name":"Result","kind":"type_annotation","line":917}
-{"file":"src/query/duckdb_backend.rs","caller":"Stamp.save","name":"serde_json::to_string","kind":"call","line":918}
-{"file":"src/query/duckdb_backend.rs","caller":"Stamp.save","name":"std::fs::write(path, text).map_err","kind":"call","line":919}
-{"file":"src/query/duckdb_backend.rs","caller":"count_tables","name":"Connection","kind":"type_annotation","line":926}
-{"file":"src/query/duckdb_backend.rs","caller":"count_tables","name":"Option","kind":"type_annotation","line":926}
-{"file":"src/query/duckdb_backend.rs","caller":"count_tables","name":"conn\n        .query_row(\"SELECT COUNT(*) FROM entities\", [], |r| r.get(0))\n        .ok","kind":"call","line":927}
-{"file":"src/query/duckdb_backend.rs","caller":"count_tables","name":"conn\n        .query_row","kind":"call","line":927}
-{"file":"src/query/duckdb_backend.rs","caller":"count_tables","name":"r.get","kind":"call","line":928}
-{"file":"src/query/duckdb_backend.rs","caller":"count_tables","name":"conn\n        .query_row(\"SELECT COUNT(*) FROM refs\", [], |r| r.get(0))\n        .ok","kind":"call","line":930}
-{"file":"src/query/duckdb_backend.rs","caller":"count_tables","name":"conn\n        .query_row","kind":"call","line":930}
-{"file":"src/query/duckdb_backend.rs","caller":"count_tables","name":"r.get","kind":"call","line":931}
-{"file":"src/query/duckdb_backend.rs","caller":"fingerprint","name":"Path","kind":"type_annotation","line":936}
-{"file":"src/query/duckdb_backend.rs","caller":"fingerprint","name":"Stamp","kind":"type_annotation","line":936}
-{"file":"src/query/duckdb_backend.rs","caller":"fingerprint","name":"meta_pair","kind":"call","line":937,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"fingerprint","name":"sigil_dir.join","kind":"call","line":937}
-{"file":"src/query/duckdb_backend.rs","caller":"fingerprint","name":"meta_pair","kind":"call","line":938,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"fingerprint","name":"sigil_dir.join","kind":"call","line":938}
-{"file":"src/query/duckdb_backend.rs","caller":"meta_pair","name":"Path","kind":"type_annotation","line":947}
-{"file":"src/query/duckdb_backend.rs","caller":"meta_pair","name":"std::fs::metadata","kind":"call","line":948}
-{"file":"src/query/duckdb_backend.rs","caller":"meta_pair","name":"m.len","kind":"call","line":951}
-{"file":"src/query/duckdb_backend.rs","caller":"meta_pair","name":"m\n        .modified()\n        .ok()\n        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())\n        .map(|d| d.as_millis())\n        .unwrap_or","kind":"call","line":952}
-{"file":"src/query/duckdb_backend.rs","caller":"meta_pair","name":"m\n        .modified()\n        .ok()\n        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())\n        .map","kind":"call","line":952}
-{"file":"src/query/duckdb_backend.rs","caller":"meta_pair","name":"m\n        .modified()\n        .ok()\n        .and_then","kind":"call","line":952}
-{"file":"src/query/duckdb_backend.rs","caller":"meta_pair","name":"m\n        .modified()\n        .ok","kind":"call","line":952}
-{"file":"src/query/duckdb_backend.rs","caller":"meta_pair","name":"m\n        .modified","kind":"call","line":952}
-{"file":"src/query/duckdb_backend.rs","caller":"meta_pair","name":"t.duration_since(std::time::UNIX_EPOCH).ok","kind":"call","line":955}
-{"file":"src/query/duckdb_backend.rs","caller":"meta_pair","name":"t.duration_since","kind":"call","line":955}
-{"file":"src/query/duckdb_backend.rs","caller":"meta_pair","name":"d.as_millis","kind":"call","line":956}
-{"file":"src/query/duckdb_backend.rs","name":"super::*","kind":"import","line":963}
-{"file":"src/query/duckdb_backend.rs","name":"crate::entity::{Entity, Reference}","kind":"import","line":964}
-{"file":"src/query/duckdb_backend.rs","name":"crate::writer","kind":"import","line":965}
-{"file":"src/query/duckdb_backend.rs","caller":"tmpdir","name":"PathBuf","kind":"type_annotation","line":967}
-{"file":"src/query/duckdb_backend.rs","caller":"tmpdir","name":"std::env::temp_dir().join","kind":"call","line":968}
-{"file":"src/query/duckdb_backend.rs","caller":"tmpdir","name":"std::env::temp_dir","kind":"call","line":968}
-{"file":"src/query/duckdb_backend.rs","caller":"tmpdir","name":"std::fs::remove_dir_all","kind":"call","line":969}
-{"file":"src/query/duckdb_backend.rs","caller":"tmpdir","name":"std::fs::create_dir_all(&p).unwrap","kind":"call","line":970}
-{"file":"src/query/duckdb_backend.rs","caller":"tmpdir","name":"std::fs::create_dir_all","kind":"call","line":970}
-{"file":"src/query/duckdb_backend.rs","caller":"ent","name":"Entity","kind":"type_annotation","line":974}
-{"file":"src/query/duckdb_backend.rs","caller":"ent","name":"file.to_string","kind":"call","line":976}
-{"file":"src/query/duckdb_backend.rs","caller":"ent","name":"name.to_string","kind":"call","line":977}
-{"file":"src/query/duckdb_backend.rs","caller":"ent","name":"kind.to_string","kind":"call","line":978}
-{"file":"src/query/duckdb_backend.rs","caller":"ent","name":"\"d\".to_string","kind":"call","line":985}
-{"file":"src/query/duckdb_backend.rs","caller":"ent","name":"\"s\".to_string","kind":"call","line":987}
-{"file":"src/query/duckdb_backend.rs","caller":"ent","name":"Vec::new","kind":"call","line":992}
-{"file":"src/query/duckdb_backend.rs","caller":"refr","name":"Option","kind":"type_annotation","line":996}
-{"file":"src/query/duckdb_backend.rs","caller":"refr","name":"Reference","kind":"type_annotation","line":996}
-{"file":"src/query/duckdb_backend.rs","caller":"refr","name":"file.to_string","kind":"call","line":998}
-{"file":"src/query/duckdb_backend.rs","caller":"refr","name":"caller.map","kind":"call","line":999}
-{"file":"src/query/duckdb_backend.rs","caller":"refr","name":"name.to_string","kind":"call","line":1000}
-{"file":"src/query/duckdb_backend.rs","caller":"refr","name":"kind.to_string","kind":"call","line":1001}
-{"file":"src/query/duckdb_backend.rs","caller":"seed","name":"Vec","kind":"type_annotation","line":1008}
-{"file":"src/query/duckdb_backend.rs","caller":"seed","name":"Reference","kind":"type_annotation","line":1008}
-{"file":"src/query/duckdb_backend.rs","caller":"seed","name":"Vec","kind":"type_annotation","line":1008}
-{"file":"src/query/duckdb_backend.rs","caller":"seed","name":"Entity","kind":"type_annotation","line":1008}
-{"file":"src/query/duckdb_backend.rs","caller":"seed","name":"Path","kind":"type_annotation","line":1008}
-{"file":"src/query/duckdb_backend.rs","caller":"seed","name":"writer::write_to_files(&entities, &refs, root, false).unwrap","kind":"call","line":1009,"confidence":0.8}
-{"file":"src/query/duckdb_backend.rs","caller":"seed","name":"writer::write_to_files","kind":"call","line":1009,"confidence":0.8}
-{"file":"src/query/duckdb_backend.rs","caller":"seed","name":"crate::writer/write_to_files(&entities, &refs, root, false).unwrap","kind":"call","line":1009,"confidence":0.8}
-{"file":"src/query/duckdb_backend.rs","caller":"seed","name":"crate::writer/write_to_files","kind":"call","line":1009,"confidence":0.8}
-{"file":"src/query/duckdb_backend.rs","caller":"opens_and_populates_from_jsonl","name":"tmpdir","kind":"call","line":1014,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"opens_and_populates_from_jsonl","name":"seed","kind":"call","line":1015,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"opens_and_populates_from_jsonl","name":"DuckDbBackend::open(&root).expect","kind":"call","line":1020}
-{"file":"src/query/duckdb_backend.rs","caller":"opens_and_populates_from_jsonl","name":"DuckDbBackend::open","kind":"call","line":1020}
-{"file":"src/query/duckdb_backend.rs","caller":"opens_and_populates_from_jsonl","name":"std::fs::remove_dir_all(&root).ok","kind":"call","line":1024}
-{"file":"src/query/duckdb_backend.rs","caller":"opens_and_populates_from_jsonl","name":"std::fs::remove_dir_all","kind":"call","line":1024}
-{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"tmpdir","kind":"call","line":1029,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"seed","kind":"call","line":1030,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"DuckDbBackend::open(&root).unwrap","kind":"call","line":1035}
-{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"DuckDbBackend::open","kind":"call","line":1035}
-{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"std::fs::metadata(root.join(\".sigil/index.duckdb\"))\n            .unwrap()\n            .modified()\n            .unwrap","kind":"call","line":1036}
-{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"std::fs::metadata(root.join(\".sigil/index.duckdb\"))\n            .unwrap()\n            .modified","kind":"call","line":1036}
-{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"std::fs::metadata(root.join(\".sigil/index.duckdb\"))\n            .unwrap","kind":"call","line":1036}
-{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"std::fs::metadata","kind":"call","line":1036}
-{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"root.join","kind":"call","line":1036}
-{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"std::thread::sleep","kind":"call","line":1043}
-{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"std::time::Duration::from_millis","kind":"call","line":1043}
-{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"DuckDbBackend::open(&root).unwrap","kind":"call","line":1044}
-{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"DuckDbBackend::open","kind":"call","line":1044}
-{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"std::fs::metadata(root.join(\".sigil/index.duckdb\"))\n            .unwrap()\n            .modified()\n            .unwrap","kind":"call","line":1045}
-{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"std::fs::metadata(root.join(\".sigil/index.duckdb\"))\n            .unwrap()\n            .modified","kind":"call","line":1045}
-{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"std::fs::metadata(root.join(\".sigil/index.duckdb\"))\n            .unwrap","kind":"call","line":1045}
-{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"std::fs::metadata","kind":"call","line":1045}
-{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"root.join","kind":"call","line":1045}
-{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"std::fs::remove_dir_all(&root).ok","kind":"call","line":1050}
-{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"std::fs::remove_dir_all","kind":"call","line":1050}
-{"file":"src/query/duckdb_backend.rs","caller":"stamp_mismatch_triggers_rebuild","name":"tmpdir","kind":"call","line":1055,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"stamp_mismatch_triggers_rebuild","name":"seed","kind":"call","line":1056,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"stamp_mismatch_triggers_rebuild","name":"DuckDbBackend::open(&root).unwrap","kind":"call","line":1061}
-{"file":"src/query/duckdb_backend.rs","caller":"stamp_mismatch_triggers_rebuild","name":"DuckDbBackend::open","kind":"call","line":1061}
-{"file":"src/query/duckdb_backend.rs","caller":"stamp_mismatch_triggers_rebuild","name":"drop","kind":"call","line":1063}
-{"file":"src/query/duckdb_backend.rs","caller":"stamp_mismatch_triggers_rebuild","name":"std::thread::sleep","kind":"call","line":1067}
-{"file":"src/query/duckdb_backend.rs","caller":"stamp_mismatch_triggers_rebuild","name":"std::time::Duration::from_millis","kind":"call","line":1067}
-{"file":"src/query/duckdb_backend.rs","caller":"stamp_mismatch_triggers_rebuild","name":"seed","kind":"call","line":1068,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"stamp_mismatch_triggers_rebuild","name":"DuckDbBackend::open(&root).unwrap","kind":"call","line":1080}
-{"file":"src/query/duckdb_backend.rs","caller":"stamp_mismatch_triggers_rebuild","name":"DuckDbBackend::open","kind":"call","line":1080}
-{"file":"src/query/duckdb_backend.rs","caller":"stamp_mismatch_triggers_rebuild","name":"std::fs::remove_dir_all(&root).ok","kind":"call","line":1082}
-{"file":"src/query/duckdb_backend.rs","caller":"stamp_mismatch_triggers_rebuild","name":"std::fs::remove_dir_all","kind":"call","line":1082}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_in_memory_semantics","name":"tmpdir","kind":"call","line":1087,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_in_memory_semantics","name":"seed","kind":"call","line":1088,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_in_memory_semantics","name":"DuckDbBackend::open(&root).unwrap","kind":"call","line":1098}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_in_memory_semantics","name":"DuckDbBackend::open","kind":"call","line":1098}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_in_memory_semantics","name":"db.get_callers(\"Foo\", None, 0).unwrap","kind":"call","line":1100}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_in_memory_semantics","name":"db.get_callers","kind":"call","line":1100}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_in_memory_semantics","name":"db.get_callers(\"Foo\", Some(\"call\"), 0).unwrap","kind":"call","line":1103}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_in_memory_semantics","name":"db.get_callers","kind":"call","line":1103}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_in_memory_semantics","name":"db.get_callers(\"Foo\", None, 2).unwrap","kind":"call","line":1106}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_in_memory_semantics","name":"db.get_callers","kind":"call","line":1106}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_in_memory_semantics","name":"db.get_callers(\"Nonexistent\", None, 0).unwrap","kind":"call","line":1109}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_in_memory_semantics","name":"db.get_callers","kind":"call","line":1109}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_in_memory_semantics","name":"std::fs::remove_dir_all(&root).ok","kind":"call","line":1112}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_in_memory_semantics","name":"std::fs::remove_dir_all","kind":"call","line":1112}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"tmpdir","kind":"call","line":1120,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"seed","kind":"call","line":1121,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"(0..12)\n                .map(|i| refr(&format!(\"c{i}.rs\"), Some(\"m\"), \"Foo\", \"call\", i + 1))\n                .collect","kind":"call","line":1124}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"(0..12)\n                .map","kind":"call","line":1124}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"refr","kind":"call","line":1125,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"DuckDbBackend::open(&root).unwrap","kind":"call","line":1129}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"DuckDbBackend::open","kind":"call","line":1129}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"crate::query::index::Index::load(&root).unwrap","kind":"call","line":1130}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"crate::query::index::Index::load","kind":"call","line":1130}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"db.get_callers(\"Foo\", None, 0).unwrap","kind":"call","line":1132}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"db.get_callers","kind":"call","line":1132}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"idx\n            .get_callers(\"Foo\", None, 0)\n            .into_iter()\n            .cloned()\n            .collect","kind":"call","line":1133}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"idx\n            .get_callers(\"Foo\", None, 0)\n            .into_iter()\n            .cloned","kind":"call","line":1133}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"idx\n            .get_callers(\"Foo\", None, 0)\n            .into_iter","kind":"call","line":1133}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"idx\n            .get_callers","kind":"call","line":1133}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"from_db.sort_by","kind":"call","line":1138}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"a.file.cmp(&b.file).then_with","kind":"call","line":1138}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"a.file.cmp","kind":"call","line":1138}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"a.line.cmp","kind":"call","line":1138}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"from_idx.sort_by","kind":"call","line":1139}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"a.file.cmp(&b.file).then_with","kind":"call","line":1139}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"a.file.cmp","kind":"call","line":1139}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"a.line.cmp","kind":"call","line":1139}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"std::fs::remove_dir_all(&root).ok","kind":"call","line":1141}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"std::fs::remove_dir_all","kind":"call","line":1141}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_qualified_tail","name":"tmpdir","kind":"call","line":1150,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_qualified_tail","name":"seed","kind":"call","line":1151,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_qualified_tail","name":"DuckDbBackend::open(&root).unwrap","kind":"call","line":1162}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_qualified_tail","name":"DuckDbBackend::open","kind":"call","line":1162}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_qualified_tail","name":"db.get_callers(\"foo\", None, 0).unwrap","kind":"call","line":1164}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_qualified_tail","name":"db.get_callers","kind":"call","line":1164}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_qualified_tail","name":"db.get_callers(\"crate::a::b::foo\", None, 0).unwrap","kind":"call","line":1167}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_qualified_tail","name":"db.get_callers","kind":"call","line":1167}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_qualified_tail","name":"db.get_callers(\"baz\", None, 0).unwrap","kind":"call","line":1170}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_qualified_tail","name":"db.get_callers","kind":"call","line":1170}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_qualified_tail","name":"std::fs::remove_dir_all(&root).ok","kind":"call","line":1173}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_qualified_tail","name":"std::fs::remove_dir_all","kind":"call","line":1173}
-{"file":"src/query/duckdb_backend.rs","caller":"should_auto_engage_honors_threshold","name":"tmpdir","kind":"call","line":1178,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"should_auto_engage_honors_threshold","name":"seed","kind":"call","line":1179,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"should_auto_engage_honors_threshold","name":"std::fs::remove_dir_all(&root).ok","kind":"call","line":1187}
-{"file":"src/query/duckdb_backend.rs","caller":"should_auto_engage_honors_threshold","name":"std::fs::remove_dir_all","kind":"call","line":1187}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callees_mirrors_caller_column_lookup","name":"tmpdir","kind":"call","line":1192,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callees_mirrors_caller_column_lookup","name":"seed","kind":"call","line":1193,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callees_mirrors_caller_column_lookup","name":"DuckDbBackend::open(&root).unwrap","kind":"call","line":1202}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callees_mirrors_caller_column_lookup","name":"DuckDbBackend::open","kind":"call","line":1202}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callees_mirrors_caller_column_lookup","name":"db.get_callees(\"main\", None, 0).unwrap","kind":"call","line":1203}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callees_mirrors_caller_column_lookup","name":"db.get_callees","kind":"call","line":1203}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callees_mirrors_caller_column_lookup","name":"db.get_callees(\"helper\", None, 0).unwrap","kind":"call","line":1205}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callees_mirrors_caller_column_lookup","name":"db.get_callees","kind":"call","line":1205}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callees_mirrors_caller_column_lookup","name":"std::fs::remove_dir_all(&root).ok","kind":"call","line":1207}
-{"file":"src/query/duckdb_backend.rs","caller":"get_callees_mirrors_caller_column_lookup","name":"std::fs::remove_dir_all","kind":"call","line":1207}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_returns_entities_ordered_by_line","name":"tmpdir","kind":"call","line":1212,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_returns_entities_ordered_by_line","name":"ent","kind":"call","line":1213,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_returns_entities_ordered_by_line","name":"ent","kind":"call","line":1215,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_returns_entities_ordered_by_line","name":"ent","kind":"call","line":1217,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_returns_entities_ordered_by_line","name":"seed","kind":"call","line":1219,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_returns_entities_ordered_by_line","name":"DuckDbBackend::open(&root).unwrap","kind":"call","line":1221}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_returns_entities_ordered_by_line","name":"DuckDbBackend::open","kind":"call","line":1221}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_returns_entities_ordered_by_line","name":"db.get_file_symbols(\"a.rs\", None, 0).unwrap","kind":"call","line":1222}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_returns_entities_ordered_by_line","name":"db.get_file_symbols","kind":"call","line":1222}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_returns_entities_ordered_by_line","name":"db.get_file_symbols(\"a.rs\", Some(\"struct\"), 0).unwrap","kind":"call","line":1227}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_returns_entities_ordered_by_line","name":"db.get_file_symbols","kind":"call","line":1227}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_returns_entities_ordered_by_line","name":"db.get_file_symbols(\"nonexistent.rs\", None, 0).unwrap","kind":"call","line":1231}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_returns_entities_ordered_by_line","name":"db.get_file_symbols","kind":"call","line":1231}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_returns_entities_ordered_by_line","name":"std::fs::remove_dir_all(&root).ok","kind":"call","line":1233}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_returns_entities_ordered_by_line","name":"std::fs::remove_dir_all","kind":"call","line":1233}
-{"file":"src/query/duckdb_backend.rs","caller":"get_children_filters_by_parent","name":"tmpdir","kind":"call","line":1238,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"get_children_filters_by_parent","name":"ent","kind":"call","line":1239,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"get_children_filters_by_parent","name":"\"Foo\".to_string","kind":"call","line":1240}
-{"file":"src/query/duckdb_backend.rs","caller":"get_children_filters_by_parent","name":"ent","kind":"call","line":1242,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"get_children_filters_by_parent","name":"\"Foo\".to_string","kind":"call","line":1243}
-{"file":"src/query/duckdb_backend.rs","caller":"get_children_filters_by_parent","name":"ent","kind":"call","line":1245,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"get_children_filters_by_parent","name":"\"Bar\".to_string","kind":"call","line":1246}
-{"file":"src/query/duckdb_backend.rs","caller":"get_children_filters_by_parent","name":"seed","kind":"call","line":1247,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"get_children_filters_by_parent","name":"DuckDbBackend::open(&root).unwrap","kind":"call","line":1249}
-{"file":"src/query/duckdb_backend.rs","caller":"get_children_filters_by_parent","name":"DuckDbBackend::open","kind":"call","line":1249}
-{"file":"src/query/duckdb_backend.rs","caller":"get_children_filters_by_parent","name":"db.get_children(\"a.rs\", \"Foo\", None, 0).unwrap","kind":"call","line":1250}
-{"file":"src/query/duckdb_backend.rs","caller":"get_children_filters_by_parent","name":"db.get_children","kind":"call","line":1250}
-{"file":"src/query/duckdb_backend.rs","caller":"get_children_filters_by_parent","name":"db.get_children(\"a.rs\", \"Bar\", None, 0).unwrap","kind":"call","line":1253}
-{"file":"src/query/duckdb_backend.rs","caller":"get_children_filters_by_parent","name":"db.get_children","kind":"call","line":1253}
-{"file":"src/query/duckdb_backend.rs","caller":"get_children_filters_by_parent","name":"std::fs::remove_dir_all(&root).ok","kind":"call","line":1255}
-{"file":"src/query/duckdb_backend.rs","caller":"get_children_filters_by_parent","name":"std::fs::remove_dir_all","kind":"call","line":1255}
-{"file":"src/query/duckdb_backend.rs","caller":"search_symbols_case_insensitive_with_path_prefix","name":"tmpdir","kind":"call","line":1260,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"search_symbols_case_insensitive_with_path_prefix","name":"seed","kind":"call","line":1261,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"search_symbols_case_insensitive_with_path_prefix","name":"DuckDbBackend::open(&root).unwrap","kind":"call","line":1270}
-{"file":"src/query/duckdb_backend.rs","caller":"search_symbols_case_insensitive_with_path_prefix","name":"DuckDbBackend::open","kind":"call","line":1270}
-{"file":"src/query/duckdb_backend.rs","caller":"search_symbols_case_insensitive_with_path_prefix","name":"db.search(\"PARSE\", Scope::Symbols, None, None, 0).unwrap","kind":"call","line":1273}
-{"file":"src/query/duckdb_backend.rs","caller":"search_symbols_case_insensitive_with_path_prefix","name":"db.search","kind":"call","line":1273}
-{"file":"src/query/duckdb_backend.rs","caller":"search_symbols_case_insensitive_with_path_prefix","name":"db.search(\"parse\", Scope::Symbols, Some(\"function\"), None, 0).unwrap","kind":"call","line":1278}
-{"file":"src/query/duckdb_backend.rs","caller":"search_symbols_case_insensitive_with_path_prefix","name":"db.search","kind":"call","line":1278}
-{"file":"src/query/duckdb_backend.rs","caller":"search_symbols_case_insensitive_with_path_prefix","name":"db.search(\"parse\", Scope::Symbols, None, Some(\"src/\"), 0).unwrap","kind":"call","line":1282}
-{"file":"src/query/duckdb_backend.rs","caller":"search_symbols_case_insensitive_with_path_prefix","name":"db.search","kind":"call","line":1282}
-{"file":"src/query/duckdb_backend.rs","caller":"search_symbols_case_insensitive_with_path_prefix","name":"db.search(\"\", Scope::All, None, None, 0).unwrap","kind":"call","line":1286}
-{"file":"src/query/duckdb_backend.rs","caller":"search_symbols_case_insensitive_with_path_prefix","name":"db.search","kind":"call","line":1286}
-{"file":"src/query/duckdb_backend.rs","caller":"search_symbols_case_insensitive_with_path_prefix","name":"std::fs::remove_dir_all(&root).ok","kind":"call","line":1289}
-{"file":"src/query/duckdb_backend.rs","caller":"search_symbols_case_insensitive_with_path_prefix","name":"std::fs::remove_dir_all","kind":"call","line":1289}
-{"file":"src/query/duckdb_backend.rs","caller":"search_files_scope_returns_file_hits_only","name":"tmpdir","kind":"call","line":1294,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"search_files_scope_returns_file_hits_only","name":"seed","kind":"call","line":1295,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"search_files_scope_returns_file_hits_only","name":"DuckDbBackend::open(&root).unwrap","kind":"call","line":1303}
-{"file":"src/query/duckdb_backend.rs","caller":"search_files_scope_returns_file_hits_only","name":"DuckDbBackend::open","kind":"call","line":1303}
-{"file":"src/query/duckdb_backend.rs","caller":"search_files_scope_returns_file_hits_only","name":"db.search(\"parser\", Scope::Files, None, None, 0).unwrap","kind":"call","line":1304}
-{"file":"src/query/duckdb_backend.rs","caller":"search_files_scope_returns_file_hits_only","name":"db.search","kind":"call","line":1304}
-{"file":"src/query/duckdb_backend.rs","caller":"search_files_scope_returns_file_hits_only","name":"db.search(\"parse\", Scope::All, None, None, 0).unwrap","kind":"call","line":1316}
-{"file":"src/query/duckdb_backend.rs","caller":"search_files_scope_returns_file_hits_only","name":"db.search","kind":"call","line":1316}
-{"file":"src/query/duckdb_backend.rs","caller":"search_files_scope_returns_file_hits_only","name":"combined\n            .iter()\n            .filter(|h| matches!(h, SearchHitOwned::Symbol(_)))\n            .count","kind":"call","line":1317}
-{"file":"src/query/duckdb_backend.rs","caller":"search_files_scope_returns_file_hits_only","name":"combined\n            .iter()\n            .filter","kind":"call","line":1317}
-{"file":"src/query/duckdb_backend.rs","caller":"search_files_scope_returns_file_hits_only","name":"combined\n            .iter","kind":"call","line":1317}
-{"file":"src/query/duckdb_backend.rs","caller":"search_files_scope_returns_file_hits_only","name":"combined\n            .iter()\n            .filter(|h| matches!(h, SearchHitOwned::File(_)))\n            .count","kind":"call","line":1321}
-{"file":"src/query/duckdb_backend.rs","caller":"search_files_scope_returns_file_hits_only","name":"combined\n            .iter()\n            .filter","kind":"call","line":1321}
-{"file":"src/query/duckdb_backend.rs","caller":"search_files_scope_returns_file_hits_only","name":"combined\n            .iter","kind":"call","line":1321}
-{"file":"src/query/duckdb_backend.rs","caller":"search_files_scope_returns_file_hits_only","name":"std::fs::remove_dir_all(&root).ok","kind":"call","line":1327}
-{"file":"src/query/duckdb_backend.rs","caller":"search_files_scope_returns_file_hits_only","name":"std::fs::remove_dir_all","kind":"call","line":1327}
-{"file":"src/query/duckdb_backend.rs","caller":"explore_dir_overview_groups_by_directory_with_langs","name":"tmpdir","kind":"call","line":1332,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"explore_dir_overview_groups_by_directory_with_langs","name":"seed","kind":"call","line":1333,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"explore_dir_overview_groups_by_directory_with_langs","name":"DuckDbBackend::open(&root).unwrap","kind":"call","line":1343}
-{"file":"src/query/duckdb_backend.rs","caller":"explore_dir_overview_groups_by_directory_with_langs","name":"DuckDbBackend::open","kind":"call","line":1343}
-{"file":"src/query/duckdb_backend.rs","caller":"explore_dir_overview_groups_by_directory_with_langs","name":"db.explore_dir_overview(None).unwrap","kind":"call","line":1344}
-{"file":"src/query/duckdb_backend.rs","caller":"explore_dir_overview_groups_by_directory_with_langs","name":"db.explore_dir_overview","kind":"call","line":1344}
-{"file":"src/query/duckdb_backend.rs","caller":"explore_dir_overview_groups_by_directory_with_langs","name":"overview.iter().map(|d| (d.path.clone(), d)).collect","kind":"call","line":1346}
-{"file":"src/query/duckdb_backend.rs","caller":"explore_dir_overview_groups_by_directory_with_langs","name":"overview.iter().map","kind":"call","line":1346}
-{"file":"src/query/duckdb_backend.rs","caller":"explore_dir_overview_groups_by_directory_with_langs","name":"overview.iter","kind":"call","line":1346}
-{"file":"src/query/duckdb_backend.rs","caller":"explore_dir_overview_groups_by_directory_with_langs","name":"d.path.clone","kind":"call","line":1346}
-{"file":"src/query/duckdb_backend.rs","caller":"explore_dir_overview_groups_by_directory_with_langs","name":"std::fs::remove_dir_all(&root).ok","kind":"call","line":1350}
-{"file":"src/query/duckdb_backend.rs","caller":"explore_dir_overview_groups_by_directory_with_langs","name":"std::fs::remove_dir_all","kind":"call","line":1350}
-{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"tmpdir","kind":"call","line":1355,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"seed","kind":"call","line":1356,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"(0..10)\n                .map(|i| ent(&format!(\"src/f{i}.rs\"), \"x\", \"function\"))\n                .chain(std::iter::once(ent(\"tests/t.rs\", \"t\", \"function\")))\n                .collect","kind":"call","line":1358}
-{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"(0..10)\n                .map(|i| ent(&format!(\"src/f{i}.rs\"), \"x\", \"function\"))\n                .chain","kind":"call","line":1358}
-{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"(0..10)\n                .map","kind":"call","line":1358}
-{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"ent","kind":"call","line":1359,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"std::iter::once","kind":"call","line":1360}
-{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"ent","kind":"call","line":1360,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"DuckDbBackend::open(&root).unwrap","kind":"call","line":1364}
-{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"DuckDbBackend::open","kind":"call","line":1364}
-{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"db.explore_files_capped(None, 3).unwrap","kind":"call","line":1365}
-{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"db.explore_files_capped","kind":"call","line":1365}
-{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"capped.iter().filter(|(d, _, _)| d == \"src\").count","kind":"call","line":1366}
-{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"capped.iter().filter","kind":"call","line":1366}
-{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"capped.iter","kind":"call","line":1366}
-{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"capped.iter().filter(|(d, _, _)| d == \"tests\").count","kind":"call","line":1367}
-{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"capped.iter().filter","kind":"call","line":1367}
-{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"capped.iter","kind":"call","line":1367}
-{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"std::fs::remove_dir_all(&root).ok","kind":"call","line":1370}
-{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"std::fs::remove_dir_all","kind":"call","line":1370}
-{"file":"src/query/duckdb_backend.rs","caller":"list_projects_returns_single_root","name":"tmpdir","kind":"call","line":1375,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"list_projects_returns_single_root","name":"seed","kind":"call","line":1376,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"list_projects_returns_single_root","name":"DuckDbBackend::open(&root).unwrap","kind":"call","line":1381}
-{"file":"src/query/duckdb_backend.rs","caller":"list_projects_returns_single_root","name":"DuckDbBackend::open","kind":"call","line":1381}
-{"file":"src/query/duckdb_backend.rs","caller":"list_projects_returns_single_root","name":"std::fs::remove_dir_all(&root).ok","kind":"call","line":1383}
-{"file":"src/query/duckdb_backend.rs","caller":"list_projects_returns_single_root","name":"std::fs::remove_dir_all","kind":"call","line":1383}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"tmpdir","kind":"call","line":1388,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"Vec::new","kind":"call","line":1389}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"ent","kind":"call","line":1391,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"entities.push","kind":"call","line":1394}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"entities.push","kind":"call","line":1396}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"ent","kind":"call","line":1396,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"seed","kind":"call","line":1397,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"DuckDbBackend::open(&root).unwrap","kind":"call","line":1399}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"DuckDbBackend::open","kind":"call","line":1399}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"crate::query::index::Index::load(&root).unwrap","kind":"call","line":1400}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"crate::query::index::Index::load","kind":"call","line":1400}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"db.get_file_symbols(\"src/core.rs\", None, 0).unwrap","kind":"call","line":1402}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"db.get_file_symbols","kind":"call","line":1402}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"idx\n            .get_file_symbols(\"src/core.rs\", None, 0)\n            .into_iter()\n            .cloned()\n            .collect","kind":"call","line":1403}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"idx\n            .get_file_symbols(\"src/core.rs\", None, 0)\n            .into_iter()\n            .cloned","kind":"call","line":1403}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"idx\n            .get_file_symbols(\"src/core.rs\", None, 0)\n            .into_iter","kind":"call","line":1403}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"idx\n            .get_file_symbols","kind":"call","line":1403}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"from_db.sort_by_key","kind":"call","line":1410}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"from_idx.sort_by_key","kind":"call","line":1411}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"e.file.clone","kind":"call","line":1415}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"e.name.clone","kind":"call","line":1416}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"e.kind.clone","kind":"call","line":1417}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"e.parent.clone","kind":"call","line":1420}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"from_db.iter().map(project).collect","kind":"call","line":1422}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"from_db.iter().map","kind":"call","line":1422}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"from_db.iter","kind":"call","line":1422}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"from_idx.iter().map(project).collect","kind":"call","line":1423}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"from_idx.iter().map","kind":"call","line":1423}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"from_idx.iter","kind":"call","line":1423}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"std::fs::remove_dir_all(&root).ok","kind":"call","line":1425}
-{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"std::fs::remove_dir_all","kind":"call","line":1425}
-{"file":"src/query/duckdb_backend.rs","caller":"missing_jsonl_opens_as_empty_backend","name":"tmpdir","kind":"call","line":1436,"confidence":0.95}
-{"file":"src/query/duckdb_backend.rs","caller":"missing_jsonl_opens_as_empty_backend","name":"std::fs::create_dir_all(root.join(\".sigil\")).unwrap","kind":"call","line":1437}
-{"file":"src/query/duckdb_backend.rs","caller":"missing_jsonl_opens_as_empty_backend","name":"std::fs::create_dir_all","kind":"call","line":1437}
-{"file":"src/query/duckdb_backend.rs","caller":"missing_jsonl_opens_as_empty_backend","name":"root.join","kind":"call","line":1437}
-{"file":"src/query/duckdb_backend.rs","caller":"missing_jsonl_opens_as_empty_backend","name":"DuckDbBackend::open(&root).expect","kind":"call","line":1438}
-{"file":"src/query/duckdb_backend.rs","caller":"missing_jsonl_opens_as_empty_backend","name":"DuckDbBackend::open","kind":"call","line":1438}
-{"file":"src/query/duckdb_backend.rs","caller":"missing_jsonl_opens_as_empty_backend","name":"std::fs::remove_dir_all(&root).ok","kind":"call","line":1442}
-{"file":"src/query/duckdb_backend.rs","caller":"missing_jsonl_opens_as_empty_backend","name":"std::fs::remove_dir_all","kind":"call","line":1442}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"name\n            .chars()\n            .next()\n            .map(|c| c.is_ascii_uppercase())\n            .unwrap_or","kind":"call","line":208}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"name\n            .chars()\n            .next()\n            .map","kind":"call","line":208}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"name\n            .chars()\n            .next","kind":"call","line":208}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"name\n            .chars","kind":"call","line":208}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"c.is_ascii_uppercase","kind":"call","line":211}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"name.contains","kind":"call","line":213}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"name.contains","kind":"call","line":213}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"String::from","kind":"call","line":221}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"sql.push_str","kind":"call","line":229}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"bind.push","kind":"call","line":230}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"sql.push_str","kind":"call","line":231}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"bind.push","kind":"call","line":232}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"sql.push_str","kind":"call","line":240}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"bind.push","kind":"call","line":241}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"sql.push_str","kind":"call","line":242}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"bind.push","kind":"call","line":243}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"sql.push_str","kind":"call","line":244}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"bind.push","kind":"call","line":245}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"sql.push_str","kind":"call","line":246}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"bind.push","kind":"call","line":247}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"sql.push","kind":"call","line":249}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"sql.push_str","kind":"call","line":252}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"k.to_string","kind":"call","line":253}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"bind.push","kind":"call","line":254}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"sql.push_str","kind":"call","line":256}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"sql.push_str","kind":"call","line":258}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"self.conn.prepare","kind":"call","line":261}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"stmt\n            .query_map","kind":"call","line":262}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callers","name":"bind.as_slice","kind":"call","line":263}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callees","name":"Option","kind":"type_annotation","line":274}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callees","name":"Result","kind":"type_annotation","line":276}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callees","name":"Vec","kind":"type_annotation","line":276}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callees","name":"Reference","kind":"type_annotation","line":276}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callees","name":"String::from","kind":"call","line":277}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callees","name":"kind_filter.is_some","kind":"call","line":282}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callees","name":"sql.push_str","kind":"call","line":283}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callees","name":"sql.push_str","kind":"call","line":285}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callees","name":"sql.push_str","kind":"call","line":287}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callees","name":"self.conn.prepare","kind":"call","line":289}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callees","name":"stmt.query_map","kind":"call","line":291}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_callees","name":"stmt.query_map","kind":"call","line":294}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_file_symbols","name":"Option","kind":"type_annotation","line":312}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_file_symbols","name":"Result","kind":"type_annotation","line":314}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_file_symbols","name":"Vec","kind":"type_annotation","line":314}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_file_symbols","name":"Entity","kind":"type_annotation","line":314}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_file_symbols","name":"String::from","kind":"call","line":315}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_file_symbols","name":"kind_filter.is_some","kind":"call","line":321}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_file_symbols","name":"sql.push_str","kind":"call","line":322}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_file_symbols","name":"sql.push_str","kind":"call","line":324}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_file_symbols","name":"sql.push_str","kind":"call","line":326}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_file_symbols","name":"self.conn.prepare","kind":"call","line":328}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_file_symbols","name":"stmt.query_map","kind":"call","line":330}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_file_symbols","name":"stmt.query_map","kind":"call","line":333}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_children","name":"Option","kind":"type_annotation","line":345}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_children","name":"Result","kind":"type_annotation","line":347}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_children","name":"Vec","kind":"type_annotation","line":347}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_children","name":"Entity","kind":"type_annotation","line":347}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_children","name":"String::from","kind":"call","line":348}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_children","name":"kind_filter.is_some","kind":"call","line":354}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_children","name":"sql.push_str","kind":"call","line":355}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_children","name":"sql.push_str","kind":"call","line":357}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_children","name":"sql.push_str","kind":"call","line":359}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_children","name":"self.conn.prepare","kind":"call","line":361}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_children","name":"stmt.query_map","kind":"call","line":363}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.get_children","name":"stmt.query_map","kind":"call","line":366}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"Scope","kind":"type_annotation","line":379}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"Option","kind":"type_annotation","line":380}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"Option","kind":"type_annotation","line":381}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"Result","kind":"type_annotation","line":383}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"Vec","kind":"type_annotation","line":383}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"SearchHitOwned","kind":"type_annotation","line":383}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"query.is_empty","kind":"call","line":384}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"Vec::new","kind":"call","line":385}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"Vec::new","kind":"call","line":390}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"self.search_symbols_impl","kind":"call","line":393,"confidence":0.95,"callee_id":"src/query/duckdb_backend.rs::DuckDbBackend::search_symbols_impl"}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"remaining_limit","kind":"call","line":393,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"hits.len","kind":"call","line":393}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"hits.push","kind":"call","line":394}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"SearchHitOwned::Symbol","kind":"call","line":394,"confidence":0.8}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"crate::query::SearchHitOwned/Symbol","kind":"call","line":394,"confidence":0.8}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"hits.len","kind":"call","line":395}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"self.search_files_impl","kind":"call","line":402,"confidence":0.95,"callee_id":"src/query/duckdb_backend.rs::DuckDbBackend::search_files_impl"}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"remaining_limit","kind":"call","line":402,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"hits.len","kind":"call","line":402}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"hits.push","kind":"call","line":403}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"SearchHitOwned::File","kind":"call","line":403,"confidence":0.8}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"crate::query::SearchHitOwned/File","kind":"call","line":403,"confidence":0.8}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search","name":"hits.len","kind":"call","line":404}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_symbols_impl","name":"Option","kind":"type_annotation","line":416}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_symbols_impl","name":"Option","kind":"type_annotation","line":417}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_symbols_impl","name":"Result","kind":"type_annotation","line":419}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_symbols_impl","name":"Vec","kind":"type_annotation","line":419}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_symbols_impl","name":"Entity","kind":"type_annotation","line":419}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_symbols_impl","name":"String::from","kind":"call","line":421}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_symbols_impl","name":"kind_filter.is_some","kind":"call","line":427}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_symbols_impl","name":"sql.push_str","kind":"call","line":428}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_symbols_impl","name":"path_prefix.is_some","kind":"call","line":430}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_symbols_impl","name":"sql.push_str","kind":"call","line":431}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_symbols_impl","name":"sql.push_str","kind":"call","line":433}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_symbols_impl","name":"sql.push_str","kind":"call","line":435}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_symbols_impl","name":"self.conn.prepare","kind":"call","line":437}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_symbols_impl","name":"stmt\n                .query_map","kind":"call","line":439}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_symbols_impl","name":"stmt\n                .query_map","kind":"call","line":442}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_symbols_impl","name":"stmt\n                .query_map","kind":"call","line":445}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_symbols_impl","name":"stmt\n                .query_map","kind":"call","line":448}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_files_impl","name":"Option","kind":"type_annotation","line":458}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_files_impl","name":"Result","kind":"type_annotation","line":460}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_files_impl","name":"Vec","kind":"type_annotation","line":460}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_files_impl","name":"FileHit","kind":"type_annotation","line":460}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_files_impl","name":"String::from","kind":"call","line":467}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_files_impl","name":"path_prefix.is_some","kind":"call","line":472}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_files_impl","name":"sql.push_str","kind":"call","line":473}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_files_impl","name":"sql.push_str","kind":"call","line":475}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_files_impl","name":"sql.push_str","kind":"call","line":477}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_files_impl","name":"self.conn.prepare","kind":"call","line":479}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_files_impl","name":"stmt.query_map","kind":"call","line":481}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_files_impl","name":"stmt.query_map","kind":"call","line":486}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_files_impl","name":"rows\n            .into_iter()\n            .map(|(path, count)| FileHit {\n                lang: lang_for(&path).map(|s| s.to_string()),\n                path,\n                entity_count: count as usize,\n            })\n            .collect","kind":"call","line":491}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_files_impl","name":"rows\n            .into_iter()\n            .map","kind":"call","line":491}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_files_impl","name":"rows\n            .into_iter","kind":"call","line":491}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_files_impl","name":"lang_for(&path).map","kind":"call","line":494}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_files_impl","name":"lang_for","kind":"call","line":494,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.search_files_impl","name":"s.to_string","kind":"call","line":494}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_dir_overview","name":"Option","kind":"type_annotation","line":510}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_dir_overview","name":"Result","kind":"type_annotation","line":510}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_dir_overview","name":"Vec","kind":"type_annotation","line":510}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_dir_overview","name":"DirSummary","kind":"type_annotation","line":510}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_dir_overview","name":"self.distinct_files","kind":"call","line":511,"confidence":0.95,"callee_id":"src/query/duckdb_backend.rs::DuckDbBackend::distinct_files"}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_dir_overview","name":"BTreeMap::new","kind":"call","line":513,"confidence":0.8}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_dir_overview","name":"std::collections::BTreeMap/new","kind":"call","line":513,"confidence":0.8}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_dir_overview","name":"parent_dir(f).to_string","kind":"call","line":515}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_dir_overview","name":"parent_dir","kind":"call","line":515,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_dir_overview","name":"by_dir.entry(dir).or_default","kind":"call","line":516}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_dir_overview","name":"by_dir.entry","kind":"call","line":516}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_dir_overview","name":"lang_for","kind":"call","line":518,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_dir_overview","name":"entry.1.insert","kind":"call","line":519}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_dir_overview","name":"lang.to_string","kind":"call","line":519}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_dir_overview","name":"by_dir\n            .into_iter()\n            .map(|(path, (file_count, langs))| DirSummary {\n                path,\n                file_count,\n                langs: langs.into_iter().collect(),\n            })\n            .collect","kind":"call","line":522}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_dir_overview","name":"by_dir\n            .into_iter()\n            .map","kind":"call","line":522}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_dir_overview","name":"by_dir\n            .into_iter","kind":"call","line":522}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_dir_overview","name":"langs.into_iter().collect","kind":"call","line":527}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_dir_overview","name":"langs.into_iter","kind":"call","line":527}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"Option","kind":"type_annotation","line":536}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"Result","kind":"type_annotation","line":538}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"Vec","kind":"type_annotation","line":538}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"Option","kind":"type_annotation","line":538}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"String","kind":"type_annotation","line":538}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"String","kind":"type_annotation","line":538}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"String","kind":"type_annotation","line":538}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"self.distinct_files","kind":"call","line":539,"confidence":0.95,"callee_id":"src/query/duckdb_backend.rs::DuckDbBackend::distinct_files"}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"files.sort","kind":"call","line":540}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"BTreeMap::new","kind":"call","line":542,"confidence":0.8}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"std::collections::BTreeMap/new","kind":"call","line":542,"confidence":0.8}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"parent_dir(&f).to_string","kind":"call","line":544}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"parent_dir","kind":"call","line":544,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"by_dir.entry(dir).or_default().push","kind":"call","line":545}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"by_dir.entry(dir).or_default","kind":"call","line":545}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"by_dir.entry","kind":"call","line":545}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"Vec::new","kind":"call","line":547}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"entries.sort","kind":"call","line":549}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"entries.len","kind":"call","line":550}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"entries.truncate","kind":"call","line":551}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"lang_for(&f).map","kind":"call","line":554}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"lang_for","kind":"call","line":554,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"s.to_string","kind":"call","line":554}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"out.push","kind":"call","line":555}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.explore_files_capped","name":"dir.clone","kind":"call","line":555}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.distinct_files","name":"Option","kind":"type_annotation","line":561}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.distinct_files","name":"Result","kind":"type_annotation","line":561}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.distinct_files","name":"Vec","kind":"type_annotation","line":561}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.distinct_files","name":"String","kind":"type_annotation","line":561}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.distinct_files","name":"String::from","kind":"call","line":562}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.distinct_files","name":"path_prefix.is_some","kind":"call","line":563}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.distinct_files","name":"sql.push_str","kind":"call","line":564}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.distinct_files","name":"self.conn.prepare","kind":"call","line":566}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.distinct_files","name":"stmt.query_map","kind":"call","line":568}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.distinct_files","name":"stmt.query_map","kind":"call","line":571}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.list_projects","name":"Result","kind":"type_annotation","line":581}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.list_projects","name":"Vec","kind":"type_annotation","line":581}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.list_projects","name":"String","kind":"type_annotation","line":581}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.db_path","name":"PathBuf","kind":"type_annotation","line":587}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.db_path","name":"self.root.join","kind":"call","line":588}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.exec_query","name":"Result","kind":"type_annotation","line":596}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.exec_query","name":"QueryResult","kind":"type_annotation","line":596}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.exec_query","name":"self.conn.prepare","kind":"call","line":597}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.exec_query","name":"stmt.query","kind":"call","line":602}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.exec_query","name":"it\n            .as_ref()\n            .map(|s| s.column_names().into_iter().map(String::from).collect())\n            .unwrap_or_default","kind":"call","line":603}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.exec_query","name":"it\n            .as_ref()\n            .map","kind":"call","line":603}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.exec_query","name":"it\n            .as_ref","kind":"call","line":603}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.exec_query","name":"s.column_names().into_iter().map(String::from).collect","kind":"call","line":605}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.exec_query","name":"s.column_names().into_iter().map","kind":"call","line":605}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.exec_query","name":"s.column_names().into_iter","kind":"call","line":605}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.exec_query","name":"s.column_names","kind":"call","line":605}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.exec_query","name":"columns.len","kind":"call","line":607}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.exec_query","name":"Vec::new","kind":"call","line":608}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.exec_query","name":"it.next","kind":"call","line":609}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.exec_query","name":"Vec::with_capacity","kind":"call","line":610}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.exec_query","name":"r.push","kind":"call","line":612}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.exec_query","name":"format_cell","kind":"call","line":612,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"DuckDbBackend.exec_query","name":"rows.push","kind":"call","line":614}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult","name":"Vec","kind":"type_annotation","line":624}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult","name":"String","kind":"type_annotation","line":624}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult","name":"Vec","kind":"type_annotation","line":625}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult","name":"Vec","kind":"type_annotation","line":625}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult","name":"String","kind":"type_annotation","line":625}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"String","kind":"type_annotation","line":632}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"s.chars().count","kind":"call","line":634}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"s.chars","kind":"call","line":634}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"s.to_string","kind":"call","line":635}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"s.chars().take(max_cell_width.saturating_sub(1)).collect","kind":"call","line":637}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"s.chars().take","kind":"call","line":637}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"s.chars","kind":"call","line":637}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"max_cell_width.saturating_sub","kind":"call","line":637}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"out.push","kind":"call","line":638}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"String::with_capacity","kind":"call","line":642}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"self.columns.is_empty","kind":"call","line":643}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"\"_(no columns)_\\n\".to_string","kind":"call","line":644}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"out.push_str","kind":"call","line":646}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"out.push_str","kind":"call","line":647}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"self\n                .columns\n                .iter()\n                .map(|c| truncate(c))\n                .collect::<Vec<_>>()\n                .join","kind":"call","line":648}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"self\n                .columns\n                .iter()\n                .map","kind":"call","line":648}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"self\n                .columns\n                .iter","kind":"call","line":648}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"truncate","kind":"call","line":651}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"out.push_str","kind":"call","line":655}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"out.push_str","kind":"call","line":657}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"out.push","kind":"call","line":659}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"out.push_str","kind":"call","line":661}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"out.push_str","kind":"call","line":662}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"row.iter()\n                    .map(|c| truncate(c))\n                    .collect::<Vec<_>>()\n                    .join","kind":"call","line":663}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"row.iter()\n                    .map","kind":"call","line":663}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"row.iter","kind":"call","line":663}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"truncate","kind":"call","line":664}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"out.push_str","kind":"call","line":668}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_markdown","name":"out.push_str","kind":"call","line":670}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_json","name":"String","kind":"type_annotation","line":678}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_json","name":"self\n            .rows\n            .iter()\n            .map(|row| {\n                let mut m = serde_json::Map::new();\n                for (i, col) in self.columns.iter().enumerate() {\n                    let v = row.get(i).cloned().unwrap_or_default();\n                    m.insert(col.clone(), serde_json::Value::String(v));\n                }\n                m\n            })\n            .collect","kind":"call","line":679}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_json","name":"self\n            .rows\n            .iter()\n            .map","kind":"call","line":679}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_json","name":"self\n            .rows\n            .iter","kind":"call","line":679}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_json","name":"serde_json::Map::new","kind":"call","line":683}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_json","name":"self.columns.iter().enumerate","kind":"call","line":684}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_json","name":"self.columns.iter","kind":"call","line":684}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_json","name":"row.get(i).cloned().unwrap_or_default","kind":"call","line":685}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_json","name":"row.get(i).cloned","kind":"call","line":685}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_json","name":"row.get","kind":"call","line":685}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_json","name":"m.insert","kind":"call","line":686}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_json","name":"col.clone","kind":"call","line":686}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_json","name":"serde_json::Value::String","kind":"call","line":686}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_json","name":"serde_json::to_string_pretty(&objs).unwrap_or_default","kind":"call","line":692}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_json","name":"serde_json::to_string_pretty","kind":"call","line":692}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_json","name":"serde_json::to_string(&objs).unwrap_or_default","kind":"call","line":694}
+{"file":"src/query/duckdb_backend.rs","caller":"QueryResult.to_json","name":"serde_json::to_string","kind":"call","line":694}
+{"file":"src/query/duckdb_backend.rs","caller":"format_cell","name":"duckdb::Row","kind":"type_annotation","line":704}
+{"file":"src/query/duckdb_backend.rs","caller":"format_cell","name":"String","kind":"type_annotation","line":704}
+{"file":"src/query/duckdb_backend.rs","name":"duckdb::types::ValueRef","kind":"import","line":705}
+{"file":"src/query/duckdb_backend.rs","caller":"format_cell","name":"row.get_ref","kind":"call","line":706}
+{"file":"src/query/duckdb_backend.rs","caller":"format_cell","name":"String::new","kind":"call","line":707}
+{"file":"src/query/duckdb_backend.rs","caller":"format_cell","name":"b.to_string","kind":"call","line":708}
+{"file":"src/query/duckdb_backend.rs","caller":"format_cell","name":"v.to_string","kind":"call","line":709}
+{"file":"src/query/duckdb_backend.rs","caller":"format_cell","name":"v.to_string","kind":"call","line":710}
+{"file":"src/query/duckdb_backend.rs","caller":"format_cell","name":"v.to_string","kind":"call","line":711}
+{"file":"src/query/duckdb_backend.rs","caller":"format_cell","name":"v.to_string","kind":"call","line":712}
+{"file":"src/query/duckdb_backend.rs","caller":"format_cell","name":"v.to_string","kind":"call","line":713}
+{"file":"src/query/duckdb_backend.rs","caller":"format_cell","name":"v.to_string","kind":"call","line":714}
+{"file":"src/query/duckdb_backend.rs","caller":"format_cell","name":"v.to_string","kind":"call","line":715}
+{"file":"src/query/duckdb_backend.rs","caller":"format_cell","name":"v.to_string","kind":"call","line":716}
+{"file":"src/query/duckdb_backend.rs","caller":"format_cell","name":"v.to_string","kind":"call","line":717}
+{"file":"src/query/duckdb_backend.rs","caller":"format_cell","name":"v.to_string","kind":"call","line":718}
+{"file":"src/query/duckdb_backend.rs","caller":"format_cell","name":"v.to_string","kind":"call","line":719}
+{"file":"src/query/duckdb_backend.rs","caller":"format_cell","name":"String::from_utf8_lossy(t).into_owned","kind":"call","line":720}
+{"file":"src/query/duckdb_backend.rs","caller":"format_cell","name":"String::from_utf8_lossy","kind":"call","line":720}
+{"file":"src/query/duckdb_backend.rs","caller":"format_cell","name":"\"<blob>\".to_string","kind":"call","line":721}
+{"file":"src/query/duckdb_backend.rs","caller":"populate","name":"Path","kind":"type_annotation","line":729}
+{"file":"src/query/duckdb_backend.rs","caller":"populate","name":"Connection","kind":"type_annotation","line":729}
+{"file":"src/query/duckdb_backend.rs","caller":"populate","name":"Result","kind":"type_annotation","line":729}
+{"file":"src/query/duckdb_backend.rs","caller":"populate","name":"sigil_dir.join","kind":"call","line":730}
+{"file":"src/query/duckdb_backend.rs","caller":"populate","name":"sigil_dir.join","kind":"call","line":731}
+{"file":"src/query/duckdb_backend.rs","caller":"populate","name":"entities_path.exists","kind":"call","line":746}
+{"file":"src/query/duckdb_backend.rs","caller":"populate","name":"empty_entities_table_sql().to_string","kind":"call","line":753}
+{"file":"src/query/duckdb_backend.rs","caller":"populate","name":"empty_entities_table_sql","kind":"call","line":753,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"populate","name":"refs_path.exists","kind":"call","line":755}
+{"file":"src/query/duckdb_backend.rs","caller":"populate","name":"empty_refs_table_sql().to_string","kind":"call","line":762}
+{"file":"src/query/duckdb_backend.rs","caller":"populate","name":"empty_refs_table_sql","kind":"call","line":762,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"populate","name":"conn.execute_batch(&format!(\n        \"{entities_sql}\n         {refs_sql}\n         CREATE INDEX idx_entities_name ON entities(name);\n         CREATE INDEX idx_entities_file ON entities(file);\n         CREATE INDEX idx_refs_name   ON refs(name);\n         CREATE INDEX idx_refs_caller ON refs(caller);\n         CREATE INDEX idx_refs_file   ON refs(file);\",\n    ))\n    .context","kind":"call","line":767}
+{"file":"src/query/duckdb_backend.rs","caller":"populate","name":"conn.execute_batch","kind":"call","line":767}
+{"file":"src/query/duckdb_backend.rs","caller":"row_to_reference","name":"duckdb::Row","kind":"type_annotation","line":841}
+{"file":"src/query/duckdb_backend.rs","caller":"row_to_reference","name":"duckdb::Result","kind":"type_annotation","line":841}
+{"file":"src/query/duckdb_backend.rs","caller":"row_to_reference","name":"Reference","kind":"type_annotation","line":841}
+{"file":"src/query/duckdb_backend.rs","caller":"remaining_limit","name":"total.saturating_sub","kind":"call","line":860}
+{"file":"src/query/duckdb_backend.rs","caller":"parent_dir","name":"file.rsplit_once","kind":"call","line":868}
+{"file":"src/query/duckdb_backend.rs","caller":"lang_for","name":"Option","kind":"type_annotation","line":878}
+{"file":"src/query/duckdb_backend.rs","caller":"lang_for","name":"file.rsplit_once('.').map","kind":"call","line":879}
+{"file":"src/query/duckdb_backend.rs","caller":"lang_for","name":"file.rsplit_once","kind":"call","line":879}
+{"file":"src/query/duckdb_backend.rs","caller":"lang_for","name":"crate::parser::languages::detect_language","kind":"call","line":880}
+{"file":"src/query/duckdb_backend.rs","caller":"row_to_entity","name":"duckdb::Row","kind":"type_annotation","line":902}
+{"file":"src/query/duckdb_backend.rs","caller":"row_to_entity","name":"duckdb::Result","kind":"type_annotation","line":902}
+{"file":"src/query/duckdb_backend.rs","caller":"row_to_entity","name":"Entity","kind":"type_annotation","line":902}
+{"file":"src/query/duckdb_backend.rs","caller":"row_to_entity","name":"Vec::new","kind":"call","line":920}
+{"file":"src/query/duckdb_backend.rs","caller":"path_for_sql","name":"Path","kind":"type_annotation","line":927}
+{"file":"src/query/duckdb_backend.rs","caller":"path_for_sql","name":"String","kind":"type_annotation","line":927}
+{"file":"src/query/duckdb_backend.rs","caller":"path_for_sql","name":"p.display().to_string().replace","kind":"call","line":928}
+{"file":"src/query/duckdb_backend.rs","caller":"path_for_sql","name":"p.display().to_string","kind":"call","line":928}
+{"file":"src/query/duckdb_backend.rs","caller":"path_for_sql","name":"p.display","kind":"call","line":928}
+{"file":"src/query/duckdb_backend.rs","caller":"Stamp.load","name":"Path","kind":"type_annotation","line":942}
+{"file":"src/query/duckdb_backend.rs","caller":"Stamp.load","name":"Result","kind":"type_annotation","line":942}
+{"file":"src/query/duckdb_backend.rs","caller":"Stamp.load","name":"std::fs::read_to_string(path)\n            .with_context","kind":"call","line":943}
+{"file":"src/query/duckdb_backend.rs","caller":"Stamp.load","name":"std::fs::read_to_string","kind":"call","line":943}
+{"file":"src/query/duckdb_backend.rs","caller":"Stamp.load","name":"serde_json::from_str(&text).map_err","kind":"call","line":945}
+{"file":"src/query/duckdb_backend.rs","caller":"Stamp.load","name":"serde_json::from_str","kind":"call","line":945}
+{"file":"src/query/duckdb_backend.rs","caller":"Stamp.save","name":"Path","kind":"type_annotation","line":948}
+{"file":"src/query/duckdb_backend.rs","caller":"Stamp.save","name":"Result","kind":"type_annotation","line":948}
+{"file":"src/query/duckdb_backend.rs","caller":"Stamp.save","name":"serde_json::to_string","kind":"call","line":949}
+{"file":"src/query/duckdb_backend.rs","caller":"Stamp.save","name":"std::fs::write(path, text).map_err","kind":"call","line":950}
+{"file":"src/query/duckdb_backend.rs","caller":"count_tables","name":"Connection","kind":"type_annotation","line":957}
+{"file":"src/query/duckdb_backend.rs","caller":"count_tables","name":"Option","kind":"type_annotation","line":957}
+{"file":"src/query/duckdb_backend.rs","caller":"count_tables","name":"conn\n        .query_row(\"SELECT COUNT(*) FROM entities\", [], |r| r.get(0))\n        .ok","kind":"call","line":958}
+{"file":"src/query/duckdb_backend.rs","caller":"count_tables","name":"conn\n        .query_row","kind":"call","line":958}
+{"file":"src/query/duckdb_backend.rs","caller":"count_tables","name":"r.get","kind":"call","line":959}
+{"file":"src/query/duckdb_backend.rs","caller":"count_tables","name":"conn\n        .query_row(\"SELECT COUNT(*) FROM refs\", [], |r| r.get(0))\n        .ok","kind":"call","line":961}
+{"file":"src/query/duckdb_backend.rs","caller":"count_tables","name":"conn\n        .query_row","kind":"call","line":961}
+{"file":"src/query/duckdb_backend.rs","caller":"count_tables","name":"r.get","kind":"call","line":962}
+{"file":"src/query/duckdb_backend.rs","caller":"fingerprint","name":"Path","kind":"type_annotation","line":967}
+{"file":"src/query/duckdb_backend.rs","caller":"fingerprint","name":"Stamp","kind":"type_annotation","line":967}
+{"file":"src/query/duckdb_backend.rs","caller":"fingerprint","name":"meta_pair","kind":"call","line":968,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"fingerprint","name":"sigil_dir.join","kind":"call","line":968}
+{"file":"src/query/duckdb_backend.rs","caller":"fingerprint","name":"meta_pair","kind":"call","line":969,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"fingerprint","name":"sigil_dir.join","kind":"call","line":969}
+{"file":"src/query/duckdb_backend.rs","caller":"meta_pair","name":"Path","kind":"type_annotation","line":978}
+{"file":"src/query/duckdb_backend.rs","caller":"meta_pair","name":"std::fs::metadata","kind":"call","line":979}
+{"file":"src/query/duckdb_backend.rs","caller":"meta_pair","name":"m.len","kind":"call","line":982}
+{"file":"src/query/duckdb_backend.rs","caller":"meta_pair","name":"m\n        .modified()\n        .ok()\n        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())\n        .map(|d| d.as_millis())\n        .unwrap_or","kind":"call","line":983}
+{"file":"src/query/duckdb_backend.rs","caller":"meta_pair","name":"m\n        .modified()\n        .ok()\n        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())\n        .map","kind":"call","line":983}
+{"file":"src/query/duckdb_backend.rs","caller":"meta_pair","name":"m\n        .modified()\n        .ok()\n        .and_then","kind":"call","line":983}
+{"file":"src/query/duckdb_backend.rs","caller":"meta_pair","name":"m\n        .modified()\n        .ok","kind":"call","line":983}
+{"file":"src/query/duckdb_backend.rs","caller":"meta_pair","name":"m\n        .modified","kind":"call","line":983}
+{"file":"src/query/duckdb_backend.rs","caller":"meta_pair","name":"t.duration_since(std::time::UNIX_EPOCH).ok","kind":"call","line":986}
+{"file":"src/query/duckdb_backend.rs","caller":"meta_pair","name":"t.duration_since","kind":"call","line":986}
+{"file":"src/query/duckdb_backend.rs","caller":"meta_pair","name":"d.as_millis","kind":"call","line":987}
+{"file":"src/query/duckdb_backend.rs","name":"super::*","kind":"import","line":994}
+{"file":"src/query/duckdb_backend.rs","name":"crate::entity::{Entity, Reference}","kind":"import","line":995}
+{"file":"src/query/duckdb_backend.rs","name":"crate::writer","kind":"import","line":996}
+{"file":"src/query/duckdb_backend.rs","caller":"tmpdir","name":"PathBuf","kind":"type_annotation","line":998}
+{"file":"src/query/duckdb_backend.rs","caller":"tmpdir","name":"std::env::temp_dir().join","kind":"call","line":999}
+{"file":"src/query/duckdb_backend.rs","caller":"tmpdir","name":"std::env::temp_dir","kind":"call","line":999}
+{"file":"src/query/duckdb_backend.rs","caller":"tmpdir","name":"std::fs::remove_dir_all","kind":"call","line":1000}
+{"file":"src/query/duckdb_backend.rs","caller":"tmpdir","name":"std::fs::create_dir_all(&p).unwrap","kind":"call","line":1001}
+{"file":"src/query/duckdb_backend.rs","caller":"tmpdir","name":"std::fs::create_dir_all","kind":"call","line":1001}
+{"file":"src/query/duckdb_backend.rs","caller":"ent","name":"Entity","kind":"type_annotation","line":1005}
+{"file":"src/query/duckdb_backend.rs","caller":"ent","name":"file.to_string","kind":"call","line":1007}
+{"file":"src/query/duckdb_backend.rs","caller":"ent","name":"name.to_string","kind":"call","line":1008}
+{"file":"src/query/duckdb_backend.rs","caller":"ent","name":"kind.to_string","kind":"call","line":1009}
+{"file":"src/query/duckdb_backend.rs","caller":"ent","name":"\"d\".to_string","kind":"call","line":1016}
+{"file":"src/query/duckdb_backend.rs","caller":"ent","name":"\"s\".to_string","kind":"call","line":1018}
+{"file":"src/query/duckdb_backend.rs","caller":"ent","name":"Vec::new","kind":"call","line":1023}
+{"file":"src/query/duckdb_backend.rs","caller":"refr","name":"Option","kind":"type_annotation","line":1027}
+{"file":"src/query/duckdb_backend.rs","caller":"refr","name":"Reference","kind":"type_annotation","line":1027}
+{"file":"src/query/duckdb_backend.rs","caller":"refr","name":"file.to_string","kind":"call","line":1029}
+{"file":"src/query/duckdb_backend.rs","caller":"refr","name":"caller.map","kind":"call","line":1030}
+{"file":"src/query/duckdb_backend.rs","caller":"refr","name":"name.to_string","kind":"call","line":1031}
+{"file":"src/query/duckdb_backend.rs","caller":"refr","name":"kind.to_string","kind":"call","line":1032}
+{"file":"src/query/duckdb_backend.rs","caller":"seed","name":"Vec","kind":"type_annotation","line":1039}
+{"file":"src/query/duckdb_backend.rs","caller":"seed","name":"Reference","kind":"type_annotation","line":1039}
+{"file":"src/query/duckdb_backend.rs","caller":"seed","name":"Vec","kind":"type_annotation","line":1039}
+{"file":"src/query/duckdb_backend.rs","caller":"seed","name":"Entity","kind":"type_annotation","line":1039}
+{"file":"src/query/duckdb_backend.rs","caller":"seed","name":"Path","kind":"type_annotation","line":1039}
+{"file":"src/query/duckdb_backend.rs","caller":"seed","name":"writer::write_to_files(&entities, &refs, root, false).unwrap","kind":"call","line":1040,"confidence":0.8}
+{"file":"src/query/duckdb_backend.rs","caller":"seed","name":"writer::write_to_files","kind":"call","line":1040,"confidence":0.8}
+{"file":"src/query/duckdb_backend.rs","caller":"seed","name":"crate::writer/write_to_files(&entities, &refs, root, false).unwrap","kind":"call","line":1040,"confidence":0.8}
+{"file":"src/query/duckdb_backend.rs","caller":"seed","name":"crate::writer/write_to_files","kind":"call","line":1040,"confidence":0.8}
+{"file":"src/query/duckdb_backend.rs","caller":"opens_and_populates_from_jsonl","name":"tmpdir","kind":"call","line":1045,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"opens_and_populates_from_jsonl","name":"seed","kind":"call","line":1046,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"opens_and_populates_from_jsonl","name":"DuckDbBackend::open(&root).expect","kind":"call","line":1051}
+{"file":"src/query/duckdb_backend.rs","caller":"opens_and_populates_from_jsonl","name":"DuckDbBackend::open","kind":"call","line":1051}
+{"file":"src/query/duckdb_backend.rs","caller":"opens_and_populates_from_jsonl","name":"std::fs::remove_dir_all(&root).ok","kind":"call","line":1055}
+{"file":"src/query/duckdb_backend.rs","caller":"opens_and_populates_from_jsonl","name":"std::fs::remove_dir_all","kind":"call","line":1055}
+{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"tmpdir","kind":"call","line":1060,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"seed","kind":"call","line":1061,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"DuckDbBackend::open(&root).unwrap","kind":"call","line":1066}
+{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"DuckDbBackend::open","kind":"call","line":1066}
+{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"std::fs::metadata(root.join(\".sigil/index.duckdb\"))\n            .unwrap()\n            .modified()\n            .unwrap","kind":"call","line":1067}
+{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"std::fs::metadata(root.join(\".sigil/index.duckdb\"))\n            .unwrap()\n            .modified","kind":"call","line":1067}
+{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"std::fs::metadata(root.join(\".sigil/index.duckdb\"))\n            .unwrap","kind":"call","line":1067}
+{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"std::fs::metadata","kind":"call","line":1067}
+{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"root.join","kind":"call","line":1067}
+{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"std::thread::sleep","kind":"call","line":1074}
+{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"std::time::Duration::from_millis","kind":"call","line":1074}
+{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"DuckDbBackend::open(&root).unwrap","kind":"call","line":1075}
+{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"DuckDbBackend::open","kind":"call","line":1075}
+{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"std::fs::metadata(root.join(\".sigil/index.duckdb\"))\n            .unwrap()\n            .modified()\n            .unwrap","kind":"call","line":1076}
+{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"std::fs::metadata(root.join(\".sigil/index.duckdb\"))\n            .unwrap()\n            .modified","kind":"call","line":1076}
+{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"std::fs::metadata(root.join(\".sigil/index.duckdb\"))\n            .unwrap","kind":"call","line":1076}
+{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"std::fs::metadata","kind":"call","line":1076}
+{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"root.join","kind":"call","line":1076}
+{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"std::fs::remove_dir_all(&root).ok","kind":"call","line":1081}
+{"file":"src/query/duckdb_backend.rs","caller":"stamp_match_skips_rebuild","name":"std::fs::remove_dir_all","kind":"call","line":1081}
+{"file":"src/query/duckdb_backend.rs","caller":"stamp_mismatch_triggers_rebuild","name":"tmpdir","kind":"call","line":1086,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"stamp_mismatch_triggers_rebuild","name":"seed","kind":"call","line":1087,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"stamp_mismatch_triggers_rebuild","name":"DuckDbBackend::open(&root).unwrap","kind":"call","line":1092}
+{"file":"src/query/duckdb_backend.rs","caller":"stamp_mismatch_triggers_rebuild","name":"DuckDbBackend::open","kind":"call","line":1092}
+{"file":"src/query/duckdb_backend.rs","caller":"stamp_mismatch_triggers_rebuild","name":"drop","kind":"call","line":1094}
+{"file":"src/query/duckdb_backend.rs","caller":"stamp_mismatch_triggers_rebuild","name":"std::thread::sleep","kind":"call","line":1098}
+{"file":"src/query/duckdb_backend.rs","caller":"stamp_mismatch_triggers_rebuild","name":"std::time::Duration::from_millis","kind":"call","line":1098}
+{"file":"src/query/duckdb_backend.rs","caller":"stamp_mismatch_triggers_rebuild","name":"seed","kind":"call","line":1099,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"stamp_mismatch_triggers_rebuild","name":"DuckDbBackend::open(&root).unwrap","kind":"call","line":1111}
+{"file":"src/query/duckdb_backend.rs","caller":"stamp_mismatch_triggers_rebuild","name":"DuckDbBackend::open","kind":"call","line":1111}
+{"file":"src/query/duckdb_backend.rs","caller":"stamp_mismatch_triggers_rebuild","name":"std::fs::remove_dir_all(&root).ok","kind":"call","line":1113}
+{"file":"src/query/duckdb_backend.rs","caller":"stamp_mismatch_triggers_rebuild","name":"std::fs::remove_dir_all","kind":"call","line":1113}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_in_memory_semantics","name":"tmpdir","kind":"call","line":1118,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_in_memory_semantics","name":"seed","kind":"call","line":1119,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_in_memory_semantics","name":"DuckDbBackend::open(&root).unwrap","kind":"call","line":1129}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_in_memory_semantics","name":"DuckDbBackend::open","kind":"call","line":1129}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_in_memory_semantics","name":"db.get_callers(\"Foo\", None, 0).unwrap","kind":"call","line":1131}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_in_memory_semantics","name":"db.get_callers","kind":"call","line":1131}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_in_memory_semantics","name":"db.get_callers(\"Foo\", Some(\"call\"), 0).unwrap","kind":"call","line":1134}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_in_memory_semantics","name":"db.get_callers","kind":"call","line":1134}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_in_memory_semantics","name":"db.get_callers(\"Foo\", None, 2).unwrap","kind":"call","line":1137}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_in_memory_semantics","name":"db.get_callers","kind":"call","line":1137}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_in_memory_semantics","name":"db.get_callers(\"Nonexistent\", None, 0).unwrap","kind":"call","line":1140}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_in_memory_semantics","name":"db.get_callers","kind":"call","line":1140}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_in_memory_semantics","name":"std::fs::remove_dir_all(&root).ok","kind":"call","line":1143}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_in_memory_semantics","name":"std::fs::remove_dir_all","kind":"call","line":1143}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"tmpdir","kind":"call","line":1151,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"seed","kind":"call","line":1152,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"(0..12)\n                .map(|i| refr(&format!(\"c{i}.rs\"), Some(\"m\"), \"Foo\", \"call\", i + 1))\n                .collect","kind":"call","line":1155}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"(0..12)\n                .map","kind":"call","line":1155}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"refr","kind":"call","line":1156,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"DuckDbBackend::open(&root).unwrap","kind":"call","line":1160}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"DuckDbBackend::open","kind":"call","line":1160}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"crate::query::index::Index::load(&root).unwrap","kind":"call","line":1161}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"crate::query::index::Index::load","kind":"call","line":1161}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"db.get_callers(\"Foo\", None, 0).unwrap","kind":"call","line":1163}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"db.get_callers","kind":"call","line":1163}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"idx\n            .get_callers(\"Foo\", None, 0)\n            .into_iter()\n            .cloned()\n            .collect","kind":"call","line":1164}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"idx\n            .get_callers(\"Foo\", None, 0)\n            .into_iter()\n            .cloned","kind":"call","line":1164}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"idx\n            .get_callers(\"Foo\", None, 0)\n            .into_iter","kind":"call","line":1164}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"idx\n            .get_callers","kind":"call","line":1164}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"from_db.sort_by","kind":"call","line":1169}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"a.file.cmp(&b.file).then_with","kind":"call","line":1169}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"a.file.cmp","kind":"call","line":1169}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"a.line.cmp","kind":"call","line":1169}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"from_idx.sort_by","kind":"call","line":1170}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"a.file.cmp(&b.file).then_with","kind":"call","line":1170}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"a.file.cmp","kind":"call","line":1170}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"a.line.cmp","kind":"call","line":1170}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"std::fs::remove_dir_all(&root).ok","kind":"call","line":1172}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_parity_with_in_memory_backend","name":"std::fs::remove_dir_all","kind":"call","line":1172}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_qualified_tail","name":"tmpdir","kind":"call","line":1181,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_qualified_tail","name":"seed","kind":"call","line":1182,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_qualified_tail","name":"DuckDbBackend::open(&root).unwrap","kind":"call","line":1193}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_qualified_tail","name":"DuckDbBackend::open","kind":"call","line":1193}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_qualified_tail","name":"db.get_callers(\"foo\", None, 0).unwrap","kind":"call","line":1195}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_qualified_tail","name":"db.get_callers","kind":"call","line":1195}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_qualified_tail","name":"db.get_callers(\"crate::a::b::foo\", None, 0).unwrap","kind":"call","line":1198}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_qualified_tail","name":"db.get_callers","kind":"call","line":1198}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_qualified_tail","name":"db.get_callers(\"baz\", None, 0).unwrap","kind":"call","line":1201}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_qualified_tail","name":"db.get_callers","kind":"call","line":1201}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_qualified_tail","name":"std::fs::remove_dir_all(&root).ok","kind":"call","line":1204}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_qualified_tail","name":"std::fs::remove_dir_all","kind":"call","line":1204}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_dot_qualified_leaf_and_heads","name":"tmpdir","kind":"call","line":1220,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_dot_qualified_leaf_and_heads","name":"seed","kind":"call","line":1221,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_dot_qualified_leaf_and_heads","name":"DuckDbBackend::open(&root).unwrap","kind":"call","line":1233}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_dot_qualified_leaf_and_heads","name":"DuckDbBackend::open","kind":"call","line":1233}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_dot_qualified_leaf_and_heads","name":"db.get_callers(\"Editor\", None, 0).unwrap","kind":"call","line":1235}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_dot_qualified_leaf_and_heads","name":"db.get_callers","kind":"call","line":1235}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_dot_qualified_leaf_and_heads","name":"db.get_callers(\"Session\", None, 0).unwrap","kind":"call","line":1238}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_dot_qualified_leaf_and_heads","name":"db.get_callers","kind":"call","line":1238}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_dot_qualified_leaf_and_heads","name":"db.get_callers(\"Regex\", None, 0).unwrap","kind":"call","line":1241}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_dot_qualified_leaf_and_heads","name":"db.get_callers","kind":"call","line":1241}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_dot_qualified_leaf_and_heads","name":"db.get_callers(\"HashMap\", None, 0).unwrap","kind":"call","line":1244}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_dot_qualified_leaf_and_heads","name":"db.get_callers","kind":"call","line":1244}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_dot_qualified_leaf_and_heads","name":"db.get_callers(\"obj\", None, 0).unwrap","kind":"call","line":1248}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_dot_qualified_leaf_and_heads","name":"db.get_callers","kind":"call","line":1248}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_dot_qualified_leaf_and_heads","name":"db.get_callers(\"requests\", None, 0).unwrap","kind":"call","line":1250}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_dot_qualified_leaf_and_heads","name":"db.get_callers","kind":"call","line":1250}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_dot_qualified_leaf_and_heads","name":"db.get_callers(\"std\", None, 0).unwrap","kind":"call","line":1252}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_dot_qualified_leaf_and_heads","name":"db.get_callers","kind":"call","line":1252}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_dot_qualified_leaf_and_heads","name":"std::fs::remove_dir_all(&root).ok","kind":"call","line":1255}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callers_matches_dot_qualified_leaf_and_heads","name":"std::fs::remove_dir_all","kind":"call","line":1255}
+{"file":"src/query/duckdb_backend.rs","caller":"should_auto_engage_honors_threshold","name":"tmpdir","kind":"call","line":1260,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"should_auto_engage_honors_threshold","name":"seed","kind":"call","line":1261,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"should_auto_engage_honors_threshold","name":"std::fs::remove_dir_all(&root).ok","kind":"call","line":1269}
+{"file":"src/query/duckdb_backend.rs","caller":"should_auto_engage_honors_threshold","name":"std::fs::remove_dir_all","kind":"call","line":1269}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callees_mirrors_caller_column_lookup","name":"tmpdir","kind":"call","line":1274,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callees_mirrors_caller_column_lookup","name":"seed","kind":"call","line":1275,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callees_mirrors_caller_column_lookup","name":"DuckDbBackend::open(&root).unwrap","kind":"call","line":1284}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callees_mirrors_caller_column_lookup","name":"DuckDbBackend::open","kind":"call","line":1284}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callees_mirrors_caller_column_lookup","name":"db.get_callees(\"main\", None, 0).unwrap","kind":"call","line":1285}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callees_mirrors_caller_column_lookup","name":"db.get_callees","kind":"call","line":1285}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callees_mirrors_caller_column_lookup","name":"db.get_callees(\"helper\", None, 0).unwrap","kind":"call","line":1287}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callees_mirrors_caller_column_lookup","name":"db.get_callees","kind":"call","line":1287}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callees_mirrors_caller_column_lookup","name":"std::fs::remove_dir_all(&root).ok","kind":"call","line":1289}
+{"file":"src/query/duckdb_backend.rs","caller":"get_callees_mirrors_caller_column_lookup","name":"std::fs::remove_dir_all","kind":"call","line":1289}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_returns_entities_ordered_by_line","name":"tmpdir","kind":"call","line":1294,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_returns_entities_ordered_by_line","name":"ent","kind":"call","line":1295,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_returns_entities_ordered_by_line","name":"ent","kind":"call","line":1297,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_returns_entities_ordered_by_line","name":"ent","kind":"call","line":1299,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_returns_entities_ordered_by_line","name":"seed","kind":"call","line":1301,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_returns_entities_ordered_by_line","name":"DuckDbBackend::open(&root).unwrap","kind":"call","line":1303}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_returns_entities_ordered_by_line","name":"DuckDbBackend::open","kind":"call","line":1303}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_returns_entities_ordered_by_line","name":"db.get_file_symbols(\"a.rs\", None, 0).unwrap","kind":"call","line":1304}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_returns_entities_ordered_by_line","name":"db.get_file_symbols","kind":"call","line":1304}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_returns_entities_ordered_by_line","name":"db.get_file_symbols(\"a.rs\", Some(\"struct\"), 0).unwrap","kind":"call","line":1309}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_returns_entities_ordered_by_line","name":"db.get_file_symbols","kind":"call","line":1309}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_returns_entities_ordered_by_line","name":"db.get_file_symbols(\"nonexistent.rs\", None, 0).unwrap","kind":"call","line":1313}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_returns_entities_ordered_by_line","name":"db.get_file_symbols","kind":"call","line":1313}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_returns_entities_ordered_by_line","name":"std::fs::remove_dir_all(&root).ok","kind":"call","line":1315}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_returns_entities_ordered_by_line","name":"std::fs::remove_dir_all","kind":"call","line":1315}
+{"file":"src/query/duckdb_backend.rs","caller":"get_children_filters_by_parent","name":"tmpdir","kind":"call","line":1320,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"get_children_filters_by_parent","name":"ent","kind":"call","line":1321,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"get_children_filters_by_parent","name":"\"Foo\".to_string","kind":"call","line":1322}
+{"file":"src/query/duckdb_backend.rs","caller":"get_children_filters_by_parent","name":"ent","kind":"call","line":1324,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"get_children_filters_by_parent","name":"\"Foo\".to_string","kind":"call","line":1325}
+{"file":"src/query/duckdb_backend.rs","caller":"get_children_filters_by_parent","name":"ent","kind":"call","line":1327,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"get_children_filters_by_parent","name":"\"Bar\".to_string","kind":"call","line":1328}
+{"file":"src/query/duckdb_backend.rs","caller":"get_children_filters_by_parent","name":"seed","kind":"call","line":1329,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"get_children_filters_by_parent","name":"DuckDbBackend::open(&root).unwrap","kind":"call","line":1331}
+{"file":"src/query/duckdb_backend.rs","caller":"get_children_filters_by_parent","name":"DuckDbBackend::open","kind":"call","line":1331}
+{"file":"src/query/duckdb_backend.rs","caller":"get_children_filters_by_parent","name":"db.get_children(\"a.rs\", \"Foo\", None, 0).unwrap","kind":"call","line":1332}
+{"file":"src/query/duckdb_backend.rs","caller":"get_children_filters_by_parent","name":"db.get_children","kind":"call","line":1332}
+{"file":"src/query/duckdb_backend.rs","caller":"get_children_filters_by_parent","name":"db.get_children(\"a.rs\", \"Bar\", None, 0).unwrap","kind":"call","line":1335}
+{"file":"src/query/duckdb_backend.rs","caller":"get_children_filters_by_parent","name":"db.get_children","kind":"call","line":1335}
+{"file":"src/query/duckdb_backend.rs","caller":"get_children_filters_by_parent","name":"std::fs::remove_dir_all(&root).ok","kind":"call","line":1337}
+{"file":"src/query/duckdb_backend.rs","caller":"get_children_filters_by_parent","name":"std::fs::remove_dir_all","kind":"call","line":1337}
+{"file":"src/query/duckdb_backend.rs","caller":"search_symbols_case_insensitive_with_path_prefix","name":"tmpdir","kind":"call","line":1342,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"search_symbols_case_insensitive_with_path_prefix","name":"seed","kind":"call","line":1343,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"search_symbols_case_insensitive_with_path_prefix","name":"DuckDbBackend::open(&root).unwrap","kind":"call","line":1352}
+{"file":"src/query/duckdb_backend.rs","caller":"search_symbols_case_insensitive_with_path_prefix","name":"DuckDbBackend::open","kind":"call","line":1352}
+{"file":"src/query/duckdb_backend.rs","caller":"search_symbols_case_insensitive_with_path_prefix","name":"db.search(\"PARSE\", Scope::Symbols, None, None, 0).unwrap","kind":"call","line":1355}
+{"file":"src/query/duckdb_backend.rs","caller":"search_symbols_case_insensitive_with_path_prefix","name":"db.search","kind":"call","line":1355}
+{"file":"src/query/duckdb_backend.rs","caller":"search_symbols_case_insensitive_with_path_prefix","name":"db.search(\"parse\", Scope::Symbols, Some(\"function\"), None, 0).unwrap","kind":"call","line":1360}
+{"file":"src/query/duckdb_backend.rs","caller":"search_symbols_case_insensitive_with_path_prefix","name":"db.search","kind":"call","line":1360}
+{"file":"src/query/duckdb_backend.rs","caller":"search_symbols_case_insensitive_with_path_prefix","name":"db.search(\"parse\", Scope::Symbols, None, Some(\"src/\"), 0).unwrap","kind":"call","line":1364}
+{"file":"src/query/duckdb_backend.rs","caller":"search_symbols_case_insensitive_with_path_prefix","name":"db.search","kind":"call","line":1364}
+{"file":"src/query/duckdb_backend.rs","caller":"search_symbols_case_insensitive_with_path_prefix","name":"db.search(\"\", Scope::All, None, None, 0).unwrap","kind":"call","line":1368}
+{"file":"src/query/duckdb_backend.rs","caller":"search_symbols_case_insensitive_with_path_prefix","name":"db.search","kind":"call","line":1368}
+{"file":"src/query/duckdb_backend.rs","caller":"search_symbols_case_insensitive_with_path_prefix","name":"std::fs::remove_dir_all(&root).ok","kind":"call","line":1371}
+{"file":"src/query/duckdb_backend.rs","caller":"search_symbols_case_insensitive_with_path_prefix","name":"std::fs::remove_dir_all","kind":"call","line":1371}
+{"file":"src/query/duckdb_backend.rs","caller":"search_files_scope_returns_file_hits_only","name":"tmpdir","kind":"call","line":1376,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"search_files_scope_returns_file_hits_only","name":"seed","kind":"call","line":1377,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"search_files_scope_returns_file_hits_only","name":"DuckDbBackend::open(&root).unwrap","kind":"call","line":1385}
+{"file":"src/query/duckdb_backend.rs","caller":"search_files_scope_returns_file_hits_only","name":"DuckDbBackend::open","kind":"call","line":1385}
+{"file":"src/query/duckdb_backend.rs","caller":"search_files_scope_returns_file_hits_only","name":"db.search(\"parser\", Scope::Files, None, None, 0).unwrap","kind":"call","line":1386}
+{"file":"src/query/duckdb_backend.rs","caller":"search_files_scope_returns_file_hits_only","name":"db.search","kind":"call","line":1386}
+{"file":"src/query/duckdb_backend.rs","caller":"search_files_scope_returns_file_hits_only","name":"db.search(\"parse\", Scope::All, None, None, 0).unwrap","kind":"call","line":1398}
+{"file":"src/query/duckdb_backend.rs","caller":"search_files_scope_returns_file_hits_only","name":"db.search","kind":"call","line":1398}
+{"file":"src/query/duckdb_backend.rs","caller":"search_files_scope_returns_file_hits_only","name":"combined\n            .iter()\n            .filter(|h| matches!(h, SearchHitOwned::Symbol(_)))\n            .count","kind":"call","line":1399}
+{"file":"src/query/duckdb_backend.rs","caller":"search_files_scope_returns_file_hits_only","name":"combined\n            .iter()\n            .filter","kind":"call","line":1399}
+{"file":"src/query/duckdb_backend.rs","caller":"search_files_scope_returns_file_hits_only","name":"combined\n            .iter","kind":"call","line":1399}
+{"file":"src/query/duckdb_backend.rs","caller":"search_files_scope_returns_file_hits_only","name":"combined\n            .iter()\n            .filter(|h| matches!(h, SearchHitOwned::File(_)))\n            .count","kind":"call","line":1403}
+{"file":"src/query/duckdb_backend.rs","caller":"search_files_scope_returns_file_hits_only","name":"combined\n            .iter()\n            .filter","kind":"call","line":1403}
+{"file":"src/query/duckdb_backend.rs","caller":"search_files_scope_returns_file_hits_only","name":"combined\n            .iter","kind":"call","line":1403}
+{"file":"src/query/duckdb_backend.rs","caller":"search_files_scope_returns_file_hits_only","name":"std::fs::remove_dir_all(&root).ok","kind":"call","line":1409}
+{"file":"src/query/duckdb_backend.rs","caller":"search_files_scope_returns_file_hits_only","name":"std::fs::remove_dir_all","kind":"call","line":1409}
+{"file":"src/query/duckdb_backend.rs","caller":"explore_dir_overview_groups_by_directory_with_langs","name":"tmpdir","kind":"call","line":1414,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"explore_dir_overview_groups_by_directory_with_langs","name":"seed","kind":"call","line":1415,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"explore_dir_overview_groups_by_directory_with_langs","name":"DuckDbBackend::open(&root).unwrap","kind":"call","line":1425}
+{"file":"src/query/duckdb_backend.rs","caller":"explore_dir_overview_groups_by_directory_with_langs","name":"DuckDbBackend::open","kind":"call","line":1425}
+{"file":"src/query/duckdb_backend.rs","caller":"explore_dir_overview_groups_by_directory_with_langs","name":"db.explore_dir_overview(None).unwrap","kind":"call","line":1426}
+{"file":"src/query/duckdb_backend.rs","caller":"explore_dir_overview_groups_by_directory_with_langs","name":"db.explore_dir_overview","kind":"call","line":1426}
+{"file":"src/query/duckdb_backend.rs","caller":"explore_dir_overview_groups_by_directory_with_langs","name":"overview.iter().map(|d| (d.path.clone(), d)).collect","kind":"call","line":1428}
+{"file":"src/query/duckdb_backend.rs","caller":"explore_dir_overview_groups_by_directory_with_langs","name":"overview.iter().map","kind":"call","line":1428}
+{"file":"src/query/duckdb_backend.rs","caller":"explore_dir_overview_groups_by_directory_with_langs","name":"overview.iter","kind":"call","line":1428}
+{"file":"src/query/duckdb_backend.rs","caller":"explore_dir_overview_groups_by_directory_with_langs","name":"d.path.clone","kind":"call","line":1428}
+{"file":"src/query/duckdb_backend.rs","caller":"explore_dir_overview_groups_by_directory_with_langs","name":"std::fs::remove_dir_all(&root).ok","kind":"call","line":1432}
+{"file":"src/query/duckdb_backend.rs","caller":"explore_dir_overview_groups_by_directory_with_langs","name":"std::fs::remove_dir_all","kind":"call","line":1432}
+{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"tmpdir","kind":"call","line":1437,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"seed","kind":"call","line":1438,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"(0..10)\n                .map(|i| ent(&format!(\"src/f{i}.rs\"), \"x\", \"function\"))\n                .chain(std::iter::once(ent(\"tests/t.rs\", \"t\", \"function\")))\n                .collect","kind":"call","line":1440}
+{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"(0..10)\n                .map(|i| ent(&format!(\"src/f{i}.rs\"), \"x\", \"function\"))\n                .chain","kind":"call","line":1440}
+{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"(0..10)\n                .map","kind":"call","line":1440}
+{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"ent","kind":"call","line":1441,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"std::iter::once","kind":"call","line":1442}
+{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"ent","kind":"call","line":1442,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"DuckDbBackend::open(&root).unwrap","kind":"call","line":1446}
+{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"DuckDbBackend::open","kind":"call","line":1446}
+{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"db.explore_files_capped(None, 3).unwrap","kind":"call","line":1447}
+{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"db.explore_files_capped","kind":"call","line":1447}
+{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"capped.iter().filter(|(d, _, _)| d == \"src\").count","kind":"call","line":1448}
+{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"capped.iter().filter","kind":"call","line":1448}
+{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"capped.iter","kind":"call","line":1448}
+{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"capped.iter().filter(|(d, _, _)| d == \"tests\").count","kind":"call","line":1449}
+{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"capped.iter().filter","kind":"call","line":1449}
+{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"capped.iter","kind":"call","line":1449}
+{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"std::fs::remove_dir_all(&root).ok","kind":"call","line":1452}
+{"file":"src/query/duckdb_backend.rs","caller":"explore_files_capped_caps_per_directory","name":"std::fs::remove_dir_all","kind":"call","line":1452}
+{"file":"src/query/duckdb_backend.rs","caller":"list_projects_returns_single_root","name":"tmpdir","kind":"call","line":1457,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"list_projects_returns_single_root","name":"seed","kind":"call","line":1458,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"list_projects_returns_single_root","name":"DuckDbBackend::open(&root).unwrap","kind":"call","line":1463}
+{"file":"src/query/duckdb_backend.rs","caller":"list_projects_returns_single_root","name":"DuckDbBackend::open","kind":"call","line":1463}
+{"file":"src/query/duckdb_backend.rs","caller":"list_projects_returns_single_root","name":"std::fs::remove_dir_all(&root).ok","kind":"call","line":1465}
+{"file":"src/query/duckdb_backend.rs","caller":"list_projects_returns_single_root","name":"std::fs::remove_dir_all","kind":"call","line":1465}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"tmpdir","kind":"call","line":1470,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"Vec::new","kind":"call","line":1471}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"ent","kind":"call","line":1473,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"entities.push","kind":"call","line":1476}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"entities.push","kind":"call","line":1478}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"ent","kind":"call","line":1478,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"seed","kind":"call","line":1479,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"DuckDbBackend::open(&root).unwrap","kind":"call","line":1481}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"DuckDbBackend::open","kind":"call","line":1481}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"crate::query::index::Index::load(&root).unwrap","kind":"call","line":1482}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"crate::query::index::Index::load","kind":"call","line":1482}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"db.get_file_symbols(\"src/core.rs\", None, 0).unwrap","kind":"call","line":1484}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"db.get_file_symbols","kind":"call","line":1484}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"idx\n            .get_file_symbols(\"src/core.rs\", None, 0)\n            .into_iter()\n            .cloned()\n            .collect","kind":"call","line":1485}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"idx\n            .get_file_symbols(\"src/core.rs\", None, 0)\n            .into_iter()\n            .cloned","kind":"call","line":1485}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"idx\n            .get_file_symbols(\"src/core.rs\", None, 0)\n            .into_iter","kind":"call","line":1485}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"idx\n            .get_file_symbols","kind":"call","line":1485}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"from_db.sort_by_key","kind":"call","line":1492}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"from_idx.sort_by_key","kind":"call","line":1493}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"e.file.clone","kind":"call","line":1497}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"e.name.clone","kind":"call","line":1498}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"e.kind.clone","kind":"call","line":1499}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"e.parent.clone","kind":"call","line":1502}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"from_db.iter().map(project).collect","kind":"call","line":1504}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"from_db.iter().map","kind":"call","line":1504}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"from_db.iter","kind":"call","line":1504}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"from_idx.iter().map(project).collect","kind":"call","line":1505}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"from_idx.iter().map","kind":"call","line":1505}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"from_idx.iter","kind":"call","line":1505}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"std::fs::remove_dir_all(&root).ok","kind":"call","line":1507}
+{"file":"src/query/duckdb_backend.rs","caller":"get_file_symbols_parity_with_in_memory","name":"std::fs::remove_dir_all","kind":"call","line":1507}
+{"file":"src/query/duckdb_backend.rs","caller":"missing_jsonl_opens_as_empty_backend","name":"tmpdir","kind":"call","line":1518,"confidence":0.95}
+{"file":"src/query/duckdb_backend.rs","caller":"missing_jsonl_opens_as_empty_backend","name":"std::fs::create_dir_all(root.join(\".sigil\")).unwrap","kind":"call","line":1519}
+{"file":"src/query/duckdb_backend.rs","caller":"missing_jsonl_opens_as_empty_backend","name":"std::fs::create_dir_all","kind":"call","line":1519}
+{"file":"src/query/duckdb_backend.rs","caller":"missing_jsonl_opens_as_empty_backend","name":"root.join","kind":"call","line":1519}
+{"file":"src/query/duckdb_backend.rs","caller":"missing_jsonl_opens_as_empty_backend","name":"DuckDbBackend::open(&root).expect","kind":"call","line":1520}
+{"file":"src/query/duckdb_backend.rs","caller":"missing_jsonl_opens_as_empty_backend","name":"DuckDbBackend::open","kind":"call","line":1520}
+{"file":"src/query/duckdb_backend.rs","caller":"missing_jsonl_opens_as_empty_backend","name":"std::fs::remove_dir_all(&root).ok","kind":"call","line":1524}
+{"file":"src/query/duckdb_backend.rs","caller":"missing_jsonl_opens_as_empty_backend","name":"std::fs::remove_dir_all","kind":"call","line":1524}
 {"file":"src/query/index.rs","name":"std::collections::HashMap","kind":"import","line":10}
 {"file":"src/query/index.rs","name":"std::path::Path","kind":"import","line":11}
 {"file":"src/query/index.rs","name":"anyhow::{Context, Result}","kind":"import","line":13}

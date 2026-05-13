@@ -197,19 +197,61 @@ impl DuckDbBackend {
         kind_filter: Option<&str>,
         limit: usize,
     ) -> Result<Vec<Reference>> {
-        let want_qualified = !name.contains("::");
-        let like_pattern = format!("%::{}", name);
+        // Parity with Index::build's leaf + head indexing in
+        // src/query/index.rs. The in-memory index pre-expands every ref
+        // name under (a) bare_leaf (latest `.` or `::` segment),
+        // (b) cc-head + cc-head's leaf, and (c) dot-head + dot-head's
+        // leaf — with uppercase gating to avoid `callers std` /
+        // `callers obj` pollution. Replicate the same coverage here
+        // via SQL alternation; the DISTINCT clause dedupes refs that
+        // match more than one pattern.
+        let is_uppercase_query = name
+            .chars()
+            .next()
+            .map(|c| c.is_ascii_uppercase())
+            .unwrap_or(false);
+        let name_contains_sep = name.contains("::") || name.contains('.');
+        let cc_leaf = format!("%::{}", name);
+        let dot_leaf = format!("%.{}", name);
+        let cc_head_start = format!("{}::%", name);
+        let dot_head_start = format!("{}.%", name);
+        let inner_dot_after_cc = format!("%::{}.%", name);
+        let inner_cc_after_cc = format!("%::{}::%", name);
+
         let mut sql = String::from(
-            "SELECT file, caller, name, kind, line \
+            "SELECT DISTINCT file, caller, name, kind, line \
              FROM refs \
              WHERE (name = ?",
         );
-        if want_qualified {
-            sql.push_str(" OR name LIKE ?");
+        let mut bind: Vec<&dyn duckdb::ToSql> = vec![&name];
+        // Leaf passes — always safe (the leaf IS the user query, no
+        // upstream binding ambiguity).
+        sql.push_str(" OR name LIKE ?"); // cc-leaf
+        bind.push(&cc_leaf);
+        sql.push_str(" OR name LIKE ?"); // dot-leaf
+        bind.push(&dot_leaf);
+        // Head passes — gated on uppercase first char (`Regex`, `Editor`,
+        // `Connection`) so we don't pollute lowercase module-name
+        // lookups (`callers std`, `callers requests`, `callers parser`).
+        // Also gated on the query NOT itself being qualified — a query
+        // like `Foo::Bar` is the literal name; LIKE-expanding it would
+        // double-match.
+        if is_uppercase_query && !name_contains_sep {
+            sql.push_str(" OR name LIKE ?"); // dot-head (start)
+            bind.push(&dot_head_start);
+            sql.push_str(" OR name LIKE ?"); // cc-head (start)
+            bind.push(&cc_head_start);
+            sql.push_str(" OR name LIKE ?"); // inner dot-head after cc-prefix (e.g. Faraday::Connection.new for Q=Connection)
+            bind.push(&inner_dot_after_cc);
+            sql.push_str(" OR name LIKE ?"); // inner cc-head after cc-prefix (e.g. Foo::Bar::baz for Q=Bar)
+            bind.push(&inner_cc_after_cc);
         }
         sql.push(')');
-        if kind_filter.is_some() {
+        let kind_str: String;
+        if let Some(k) = kind_filter {
             sql.push_str(" AND kind = ?");
+            kind_str = k.to_string();
+            bind.push(&kind_str);
         }
         sql.push_str(" ORDER BY file, line");
         if limit > 0 {
@@ -217,20 +259,9 @@ impl DuckDbBackend {
         }
 
         let mut stmt = self.conn.prepare(&sql)?;
-        let rows = match (want_qualified, kind_filter) {
-            (true, Some(k)) => stmt
-                .query_map(params![name, like_pattern, k], row_to_reference)?
-                .collect::<std::result::Result<Vec<_>, _>>()?,
-            (true, None) => stmt
-                .query_map(params![name, like_pattern], row_to_reference)?
-                .collect::<std::result::Result<Vec<_>, _>>()?,
-            (false, Some(k)) => stmt
-                .query_map(params![name, k], row_to_reference)?
-                .collect::<std::result::Result<Vec<_>, _>>()?,
-            (false, None) => stmt
-                .query_map(params![name], row_to_reference)?
-                .collect::<std::result::Result<Vec<_>, _>>()?,
-        };
+        let rows = stmt
+            .query_map(bind.as_slice(), row_to_reference)?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
         Ok(rows)
     }
 
@@ -1169,6 +1200,57 @@ mod tests {
 
         let miss = db.get_callers("baz", None, 0).unwrap();
         assert!(miss.is_empty());
+
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn get_callers_matches_dot_qualified_leaf_and_heads() {
+        // Parity with in-memory backend's `bare_leaf` + `head_prefixes_with_sep`.
+        // The in-memory `Index::build` indexes:
+        //  - `Editor.method` (dot-qualified) → also under `method` (leaf)
+        //    and `Editor` (uppercase dot-head)
+        //  - `Regex::new` (cc-qualified) → also under `new` (leaf) and
+        //    `Regex` (uppercase cc-head)
+        //  - `requests.Session` (dot leaf only — `requests` is lowercase) →
+        //    NO `callers requests` pollution
+        // DuckDB backend was missing all of this — slate's
+        // `callers Editor` returned 137 instead of 1237 because
+        // member-call refs `Editor.method` weren't reachable.
+        let root = tmpdir("dot_head_parity");
+        seed(
+            &root,
+            vec![],
+            vec![
+                refr("a.ts", Some("u"), "Editor.range", "call", 1),
+                refr("b.ts", Some("u"), "Editor.transform", "call", 2),
+                refr("c.ts", Some("u"), "obj.helper", "call", 3),  // lowercase head — NO pollution
+                refr("d.ts", Some("u"), "requests.Session", "call", 4),
+                refr("e.rs", Some("u"), "Regex::new", "call", 5),
+                refr("f.rs", Some("u"), "std::collections::HashMap", "call", 6),
+            ],
+        );
+        let db = DuckDbBackend::open(&root).unwrap();
+
+        let editor = db.get_callers("Editor", None, 0).unwrap();
+        assert_eq!(editor.len(), 2, "Editor.range + Editor.transform should both surface");
+
+        let session = db.get_callers("Session", None, 0).unwrap();
+        assert_eq!(session.len(), 1, "requests.Session reaches via dot-leaf");
+
+        let regex = db.get_callers("Regex", None, 0).unwrap();
+        assert_eq!(regex.len(), 1, "Regex::new reaches via cc-head");
+
+        let hashmap = db.get_callers("HashMap", None, 0).unwrap();
+        assert_eq!(hashmap.len(), 1, "std::collections::HashMap reaches via cc-leaf");
+
+        // Pollution avoidance:
+        let obj = db.get_callers("obj", None, 0).unwrap();
+        assert!(obj.is_empty(), "lowercase dot-head `obj` MUST NOT surface");
+        let requests = db.get_callers("requests", None, 0).unwrap();
+        assert!(requests.is_empty(), "lowercase dot-head `requests` MUST NOT surface");
+        let std_q = db.get_callers("std", None, 0).unwrap();
+        assert!(std_q.is_empty(), "lowercase cc-head `std` MUST NOT surface");
 
         std::fs::remove_dir_all(&root).ok();
     }
