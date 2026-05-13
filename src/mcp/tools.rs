@@ -1,10 +1,10 @@
 //! Pure MCP tool handlers — each function takes an `Index` and the
-//! tool's typed inputs and returns a `serde_json::Value`. The rmcp
-//! `ServerHandler` impl in `super::server` is just a JSON-RPC shim
-//! around these.
+//! tool's typed inputs and returns a `serde_json::Value`. The
+//! hand-rolled JSON-RPC dispatcher in `super::server` is a thin
+//! shim around these.
 //!
-//! Kept free of any rmcp / async machinery so they're trivially
-//! testable in plain `#[test]` functions.
+//! Kept free of async machinery so they're trivially testable in
+//! plain `#[test]` functions.
 
 use serde_json::{Value, json};
 
