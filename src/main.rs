@@ -1988,8 +1988,8 @@ fn main() {
                     std::process::exit(1);
                 }
             }
-            WorkspaceAction::Index { root, full: _ } => {
-                if let Err(e) = sigil::workspace::workspace_index(&root) {
+            WorkspaceAction::Index { root, full } => {
+                if let Err(e) = sigil::workspace::workspace_index_with_options(&root, full) {
                     eprintln!("workspace index: {}", e);
                     std::process::exit(2);
                 }

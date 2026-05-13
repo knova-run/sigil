@@ -564,6 +564,14 @@ fn stamp_file(p: &Path) -> Result<(u64, i128)> {
 ///   into `.sigil-workspace/manifest.json`.
 /// - Writes an empty `cross_repo_refs.jsonl` placeholder (Phase 3 fills).
 pub fn workspace_index(workspace_root: &Path) -> Result<()> {
+    workspace_index_with_options(workspace_root, false)
+}
+
+/// `--full` wakes every member's auto-build path and forces stamp +
+/// cross-repo + rank writes even when nothing changed. The default
+/// (`full=false`) short-circuits when the new stamp set matches the
+/// previous run (so `workspace index` twice in a row is a no-op).
+pub fn workspace_index_with_options(workspace_root: &Path, full: bool) -> Result<()> {
     let manifest = read_manifest(workspace_root)?;
     let total = manifest.members.len();
     if total == 0 {
@@ -633,8 +641,26 @@ pub fn workspace_index(workspace_root: &Path) -> Result<()> {
         ));
     }
 
-    // Write stamps
     let stamp_path = stamp_manifest_path(workspace_root);
+
+    // Phase 4: skip rewrites when the new stamp set matches the prior
+    // run. `--full` overrides. Membership changes show up as a stamp-set
+    // diff (different keys) and trigger a re-run; per-member content
+    // changes show up as size/mtime drift on the existing keys.
+    if !full && stamp_path.exists() {
+        if let Ok(prior_text) = std::fs::read_to_string(&stamp_path)
+            && let Ok(prior) = serde_json::from_str::<StampManifest>(&prior_text)
+            && prior.version == stamps.version
+            && prior.members == stamps.members
+        {
+            eprintln!(
+                "workspace index: no changes since last run — {} member(s) up to date",
+                stamps.members.len()
+            );
+            return Ok(());
+        }
+    }
+
     if let Some(parent) = stamp_path.parent() {
         std::fs::create_dir_all(parent).ok();
     }

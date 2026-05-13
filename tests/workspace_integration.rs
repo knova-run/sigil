@@ -1056,3 +1056,154 @@ fn workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge() {
     assert_eq!(rows[0]["confidence"].as_f64(), Some(0.6),
         "direct npm dep edge should bump to 0.6; got {:?}", rows[0]);
 }
+
+// ---------------------------------------------------------------------------
+// Phase 4 — incremental stamp-based refresh. `workspace index` short-circuits
+// when every member's stamp matches and members.json is unchanged. --full
+// forces full refresh.
+// ---------------------------------------------------------------------------
+
+fn file_mtime(path: &std::path::Path) -> std::time::SystemTime {
+    fs::metadata(path).unwrap().modified().unwrap()
+}
+
+#[test]
+fn workspace_index_is_noop_when_nothing_changed() {
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let repo = tmp.path().join("repo");
+    fs::create_dir_all(&ws).unwrap();
+    init_repo(&repo);
+    write_fake_sigil(&repo, "{}\n", "");
+
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", repo.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "index", "--root", ws.to_str().unwrap()]);
+
+    let stamp_path = ws.join(".sigil-workspace/manifest.json");
+    let cross_path = ws.join(".sigil-workspace/cross_repo_refs.jsonl");
+    let stamp_mtime_before = file_mtime(&stamp_path);
+    let cross_mtime_before = file_mtime(&cross_path);
+
+    // Sleep enough that any new write would tick the mtime past the
+    // filesystem resolution floor (~1s on HFS+, ~10ms on APFS).
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+
+    let out = sigil(&["workspace", "index", "--root", ws.to_str().unwrap()]);
+    assert!(out.status.success(), "index: {}", String::from_utf8_lossy(&out.stderr));
+
+    assert_eq!(file_mtime(&stamp_path), stamp_mtime_before,
+        "manifest.json must NOT be rewritten on a no-op index");
+    assert_eq!(file_mtime(&cross_path), cross_mtime_before,
+        "cross_repo_refs.jsonl must NOT be rewritten on a no-op index");
+
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("no changes") || stderr.contains("up to date"),
+        "stderr should announce the no-op skip; got: {stderr}");
+}
+
+#[test]
+fn workspace_index_reruns_when_member_jsonl_changed() {
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let consumer = tmp.path().join("consumer");
+    let provider = tmp.path().join("provider");
+    fs::create_dir_all(&ws).unwrap();
+    init_repo(&consumer);
+    init_repo(&provider);
+    write_fake_sigil(&consumer,
+        "{\"file\":\"<external>\",\"name\":\"external:Foo\",\"kind\":\"external\",\
+        \"line_start\":0,\"line_end\":0,\"struct_hash\":\"e\"}\n",
+        "");
+    write_fake_sigil(&provider,
+        "{\"file\":\"a.rs\",\"name\":\"Foo\",\"kind\":\"function\",\
+        \"line_start\":1,\"line_end\":2,\"struct_hash\":\"f\"}\n",
+        "");
+
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", consumer.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", provider.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "index", "--root", ws.to_str().unwrap()]);
+
+    let cross_path = ws.join(".sigil-workspace/cross_repo_refs.jsonl");
+    let cross_before = fs::read_to_string(&cross_path).unwrap();
+    assert!(cross_before.contains("Foo"), "initial cross-repo refs missing Foo");
+
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+
+    // Provider now defines an additional symbol — entities.jsonl size grows
+    write_fake_sigil(&provider,
+        "{\"file\":\"a.rs\",\"name\":\"Foo\",\"kind\":\"function\",\
+        \"line_start\":1,\"line_end\":2,\"struct_hash\":\"f\"}\n\
+        {\"file\":\"b.rs\",\"name\":\"Foo\",\"kind\":\"function\",\
+        \"line_start\":1,\"line_end\":2,\"struct_hash\":\"f2\"}\n",
+        "");
+
+    let out = sigil(&["workspace", "index", "--root", ws.to_str().unwrap()]);
+    assert!(out.status.success(), "index: {}", String::from_utf8_lossy(&out.stderr));
+
+    let cross_after = fs::read_to_string(&cross_path).unwrap();
+    assert_ne!(cross_after, cross_before,
+        "cross_repo_refs must re-run when a member's stamp changed; before={cross_before:?} after={cross_after:?}");
+    let line_count = cross_after.lines().filter(|l| !l.is_empty()).count();
+    assert_eq!(line_count, 2, "two matches now (a.rs + b.rs); got {line_count}");
+}
+
+#[test]
+fn workspace_index_full_flag_forces_rebuild_even_when_unchanged() {
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let repo = tmp.path().join("repo");
+    fs::create_dir_all(&ws).unwrap();
+    init_repo(&repo);
+    write_fake_sigil(&repo, "{}\n", "");
+
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", repo.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "index", "--root", ws.to_str().unwrap()]);
+
+    let stamp_path = ws.join(".sigil-workspace/manifest.json");
+    let mtime_before = file_mtime(&stamp_path);
+
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+
+    let out = sigil(&["workspace", "index", "--root", ws.to_str().unwrap(), "--full"]);
+    assert!(out.status.success(), "index --full: {}", String::from_utf8_lossy(&out.stderr));
+
+    assert!(file_mtime(&stamp_path) > mtime_before,
+        "--full must rewrite manifest.json even when stamps are unchanged");
+}
+
+#[test]
+fn workspace_index_reruns_when_membership_changes() {
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let a = tmp.path().join("a");
+    let b = tmp.path().join("b");
+    fs::create_dir_all(&ws).unwrap();
+    init_repo(&a);
+    init_repo(&b);
+    write_fake_sigil(&a, "{}\n", "");
+    write_fake_sigil(&b, "{}\n", "");
+
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", a.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "index", "--root", ws.to_str().unwrap()]);
+
+    let stamp_path = ws.join(".sigil-workspace/manifest.json");
+    let mtime_before = file_mtime(&stamp_path);
+
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+
+    // Add a second member — membership changed, so the next index must re-run
+    sigil(&["workspace", "add", b.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    let out = sigil(&["workspace", "index", "--root", ws.to_str().unwrap()]);
+    assert!(out.status.success(), "index: {}", String::from_utf8_lossy(&out.stderr));
+
+    assert!(file_mtime(&stamp_path) > mtime_before,
+        "membership change must trigger a re-run");
+    let v: serde_json::Value = serde_json::from_str(
+        &fs::read_to_string(&stamp_path).unwrap()
+    ).unwrap();
+    assert_eq!(v["members"].as_object().unwrap().len(), 2);
+}
