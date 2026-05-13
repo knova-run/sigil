@@ -1713,6 +1713,121 @@ fn barrel_follow_still_fires_after_other_tier3_passes_run() {
     );
 }
 
+// --- Doc attachment for Swift/Scala/PHP (PR #24 carryover from #15) -------
+//
+// These three parsers were shipped in issue #19 / PR #24 using
+// `extract_comment(.., parent_ctx, ..)` which parents inner comments to
+// the *enclosing* scope (the class). Result: method-level docs get
+// pinned to the class, and the class's own leading doc (above the
+// declaration) is lost. The fix is the same `pending_docs` buffer
+// pattern used by Rust/Python/TS/JS — collect leading doc comments and
+// attach them to the *following* item.
+
+#[test]
+fn swift_doc_comment_attaches_to_following_class_and_method() {
+    let dir = fresh_dir("swift-doc-attach");
+    write(
+        &dir,
+        "Greeter.swift",
+        "/// Greets a user.\nclass Greeter {\n    /// Says hello.\n    func hello() {}\n}\n",
+    );
+    let refs = run_index_with_refs(&dir, &[]);
+
+    let class = refs
+        .iter()
+        .find(|e| e["name"].as_str() == Some("Greeter") && e["kind"].as_str() == Some("class"))
+        .expect("Greeter class entity should be emitted");
+    assert_eq!(
+        class["doc"].as_str(),
+        Some("Greets a user."),
+        "Swift class doc should be its leading `///` comment; got {:?}",
+        class["doc"],
+    );
+
+    let method = refs
+        .iter()
+        .find(|e| e["name"].as_str() == Some("Greeter.hello") && e["kind"].as_str() == Some("method"))
+        .expect("Greeter.hello method entity should be emitted");
+    assert_eq!(
+        method["doc"].as_str(),
+        Some("Says hello."),
+        "Swift method doc should be its own leading `///`; got {:?}",
+        method["doc"],
+    );
+}
+
+#[test]
+fn scala_doc_comment_attaches_to_following_class_and_method() {
+    let dir = fresh_dir("scala-doc-attach");
+    write(
+        &dir,
+        "Greeter.scala",
+        "/** Greets a user. */\nclass Greeter {\n  /** Says hello. */\n  def hello(): Unit = {}\n}\n",
+    );
+    let refs = run_index_with_refs(&dir, &[]);
+    let class = refs
+        .iter()
+        .find(|e| e["name"].as_str() == Some("Greeter") && e["kind"].as_str() == Some("class"))
+        .expect("Greeter class entity should be emitted");
+    assert_eq!(
+        class["doc"].as_str(),
+        Some("Greets a user."),
+        "Scala class doc should be leading Scaladoc; got {:?}",
+        class["doc"],
+    );
+    let method = refs
+        .iter()
+        .find(|e| {
+            e["name"].as_str() == Some("Greeter.hello")
+                && e["kind"].as_str() == Some("method")
+        })
+        .expect("Greeter.hello method entity should be emitted");
+    assert_eq!(
+        method["doc"].as_str(),
+        Some("Says hello."),
+        "Scala method doc should be its own leading Scaladoc; got {:?}",
+        method["doc"],
+    );
+}
+
+#[test]
+fn php_doc_comment_attaches_to_following_class_and_method() {
+    let dir = fresh_dir("php-doc-attach");
+    write(
+        &dir,
+        "Greeter.php",
+        "<?php\n/** Greets a user. */\nclass Greeter {\n    /** Says hello. */\n    public function hello() {}\n}\n",
+    );
+    let refs = run_index_with_refs(&dir, &[]);
+    let class = refs
+        .iter()
+        .find(|e| e["name"].as_str() == Some("Greeter") && e["kind"].as_str() == Some("class"))
+        .expect("Greeter class entity should be emitted");
+    assert_eq!(
+        class["doc"].as_str(),
+        Some("Greets a user."),
+        "PHP class doc should be leading PHPDoc; got {:?}",
+        class["doc"],
+    );
+    let method_name_variants = ["Greeter::hello", "Greeter.hello"];
+    let method = refs
+        .iter()
+        .find(|e| {
+            e["kind"].as_str() == Some("method")
+                && e["name"]
+                    .as_str()
+                    .map(|n| method_name_variants.contains(&n))
+                    .unwrap_or(false)
+        })
+        .expect("Greeter::hello method entity should be emitted");
+    assert_eq!(
+        method["doc"].as_str(),
+        Some("Says hello."),
+        "PHP method doc should be its own leading PHPDoc; got {:?}",
+        method["doc"],
+    );
+}
+
 #[test]
 fn manifest_resolved_edges_carry_callee_id() {
     // Go file-resolved edge — `internal/utils/helper.go/Helper`.
