@@ -1207,3 +1207,110 @@ fn workspace_index_reruns_when_membership_changes() {
     ).unwrap();
     assert_eq!(v["members"].as_object().unwrap().len(), 2);
 }
+
+// ---------------------------------------------------------------------------
+// Phase 5 — DuckDB workspace backend. SIGIL_BACKEND=db engages the DuckDB
+// path against the workspace; auto-engage covers ≥5 MB merged JSONL. Schema
+// is the same union view the in-memory backend builds, materialised once
+// per stamp set.
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "db")]
+#[test]
+fn workspace_callers_returns_same_rows_via_duckdb() {
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let provider = tmp.path().join("provider");
+    let consumer = tmp.path().join("consumer");
+    fs::create_dir_all(&ws).unwrap();
+    init_repo(&provider);
+    init_repo(&consumer);
+
+    write_fake_sigil(&provider,
+        "{\"file\":\"src/lib.rs\",\"name\":\"Greet\",\"kind\":\"function\",\
+        \"line_start\":1,\"line_end\":3,\"struct_hash\":\"a\"}\n",
+        "");
+    write_fake_sigil(&consumer,
+        "{\"file\":\"src/main.rs\",\"name\":\"main\",\"kind\":\"function\",\
+        \"line_start\":1,\"line_end\":5,\"struct_hash\":\"b\"}\n",
+        "{\"file\":\"src/main.rs\",\"caller\":\"main\",\"name\":\"Greet\",\
+        \"kind\":\"call\",\"line\":2}\n");
+
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", provider.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", consumer.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "index", "--root", ws.to_str().unwrap()]);
+
+    // In-memory result
+    let mem = Command::new(env!("CARGO_BIN_EXE_sigil"))
+        .args(["callers", "Greet", "--root", ws.to_str().unwrap(), "--json"])
+        .env("SIGIL_BACKEND", "memory")
+        .env("SIGIL_NO_AUTO_INDEX", "1")
+        .output()
+        .unwrap();
+    assert!(mem.status.success(), "memory: {}", String::from_utf8_lossy(&mem.stderr));
+    let mem_json: serde_json::Value = serde_json::from_slice(&mem.stdout).unwrap();
+
+    // DuckDB result
+    let db = Command::new(env!("CARGO_BIN_EXE_sigil"))
+        .args(["callers", "Greet", "--root", ws.to_str().unwrap(), "--json"])
+        .env("SIGIL_BACKEND", "db")
+        .env("SIGIL_NO_AUTO_INDEX", "1")
+        .output()
+        .unwrap();
+    assert!(db.status.success(), "duckdb: {}", String::from_utf8_lossy(&db.stderr));
+    let db_json: serde_json::Value = serde_json::from_slice(&db.stdout).unwrap();
+
+    let normalize = |v: &serde_json::Value| -> Vec<(String, String, String)> {
+        v.as_array().unwrap().iter()
+            .map(|r| (
+                r["file"].as_str().unwrap_or("").to_string(),
+                r["caller"].as_str().unwrap_or("").to_string(),
+                r["name"].as_str().unwrap_or("").to_string(),
+            ))
+            .collect()
+    };
+    let mut mem_rows = normalize(&mem_json);
+    let mut db_rows = normalize(&db_json);
+    mem_rows.sort();
+    db_rows.sort();
+    assert_eq!(mem_rows, db_rows,
+        "DuckDB workspace must return the same rows as in-memory");
+    assert!(!mem_rows.is_empty(), "expected at least one caller; got empty");
+    assert_eq!(mem_rows[0].0, "consumer/src/main.rs",
+        "file should be workspace-prefixed in both backends; got {:?}", mem_rows[0]);
+}
+
+#[cfg(feature = "db")]
+#[test]
+fn workspace_duckdb_auto_engages_above_threshold() {
+    // SIGIL_AUTO_ENGAGE_THRESHOLD_MB=0 forces DuckDB engagement even on
+    // a tiny fixture, exercising the auto-engage path end-to-end.
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let repo = tmp.path().join("repo");
+    fs::create_dir_all(&ws).unwrap();
+    init_repo(&repo);
+    write_fake_sigil(&repo,
+        "{\"file\":\"x.py\",\"name\":\"FooBar\",\"kind\":\"function\",\
+        \"line_start\":1,\"line_end\":2,\"struct_hash\":\"x\"}\n",
+        "");
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", repo.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "index", "--root", ws.to_str().unwrap()]);
+
+    let out = Command::new(env!("CARGO_BIN_EXE_sigil"))
+        .args(["symbols", "repo/x.py", "--root", ws.to_str().unwrap(), "--json"])
+        .env("SIGIL_AUTO_ENGAGE_THRESHOLD_MB", "0")
+        .env("SIGIL_NO_AUTO_INDEX", "1")
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "auto-engage at 0MB: {}", String::from_utf8_lossy(&out.stderr));
+    let v: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert!(v.as_array().unwrap().iter().any(|e| e["name"] == "FooBar"),
+        "DuckDB auto-engaged workspace must surface entities; got {v:?}");
+
+    // The materialised DuckDB lives under .sigil-workspace/, not .sigil/
+    let db_path = ws.join(".sigil-workspace/index.duckdb");
+    assert!(db_path.exists(), "workspace DuckDB file should be created at {}", db_path.display());
+}
