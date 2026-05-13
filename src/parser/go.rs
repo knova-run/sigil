@@ -114,6 +114,24 @@ fn walk_node(
         }
         "var_declaration" | "const_declaration" => {
             extract_var_const(node, source, file_path, parent_ctx, symbols);
+            // Also emit type_annotation refs for the var_spec's
+            // explicit type (`var x *Engine` or `var x Engine`). The
+            // walker recursion below visits the value expression but
+            // skips the `type` field — it's a leaf node from the
+            // walker's perspective. Without this, top-level
+            // declarations of `*Engine` are unreachable from `sigil
+            // callers Engine`.
+            let mut cursor = node.walk();
+            for child in node.children(&mut cursor) {
+                if !matches!(child.kind(), "var_spec" | "const_spec") {
+                    continue;
+                }
+                if let Some(typ) = find_child_by_field(child, "type") {
+                    extract_type_refs_from_node(
+                        typ, source, file_path, parent_ctx, references,
+                    );
+                }
+            }
         }
         "import_declaration" => {
             extract_imports(node, source, file_path, symbols, references);
@@ -1420,6 +1438,38 @@ func makeValue() Engine {
             engine_lit.len() >= 4,
             "expected ≥4 Engine type-annotation refs (2 returns + 2 literals); got {} -> {:?}",
             engine_lit.len(),
+            refs.iter().map(|r| (&r.kind, &r.name, r.line)).collect::<Vec<_>>(),
+        );
+    }
+
+    #[test]
+    fn test_go_var_type_annotation_ref() {
+        // Top-level `var x *Engine` / `var x Engine` should emit an
+        // Engine type_annotation ref. Without this, declarations like
+        // `var defaultLogger *Logger` aren't reachable via `callers
+        // Logger`.
+        let source = b"package main
+
+type Engine struct { v int }
+
+var globalEngine *Engine
+var localEngine Engine
+const _ = 1
+
+func makeIt() {
+    var inner *Engine
+    _ = inner
+}
+";
+        let (_symbols, _texts, refs) = parse_file(source, "go", "test.go").unwrap();
+        let engine_var: Vec<_> = refs
+            .iter()
+            .filter(|r| r.kind == "type_annotation" && r.name == "Engine")
+            .collect();
+        assert!(
+            engine_var.len() >= 3,
+            "expected ≥3 Engine type_annotation refs (2 top-level vars + 1 in-func var); got {} -> {:?}",
+            engine_var.len(),
             refs.iter().map(|r| (&r.kind, &r.name, r.line)).collect::<Vec<_>>(),
         );
     }
