@@ -1143,6 +1143,10 @@ fn contract_links_path(workspace_root: &Path) -> PathBuf {
     workspace_root.join(".sigil-workspace").join("contract_links.jsonl")
 }
 
+fn contracts_path(workspace_root: &Path) -> PathBuf {
+    workspace_root.join(".sigil-workspace").join("contracts.jsonl")
+}
+
 /// Output row for cross-repo contract matching. Joins a provider in
 /// one member with one or more consumers in others by normalized
 /// `contract_id`. Mirrors repowise's `ContractLink` shape so downstream
@@ -1189,9 +1193,22 @@ pub fn resolve_workspace_contract_links(workspace_root: &Path) -> Result<usize> 
     let mut providers: std::collections::HashMap<String, Vec<Site>> = std::collections::HashMap::new();
     let mut consumers: std::collections::HashMap<String, Vec<Site>> = std::collections::HashMap::new();
 
+    // Repowise-parity: also write every extracted contract row to
+    // `.sigil-workspace/contracts.jsonl` so downstream consumers can
+    // browse the full set even when no provider↔consumer match exists.
+    let mut all_contracts: Vec<String> = Vec::new();
+
     for m in &members {
         let mp = std::path::Path::new(&m.path);
         for c in crate::contracts::extract_from_root(mp) {
+            // Persist with the member name prefixed so consumers can
+            // address rows globally.
+            let mut row = serde_json::to_value(&c)?;
+            if let Some(obj) = row.as_object_mut() {
+                obj.insert("repo".to_string(), serde_json::Value::String(m.name.clone()));
+            }
+            all_contracts.push(row.to_string());
+
             let id = c.contract_id.clone();
             match c.role.as_str() {
                 "provider" | "publisher" => {
@@ -1204,6 +1221,19 @@ pub fn resolve_workspace_contract_links(workspace_root: &Path) -> Result<usize> 
             }
         }
     }
+
+    // Write the full contracts dump (overwrite every run so removals
+    // surface as deletions rather than stale rows).
+    let contracts_jsonl = contracts_path(workspace_root);
+    let body = if all_contracts.is_empty() {
+        String::new()
+    } else {
+        let mut s = all_contracts.join("\n");
+        s.push('\n');
+        s
+    };
+    std::fs::write(&contracts_jsonl, body)
+        .with_context(|| format!("writing {}", contracts_jsonl.display()))?;
 
     let mut out_lines: Vec<String> = Vec::new();
     let mut seen: std::collections::HashSet<(String, String, String)> = std::collections::HashSet::new();

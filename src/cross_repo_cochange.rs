@@ -77,10 +77,24 @@ impl Default for CrossRepoConfig {
         Self {
             window_secs: 24 * 3600,
             commits_per_repo: 500,
-            min_strength: 0.0,
+            // Match repowise's MIN_CROSS_REPO_SCORE = 1.0 — drops one-off
+            // co-occurrences that an exp-decay produces sub-unit scores
+            // for. Sigil's pre-decay default of 0.0 was leaking thousands
+            // of edges into co_changes.jsonl on full-history workspaces.
+            min_strength: 1.0,
         }
     }
 }
+
+/// Decay constant for time-weighted co-change scoring. Mirrors
+/// repowise's `_CO_CHANGE_DECAY_TAU = 180` (days) — a commit pair
+/// 180 days ago contributes weight `1/e ≈ 0.368` instead of 1.0.
+const CO_CHANGE_DECAY_TAU_DAYS: f64 = 180.0;
+
+/// Hard cap on emitted edges, matching repowise's `_MAX_EDGES = 200`.
+/// Prevents pathologically chatty repos from drowning out the signal;
+/// the kept edges are the top-strength rows after decay-weighting.
+const MAX_EDGES: usize = 200;
 
 #[derive(Debug)]
 struct ChangeEvent {
@@ -174,51 +188,58 @@ fn commit_events(repo: &Path, repo_name: &str, max_commits: usize) -> Result<Vec
 
 fn correlate(events: Vec<ChangeEvent>, cfg: &CrossRepoConfig) -> Vec<CrossRepoEdge> {
     use std::collections::BTreeMap;
-    // Sort by timestamp so the inner loop can break out of the window
-    // instead of scanning every later event. Drops worst-case work from
-    // O(n²) to O(n·k) where k is the average number of events that fall
-    // inside `window_secs` of any given event.
     let mut events = events;
     events.sort_by_key(|e| e.unix);
-    // (repo, file) -> aggregate {freq, last_unix, strength}
-    let mut pairs: BTreeMap<(String, String, String, String), (u32, i64)> = BTreeMap::new();
+
+    // Pin `now` to the max observed timestamp so the decay weighting is
+    // deterministic across runs and indifferent to wall-clock drift —
+    // matches the spirit of repowise's `now_ts` (which uses time.time()
+    // but indexers tend to run right after a commit, so the answer is
+    // close to the max in practice). For a sigil workspace that ran
+    // months ago this is more reproducible than wall-clock.
+    let now_ts = events.last().map(|e| e.unix).unwrap_or(0);
+
+    // (s_repo, s_file, t_repo, t_file) -> (score, freq, last_unix)
+    let mut pairs: BTreeMap<(String, String, String, String), (f64, u32, i64)> =
+        BTreeMap::new();
     let n = events.len();
     for i in 0..n {
         let a = &events[i];
         for j in (i + 1)..n {
             let b = &events[j];
-            // events are sorted by `unix`, so once b is past the window
-            // every later event is too — bail out.
             if b.unix - a.unix > cfg.window_secs {
                 break;
             }
             if a.repo == b.repo {
                 continue;
             }
-            // Order the pair so (repoA, fileA) < (repoB, fileB) is canonical.
+            // Order the pair canonically.
             let (s_repo, s_file, t_repo, t_file) = if (&a.repo, &a.file) < (&b.repo, &b.file) {
                 (a.repo.clone(), a.file.clone(), b.repo.clone(), b.file.clone())
             } else {
                 (b.repo.clone(), b.file.clone(), a.repo.clone(), a.file.clone())
             };
+            // exp(-age_days / tau). Repowise applies decay to the LATER
+            // commit's age (commit_b); mirror that so scores match.
+            let age_days = ((now_ts - b.unix).max(0) as f64) / 86_400.0;
+            let weight = (-age_days / CO_CHANGE_DECAY_TAU_DAYS).exp();
+
             let key = (s_repo, s_file, t_repo, t_file);
-            let entry = pairs.entry(key).or_insert((0, 0));
-            entry.0 += 1;
-            entry.1 = entry.1.max(a.unix).max(b.unix);
+            let entry = pairs.entry(key).or_insert((0.0, 0, 0));
+            entry.0 += weight;
+            entry.1 += 1;
+            entry.2 = entry.2.max(a.unix).max(b.unix);
         }
     }
     let mut edges: Vec<CrossRepoEdge> = pairs
         .into_iter()
-        .map(|((s_repo, s_file, t_repo, t_file), (freq, last_unix))| {
-            // Strength is a simple decay-weighted-frequency proxy: count
-            // matters most, age decays linearly. Tune later if needed.
-            let strength = freq as f64;
+        .map(|((s_repo, s_file, t_repo, t_file), (score, freq, last_unix))| {
             CrossRepoEdge {
                 source_repo: s_repo,
                 source_file: s_file,
                 target_repo: t_repo,
                 target_file: t_file,
-                strength,
+                strength: (score * 100.0).round() / 100.0, // 2-decimal rounding like repowise
                 frequency: freq,
                 last_unix,
                 last_date: unix_to_iso_date(last_unix),
@@ -227,5 +248,6 @@ fn correlate(events: Vec<ChangeEvent>, cfg: &CrossRepoConfig) -> Vec<CrossRepoEd
         .filter(|e| e.strength >= cfg.min_strength)
         .collect();
     edges.sort_by(|a, b| b.strength.total_cmp(&a.strength));
+    edges.truncate(MAX_EDGES);
     edges
 }
