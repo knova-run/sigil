@@ -189,3 +189,176 @@ def create_user():
         "expected POST /users contract_id, got {providers:?}"
     );
 }
+
+#[test]
+fn detects_go_net_http_route_providers() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("main.go"),
+        r#"package main
+
+import "net/http"
+
+func main() {
+    http.Handle("/healthz", nil)
+    http.HandleFunc("/users", handleUsers)
+}
+
+func handleUsers(w http.ResponseWriter, r *http.Request) {}
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let ids: Vec<&str> = rows.iter().map(|r| r["contract_id"].as_str().unwrap()).collect();
+    // Handle / HandleFunc don't carry a method — repowise emits `*`
+    assert!(ids.contains(&"http::*::/healthz"), "expected /healthz; got {ids:?}");
+    assert!(ids.contains(&"http::*::/users"), "expected /users; got {ids:?}");
+}
+
+#[test]
+fn detects_go_gin_route_providers() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("server.go"),
+        r#"package main
+
+import "github.com/gin-gonic/gin"
+
+func main() {
+    r := gin.Default()
+    r.GET("/users/:id", getUser)
+    r.POST("/users", createUser)
+    r.Run()
+}
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let ids: Vec<&str> = rows.iter().map(|r| r["contract_id"].as_str().unwrap()).collect();
+    assert!(ids.contains(&"http::GET::/users/{param}"), "expected gin GET; got {ids:?}");
+    assert!(ids.contains(&"http::POST::/users"), "expected gin POST; got {ids:?}");
+}
+
+#[test]
+fn detects_python_requests_and_httpx_consumers() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("client.py"),
+        r#"import requests
+import httpx
+
+requests.get("http://api.example.com/users")
+httpx.post("/api/items", json={})
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let consumers: Vec<&serde_json::Value> = rows.iter().filter(|r| r["role"] == "consumer").collect();
+    let ids: Vec<&str> = consumers.iter().map(|r| r["contract_id"].as_str().unwrap()).collect();
+    assert!(ids.contains(&"http::GET::/users"),
+        "expected requests GET /users (scheme+host stripped); got {ids:?}");
+    assert!(ids.contains(&"http::POST::/api/items"),
+        "expected httpx POST /api/items; got {ids:?}");
+}
+
+#[test]
+fn detects_js_fetch_consumer() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("client.js"),
+        r#"fetch('/api/users');
+fetch('/api/items', { method: 'POST', body: '{}' });
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let consumers: Vec<&serde_json::Value> = rows.iter().filter(|r| r["role"] == "consumer").collect();
+    let ids: Vec<&str> = consumers.iter().map(|r| r["contract_id"].as_str().unwrap()).collect();
+    assert!(ids.contains(&"http::GET::/api/users"),
+        "expected fetch defaults to GET; got {ids:?}");
+    assert!(ids.contains(&"http::POST::/api/items"),
+        "expected fetch with method:POST; got {ids:?}");
+}
+
+#[test]
+fn detects_spring_mapping_annotations() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("UserController.java"),
+        r#"package com.example;
+
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+public class UserController {
+    @GetMapping("/users")
+    public List<User> list() { return null; }
+
+    @PostMapping("/users")
+    public User create() { return null; }
+
+    @DeleteMapping(value = "/users/{id}")
+    public void delete(@PathVariable Long id) {}
+}
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let ids: Vec<&str> = rows.iter().map(|r| r["contract_id"].as_str().unwrap()).collect();
+    assert!(ids.contains(&"http::GET::/users"), "Spring GET; got {ids:?}");
+    assert!(ids.contains(&"http::POST::/users"), "Spring POST; got {ids:?}");
+    assert!(ids.contains(&"http::DELETE::/users/{param}"),
+        "Spring @DeleteMapping(value=...); got {ids:?}");
+}
+
+#[test]
+fn contracts_works_on_workspace_root() {
+    use std::process::Command;
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let api = tmp.path().join("api");
+    let client = tmp.path().join("client");
+    fs::create_dir_all(&ws).unwrap();
+    fs::create_dir_all(&api).unwrap();
+    fs::create_dir_all(&client).unwrap();
+
+    // Make each a git repo
+    for p in [&api, &client] {
+        Command::new("git").args(["init", "-q"]).current_dir(p).output().unwrap();
+    }
+
+    fs::write(api.join("app.py"),
+        "@app.get('/users')\ndef list_users(): return []\n").unwrap();
+    fs::write(client.join("client.js"),
+        "fetch('/users');\n").unwrap();
+
+    Command::new(env!("CARGO_BIN_EXE_sigil"))
+        .args(["workspace", "init", ws.to_str().unwrap()])
+        .output().unwrap();
+    Command::new(env!("CARGO_BIN_EXE_sigil"))
+        .args(["workspace", "add", api.to_str().unwrap(), "--root", ws.to_str().unwrap()])
+        .output().unwrap();
+    Command::new(env!("CARGO_BIN_EXE_sigil"))
+        .args(["workspace", "add", client.to_str().unwrap(), "--root", ws.to_str().unwrap()])
+        .output().unwrap();
+
+    let (stdout, stderr, ok) = run_contracts(&ws, &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    // Workspace contracts must surface BOTH members. Each row must carry
+    // a `repo` field so consumers know which member it came from.
+    let provider = rows.iter().find(|r| r["role"] == "provider")
+        .unwrap_or_else(|| panic!("no provider in {rows:?}"));
+    assert_eq!(provider["repo"].as_str(), Some("api"));
+    assert_eq!(provider["contract_id"].as_str(), Some("http::GET::/users"));
+
+    let consumer = rows.iter().find(|r| r["role"] == "consumer")
+        .unwrap_or_else(|| panic!("no consumer in {rows:?}"));
+    assert_eq!(consumer["repo"].as_str(), Some("client"));
+    assert_eq!(consumer["contract_id"].as_str(), Some("http::GET::/users"));
+}

@@ -93,6 +93,52 @@ pub fn extract_from_root(root: &Path) -> Vec<ContractRow> {
     out
 }
 
+/// A contract row tagged with its workspace member name. Emitted only
+/// when `extract` is called against a workspace root. The `repo` field
+/// matches what `resolve_workspace_contract_links` writes to
+/// `.sigil-workspace/contracts.jsonl`.
+#[derive(Debug, Serialize, PartialEq)]
+pub struct WorkspaceContractRow {
+    pub repo: String,
+    #[serde(flatten)]
+    pub row: ContractRow,
+}
+
+/// Workspace-aware variant. When `root` contains
+/// `.sigil-workspace/members.json`, fan out across every enabled
+/// member, tag each row with the member name, and return the union.
+/// Otherwise emits exactly the same rows as `extract_from_root` (with
+/// `repo` set to the root's basename so single-repo callers can still
+/// pipe through the same downstream consumers).
+pub fn extract_workspace_or_repo(root: &Path) -> Vec<WorkspaceContractRow> {
+    let workspace_marker = root.join(".sigil-workspace").join("members.json");
+    if workspace_marker.exists() {
+        let members = crate::workspace::list(root).unwrap_or_default();
+        let mut out = Vec::new();
+        for m in members.into_iter().filter(|m| !m.disabled) {
+            let mp = std::path::Path::new(&m.path);
+            for row in extract_from_root(mp) {
+                out.push(WorkspaceContractRow {
+                    repo: m.name.clone(),
+                    row,
+                });
+            }
+        }
+        return out;
+    }
+    let repo = root
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| ".".to_string());
+    extract_from_root(root)
+        .into_iter()
+        .map(|row| WorkspaceContractRow {
+            repo: repo.clone(),
+            row,
+        })
+        .collect()
+}
+
 fn walk(root: &Path, dir: &Path, out: &mut Vec<ContractRow>) {
     let entries = match std::fs::read_dir(dir) {
         Ok(e) => e,
@@ -119,6 +165,8 @@ fn walk(root: &Path, dir: &Path, out: &mut Vec<ContractRow>) {
             "js" | "jsx" | "ts" | "tsx" | "mjs" | "cjs" => {
                 out.extend(scan_js_ts(&rel, &text, ext))
             }
+            "go" => out.extend(scan_go(&rel, &text)),
+            "java" => out.extend(scan_java(&rel, &text)),
             "proto" => out.extend(scan_proto(&rel, &text)),
             _ => {}
         }
@@ -213,6 +261,24 @@ fn axios_re() -> &'static Regex {
     })
 }
 
+fn fetch_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // Match fetch('/path') or fetch('/path', { method: 'POST', ... }).
+        // We capture the URL string and optionally peek for a `method:` key
+        // in the options object via a second pass below.
+        Regex::new(r#"\bfetch\s*\(\s*['"`]([^'"`]+)['"`]"#).unwrap()
+    })
+}
+
+fn fetch_method_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // Same shape, with the options object peeked for method: 'POST'.
+        Regex::new(r#"\bfetch\s*\(\s*['"`]([^'"`]+)['"`]\s*,\s*\{[^}]*method\s*:\s*['"]([A-Za-z]+)['"]"#).unwrap()
+    })
+}
+
 fn scan_js_ts(file: &str, text: &str, ext: &str) -> Vec<ContractRow> {
     let language = if ext.starts_with('t') { "typescript" } else { "javascript" };
     let mut out = Vec::new();
@@ -236,6 +302,33 @@ fn scan_js_ts(file: &str, text: &str, ext: &str) -> Vec<ContractRow> {
             });
             continue;
         }
+        // fetch consumer — defaults to GET unless an options object names
+        // a different method. Probe fetch_method_re first to catch the
+        // explicit method form, fall back to fetch_re for the bare form.
+        let fetch_match = fetch_method_re()
+            .captures(line)
+            .map(|c| (c[2].to_uppercase(), c[1].to_string()))
+            .or_else(|| {
+                fetch_re()
+                    .captures(line)
+                    .map(|c| ("GET".to_string(), c[1].to_string()))
+            });
+        if let Some((method, raw)) = fetch_match {
+            let normalized = normalize_http_path(&raw);
+            out.push(ContractRow {
+                contract_id: format!("http::{method}::{normalized}"),
+                kind: "http".to_string(),
+                role: "consumer".to_string(),
+                method: Some(method),
+                path: Some(normalized),
+                topic: None,
+                file: file.to_string(),
+                line: (i + 1) as u32,
+                language: language.to_string(),
+                framework: "fetch".to_string(),
+            });
+            continue;
+        }
         if let Some(caps) = express_re().captures(line) {
             let method = caps[1].to_uppercase();
             let normalized = normalize_http_path(&caps[2]);
@@ -250,6 +343,145 @@ fn scan_js_ts(file: &str, text: &str, ext: &str) -> Vec<ContractRow> {
                 line: (i + 1) as u32,
                 language: language.to_string(),
                 framework: "express".to_string(),
+            });
+        }
+    }
+    out
+}
+
+fn go_route_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // Covers four idioms in one pass:
+        //   * net/http: `http.Handle("/p", ...)` / `http.HandleFunc("/p", ...)`
+        //   * gin / echo: `r.GET("/p", ...)` (uppercase verb on a receiver)
+        //   * chi: `r.Get("/p", ...)` (PascalCase verb)
+        //   * gorilla-mux: `r.HandleFunc("/p", ...)`
+        // `Handle` and `HandleFunc` carry no method — repowise emits `*`.
+        Regex::new(
+            r#"\.(GET|POST|PUT|DELETE|PATCH|OPTIONS|HEAD|Get|Post|Put|Delete|Patch|Options|Head|Handle|HandleFunc)\(\s*['"`]([^'"`]+)['"`]"#,
+        )
+        .unwrap()
+    })
+}
+
+fn go_grpc_server_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `pb.RegisterAuthServiceServer(grpcServer, &impl{})` — service
+        // name is the prefix before `Server`.
+        Regex::new(r#"\.Register(\w+)Server\s*\("#).unwrap()
+    })
+}
+
+fn go_grpc_client_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `pb.NewAuthServiceClient(conn)` — service name is the prefix
+        // before `Client`.
+        Regex::new(r#"\.New(\w+)Client\s*\("#).unwrap()
+    })
+}
+
+fn scan_go(file: &str, text: &str) -> Vec<ContractRow> {
+    let mut out = Vec::new();
+    for (i, line) in text.lines().enumerate() {
+        // gRPC server registration: `pb.RegisterFooServer(...)` →
+        // provider of every method on `FooService`. We emit a single
+        // service-level contract (no method) so it joins with a `.proto`
+        // service if one exists in another repo.
+        if let Some(caps) = go_grpc_server_re().captures(line) {
+            let svc = caps[1].to_string();
+            out.push(ContractRow {
+                contract_id: format!("grpc::{svc}"),
+                kind: "grpc".to_string(),
+                role: "provider".to_string(),
+                method: None,
+                path: Some(svc.clone()),
+                topic: None,
+                file: file.to_string(),
+                line: (i + 1) as u32,
+                language: "go".to_string(),
+                framework: "grpc".to_string(),
+            });
+            continue;
+        }
+        // gRPC client stub: `pb.NewFooClient(conn)` → consumer of every
+        // method on `FooService`.
+        if let Some(caps) = go_grpc_client_re().captures(line) {
+            let svc = caps[1].to_string();
+            out.push(ContractRow {
+                contract_id: format!("grpc::{svc}"),
+                kind: "grpc".to_string(),
+                role: "consumer".to_string(),
+                method: None,
+                path: Some(svc.clone()),
+                topic: None,
+                file: file.to_string(),
+                line: (i + 1) as u32,
+                language: "go".to_string(),
+                framework: "grpc".to_string(),
+            });
+            continue;
+        }
+        if let Some(caps) = go_route_re().captures(line) {
+            let raw_verb = caps[1].to_string();
+            // Repowise emits `*` for Handle / HandleFunc since they
+            // don't bind a method.
+            let method = if raw_verb == "Handle" || raw_verb == "HandleFunc" {
+                "*".to_string()
+            } else {
+                raw_verb.to_uppercase()
+            };
+            let normalized = normalize_http_path(&caps[2]);
+            // The framework label is best-effort; we can't distinguish
+            // gin vs chi vs echo from a single line — call it `go` and
+            // let downstream filter if they care.
+            out.push(ContractRow {
+                contract_id: format!("http::{method}::{normalized}"),
+                kind: "http".to_string(),
+                role: "provider".to_string(),
+                method: Some(method),
+                path: Some(normalized),
+                topic: None,
+                file: file.to_string(),
+                line: (i + 1) as u32,
+                language: "go".to_string(),
+                framework: "go".to_string(),
+            });
+        }
+    }
+    out
+}
+
+fn spring_method_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // @GetMapping("/path") / @PostMapping(value = "/path") / etc.
+        Regex::new(
+            r#"@(Get|Post|Put|Delete|Patch)Mapping\s*\(\s*(?:value\s*=\s*)?['"]([^'"]+)['"]"#,
+        )
+        .unwrap()
+    })
+}
+
+fn scan_java(file: &str, text: &str) -> Vec<ContractRow> {
+    let mut out = Vec::new();
+    for (i, line) in text.lines().enumerate() {
+        if let Some(caps) = spring_method_re().captures(line) {
+            let method = caps[1].to_uppercase();
+            let normalized = normalize_http_path(&caps[2]);
+            out.push(ContractRow {
+                contract_id: format!("http::{method}::{normalized}"),
+                kind: "http".to_string(),
+                role: "provider".to_string(),
+                method: Some(method),
+                path: Some(normalized),
+                topic: None,
+                file: file.to_string(),
+                line: (i + 1) as u32,
+                language: "java".to_string(),
+                framework: "spring".to_string(),
             });
         }
     }
@@ -335,6 +567,16 @@ fn kafka_send_re() -> &'static Regex {
     })
 }
 
+fn requests_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(
+            r#"\b(?:requests|httpx)\.(get|post|put|delete|patch|options|head)\(\s*['"]([^'"]+)['"]"#,
+        )
+        .unwrap()
+    })
+}
+
 fn scan_python(file: &str, text: &str) -> Vec<ContractRow> {
     let mut out = Vec::new();
     for (i, line) in text.lines().enumerate() {
@@ -352,6 +594,23 @@ fn scan_python(file: &str, text: &str) -> Vec<ContractRow> {
                 line: (i + 1) as u32,
                 language: "python".to_string(),
                 framework: "fastapi".to_string(),
+            });
+            continue;
+        }
+        if let Some(caps) = requests_re().captures(line) {
+            let method = caps[1].to_uppercase();
+            let normalized = normalize_http_path(&caps[2]);
+            out.push(ContractRow {
+                contract_id: format!("http::{method}::{normalized}"),
+                kind: "http".to_string(),
+                role: "consumer".to_string(),
+                method: Some(method),
+                path: Some(normalized),
+                topic: None,
+                file: file.to_string(),
+                line: (i + 1) as u32,
+                language: "python".to_string(),
+                framework: "requests".to_string(),
             });
             continue;
         }

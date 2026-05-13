@@ -2005,7 +2005,13 @@ fn main() {
             }
         }
         Cli::Contracts { root } => {
-            for row in sigil::contracts::extract_from_root(&root) {
+            // `extract_workspace_or_repo` auto-detects whether `root` is
+            // a workspace (`.sigil-workspace/members.json` present) and
+            // fans out across members, or runs the legacy single-repo
+            // path. Output is one JSONL row per contract, each tagged
+            // with `repo` (member name in workspace mode, basename in
+            // single-repo).
+            for row in sigil::contracts::extract_workspace_or_repo(&root) {
                 match serde_json::to_string(&row) {
                     Ok(s) => println!("{}", s),
                     Err(e) => {
