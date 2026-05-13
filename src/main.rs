@@ -896,6 +896,93 @@ enum Cli {
 
 #[derive(Subcommand)]
 enum WorkspaceAction {
+    /// Bootstrap a workspace at <dir>. Creates `<dir>/.sigil-workspace/
+    /// members.json` with an empty members list (schema version 1).
+    /// Required before any add/remove/index call against <dir>.
+    Init {
+        /// Workspace directory to initialize. Defaults to current dir.
+        #[arg(default_value = ".")]
+        dir: PathBuf,
+        /// Re-init an existing workspace dir without erroring. Preserves
+        /// a non-empty members.json (never silently destructive).
+        #[arg(long)]
+        force: bool,
+    },
+    /// Drop a member from `members.json`. Lookup is by name OR canonical
+    /// path. Per-repo `.sigil/` is left untouched. Idempotent — removing
+    /// an absent member emits a warning and exits 0.
+    Remove {
+        /// Member name (e.g. `repo-a`) or absolute path. Both forms work.
+        target: String,
+        /// Workspace root. Defaults to current dir.
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
+    },
+    /// Refresh workspace stamps for every enabled member. Phase 1
+    /// implementation: stamps each member's `.sigil/entities.jsonl` +
+    /// `refs.jsonl` size/mtime into `manifest.json` and writes an empty
+    /// `cross_repo_refs.jsonl` placeholder. Auto-builds a missing
+    /// `.sigil/` via the per-repo pipeline. Skips members whose path is
+    /// gone (warning to stderr; members.json unchanged).
+    Index {
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
+        /// Force re-build of every enabled member's `.sigil/`. Phase 1
+        /// only honors this when auto-building; stamps are always rewritten.
+        #[arg(long)]
+        full: bool,
+    },
+    /// Print the workspace membership. Default human-readable table;
+    /// `--json` emits one JSONL row per member with all fields (including
+    /// `disabled` when true).
+    List {
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
+        /// Emit JSONL (one row per member) instead of a human table.
+        #[arg(long)]
+        json: bool,
+    },
+    /// Mark a member as enabled (default). Enabled members are included
+    /// in `workspace index`, union-load, and cross-repo resolution.
+    Enable {
+        /// Member name or canonical path.
+        target: String,
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
+    },
+    /// Mark a member as disabled. Disabled members are kept in
+    /// `members.json` but skipped by `index`, union-load, and cross-repo
+    /// resolution. Lets users quarantine a stale repo without losing
+    /// their alias / description.
+    Disable {
+        /// Member name or canonical path.
+        target: String,
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
+    },
+    /// Register a repo as a workspace member. Expands `.` / `..` / `~`,
+    /// absolutises the path (symlinks preserved), and appends an entry to
+    /// `<root>/.sigil-workspace/members.json`. Idempotent on canonical
+    /// path. Asserts the path exists and contains `.git/`.
+    Add {
+        /// Repo path. Can be relative or absolute; `~/...` is expanded
+        /// against `$HOME`.
+        repo: PathBuf,
+        /// Workspace root. Defaults to current dir.
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
+        /// Override the default member name (path basename). Useful when
+        /// multiple repos share a basename.
+        #[arg(long = "as")]
+        name: Option<String>,
+        /// Optional free-form description stored on the member entry.
+        #[arg(long)]
+        description: Option<String>,
+        /// Add the member in the disabled state. Disabled members are
+        /// kept in members.json but skipped by `index`.
+        #[arg(long)]
+        disabled: bool,
+    },
     /// List child git repos under the workspace root. Emits one JSONL row
     /// per repo with { repo, path }. Used by callers that iterate the
     /// workspace and run per-repo primitives (decisions, contracts,
@@ -1889,6 +1976,78 @@ fn main() {
             }
         }
         Cli::Workspace { action } => match action {
+            WorkspaceAction::Init { dir, force } => {
+                if let Err(e) = sigil::workspace::init(&dir, force) {
+                    eprintln!("workspace init: {}", e);
+                    std::process::exit(1);
+                }
+            }
+            WorkspaceAction::Remove { target, root } => {
+                if let Err(e) = sigil::workspace::remove(&root, &target) {
+                    eprintln!("workspace remove: {}", e);
+                    std::process::exit(1);
+                }
+            }
+            WorkspaceAction::Index { root, full: _ } => {
+                if let Err(e) = sigil::workspace::workspace_index(&root) {
+                    eprintln!("workspace index: {}", e);
+                    std::process::exit(2);
+                }
+            }
+            WorkspaceAction::List { root, json } => {
+                match sigil::workspace::list(&root) {
+                    Ok(members) => {
+                        if json {
+                            for m in &members {
+                                println!("{}", serde_json::to_string(m).unwrap());
+                            }
+                        } else if members.is_empty() {
+                            println!("(no members — `sigil workspace add <repo>` to register one)");
+                        } else {
+                            for m in &members {
+                                let flag = if m.disabled { " [disabled]" } else { "" };
+                                let desc = m
+                                    .description
+                                    .as_deref()
+                                    .map(|d| format!(" — {}", d))
+                                    .unwrap_or_default();
+                                println!("{:<24} {}{}{}", m.name, m.path, flag, desc);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("workspace list: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+            WorkspaceAction::Enable { target, root } => {
+                if let Err(e) = sigil::workspace::set_disabled(&root, &target, false) {
+                    eprintln!("workspace enable: {}", e);
+                    std::process::exit(1);
+                }
+            }
+            WorkspaceAction::Disable { target, root } => {
+                if let Err(e) = sigil::workspace::set_disabled(&root, &target, true) {
+                    eprintln!("workspace disable: {}", e);
+                    std::process::exit(1);
+                }
+            }
+            WorkspaceAction::Add { repo, root, name, description, disabled } => {
+                match sigil::workspace::add(
+                    &root,
+                    &repo,
+                    name.as_deref(),
+                    description.as_deref(),
+                    disabled,
+                ) {
+                    Ok(m) => println!("{}", serde_json::to_string(&m).unwrap()),
+                    Err(e) => {
+                        eprintln!("workspace add: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
             WorkspaceAction::Scan { root } => {
                 for entry in sigil::workspace::scan(&root) {
                     match serde_json::to_string(&entry) {
