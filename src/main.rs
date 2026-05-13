@@ -576,7 +576,9 @@ enum Cli {
     /// related types. One call replaces the read-6-files orientation loop.
     Context {
         /// Symbol name, or qualified form like `file::name`,
-        /// `Parent::name`, `file::Parent::name`.
+        /// `Parent::name`, `file::Parent::name`. Also accepts a bare
+        /// file path (e.g. `src/foo.rs`) — returns a per-file digest
+        /// covering top-level entities + aggregated cross-file refs.
         query: String,
         /// Project root directory
         #[arg(short, long, default_value = ".")]
@@ -1733,6 +1735,20 @@ fn main() {
                 with_body,
                 project_root: root.clone(),
             };
+            if let Some(fc) = sigil::context::build_file_context(&idx, &q) {
+                match fmt {
+                    sigil::context::ContextFormat::Agent => {
+                        println!("{}", sigil::context::render_file_agent_json(&fc));
+                    }
+                    sigil::context::ContextFormat::Full => {
+                        println!("{}", sigil::context::render_file_full_json(&fc, pretty));
+                    }
+                    sigil::context::ContextFormat::Markdown => {
+                        print!("{}", sigil::context::render_file_markdown(&fc));
+                    }
+                }
+                return;
+            }
             let Some(ctx) = sigil::context::build_context(&idx, &q, &opts) else {
                 let nm = sigil::context::build_no_match(&idx, &q);
                 match sigil::context::render_no_match(&nm, fmt, pretty) {

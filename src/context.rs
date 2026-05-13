@@ -303,6 +303,104 @@ pub fn build_no_match(idx: &Index, q: &str) -> NoMatch {
     }
 }
 
+/// Per-file digest returned by [`build_file_context`] when the query
+/// matches a file path in the index. Mirrors the per-symbol `Context`
+/// but aggregated over a whole file: top-level outline entities plus
+/// (later) aggregated cross-file refs.
+#[derive(Debug, Clone, Serialize)]
+pub struct FileContext {
+    pub q: String,
+    pub file: String,
+    pub entities: Vec<FileEntity>,
+    /// External callers (refs from other files) of any entity defined
+    /// in this file. `None` when not yet computed; empty `Vec` when
+    /// computed but no callers exist.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_callers: Option<Vec<Edge>>,
+    /// Outbound refs from inside this file to symbols defined
+    /// elsewhere — the file's external surface area in the other
+    /// direction.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_callees: Option<Vec<Edge>>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct FileEntity {
+    pub name: String,
+    pub kind: String,
+    pub line_start: u32,
+    pub line_end: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub visibility: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub doc: Option<String>,
+}
+
+/// Build a per-file digest for `query` when it matches a file in the
+/// index. Returns `None` when no entity has `file == query`. The
+/// entity list is filtered to top-level outline shape (classes,
+/// structs, top-level functions, …) so the agent gets a file shape
+/// without methods cluttering the view.
+pub fn build_file_context(idx: &Index, query: &str) -> Option<FileContext> {
+    if idx.entities_by_file(query).next().is_none() {
+        return None;
+    }
+    let mut entities: Vec<FileEntity> = idx
+        .entities_by_file(query)
+        .filter(|e| crate::query::is_top_level_outline(e))
+        .map(|e| FileEntity {
+            name: e.name.clone(),
+            kind: e.kind.clone(),
+            line_start: e.line_start,
+            line_end: e.line_end,
+            visibility: e.visibility.clone(),
+            doc: e.doc.clone(),
+        })
+        .collect();
+    entities.sort_by_key(|e| e.line_start);
+
+    // Aggregate external callers: every ref whose target is an entity
+    // defined in this file, *from* a different file. Dedup by (file, line).
+    let target_names: std::collections::HashSet<&str> = idx
+        .entities_by_file(query)
+        .map(|e| e.name.as_str())
+        .collect();
+    let mut seen: HashSet<(String, u32)> = HashSet::new();
+    let top_callers: Vec<Edge> = target_names
+        .iter()
+        .flat_map(|name| idx.refs_to(name))
+        .filter(|r| r.file != query)
+        .filter(|r| seen.insert((r.file.clone(), r.line)))
+        .map(caller_edge)
+        .collect();
+
+    // Aggregate outbound callees: refs whose caller is inside this
+    // file but whose target resolves outside this file. Refs without a
+    // resolvable target (no defining entity) are kept too — they are
+    // the file's external symbol references.
+    let in_file_names: std::collections::HashSet<&str> = idx
+        .entities_by_file(query)
+        .map(|e| e.name.as_str())
+        .collect();
+    let mut seen: HashSet<(String, u32, String)> = HashSet::new();
+    let top_callees: Vec<Edge> = idx
+        .entities_by_file(query)
+        .flat_map(|e| idx.refs_from(&e.name))
+        .filter(|r| r.file == query)
+        .filter(|r| !in_file_names.contains(r.name.as_str()))
+        .filter(|r| seen.insert((r.file.clone(), r.line, r.name.clone())))
+        .map(callee_edge)
+        .collect();
+
+    Some(FileContext {
+        q: query.to_string(),
+        file: query.to_string(),
+        entities,
+        top_callers: Some(top_callers),
+        top_callees: Some(top_callees),
+    })
+}
+
 /// Output of [`render_no_match`]: which stream the caller should print
 /// to. Keeps the CLI thin and lets unit tests assert routing without
 /// capturing process streams.
@@ -835,6 +933,121 @@ pub fn render_full_json(ctx: &Context, pretty: bool) -> String {
     }
 }
 
+/// Compact short-keyed view of [`FileContext`]. Mirrors the per-symbol
+/// `AgentView` shape but for a whole file digest: `kind="file"`, the
+/// per-entity rows use `n`/`k`/`l`/`v`/`d` keys, and `l` is rendered
+/// as a `[start, end]` tuple to halve the per-row JSON overhead.
+#[derive(Debug, Clone, Serialize)]
+struct FileAgentView<'a> {
+    q: &'a str,
+    kind: &'static str,
+    f: &'a str,
+    entities: Vec<FileAgentEntity<'a>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    top_callers: Option<Vec<AgentEdge<'a>>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    top_callees: Option<Vec<AgentEdge<'a>>>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct FileAgentEntity<'a> {
+    n: &'a str,
+    k: &'a str,
+    l: [u32; 2],
+    #[serde(skip_serializing_if = "Option::is_none")]
+    v: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    d: Option<&'a str>,
+}
+
+pub fn render_file_agent_json(fc: &FileContext) -> String {
+    fn edge<'a>(e: &'a Edge) -> AgentEdge<'a> {
+        AgentEdge {
+            f: &e.file,
+            l: e.line,
+            s: &e.symbol,
+            k: &e.kind,
+        }
+    }
+    let view = FileAgentView {
+        q: &fc.q,
+        kind: "file",
+        f: &fc.file,
+        entities: fc
+            .entities
+            .iter()
+            .map(|e| FileAgentEntity {
+                n: &e.name,
+                k: &e.kind,
+                l: [e.line_start, e.line_end],
+                v: e.visibility.as_deref(),
+                d: e.doc.as_deref(),
+            })
+            .collect(),
+        top_callers: fc
+            .top_callers
+            .as_ref()
+            .map(|edges| edges.iter().map(edge).collect()),
+        top_callees: fc
+            .top_callees
+            .as_ref()
+            .map(|edges| edges.iter().map(edge).collect()),
+    };
+    serde_json::to_string(&view).expect("FileAgentView serializes infallibly")
+}
+
+pub fn render_file_full_json(fc: &FileContext, pretty: bool) -> String {
+    if pretty {
+        serde_json::to_string_pretty(fc).expect("FileContext serializes infallibly")
+    } else {
+        serde_json::to_string(fc).expect("FileContext serializes infallibly")
+    }
+}
+
+pub fn render_file_markdown(fc: &FileContext) -> String {
+    let mut out = String::new();
+    out.push_str(&format!("# {}\n\n", fc.file));
+    if !fc.entities.is_empty() {
+        out.push_str("## Symbols\n\n");
+        for e in &fc.entities {
+            out.push_str(&format!(
+                "- `{}` ({}) @ L{}-{}",
+                e.name, e.kind, e.line_start, e.line_end
+            ));
+            if let Some(v) = &e.visibility {
+                out.push_str(&format!(" [{}]", v));
+            }
+            out.push('\n');
+            if let Some(d) = &e.doc {
+                let trimmed = d.lines().next().unwrap_or("").trim();
+                if !trimmed.is_empty() {
+                    out.push_str(&format!("  > {}\n", trimmed));
+                }
+            }
+        }
+        out.push('\n');
+    }
+    if let Some(callers) = &fc.top_callers
+        && !callers.is_empty()
+    {
+        out.push_str("## Top callers\n\n");
+        for e in callers {
+            out.push_str(&format!("- `{}` @ {}:{}\n", e.symbol, e.file, e.line));
+        }
+        out.push('\n');
+    }
+    if let Some(callees) = &fc.top_callees
+        && !callees.is_empty()
+    {
+        out.push_str("## Top callees\n\n");
+        for e in callees {
+            out.push_str(&format!("- `{}` @ {}:{}\n", e.symbol, e.file, e.line));
+        }
+        out.push('\n');
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -995,6 +1208,182 @@ mod tests {
             vec![],
         );
         assert!(build_context(&idx, "nonexistent", &ContextOptions::default()).is_none());
+    }
+
+    #[test]
+    fn build_file_context_returns_top_level_outline_when_file_matches() {
+        let idx = Index::build(
+            vec![
+                ent_full("src/foo.rs", "Foo", "struct", None, None, None, 0),
+                ent_full("src/foo.rs", "helper", "function", None, None, None, 0),
+                // Method on Foo — not top-level outline; should be excluded.
+                ent_full("src/foo.rs", "method", "method", Some("Foo"), None, None, 0),
+                // Different file — should be excluded.
+                ent_full("src/bar.rs", "Bar", "struct", None, None, None, 0),
+            ],
+            vec![],
+        );
+        let fc = build_file_context(&idx, "src/foo.rs").expect("file in index");
+        assert_eq!(fc.q, "src/foo.rs");
+        assert_eq!(fc.file, "src/foo.rs");
+        let names: Vec<&str> = fc.entities.iter().map(|e| e.name.as_str()).collect();
+        assert!(names.contains(&"Foo"), "missing Foo in {:?}", names);
+        assert!(names.contains(&"helper"), "missing helper in {:?}", names);
+        assert!(!names.contains(&"method"), "method should not appear as top-level");
+        assert!(!names.contains(&"Bar"), "different file should not appear");
+    }
+
+    #[test]
+    fn build_file_context_aggregates_top_callers_from_other_files() {
+        // Two top-level entities defined in src/foo.rs (`Foo`, `helper`).
+        // External callers from src/main.rs reference both. The
+        // file-context should aggregate them under `top_callers`.
+        let idx = Index::build(
+            vec![
+                ent_full("src/foo.rs", "Foo", "struct", None, None, None, 0),
+                ent_full("src/foo.rs", "helper", "function", None, None, None, 0),
+            ],
+            vec![
+                refr("src/main.rs", Some("main"), "Foo", "call", 5),
+                refr("src/main.rs", Some("main"), "helper", "call", 6),
+                // A self-ref from inside the file — should be excluded.
+                refr("src/foo.rs", Some("Foo"), "helper", "call", 2),
+            ],
+        );
+        let fc = build_file_context(&idx, "src/foo.rs").expect("file matches");
+        let callers = fc.top_callers.expect("top_callers populated");
+        // 2 external refs: main → Foo, main → helper.
+        assert_eq!(callers.len(), 2);
+        // The self-ref from inside the file is filtered out.
+        assert!(
+            callers.iter().all(|e| e.file != "src/foo.rs"),
+            "self-refs leaked into top_callers: {:?}",
+            callers
+        );
+    }
+
+    #[test]
+    fn build_file_context_aggregates_top_callees_from_inside_file() {
+        // Foo (in src/foo.rs) calls External.do (in src/ext.rs).
+        // top_callees should surface that outbound ref.
+        let idx = Index::build(
+            vec![
+                ent_full("src/foo.rs", "Foo", "struct", None, None, None, 0),
+                ent_full("src/ext.rs", "External", "function", None, None, None, 0),
+            ],
+            vec![
+                // Outbound call from Foo to External — should be picked up.
+                refr("src/foo.rs", Some("Foo"), "External", "call", 10),
+                // Self-call inside foo.rs — should be filtered out (target
+                // resolves to an entity in the same file).
+                refr("src/foo.rs", Some("Foo"), "Foo", "call", 11),
+            ],
+        );
+        let fc = build_file_context(&idx, "src/foo.rs").expect("file matches");
+        let callees = fc.top_callees.expect("top_callees populated");
+        assert_eq!(callees.len(), 1);
+        assert_eq!(callees[0].symbol, "External");
+    }
+
+    #[test]
+    fn render_file_agent_json_uses_short_keys_per_issue_37_spec() {
+        let fc = FileContext {
+            q: "src/foo.rs".to_string(),
+            file: "src/foo.rs".to_string(),
+            entities: vec![FileEntity {
+                name: "Foo".to_string(),
+                kind: "struct".to_string(),
+                line_start: 10,
+                line_end: 50,
+                visibility: Some("public".to_string()),
+                doc: Some("A foo".to_string()),
+            }],
+            top_callers: Some(vec![]),
+            top_callees: Some(vec![]),
+        };
+        let out = render_file_agent_json(&fc);
+        // Compact, no newlines.
+        assert!(!out.contains('\n'));
+        let v: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
+        assert_eq!(v["q"], "src/foo.rs");
+        assert_eq!(v["kind"], "file");
+        assert_eq!(v["f"], "src/foo.rs");
+        assert_eq!(v["entities"][0]["n"], "Foo");
+        assert_eq!(v["entities"][0]["k"], "struct");
+        // `l` is a [start, end] tuple per the issue spec.
+        assert_eq!(v["entities"][0]["l"][0], 10);
+        assert_eq!(v["entities"][0]["l"][1], 50);
+        assert_eq!(v["entities"][0]["v"], "public");
+        assert_eq!(v["entities"][0]["d"], "A foo");
+    }
+
+    #[test]
+    fn render_file_full_json_serializes_long_keys() {
+        let fc = FileContext {
+            q: "src/foo.rs".to_string(),
+            file: "src/foo.rs".to_string(),
+            entities: vec![FileEntity {
+                name: "Foo".to_string(),
+                kind: "struct".to_string(),
+                line_start: 10,
+                line_end: 50,
+                visibility: None,
+                doc: None,
+            }],
+            top_callers: Some(vec![]),
+            top_callees: Some(vec![]),
+        };
+        let out = render_file_full_json(&fc, false);
+        let v: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
+        // Long-form keys for the unabridged JSON view.
+        assert_eq!(v["q"], "src/foo.rs");
+        assert_eq!(v["file"], "src/foo.rs");
+        assert_eq!(v["entities"][0]["name"], "Foo");
+        assert_eq!(v["entities"][0]["line_start"], 10);
+        assert_eq!(v["entities"][0]["line_end"], 50);
+    }
+
+    #[test]
+    fn render_file_markdown_includes_file_path_and_entity_list() {
+        let fc = FileContext {
+            q: "src/foo.rs".to_string(),
+            file: "src/foo.rs".to_string(),
+            entities: vec![
+                FileEntity {
+                    name: "Foo".to_string(),
+                    kind: "struct".to_string(),
+                    line_start: 10,
+                    line_end: 50,
+                    visibility: None,
+                    doc: None,
+                },
+                FileEntity {
+                    name: "helper".to_string(),
+                    kind: "function".to_string(),
+                    line_start: 60,
+                    line_end: 70,
+                    visibility: None,
+                    doc: None,
+                },
+            ],
+            top_callers: Some(vec![]),
+            top_callees: Some(vec![]),
+        };
+        let md = render_file_markdown(&fc);
+        assert!(md.contains("src/foo.rs"));
+        assert!(md.contains("Foo"));
+        assert!(md.contains("helper"));
+        assert!(md.contains("struct"));
+        assert!(md.contains("function"));
+    }
+
+    #[test]
+    fn build_file_context_returns_none_when_file_absent() {
+        let idx = Index::build(
+            vec![ent_full("src/foo.rs", "Foo", "struct", None, None, None, 0)],
+            vec![],
+        );
+        assert!(build_file_context(&idx, "src/nonexistent.rs").is_none());
     }
 
     #[test]
