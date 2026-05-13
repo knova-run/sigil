@@ -296,14 +296,35 @@ fn parse_sfc(
     file_path: &str,
 ) -> Result<(Vec<SymbolEntry>, Vec<TextEntry>, Vec<ReferenceEntry>)> {
     let blocks = sfc::extract_script_blocks(source, extension);
+    let template_tags = if matches!(extension, "vue" | "svelte" | "astro") {
+        sfc::extract_template_component_tags(source)
+    } else {
+        Vec::new()
+    };
 
-    if blocks.is_empty() {
+    if blocks.is_empty() && template_tags.is_empty() {
         return Ok((Vec::new(), Vec::new(), Vec::new()));
     }
 
     let mut all_symbols = Vec::new();
     let mut all_texts = Vec::new();
     let mut all_refs = Vec::new();
+
+    // Emit each `<Component>` use in the template as an instantiation
+    // ref so `sigil callers MyComp --kind instantiation` reaches every
+    // `.vue` (or `.svelte`/`.astro`) file that mounts it. Mirrors the
+    // JSX coverage that lands in the JS/TS parsers.
+    for tag in &template_tags {
+        all_refs.push(crate::parser::format::ReferenceEntry {
+            file: file_path.to_string(),
+            name: tag.name.clone(),
+            kind: "instantiation".to_string(),
+            line: [tag.line, tag.line],
+            caller: None,
+            project: String::new(),
+            confidence: None,
+        });
+    }
 
     for block in &blocks {
         // Parse each script block with the detected language

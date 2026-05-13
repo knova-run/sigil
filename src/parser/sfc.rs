@@ -15,6 +15,187 @@ pub struct ScriptBlock {
     pub start_line: u32,
 }
 
+/// A component-use site found in a `<template>` block — `<MyComp />` /
+/// `<my-comp>...</my-comp>`. Capitalised tag names AND kebab-case
+/// names that resolve to PascalCase via Vue's name-conversion rule
+/// surface as component refs.
+pub struct ComponentTag {
+    /// PascalCase form of the tag name (e.g. `<my-comp>` → `MyComp`).
+    pub name: String,
+    /// 1-based line number where the tag appears.
+    pub line: u32,
+}
+
+/// Extract user-component use sites from the `<template>` block of a
+/// Vue/Svelte/Astro file. Distinguishes from DOM intrinsics by the
+/// PascalCase / kebab-case-with-dash convention: `<MyComp>` and
+/// `<my-comp>` both qualify; `<div>` and `<span>` do not.
+///
+/// Returns `(PascalCaseName, line)` pairs. The PascalCase form is what
+/// the script-block exports as the component identifier (via
+/// `import Foo from './Foo.vue'`), so refs emitted under this name
+/// resolve to the component entity.
+pub fn extract_template_component_tags(source: &[u8]) -> Vec<ComponentTag> {
+    let text = match std::str::from_utf8(source) {
+        Ok(s) => s,
+        Err(_) => return Vec::new(),
+    };
+    // Locate the <template> block. Vue / Svelte both have one; Astro's
+    // entire body is the template, so we treat the whole file as
+    // template when no <template> wrapper exists.
+    let (region, base_line) = match locate_template_region(text) {
+        Some(r) => r,
+        None => (text, 1u32),
+    };
+    let mut out: Vec<ComponentTag> = Vec::new();
+    let mut line_num = base_line;
+    for line in region.lines() {
+        // Walk every `<` and check whether the following chars form a
+        // component-shaped tag. Cheaper than a regex on every line.
+        let bytes = line.as_bytes();
+        let mut i = 0;
+        while i < bytes.len() {
+            if bytes[i] == b'<' {
+                // Skip closing tags / comments / doctype / CDATA.
+                if i + 1 < bytes.len() {
+                    let next = bytes[i + 1];
+                    if next == b'/' || next == b'!' || next == b'?' {
+                        i += 1;
+                        continue;
+                    }
+                }
+                // Read the tag name: [A-Za-z][A-Za-z0-9_.\-]*
+                let start = i + 1;
+                let mut end = start;
+                while end < bytes.len() {
+                    let b = bytes[end];
+                    if b.is_ascii_alphanumeric() || b == b'_' || b == b'.' || b == b'-' {
+                        end += 1;
+                    } else {
+                        break;
+                    }
+                }
+                if end > start {
+                    let raw_tag = &line[start..end];
+                    if let Some(pascal) = component_tag_to_pascal(raw_tag) {
+                        out.push(ComponentTag {
+                            name: pascal,
+                            line: line_num,
+                        });
+                    }
+                }
+                i = end.max(i + 1);
+            } else {
+                i += 1;
+            }
+        }
+        line_num += 1;
+    }
+    out
+}
+
+/// Locate the outer `<template>...</template>` block in a Vue/Svelte
+/// file. Vue allows nested `<template v-if>` inside the outer template,
+/// so we balance-count opens against closes to find the matching outer
+/// close (otherwise the first inner `</template>` truncates the region
+/// and template tags after it go uncounted). Returns the inner content
+/// + the 1-based line number where the inner content starts.
+fn locate_template_region(text: &str) -> Option<(&str, u32)> {
+    let lower = text.to_ascii_lowercase();
+    let open_idx = lower.find("<template")?;
+    // End of the outer opening tag.
+    let open_end = text[open_idx..].find('>').map(|p| open_idx + p + 1)?;
+    // Walk forward balancing `<template` vs `</template>`. We start
+    // INSIDE the outer tag (depth=1) and look for the position where
+    // depth drops back to 0.
+    let mut depth: i32 = 1;
+    let mut cursor = open_end;
+    let bytes = lower.as_bytes();
+    while cursor < bytes.len() {
+        // Find the next `<template` or `</template>` — whichever is closer.
+        let next_open = lower[cursor..].find("<template").map(|p| cursor + p);
+        let next_close = lower[cursor..].find("</template>").map(|p| cursor + p);
+        match (next_open, next_close) {
+            (None, None) => return None,
+            (Some(o), Some(c)) if o < c => {
+                depth += 1;
+                cursor = o + "<template".len();
+            }
+            (Some(_), Some(c)) => {
+                depth -= 1;
+                if depth == 0 {
+                    let inner = &text[open_end..c];
+                    let start_line =
+                        1 + text[..open_end].bytes().filter(|b| *b == b'\n').count() as u32;
+                    return Some((inner, start_line));
+                }
+                cursor = c + "</template>".len();
+            }
+            (Some(o), None) => {
+                // Open without ever closing — malformed; bail.
+                let _ = o;
+                return None;
+            }
+            (None, Some(c)) => {
+                depth -= 1;
+                if depth == 0 {
+                    let inner = &text[open_end..c];
+                    let start_line =
+                        1 + text[..open_end].bytes().filter(|b| *b == b'\n').count() as u32;
+                    return Some((inner, start_line));
+                }
+                cursor = c + "</template>".len();
+            }
+        }
+    }
+    None
+}
+
+/// Decide whether a raw tag name (`MyComp`, `my-comp`, `MyComp.Slot`,
+/// `div`, `slot-name`) refers to a user component and, if so, return
+/// its PascalCase form. Returns None for HTML/Svelte built-ins.
+fn component_tag_to_pascal(raw: &str) -> Option<String> {
+    let trimmed = raw.trim_end_matches('/');
+    if trimmed.is_empty() {
+        return None;
+    }
+    let first = trimmed.chars().next()?;
+    // PascalCase tags are component refs as-is. `MyComp` / `MyComp.Slot`
+    if first.is_ascii_uppercase() {
+        return Some(trimmed.to_string());
+    }
+    // kebab-case with at least one dash → convert to PascalCase. Vue's
+    // own resolution rule (`<my-comp>` ↔ component MyComp). Skip
+    // dash-less lowercase tags (`<div>` etc.).
+    if trimmed.contains('-') {
+        // Filter Vue built-ins (transition, keep-alive, ...)
+        if matches!(
+            trimmed,
+            "keep-alive"
+                | "router-link"
+                | "router-view"
+        ) {
+            return None;
+        }
+        let parts: Vec<String> = trimmed
+            .split('-')
+            .filter(|p| !p.is_empty())
+            .map(|p| {
+                let mut chars = p.chars();
+                match chars.next() {
+                    Some(c) => c.to_ascii_uppercase().to_string() + chars.as_str(),
+                    None => String::new(),
+                }
+            })
+            .collect();
+        let pascal = parts.join("");
+        if pascal.chars().next().map(|c| c.is_ascii_uppercase()).unwrap_or(false) {
+            return Some(pascal);
+        }
+    }
+    None
+}
+
 /// Extract script blocks from an SFC file based on its extension.
 ///
 /// Returns an empty vec if no script blocks are found (e.g. template-only
@@ -233,6 +414,26 @@ fn count_newlines_in(s: &str) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_vue_template_component_tags_pascal_and_kebab() {
+        // QA pass on gitea: Vue files with nested `<template v-if>`
+        // inside outer template confused the region locator and tags
+        // after the first inner close were dropped. Balance-count fix.
+        let source = b"<script setup lang=\"ts\">\nconst x = 1\n</script>\n<template>\n  <div>\n    <SvgIcon name=\"x\"/>\n    <template v-if=\"flag\">\n      <ActionStatusIcon/>\n    </template>\n    <relative-time :datetime=\"d\"/>\n    <div>\n      <SvgIcon name=\"y\"/>\n    </div>\n  </div>\n</template>\n";
+        let tags = extract_template_component_tags(source);
+        let names: Vec<&str> = tags.iter().map(|t| t.name.as_str()).collect();
+        assert!(names.contains(&"SvgIcon"), "two SvgIcon uses must surface; got {:?}", names);
+        assert_eq!(
+            names.iter().filter(|n| **n == "SvgIcon").count(),
+            2,
+            "both SvgIcon tags should emit (one before and one after the nested template)"
+        );
+        assert!(names.contains(&"ActionStatusIcon"), "tag inside inner template must surface; got {:?}", names);
+        assert!(names.contains(&"RelativeTime"), "kebab-case `<relative-time>` should normalise to RelativeTime; got {:?}", names);
+        // Negative: lowercase HTML elements (`<div>`) must not emit.
+        assert!(!names.contains(&"Div"), "`<div>` must not emit");
+    }
 
     #[test]
     fn test_vue_basic() {

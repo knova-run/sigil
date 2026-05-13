@@ -856,7 +856,9 @@ enum Cli {
         /// be built on the fly if missing).
         #[arg(short, long, default_value = ".")]
         root: PathBuf,
-        /// Filter to confidence ≥ 0.70 — the CI-safe tier.
+        /// Filter to confidence ≥ 0.85 — the CI-safe tier (file-level
+        /// dead files + exported-orphan symbols; excludes 0.70 internal
+        /// helpers which are higher-false-positive).
         #[arg(long)]
         safe_only: bool,
         /// Include candidates with confidence < 0.70 (off by default —

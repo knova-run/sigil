@@ -178,7 +178,7 @@ fn walk_node(
             return;
         }
         "function_declaration" => {
-            extract_function(node, source, file_path, parent_ctx, symbols);
+            extract_function(node, source, file_path, parent_ctx, symbols, references);
             // Walk body for call refs / nested string literals / comments.
             if let Some(body) = first_child_of_kind(node, "function_body") {
                 let fn_name = function_name(node, source).unwrap_or_default();
@@ -208,7 +208,25 @@ fn walk_node(
             return;
         }
         "property_declaration" => {
-            extract_property(node, source, file_path, parent_ctx, symbols);
+            extract_property(node, source, file_path, parent_ctx, symbols, references);
+            // Walk the value expression too — `let s = Session()` /
+            // `var sessions = [Session(), Session()]` / closure-based
+            // property initializers all contain call_expressions and
+            // identifiers we need for ref extraction. QA on Alamofire
+            // showed `Session(...)` constructor calls (445 in tests)
+            // were dropped because this arm `return`ed before
+            // recursing. Walk children explicitly under a property-
+            // scoped caller_ctx so inner calls attribute correctly.
+            let prop_name = first_child_of_kind(node, "pattern")
+                .and_then(|p| first_child_of_kind(p, "simple_identifier"))
+                .map(|n| node_text(n, source));
+            let new_ctx = prop_name
+                .as_deref()
+                .map(|n| qualify(parent_ctx, n));
+            let ctx_for_walk = new_ctx.as_deref().or(parent_ctx);
+            walk_swift_children_with_docs(
+                node, source, file_path, ctx_for_walk, symbols, texts, references, depth,
+            );
             return;
         }
         "enum_entry" => {
@@ -611,6 +629,7 @@ fn extract_function(
     file_path: &str,
     parent_ctx: Option<&str>,
     symbols: &mut Vec<SymbolEntry>,
+    references: &mut Vec<ReferenceEntry>,
 ) {
     let name = match function_name(node, source) {
         Some(n) => n,
@@ -630,7 +649,7 @@ fn extract_function(
     push_symbol(
         symbols,
         file_path,
-        full_name,
+        full_name.clone(),
         kind,
         line,
         parent_ctx,
@@ -638,6 +657,61 @@ fn extract_function(
         None,
         Some(visibility),
     );
+
+    // Emit type_annotation refs for parameter types and the return type
+    // so `sigil callers Logger` reaches every signature site, not just
+    // `Logger(...)` constructor calls. Gap surfaced by the swift-log
+    // audit (8 callers found of 254 source mentions).
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        match child.kind() {
+            // Parameters: walk the parameter list for inner type nodes.
+            "parameter" => emit_swift_type_refs(child, source, file_path, Some(&full_name), references),
+            // Return type: `function_type` / direct type child after `->`.
+            // Tree-sitter-swift names the return position various ways
+            // across grammar versions; we conservatively walk all type-shaped
+            // children below the `->` separator.
+            "user_type" | "type_identifier" | "optional_type" | "array_type"
+            | "dictionary_type" | "tuple_type" | "function_type" => {
+                emit_swift_type_refs(child, source, file_path, Some(&full_name), references);
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Walk a subtree emitting a `type_annotation` reference for every
+/// `type_identifier` whose name doesn't look like a Swift primitive.
+/// Used by parameter/return/property type-annotation extraction.
+fn emit_swift_type_refs(
+    node: Node,
+    source: &[u8],
+    file_path: &str,
+    parent_ctx: Option<&str>,
+    references: &mut Vec<ReferenceEntry>,
+) {
+    let mut stack = vec![node];
+    while let Some(n) = stack.pop() {
+        if n.kind() == "type_identifier" {
+            let name = node_text(n, source);
+            if !is_swift_primitive(&name) {
+                references.push(ReferenceEntry {
+                    file: file_path.to_string(),
+                    name,
+                    kind: "type_annotation".to_string(),
+                    line: node_line_range(n),
+                    caller: parent_ctx.map(String::from),
+                    project: String::new(),
+                    confidence: None,
+                });
+            }
+            continue;
+        }
+        let mut c = n.walk();
+        for child in n.children(&mut c) {
+            stack.push(child);
+        }
+    }
 }
 
 /// Swift `init` — emitted as a method named `init` under the enclosing type.
@@ -742,6 +816,7 @@ fn extract_property(
     file_path: &str,
     parent_ctx: Option<&str>,
     symbols: &mut Vec<SymbolEntry>,
+    references: &mut Vec<ReferenceEntry>,
 ) {
     let line = node_line_range(node);
     let visibility = extract_swift_visibility(node, source);
@@ -795,7 +870,7 @@ fn extract_property(
 
     symbols.push(SymbolEntry {
         file: file_path.to_string(),
-        name: full_name,
+        name: full_name.clone(),
         kind: kind.to_string(),
         line,
         parent: parent_ctx.map(String::from),
@@ -806,6 +881,12 @@ fn extract_property(
         project: String::new(),
     heritage: Vec::new(),
     });
+
+    // Emit type_annotation refs for the declared type so
+    // `var logger: Logger = ...` reaches `callers Logger`.
+    if let Some(ta) = first_child_of_kind(node, "type_annotation") {
+        emit_swift_type_refs(ta, source, file_path, Some(&full_name), references);
+    }
 }
 
 /// Best-effort RHS extraction: collect the first named child that appears
@@ -1017,6 +1098,58 @@ mod tests {
         assert!(imports.iter().any(|s| s.name == "UIKit"));
         let import_refs: Vec<_> = refs.iter().filter(|r| r.kind == "import").collect();
         assert_eq!(import_refs.len(), 2);
+    }
+
+    #[test]
+    fn swift_property_value_constructor_calls_captured() {
+        // Regression: QA pass on Alamofire showed 445 `Session(...)`
+        // constructor calls in Tests/ but sigil callers Session
+        // returned only 48 (44 type_annotation + 4 call). The
+        // `property_declaration` arm in walk_node returned early
+        // without walking the value expression, so the call_expression
+        // inside `let s = Session()` was never visited.
+        let source = b"public class Session { public init() {} }\n\
+                       class CacheTests {\n\
+                           func setUp() {\n\
+                               let s = Session()\n\
+                               let t = Session()\n\
+                           }\n\
+                       }\n\
+                       let global1 = Session()\n";
+        let (_, _, refs) = parse_file(source, "swift", "t.swift").unwrap();
+        let calls: Vec<_> = refs
+            .iter()
+            .filter(|r| r.kind == "call" && r.name == "Session")
+            .collect();
+        assert!(
+            calls.len() >= 3,
+            "expected ≥3 Session() constructor call refs; got {} -> {:?}",
+            calls.len(),
+            refs.iter().map(|r| (&r.kind, &r.name)).collect::<Vec<_>>(),
+        );
+    }
+
+    #[test]
+    fn swift_function_param_and_return_type_refs() {
+        // Regression: bug-fixes branch audit of apple/swift-log surfaced
+        // that `Logger` had only 8 callers despite 254 source mentions.
+        // Function parameter types, return types, and property types
+        // were never emitted as refs. Without this, `sigil callers Logger`
+        // misses every signature site.
+        let source = b"public struct Logger { var name: String = \"\" }\n\
+                       func makeIt() -> Logger { return Logger() }\n\
+                       func useIt(l: Logger) {}\n";
+        let (_, _, refs) = parse_file(source, "swift", "t.swift").unwrap();
+        let type_refs: Vec<_> = refs
+            .iter()
+            .filter(|r| r.kind == "type_annotation" && r.name == "Logger")
+            .collect();
+        assert!(
+            type_refs.len() >= 2,
+            "expected ≥2 Logger type_annotation refs (param + return); got {} -> {:?}",
+            type_refs.len(),
+            refs.iter().map(|r| (&r.kind, &r.name)).collect::<Vec<_>>(),
+        );
     }
 
     #[test]

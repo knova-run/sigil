@@ -287,19 +287,98 @@ fn compute_blast(
     transitive_depth: u32,
 ) -> HashMap<EntityKey, BlastRadius> {
     // `refs_to_name` maps a target symbol name to every (file, caller) that
-    // references it. Used both for direct counts and BFS.
-    let mut refs_to_name: HashMap<&str, Vec<&Reference>> = HashMap::new();
+    // references it. Mirror the alias-expansion that
+    // `src/query/index.rs::Index::build` does for `refs_by_name` so an
+    // entity with a qualified-form name (Ruby `Faraday.Connection`,
+    // Kotlin/Scala `Foo.Bar`) finds refs stored as
+    // `Faraday::Connection.new` or similar. Without this, blast_radius
+    // came back None on every Ruby/Kotlin/Scala class with a
+    // non-trivial namespace.
+    let mut refs_to_name: HashMap<String, Vec<&Reference>> = HashMap::new();
     for r in references {
-        refs_to_name.entry(r.name.as_str()).or_default().push(r);
+        // Literal name
+        refs_to_name.entry(r.name.clone()).or_default().push(r);
+        // bare_leaf (latest `.` or `::`)
+        if let Some(leaf) = crate::query::index::bare_leaf(&r.name) {
+            refs_to_name.entry(leaf.to_string()).or_default().push(r);
+        }
+        // `::` head + its leaf (uppercase-gated inside helper)
+        if r.name.contains("::") {
+            for h in crate::query::index::head_prefixes_with_sep(&r.name, "::") {
+                refs_to_name.entry(h).or_default().push(r);
+            }
+        }
+        // `.` head + its leaf
+        if r.name.contains('.') {
+            for h in crate::query::index::head_prefixes_with_sep(&r.name, ".") {
+                refs_to_name.entry(h).or_default().push(r);
+            }
+        }
     }
 
     let mut blast: HashMap<EntityKey, BlastRadius> = HashMap::new();
     for e in entities {
-        let direct = refs_to_name.get(e.name.as_str()).cloned().unwrap_or_default();
+        // Match by literal entity name AND by its qualified-name form
+        // AND by its bare_leaf form. The qualified-name fallback catches
+        // entities where the parser stores `name` with one separator
+        // and refs use another (Ruby `Faraday.Connection` entity vs
+        // `Faraday::Connection.new` refs). The bare_leaf fallback
+        // catches entities with mixed-separator qualified_names that
+        // don't match either format directly (rspec-core
+        // `RSpec.Core.Runner` with `qualified_name=RSpec.Core::Runner`
+        // never matches refs that use `RSpec::Core::Runner` — but
+        // `Runner` does match the leaf-indexed aliases).
+        let mut hits: Vec<&Reference> = refs_to_name
+            .get(e.name.as_str())
+            .cloned()
+            .unwrap_or_default();
+        if let Some(qn) = e.qualified_name.as_deref() {
+            if qn != e.name {
+                if let Some(extra) = refs_to_name.get(qn) {
+                    for r in extra {
+                        hits.push(r);
+                    }
+                }
+            }
+        }
+        if let Some(leaf) = crate::query::index::bare_leaf(&e.name) {
+            if leaf != e.name {
+                if let Some(extra) = refs_to_name.get(leaf) {
+                    for r in extra {
+                        hits.push(r);
+                    }
+                }
+            }
+        }
+        // Dedup by pointer identity to avoid double-counting refs that
+        // matched multiple lookup paths.
+        let direct: Vec<&Reference> = {
+            let mut seen: HashSet<*const Reference> = HashSet::new();
+            hits.into_iter()
+                .filter(|r| seen.insert(*r as *const Reference))
+                .collect()
+        };
         let direct_callers = direct.len() as u32;
         let direct_files: HashSet<&str> = direct.iter().map(|r| r.file.as_str()).collect();
         let direct_files_count = direct_files.len() as u32;
-        let transitive = transitive_caller_count(&e.name, &refs_to_name, transitive_depth);
+        // BFS seed: try the same three name forms as the direct-caller
+        // lookup (`e.name`, `e.qualified_name`, `bare_leaf(e.name)`)
+        // so transitive coverage matches direct for mixed-separator
+        // qualified-name entities (Ruby/Kotlin/Scala). Without this,
+        // `Faraday.Connection` showed direct=2 but transitive=0 even
+        // when a chain existed.
+        let mut seeds: Vec<&str> = vec![e.name.as_str()];
+        if let Some(qn) = e.qualified_name.as_deref() {
+            if qn != e.name {
+                seeds.push(qn);
+            }
+        }
+        if let Some(leaf) = crate::query::index::bare_leaf(&e.name) {
+            if leaf != e.name {
+                seeds.push(leaf);
+            }
+        }
+        let transitive = transitive_caller_count(&seeds, &refs_to_name, transitive_depth);
 
         blast.insert(
             EntityKey::from_entity(e),
@@ -313,22 +392,28 @@ fn compute_blast(
     blast
 }
 
-/// BFS over the reverse-call graph: how many unique callers reach `seed`
-/// within `max_depth` hops. The caller-name set doubles as a visited set to
-/// prevent cycles from blowing up the count.
+/// BFS over the reverse-call graph: how many unique callers reach any
+/// `seed` within `max_depth` hops. Multiple seeds let mixed-separator
+/// qualified-name entities reach their inbound refs (Ruby/Kotlin/Scala —
+/// `Faraday.Connection` seeds `Faraday::Connection` and `Connection`).
+/// The visited set is shared across seeds so a caller reachable from
+/// more than one seed is counted once.
 fn transitive_caller_count(
-    seed: &str,
-    refs_to_name: &HashMap<&str, Vec<&Reference>>,
+    seeds: &[&str],
+    refs_to_name: &HashMap<String, Vec<&Reference>>,
     max_depth: u32,
 ) -> u32 {
-    if max_depth == 0 {
+    if max_depth == 0 || seeds.is_empty() {
         return 0;
     }
     let mut visited: HashSet<&str> = HashSet::new();
     // Queue items: (symbol_name, depth_from_seed).
     let mut queue: VecDeque<(&str, u32)> = VecDeque::new();
-    queue.push_back((seed, 0));
-    visited.insert(seed);
+    for seed in seeds {
+        if visited.insert(seed) {
+            queue.push_back((seed, 0));
+        }
+    }
 
     let mut count: u32 = 0;
     while let Some((sym, depth)) = queue.pop_front() {
@@ -615,6 +700,106 @@ mod tests {
         let bar_br = entities[1].blast_radius.unwrap();
         assert_eq!(bar_br.direct_callers, 1);
         assert_eq!(bar_br.direct_files, 1);
+    }
+
+    #[test]
+    fn blast_radius_handles_qualified_ref_names() {
+        // QA pass on faraday (Ruby): entity name `Faraday.Connection`
+        // (with qualified_name `Faraday::Connection`) had 27 inbound
+        // refs of form `Faraday::Connection.new` (plus chained
+        // variants) but blast_radius came back None — the compute_blast
+        // lookup was literal-name only, missing the same bare_leaf /
+        // cc-head / dot-head expansion that `Index::refs_by_name`
+        // performs at index time. Entities with qualified-form names
+        // (Ruby/Kotlin/Scala emit `Foo.Bar`) should see their
+        // blast_radius populated from refs that target them via `::`
+        // or chain forms.
+        let mut e = ent("a.rb", "Faraday.Connection", "class");
+        e.qualified_name = Some("Faraday::Connection".to_string());
+        let mut entities = vec![e];
+        let refs = vec![
+            refr("b.rb", Some("u"), "Faraday::Connection.new"),
+            refr("c.rb", Some("u"), "Faraday::Connection.new"),
+        ];
+        let ranked = rank(&entities, &refs);
+        apply_blast_radius(&mut entities, &ranked);
+        let br = entities[0]
+            .blast_radius
+            .as_ref()
+            .expect("blast_radius should be set for entity with qualified-form name");
+        assert!(
+            br.direct_callers >= 2,
+            "expected ≥2 direct callers from `Faraday::Connection.new` refs; got {}",
+            br.direct_callers
+        );
+    }
+
+    #[test]
+    fn blast_radius_transitive_callers_use_expanded_seed() {
+        // Regression: PR #26 review surfaced that direct-callers lookup
+        // expanded to try `e.name`, `e.qualified_name`, AND
+        // `bare_leaf(e.name)`, but `transitive_caller_count` was still
+        // called with only `&e.name`. For a Ruby entity
+        // `Faraday.Connection` (qualified_name `Faraday::Connection`),
+        // refs are indexed under `Faraday::Connection` / `Connection`
+        // but NOT under `Faraday.Connection` — so BFS started cold
+        // (transitive=0) even though direct=2. Setup: a 2-hop
+        // transitive chain that the BFS can ONLY follow when seeded by
+        // qualified_name or bare_leaf.
+        let mut e = ent("a.rb", "Faraday.Connection", "class");
+        e.qualified_name = Some("Faraday::Connection".to_string());
+        let mut entities = vec![e];
+        let refs = vec![
+            // Direct hop: u_outer calls Faraday::Connection.new
+            refr("b.rb", Some("u_outer"), "Faraday::Connection.new"),
+            // Indirect hop: top_caller calls u_outer (transitive seed
+            // is "Connection" via bare_leaf, then BFS visits ref
+            // targeting u_outer once it follows the chain).
+            refr("c.rb", Some("top_caller"), "u_outer"),
+        ];
+        let ranked = rank(&entities, &refs);
+        apply_blast_radius(&mut entities, &ranked);
+        let br = entities[0].blast_radius.as_ref().expect("blast_radius should be set");
+        assert!(
+            br.direct_callers >= 1,
+            "expected ≥1 direct caller; got {}",
+            br.direct_callers
+        );
+        assert!(
+            br.transitive_callers >= 1,
+            "transitive BFS should follow the chain from Faraday::Connection.new → u_outer → top_caller; got transitive={}",
+            br.transitive_callers
+        );
+    }
+
+    #[test]
+    fn blast_radius_handles_mixed_separator_qualified_name() {
+        // QA pass on rspec-core: entity name `RSpec.Core.Runner` with
+        // qualified_name `RSpec.Core::Runner` (parser emits parent
+        // with `.`-separators joined to leaf by `::`). Real refs use
+        // `RSpec::Core::Runner.run` (all `::`). Neither entity.name
+        // nor entity.qualified_name matches that ref form directly.
+        // The bare_leaf of the entity (`Runner`) DOES match the
+        // leaf-indexed alias keys though.
+        let mut e = ent("a.rb", "RSpec.Core.Runner", "class");
+        e.qualified_name = Some("RSpec.Core::Runner".to_string()); // mixed
+        let mut entities = vec![e];
+        let refs = vec![
+            refr("b.rb", Some("u"), "RSpec::Core::Runner.run"),
+            refr("c.rb", Some("u"), "RSpec::Core::Runner.new"),
+            refr("d.rb", Some("u"), "RSpec::Core::Runner.autorun"),
+        ];
+        let ranked = rank(&entities, &refs);
+        apply_blast_radius(&mut entities, &ranked);
+        let br = entities[0]
+            .blast_radius
+            .as_ref()
+            .expect("bare_leaf fallback should rescue this");
+        assert!(
+            br.direct_callers >= 3,
+            "expected ≥3 direct callers via bare_leaf fallback; got {}",
+            br.direct_callers
+        );
     }
 
     #[test]
