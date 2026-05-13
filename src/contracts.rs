@@ -571,6 +571,18 @@ fn scan_js_ts(file: &str, text: &str, ext: &str) -> Vec<ContractRow> {
             }
         }
     }
+    // WebSocket — express-ws provider + browser/Node `new WebSocket()` consumer.
+    for (i, line) in text.lines().enumerate() {
+        if let Some(caps) = ws_express_re().captures(line) {
+            push_ws_provider(&mut out, file, (i + 1) as u32, &caps[1], language, "express-ws");
+            continue;
+        }
+        if let Some(caps) = ws_browser_re().captures(line) {
+            push_ws_consumer(&mut out, file, (i + 1) as u32, &caps[1], language, "websocket");
+        }
+    }
+    // socket.io event-level (server `on` + client `emit`).
+    emit_socketio_rows(file, text, language, &mut out);
     // Redis / NATS pub-sub for JS/TS files.
     emit_pubsub_rows(file, text, language, &mut out);
     out
@@ -741,6 +753,21 @@ fn scan_go(file: &str, text: &str) -> Vec<ContractRow> {
                 raw_verb.to_uppercase()
             };
             let normalized = normalize_http_path(&caps[2]);
+            // If the handler body that follows uses gorilla/websocket
+            // Upgrader.Upgrade, retag this route as a WebSocket
+            // provider in addition to the HTTP route. We look ahead up
+            // to 30 lines for the upgrader call.
+            let body_lines: String = text.lines()
+                .skip(i + 1).take(30).collect::<Vec<_>>().join("\n");
+            if body_lines.contains(".Upgrade(") && text.contains("gorilla/websocket") {
+                out.push(ContractRow {
+                    contract_id: format!("ws::{normalized}"),
+                    kind: "websocket".to_string(), role: "provider".to_string(),
+                    method: None, path: Some(normalized.clone()), topic: None,
+                    file: file.to_string(), line: (i + 1) as u32,
+                    language: "go".to_string(), framework: "gorilla".to_string(),
+                });
+            }
             // The framework label is best-effort; we can't distinguish
             // gin vs chi vs echo from a single line — call it `go` and
             // let downstream filter if they care.
@@ -841,6 +868,12 @@ fn scan_java(file: &str, text: &str) -> Vec<ContractRow> {
                 language: "java".to_string(),
                 framework: "spring".to_string(),
             });
+        }
+    }
+    // Spring WebSocket / STOMP: `@MessageMapping("/chat.send")`.
+    for (i, line) in text.lines().enumerate() {
+        if let Some(caps) = ws_spring_re().captures(line) {
+            push_ws_provider(&mut out, file, (i + 1) as u32, &caps[1], "java", "spring-stomp");
         }
     }
     // Java Jedis pub/sub: `jedis.publish("ch", msg)` /
@@ -1015,6 +1048,12 @@ fn scan_ruby(file: &str, text: &str) -> Vec<ContractRow> {
                     });
                 }
             }
+        }
+    }
+    // Rails ActionCable mount: `mount ActionCable.server => '/cable'`
+    for (i, line) in text.lines().enumerate() {
+        if let Some(caps) = ws_action_cable_re().captures(line) {
+            push_ws_provider(&mut out, file, (i + 1) as u32, &caps[1], "ruby", "actioncable");
         }
     }
     emit_pubsub_rows(file, text, "ruby", &mut out);
@@ -1636,6 +1675,186 @@ fn scan_csharp(file: &str, text: &str) -> Vec<ContractRow> {
     out
 }
 
+// ─── WebSocket contracts ─────────────────────────────────────────────────────
+//
+// Two contract shapes:
+//
+//   1. URL-level — the WebSocket route's path. Captured as a separate
+//      kind=`websocket` row with contract_id `ws::<path>` so it joins
+//      cleanly with browser `new WebSocket("ws://host<path>")` consumers.
+//
+//   2. Event-level — socket.io `socket.on('event:name', …)` (provider)
+//      and `socket.emit('event:name', …)` (consumer). contract_id
+//      `event::<name>`, framework `socket.io`.
+
+fn ws_fastapi_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(r#"@(?:app|router)\.websocket\(\s*['"]([^'"]+)['"]"#).unwrap()
+    })
+}
+
+fn ws_express_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // express-ws: `app.ws('/path', handler)`. Receiver `app|router` only.
+        Regex::new(r#"\b(?:app|router|expressApp)\.ws\(\s*['"`](/[^'"`]*)['"`]"#).unwrap()
+    })
+}
+
+fn ws_browser_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `new WebSocket('ws://host/path')` / `new WebSocket('wss://...')` /
+        // `new WebSocket('/path')` (when same-origin).
+        Regex::new(r#"\bnew\s+WebSocket\s*\(\s*['"`]((?:wss?://[^'"`]+)|/[^'"`]*)['"`]"#).unwrap()
+    })
+}
+
+fn ws_spring_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // Spring STOMP: `@MessageMapping("/chat.send")`.
+        Regex::new(r#"@MessageMapping\s*\(\s*['"]([^'"]+)['"]"#).unwrap()
+    })
+}
+
+fn ws_action_cable_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `mount ActionCable.server => '/cable'`.
+        Regex::new(r#"mount\s+ActionCable\.server\s*=>\s*['"]([^'"]+)['"]"#).unwrap()
+    })
+}
+
+fn ws_socketio_on_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `socket.on('event', cb)` — but ONLY when the file imports
+        // socket.io (we content-sniff before calling this).
+        // Skip `'connection'` and `'disconnect'` which are framework
+        // lifecycle events, not user-defined contracts.
+        Regex::new(r#"\bsocket\.on\s*\(\s*['"`]([A-Za-z_][\w:.\-]*)['"`]"#).unwrap()
+    })
+}
+
+fn ws_socketio_emit_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(r#"\bsocket\.emit\s*\(\s*['"`]([A-Za-z_][\w:.\-]*)['"`]"#).unwrap()
+    })
+}
+
+/// Strip scheme + host from a `ws://host/path` or `wss://host/path` URL.
+/// Mirrors `normalize_http_path`'s `http(s)://` stripping.
+fn ws_strip_host(url: &str) -> String {
+    let stripped = url
+        .strip_prefix("ws://")
+        .or_else(|| url.strip_prefix("wss://"));
+    match stripped {
+        Some(rest) => match rest.split_once('/') {
+            Some((_, p)) => format!("/{p}"),
+            None => "/".to_string(),
+        },
+        None => url.to_string(),
+    }
+}
+
+/// Common emission helper for a URL-level WebSocket route.
+fn push_ws_provider(
+    out: &mut Vec<ContractRow>, file: &str, line_no: u32,
+    path: &str, language: &str, framework: &str,
+) {
+    let normalized = normalize_http_path(path);
+    out.push(ContractRow {
+        contract_id: format!("ws::{normalized}"),
+        kind: "websocket".to_string(),
+        role: "provider".to_string(),
+        method: None,
+        path: Some(normalized),
+        topic: None,
+        file: file.to_string(),
+        line: line_no,
+        language: language.to_string(),
+        framework: framework.to_string(),
+    });
+}
+
+fn push_ws_consumer(
+    out: &mut Vec<ContractRow>, file: &str, line_no: u32,
+    url: &str, language: &str, framework: &str,
+) {
+    let stripped = ws_strip_host(url);
+    let normalized = normalize_http_path(&stripped);
+    out.push(ContractRow {
+        contract_id: format!("ws::{normalized}"),
+        kind: "websocket".to_string(),
+        role: "consumer".to_string(),
+        method: None,
+        path: Some(normalized),
+        topic: None,
+        file: file.to_string(),
+        line: line_no,
+        language: language.to_string(),
+        framework: framework.to_string(),
+    });
+}
+
+/// Detect socket.io event-level contracts. Both server and client use
+/// the same `socket.on(...)` / `socket.emit(...)` shape — the role is
+/// inferred from which one fires.
+fn emit_socketio_rows(file: &str, text: &str, language: &str, out: &mut Vec<ContractRow>) {
+    let file_uses_socketio = text.contains("socket.io") || text.contains("socket.io-client")
+        || text.contains("Server(server)") || text.contains("require('socket.io')")
+        || text.contains("from 'socket.io'");
+    if !file_uses_socketio {
+        return;
+    }
+    let skip = |name: &str| matches!(
+        name,
+        "connection" | "disconnect" | "disconnecting" | "error" | "connect"
+            | "connect_error" | "reconnect" | "reconnect_attempt" | "reconnect_error"
+            | "reconnect_failed" | "newListener" | "removeListener"
+    );
+    for (i, line) in text.lines().enumerate() {
+        if let Some(caps) = ws_socketio_on_re().captures(line) {
+            let event = caps[1].to_string();
+            if !skip(&event) {
+                out.push(ContractRow {
+                    contract_id: format!("event::{event}"),
+                    kind: "event".to_string(),
+                    role: "provider".to_string(),
+                    method: None,
+                    path: Some(event.clone()),
+                    topic: Some(event),
+                    file: file.to_string(),
+                    line: (i + 1) as u32,
+                    language: language.to_string(),
+                    framework: "socket.io".to_string(),
+                });
+                continue;
+            }
+        }
+        if let Some(caps) = ws_socketio_emit_re().captures(line) {
+            let event = caps[1].to_string();
+            if !skip(&event) {
+                out.push(ContractRow {
+                    contract_id: format!("event::{event}"),
+                    kind: "event".to_string(),
+                    role: "consumer".to_string(),
+                    method: None,
+                    path: Some(event.clone()),
+                    topic: Some(event),
+                    file: file.to_string(),
+                    line: (i + 1) as u32,
+                    language: language.to_string(),
+                    framework: "socket.io".to_string(),
+                });
+            }
+        }
+    }
+}
+
 fn kafka_send_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| {
@@ -1853,6 +2072,11 @@ fn requests_re() -> &'static Regex {
 fn scan_python(file: &str, text: &str) -> Vec<ContractRow> {
     let mut out = Vec::new();
     for (i, line) in text.lines().enumerate() {
+        // FastAPI @app.websocket("/path")
+        if let Some(caps) = ws_fastapi_re().captures(line) {
+            push_ws_provider(&mut out, file, (i + 1) as u32, &caps[1], "python", "fastapi");
+            continue;
+        }
         if let Some(caps) = fastapi_re().captures(line) {
             // FastAPI: caps[1] = receiver (app|router|api|…), caps[2] = verb,
             // caps[3] = path.

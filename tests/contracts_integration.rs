@@ -877,6 +877,151 @@ func main() {
     assert!(!subs.is_empty(), "expected NATS subscribers; got {nats:?}");
 }
 
+// ───── Batch 2: WebSocket contracts (URL routes + socket.io events) ─────
+
+#[test]
+fn detects_websocket_routes_fastapi() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("app.py"),
+        r#"from fastapi import FastAPI, WebSocket
+app = FastAPI()
+
+@app.websocket("/ws/chat")
+async def chat(ws: WebSocket):
+    await ws.accept()
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let ws: Vec<_> = rows.iter().filter(|r| r["kind"] == "websocket").collect();
+    assert!(ws.iter().any(|r| r["contract_id"] == "ws::/ws/chat" && r["role"] == "provider"),
+        "FastAPI @app.websocket; got {ws:?}");
+}
+
+#[test]
+fn detects_websocket_routes_express_and_browser_client() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("server.js"),
+        r#"const expressWs = require('express-ws')(app);
+app.ws('/ws/notifications', (ws, req) => {
+    ws.on('message', msg => ws.send(msg));
+});
+"#,
+    ).unwrap();
+    fs::write(
+        tmp.path().join("client.js"),
+        r#"const ws = new WebSocket('ws://localhost/ws/notifications');
+const wss = new WebSocket('wss://api.example.com/ws/chat');
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let ws: Vec<_> = rows.iter().filter(|r| r["kind"] == "websocket").collect();
+    assert!(ws.iter().any(|r| r["contract_id"] == "ws::/ws/notifications" && r["role"] == "provider"),
+        "express app.ws('/path'); got {ws:?}");
+    assert!(ws.iter().any(|r| r["contract_id"] == "ws::/ws/notifications" && r["role"] == "consumer"),
+        "browser new WebSocket(ws://.../path); got {ws:?}");
+    assert!(ws.iter().any(|r| r["contract_id"] == "ws::/ws/chat"),
+        "browser new WebSocket(wss://.../path); got {ws:?}");
+}
+
+#[test]
+fn detects_socketio_event_provider_and_consumer() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("server.js"),
+        r#"const io = require('socket.io')(server);
+io.on('connection', (socket) => {
+    socket.on('chat:send', (msg) => {});
+    socket.on('user:join', (u) => {});
+});
+"#,
+    ).unwrap();
+    fs::write(
+        tmp.path().join("client.js"),
+        r#"import { io } from 'socket.io-client';
+const socket = io('http://localhost');
+socket.emit('chat:send', { text: 'hi' });
+socket.emit('user:join', { name: 'a' });
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let events: Vec<_> = rows.iter().filter(|r| r["framework"] == "socket.io").collect();
+    assert!(events.iter().any(|r| r["contract_id"] == "event::chat:send" && r["role"] == "provider"),
+        "socket.io on('chat:send'); got {events:?}");
+    assert!(events.iter().any(|r| r["contract_id"] == "event::chat:send" && r["role"] == "consumer"),
+        "socket.io emit('chat:send'); got {events:?}");
+    assert!(events.iter().any(|r| r["contract_id"] == "event::user:join" && r["role"] == "provider"));
+    assert!(events.iter().any(|r| r["contract_id"] == "event::user:join" && r["role"] == "consumer"));
+}
+
+#[test]
+fn detects_websocket_go_gorilla() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("server.go"),
+        r#"package main
+
+import (
+    "net/http"
+    "github.com/gorilla/websocket"
+)
+
+var upgrader = websocket.Upgrader{}
+
+func main() {
+    http.HandleFunc("/ws/feed", func(w http.ResponseWriter, r *http.Request) {
+        conn, _ := upgrader.Upgrade(w, r, nil)
+        _ = conn
+    })
+}
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    // The HandleFunc emits http::*::/ws/feed already; the upgrader inside
+    // the handler retags it as a WebSocket provider for the same path.
+    let ws: Vec<_> = rows.iter().filter(|r| r["kind"] == "websocket").collect();
+    assert!(ws.iter().any(|r| r["contract_id"] == "ws::/ws/feed" && r["role"] == "provider"),
+        "Go gorilla upgrader inside /ws/feed handler; got {ws:?}");
+}
+
+#[test]
+fn detects_websocket_spring_and_actioncable() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("ChatHandler.java"),
+        r#"@Controller
+public class ChatHandler {
+    @MessageMapping("/chat.send")
+    public void send(ChatMessage msg) {}
+}
+"#,
+    ).unwrap();
+    fs::write(
+        tmp.path().join("config.rb"),
+        r#"Rails.application.routes.draw do
+  mount ActionCable.server => '/cable'
+end
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let ws: Vec<_> = rows.iter().filter(|r| r["kind"] == "websocket").collect();
+    assert!(ws.iter().any(|r| r["contract_id"] == "ws::/chat.send"),
+        "Spring @MessageMapping; got {ws:?}");
+    assert!(ws.iter().any(|r| r["contract_id"] == "ws::/cable"),
+        "Rails ActionCable mount; got {ws:?}");
+}
+
 // ───── Batch 1: gRPC + Redis + NATS expanded across languages ─────
 
 #[test]
