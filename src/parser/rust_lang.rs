@@ -1240,7 +1240,7 @@ fn helper() {}";
 
     #[test]
     fn rust_bare_call_gets_tier1_confidence() {
-        // Tier 1: bare `identifier` call → confidence 1.0. Scoped /
+        // Tier 1: bare `identifier` call → confidence 0.95. Scoped /
         // field-expression calls stay at None until full `use`-alias
         // resolution lands.
         let source = b"fn caller() { helper(); module::other(); }\nfn helper() {}\n";

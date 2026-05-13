@@ -1066,7 +1066,7 @@ class Bar:
         assert_eq!(
             call.confidence,
             Some(0.95),
-            "bare `helper()` call must carry confidence=1.0; got {:?}",
+            "bare `helper()` call must carry tier-1 confidence (0.95); got {:?}",
             call.confidence,
         );
         let attr = refs

@@ -796,7 +796,7 @@ fn extract_package(node: Node, source: &[u8], file_path: &str, symbols: &mut Vec
 ///        `confidence=0.8`, for cross-file/cross-repo resolution.
 ///   Both edges share line + caller so consumers can dedupe by line.
 /// * Plain identifier calls (`SomeFunc`) emit a single edge with
-///   `confidence=1.0` — same-file resolution is implicit at this layer
+///   `confidence=0.95` — same-file resolution is implicit at this layer
 ///   (the caller and callee both live in the file's symbol table).
 /// * Selector calls that don't resolve through the import table (method
 ///   calls on a local value, calls into nested receivers) keep the old

@@ -47,10 +47,19 @@ pub struct Entity {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub doc: Option<String>,
 
-    /// Heritage edges this entity participates in. Currently populated for
-    /// Go struct embedding (`type Foo struct { Bar }` ⇒ Foo embeds Bar).
-    /// Empty vec is elided from JSON. Interface-implementation detection is
-    /// not yet wired up (Go interfaces are structural — a separate pass).
+    /// Heritage edges this entity participates in — `extend`, `implement`,
+    /// `embed`, `trait_impl`. Populated across 12 languages:
+    ///   * Go — struct embedding (`embed`)
+    ///   * Java / TypeScript / JavaScript / Kotlin / Scala / C# / Swift /
+    ///     C++ / PHP — class `extends` / `implements` (and interface
+    ///     `extends` where the grammar exposes it)
+    ///   * Python — class inheritance, including `class Foo(ABC)` and
+    ///     `metaclass=Meta` keyword args
+    ///   * Rust — `impl Trait for Type` (`implement`, on the impl entity)
+    ///     and trait super-bounds (`trait Sub: Super` → `extend`).
+    /// Empty vec is elided from JSON. Some grammars don't syntactically
+    /// distinguish superclass from interfaces/protocols/mixins (Kotlin,
+    /// Scala, C#, Swift, C++); those land as `extend` uniformly.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub heritage: Vec<HeritageEdge>,
 }
@@ -346,13 +355,26 @@ pub struct Reference {
     #[serde(rename = "kind", alias = "ref_kind")]
     pub ref_kind: String,
     pub line: u32,
-    /// Resolver confidence for this edge. `1.0` = exact same-file resolution
-    /// (the caller and callee both live in this file's symbol table).
-    /// `0.8` = call resolved through a file-local import alias to a
-    /// qualified package path (e.g. `fmt.Println` → `fmt/Println`).
-    /// `None` = bare textual reference, no resolution attempted (the legacy
-    /// behaviour). Old refs.jsonl rows round-trip as `None` so existing
-    /// indexes keep loading without a re-build.
+    /// Resolver confidence for this edge. Tiers (highest → lowest):
+    ///   * `0.95` — same-file resolution (caller and callee both in this
+    ///     file's symbol table); also `self.X()` / `this.X()` bound to the
+    ///     caller's own class.
+    ///   * `0.93` — `Class.method` where `Class` is defined in the same file.
+    ///   * `0.88` — `Class.method` where `Class.method` resolves to exactly
+    ///     one definition globally in the caller's language.
+    ///   * `0.85` — bare-name call where exactly one imported file (incl.
+    ///     Python `from X import *`) defines the name as a callable.
+    ///   * `0.8` — file-local import-alias resolution (`bar()` after
+    ///     `import { foo as bar }`).
+    ///   * `0.7` — file-resolved edge from a manifest-aware resolver
+    ///     (tsconfig paths, go.mod, composer.json PSR-4, Cargo workspace,
+    ///     Package.swift, Rails autoload, JVM FQN, compile_commands.json,
+    ///     .NET csproj/sln/global-usings).
+    ///   * `0.5` — tier-3 global-unique fallback (language-gated).
+    ///   * `None` — bare textual reference, no resolution attempted.
+    /// Old refs.jsonl rows (pre-confidence-field) round-trip as `None`.
+    /// Rows written by a pre-realignment build with `1.0` for tier-1 are
+    /// handled identically to `0.95` by `resolve_tier3`'s guard.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub confidence: Option<f64>,
 

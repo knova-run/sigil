@@ -843,7 +843,7 @@ mod tests {
 
     #[test]
     fn php_bare_call_gets_tier1_confidence() {
-        // PHP unqualified `name` calls get tier-1 confidence (1.0).
+        // PHP unqualified `name` calls get tier-1 confidence (0.95).
         // Qualified namespace calls (`App\Foo\bar()`) and method/scoped
         // calls stay at None until alias resolution lands.
         let source = b"<?php\nfunction caller() { helper(); }\nfunction helper() {}\n";

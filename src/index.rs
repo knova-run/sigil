@@ -258,7 +258,7 @@ pub fn build_index(
 
     // Tier-3 call resolution: runs before the final sort so the resolver
     // sees stable input order. Mutates `all_refs` in place — may demote
-    // false tier-1 edges (bare-name 1.0 with no actual same-file def) and
+    // false tier-1 edges (bare-name 0.95 with no actual same-file def) and
     // promote unique cross-file matches to confidence 0.5. Also appends
     // barrel-follow edges for JS/TS + Python re-exports at confidence 0.7.
     if tier3 && include_refs {
@@ -473,9 +473,9 @@ fn language_from_file(file: &str) -> Option<&'static str> {
 ///
 /// Behaviour:
 ///
-///   * Demote false tier-1: a bare-identifier call tagged 1.0 by the
+///   * Demote false tier-1: a bare-identifier call tagged 0.95 by the
 ///     parser whose name does NOT match any same-file callable definition
-///     is reset to None (parsers issue 1.0 optimistically for any bare
+///     is reset to None (parsers issue 0.95 optimistically for any bare
 ///     identifier; this pass is the first place we can verify same-file
 ///     match).
 ///   * Promote to tier-3 (0.5): an unresolved bare-name call (None
@@ -513,15 +513,25 @@ fn resolve_tier3(entities: &[Entity], refs: &mut [Reference]) {
             continue;
         }
         // Tier-2 (or any other non-None, non-tier-1 confidence) → leave alone.
-        if !matches!(r.confidence, None | Some(0.95)) {
+        // Accept the legacy `Some(1.0)` value too — pre-P5.17 refs.jsonl
+        // rows carry it, and incremental indexing preserves them on
+        // unchanged files. Treat 1.0 identically to 0.95 for demotion +
+        // re-consideration; the only difference is the on-disk value the
+        // user starts with.
+        if !matches!(r.confidence, None | Some(0.95) | Some(1.0)) {
             continue;
         }
-        // Verified tier-1: same-file def exists, leave at 0.95.
+        // Verified tier-1: same-file def exists, leave at 0.95 (also
+        // normalize any legacy 1.0 back to 0.95 here so the index never
+        // re-emits stale values).
         if same_file.contains(&(r.file.as_str(), r.name.as_str())) {
+            if r.confidence == Some(1.0) {
+                r.confidence = Some(0.95);
+            }
             continue;
         }
         // Tier-1 was optimistic — demote.
-        if r.confidence == Some(0.95) {
+        if matches!(r.confidence, Some(0.95) | Some(1.0)) {
             r.confidence = None;
         }
         // Tier-3 global-unique check (language-gated).
@@ -604,6 +614,11 @@ fn resolve_tier2b_imported_fallback(
         }
         if hit_files.len() == 1 {
             r.confidence = Some(0.85);
+            // hit_files is single-element by the check above; pull it
+            // back out for the callee_id.
+            if let Some(target_file) = hit_files.iter().next() {
+                r.callee_id = Some(format!("{target_file}::{}", r.name));
+            }
         }
     }
 }
@@ -690,6 +705,7 @@ fn resolve_member_call(entities: &[Entity], refs: &mut [Reference]) {
                 .unwrap_or(caller);
             if methods.contains(&(r.file.as_str(), parent_class, leaf)) {
                 r.confidence = Some(0.95);
+                r.callee_id = Some(format!("{}::{parent_class}::{leaf}", r.file));
             }
             continue;
         }
@@ -701,6 +717,7 @@ fn resolve_member_call(entities: &[Entity], refs: &mut [Reference]) {
             if r.confidence.is_none() {
                 r.confidence = Some(0.93);
             }
+            r.callee_id = Some(format!("{}::{head}::{leaf}", r.file));
             continue;
         }
 
@@ -717,11 +734,13 @@ fn resolve_member_call(entities: &[Entity], refs: &mut [Reference]) {
                 .filter(|f| language_from_file(f) == caller_lang)
                 .collect();
             if same_lang.len() == 1 {
+                let target_file = *same_lang[0];
                 match r.confidence {
                     None => r.confidence = Some(0.88),
                     Some(c) if c <= 0.85 => r.confidence = Some(0.88),
                     _ => {}
                 }
+                r.callee_id = Some(format!("{target_file}::{head}::{leaf}"));
             }
         }
     }
@@ -2645,12 +2664,7 @@ fn emit_external_sentinels(
             continue;
         }
         let sentinel_name = format!("external:{modpath}");
-        let struct_hash = blake3::hash(sentinel_name.as_bytes())
-            .to_hex()
-            .as_str()
-            .chars()
-            .take(16)
-            .collect();
+        let struct_hash = hasher::struct_hash(sentinel_name.as_bytes());
         out.push(Entity {
             file: "<external>".to_string(),
             name: sentinel_name,
@@ -2928,6 +2942,80 @@ fn normalize_path(p: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn synth_callable(file: &str, name: &str) -> Entity {
+        Entity {
+            file: file.to_string(),
+            name: name.to_string(),
+            kind: "function".to_string(),
+            line_start: 1,
+            line_end: 1,
+            parent: None,
+            qualified_name: None,
+            sig: None,
+            meta: None,
+            body_hash: None,
+            sig_hash: None,
+            struct_hash: "0000000000000000".to_string(),
+            visibility: None,
+            rank: None,
+            blast_radius: None,
+            doc: None,
+            heritage: Vec::new(),
+        }
+    }
+
+    fn synth_call(file: &str, name: &str, confidence: Option<f64>) -> Reference {
+        Reference {
+            file: file.to_string(),
+            caller: Some("driver".to_string()),
+            name: name.to_string(),
+            ref_kind: "call".to_string(),
+            line: 1,
+            confidence,
+            callee_id: None,
+        }
+    }
+
+    #[test]
+    fn resolve_tier3_normalizes_legacy_1_0_to_0_95_on_verified_match() {
+        // Same-file binding exists — legacy 1.0 should be rewritten to
+        // 0.95 in place so the index never re-emits the stale value.
+        let entities = vec![
+            synth_callable("caller.rs", "helper"),
+            synth_callable("caller.rs", "driver"),
+        ];
+        let mut refs = vec![synth_call("caller.rs", "helper", Some(1.0))];
+        resolve_tier3(&entities, &mut refs);
+        assert_eq!(
+            refs[0].confidence,
+            Some(0.95),
+            "verified legacy 1.0 should be normalized to 0.95; got {:?}",
+            refs[0].confidence,
+        );
+    }
+
+    #[test]
+    fn resolve_tier3_treats_legacy_1_0_as_tier_1_for_demotion() {
+        // P5.17 realigned tier-1 from 1.0 → 0.95. Incremental indexes
+        // with pre-realignment refs.jsonl carry Some(1.0). The resolver
+        // must still demote them when no same-file binding exists.
+        let entities = vec![synth_callable("defs.rs", "helper")];
+        // Caller's file has no `helper` defined. Old refs.jsonl had a
+        // bare-name call confidently tagged 1.0 by the pre-realignment
+        // parser. After resolve_tier3, this should be demoted (because
+        // there's no same-file match) and re-considered for tier-3.
+        // With a unique global match in `defs.rs` (same Rust lang) it
+        // should land at 0.5 (tier-3 global-unique).
+        let mut refs = vec![synth_call("caller.rs", "helper", Some(1.0))];
+        resolve_tier3(&entities, &mut refs);
+        assert_eq!(
+            refs[0].confidence,
+            Some(0.5),
+            "legacy 1.0 should be demoted then re-promoted to 0.5 via global-unique; got {:?}",
+            refs[0].confidence,
+        );
+    }
 
     #[test]
     fn normalize_kind_mappings() {

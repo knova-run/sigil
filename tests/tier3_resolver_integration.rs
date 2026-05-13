@@ -1574,6 +1574,146 @@ fn csharp_project_reference_ranks_same_or_referenced_first() {
 // re-doing name matching.
 
 #[test]
+fn self_this_member_call_carries_callee_id() {
+    // resolve_member_call Strategy 3 must populate callee_id alongside
+    // the 0.95 confidence binding. Format: `<file>::<class>::<method>`.
+    let dir = fresh_dir("callee-id-self-this");
+    write(
+        &dir,
+        "foo.py",
+        "class Foo:\n    def a(self):\n        self.b()\n    def b(self):\n        pass\n",
+    );
+    let refs = run_index_with_refs(&dir, &[]);
+
+    let call = refs
+        .iter()
+        .find(|r| {
+            r["kind"].as_str() == Some("call")
+                && r["file"].as_str() == Some("foo.py")
+                && r["name"].as_str() == Some("self.b")
+        })
+        .expect("self.b() call should be in refs");
+    assert_eq!(
+        call["callee_id"].as_str(),
+        Some("foo.py::Foo::b"),
+        "self/this binding should carry callee_id `<file>::<class>::<method>`; got {:?}",
+        call["callee_id"],
+    );
+}
+
+#[test]
+fn imported_class_strategy2_carries_callee_id() {
+    // resolve_member_call Strategy 2 (imported branch, 0.88) — the
+    // target file is the unique global match. callee_id should point at
+    // that file, NOT the caller's file.
+    let dir = fresh_dir("callee-id-strategy2-imported");
+    write(
+        &dir,
+        "foo.py",
+        "class Foo:\n    @staticmethod\n    def create():\n        pass\n",
+    );
+    write(
+        &dir,
+        "caller.py",
+        "from foo import Foo\n\ndef driver():\n    Foo.create()\n",
+    );
+    let refs = run_index_with_refs(&dir, &[]);
+
+    let call = refs
+        .iter()
+        .find(|r| {
+            r["kind"].as_str() == Some("call")
+                && r["file"].as_str() == Some("caller.py")
+                && r["name"].as_str() == Some("Foo.create")
+        })
+        .expect("Foo.create call should be in refs");
+    assert_eq!(
+        call["callee_id"].as_str(),
+        Some("foo.py::Foo::create"),
+        "imported-class Strategy 2 should carry callee_id targeting the defining file; got {:?}",
+        call["callee_id"],
+    );
+}
+
+#[test]
+fn tier2b_imported_fallback_carries_callee_id() {
+    // resolve_tier2b_imported_fallback (0.85) — the binding is the
+    // unique imported file. callee_id should be `<that_file>::<name>`.
+    let dir = fresh_dir("callee-id-tier2b");
+    write(&dir, "utils.py", "def helper():\n    pass\n");
+    write(&dir, "other.py", "def helper():\n    pass\n");
+    write(
+        &dir,
+        "caller.py",
+        "from utils import *\n\ndef driver():\n    helper()\n",
+    );
+    let refs = run_index_with_refs(&dir, &[]);
+
+    let call = refs
+        .iter()
+        .find(|r| {
+            r["kind"].as_str() == Some("call")
+                && r["file"].as_str() == Some("caller.py")
+                && r["name"].as_str() == Some("helper")
+                && r["confidence"].as_f64() == Some(0.85)
+        })
+        .expect("helper() call should be tier-2b promoted to 0.85");
+    assert_eq!(
+        call["callee_id"].as_str(),
+        Some("utils.py::helper"),
+        "tier-2b should carry callee_id `<resolved_file>::<name>`; got {:?}",
+        call["callee_id"],
+    );
+}
+
+#[test]
+fn barrel_follow_still_fires_after_other_tier3_passes_run() {
+    // Regression guard: tier-3 / tier-2b / member-call run before
+    // barrel-follow on the same refs vec. None of those upstream passes
+    // should mutate confidence on barrel-shape edges (the
+    // `<import-path>.<local>/<rest>` form contains both `.` and `/`,
+    // which their guards reject). If a future change relaxed those
+    // guards, barrel-follow's `!= Some(0.8)` filter would silently
+    // skip the promoted edges — this test fails fast in that case.
+    let dir = fresh_dir("barrel-after-tier3");
+    write(
+        &dir,
+        "caller.ts",
+        "import { helper } from \"./utils\";\nfunction driver() { helper(); }\n",
+    );
+    write(
+        &dir,
+        "utils.ts",
+        "export { helper } from \"./internal/h\";\n",
+    );
+    write(
+        &dir,
+        "internal/h.ts",
+        "export function helper() {}\n",
+    );
+    let refs = run_index_with_refs(&dir, &[]);
+
+    // Barrel-follow must still emit the 0.7 file-resolved edge.
+    let barrel_edge = refs
+        .iter()
+        .find(|r| {
+            r["kind"].as_str() == Some("call")
+                && r["file"].as_str() == Some("caller.ts")
+                && r["name"]
+                    .as_str()
+                    .map(|s| s.contains("internal/h"))
+                    .unwrap_or(false)
+        })
+        .expect("barrel-follow 0.7 edge must still be emitted after upstream tier-3 passes");
+    assert_eq!(
+        barrel_edge["confidence"].as_f64(),
+        Some(0.7),
+        "barrel-follow edge confidence regressed; got {:?}",
+        barrel_edge["confidence"],
+    );
+}
+
+#[test]
 fn manifest_resolved_edges_carry_callee_id() {
     // Go file-resolved edge — `internal/utils/helper.go/Helper`.
     // The callee_id should mirror with `::` separator instead of `/`.

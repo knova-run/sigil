@@ -1283,7 +1283,7 @@ mod tests {
 
     #[test]
     fn js_bare_call_gets_tier1_confidence() {
-        // Tier 1: bare `identifier` call → confidence 1.0. member_expression
+        // Tier 1: bare `identifier` call → confidence 0.95. member_expression
         // calls (e.g., `obj.method()`) stay None until namespace-alias
         // resolution (`import * as ns from ...; ns.foo()`) lands.
         let source = b"function caller() { helper(); obj.method(); }\nfunction helper() {}\n";

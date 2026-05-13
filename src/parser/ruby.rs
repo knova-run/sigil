@@ -789,7 +789,7 @@ fn extract_call(
             if !is_ruby_builtin_call(&method) {
                 // Build the full call name including receiver. Bareword
                 // calls (no receiver, or `self.x` which the call graph
-                // treats as same-object) get tier-1 confidence (1.0).
+                // treats as same-object) get tier-1 confidence (0.95).
                 // Calls with an external receiver are dispatch-resolved
                 // at runtime in Ruby and stay None.
                 let (call_name, confidence) = if let Some(receiver) =
