@@ -576,7 +576,9 @@ enum Cli {
     /// related types. One call replaces the read-6-files orientation loop.
     Context {
         /// Symbol name, or qualified form like `file::name`,
-        /// `Parent::name`, `file::Parent::name`.
+        /// `Parent::name`, `file::Parent::name`. Also accepts a bare
+        /// file path (e.g. `src/foo.rs`) — returns a per-file digest
+        /// covering top-level entities + aggregated cross-file refs.
         query: String,
         /// Project root directory
         #[arg(short, long, default_value = ".")]
@@ -891,6 +893,18 @@ enum Cli {
         /// Pretty-print the JSON output.
         #[arg(long)]
         pretty: bool,
+    },
+    /// Run sigil as a Model Context Protocol server over stdio. Exposes
+    /// 6 tools: `sigil_search`, `get_context`, `get_overview`,
+    /// `get_dead_code`, `get_why` (all deterministic, zero-LLM), and
+    /// `get_answer` (capability-aware — bundles a synthesis prompt
+    /// the client can hand to its own model via MCP sampling; sigil
+    /// itself performs no LLM calls). Loads the index once on
+    /// startup, then services JSON-RPC requests until stdin closes.
+    Mcp {
+        /// Project root directory (must contain `.sigil/entities.jsonl`).
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
     },
 }
 
@@ -1733,9 +1747,26 @@ fn main() {
                 with_body,
                 project_root: root.clone(),
             };
+            if let Some(fc) = sigil::context::build_file_context(&idx, &q) {
+                match fmt {
+                    sigil::context::ContextFormat::Agent => {
+                        println!("{}", sigil::context::render_file_agent_json(&fc));
+                    }
+                    sigil::context::ContextFormat::Full => {
+                        println!("{}", sigil::context::render_file_full_json(&fc, pretty));
+                    }
+                    sigil::context::ContextFormat::Markdown => {
+                        print!("{}", sigil::context::render_file_markdown(&fc));
+                    }
+                }
+                return;
+            }
             let Some(ctx) = sigil::context::build_context(&idx, &q, &opts) else {
-                eprintln!("no entity matches `{}`", q);
-                eprintln!("hint: try `sigil search {}` to find similar symbols", q);
+                let nm = sigil::context::build_no_match(&idx, &q);
+                match sigil::context::render_no_match(&nm, fmt, pretty) {
+                    sigil::context::NoMatchOutput::Stdout(s) => println!("{}", s),
+                    sigil::context::NoMatchOutput::Stderr(s) => eprintln!("{}", s),
+                }
                 std::process::exit(2);
             };
             match fmt {
@@ -2381,6 +2412,12 @@ fn main() {
                 && report.outgoing.is_empty()
             {
                 std::process::exit(2);
+            }
+        }
+        Cli::Mcp { root } => {
+            if let Err(e) = sigil::mcp::server::run_stdio(root) {
+                eprintln!("mcp: {}", e);
+                std::process::exit(1);
             }
         }
     }

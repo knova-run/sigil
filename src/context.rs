@@ -151,6 +151,13 @@ pub struct Context {
     pub callers: Vec<Edge>,
     pub callees: Vec<Edge>,
     pub related_types: Vec<Edge>,
+    /// When `chosen` is a class with heritage edges (extend / implement /
+    /// trait_impl), the resolved parent class entities. Lets an agent
+    /// see `class Flask(App):` → `App` lives at `src/flask/sansio/app.py`
+    /// without a separate `sigil heritage` call. Empty for entities
+    /// with no resolvable heritage edges.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub parents: Vec<SymbolRef>,
     /// When `chosen` is a method (has a parent class), other classes in
     /// the codebase that define a method with the same tail segment —
     /// the inheritance / polymorphism delta. Empty for non-method
@@ -163,6 +170,16 @@ pub struct Context {
     pub skipped_types: usize,
     #[serde(default, skip_serializing_if = "is_zero_usize")]
     pub skipped_overrides: usize,
+    /// When the chosen entity was found by walking the parent class's
+    /// heritage chain (e.g. `Flask::testing` → `App::testing`), this
+    /// is `Some("heritage")`. Standard direct resolutions leave it None.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resolved_via: Option<String>,
+    /// Bare name of the ancestor class on which the chosen entity was
+    /// found, when `resolved_via = "heritage"`. Lets the agent see
+    /// where the inherited member actually lives without a second call.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ancestor: Option<String>,
     pub estimated_tokens: usize,
 }
 
@@ -237,6 +254,233 @@ pub fn resolve<'a>(idx: &'a Index, query: &str) -> Vec<&'a Entity> {
     matches
 }
 
+/// No-match response payload for `sigil context <q>` when no entity
+/// resolves. Emitted as JSON on stdout under `--format agent` and
+/// `--format json` so script consumers can branch on a parseable shape
+/// instead of regexing stderr. Short keys mirror the `Agent` view.
+#[derive(Debug, Clone, Serialize)]
+pub struct NoMatch {
+    pub q: String,
+    pub resolved: bool,
+    pub reason: String,
+    pub candidates: Vec<Candidate>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct Candidate {
+    pub f: String,
+    pub n: String,
+    pub k: String,
+    pub l: u32,
+}
+
+/// Build the `{q, resolved: false, reason, candidates}` payload for
+/// `sigil context` queries that fail to resolve. Candidates come from
+/// `Index::search(Scope::All, limit=10)` — a substring scan over symbol
+/// names and file paths.
+pub fn build_no_match(idx: &Index, q: &str) -> NoMatch {
+    let hits = idx.search(q, crate::query::index::Scope::All, None, None, 10);
+    let mut candidates: Vec<Candidate> = hits
+        .into_iter()
+        .map(|h| match h {
+            crate::query::index::SearchHit::Symbol(e) => Candidate {
+                f: e.file.clone(),
+                n: e.name.clone(),
+                k: e.kind.clone(),
+                l: e.line_start,
+            },
+            crate::query::index::SearchHit::File(fh) => Candidate {
+                f: fh.path.clone(),
+                n: std::path::Path::new(&fh.path)
+                    .file_name()
+                    .map(|s| s.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| fh.path.clone()),
+                k: "file".to_string(),
+                l: 0,
+            },
+        })
+        .collect();
+    if candidates.is_empty() {
+        for name in crate::query::suggest_similar(idx, q, 10) {
+            if let Some(e) = idx.entities_by_name(&name).next() {
+                candidates.push(Candidate {
+                    f: e.file.clone(),
+                    n: e.name.clone(),
+                    k: e.kind.clone(),
+                    l: e.line_start,
+                });
+            }
+        }
+    }
+    NoMatch {
+        q: q.to_string(),
+        resolved: false,
+        reason: format!("no entity matches `{}`", q),
+        candidates,
+    }
+}
+
+/// Per-file digest returned by [`build_file_context`] when the query
+/// matches a file path in the index. Mirrors the per-symbol `Context`
+/// but aggregated over a whole file: top-level outline entities plus
+/// (later) aggregated cross-file refs.
+#[derive(Debug, Clone, Serialize)]
+pub struct FileContext {
+    pub q: String,
+    pub file: String,
+    pub entities: Vec<FileEntity>,
+    /// External callers (refs from other files) of any entity defined
+    /// in this file. `None` when not yet computed; empty `Vec` when
+    /// computed but no callers exist.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_callers: Option<Vec<Edge>>,
+    /// Outbound refs from inside this file to symbols defined
+    /// elsewhere — the file's external surface area in the other
+    /// direction.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_callees: Option<Vec<Edge>>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct FileEntity {
+    pub name: String,
+    pub kind: String,
+    pub line_start: u32,
+    pub line_end: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub visibility: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub doc: Option<String>,
+}
+
+/// Build a per-file digest for `query` when it matches a file in the
+/// index. Returns `None` when no entity has `file == query`. The
+/// entity list is filtered to top-level outline shape (classes,
+/// structs, top-level functions, …) so the agent gets a file shape
+/// without methods cluttering the view.
+pub fn build_file_context(idx: &Index, query: &str) -> Option<FileContext> {
+    if idx.entities_by_file(query).next().is_none() {
+        return None;
+    }
+    let mut entities: Vec<FileEntity> = idx
+        .entities_by_file(query)
+        .filter(|e| crate::query::is_top_level_outline(e))
+        .map(|e| FileEntity {
+            name: e.name.clone(),
+            kind: e.kind.clone(),
+            line_start: e.line_start,
+            line_end: e.line_end,
+            visibility: e.visibility.clone(),
+            doc: e.doc.clone(),
+        })
+        .collect();
+    entities.sort_by_key(|e| e.line_start);
+
+    // Aggregate external callers: every ref whose target is an entity
+    // defined in this file, *from* a different file. Dedup by (file, line).
+    let target_names: std::collections::HashSet<&str> = idx
+        .entities_by_file(query)
+        .map(|e| e.name.as_str())
+        .collect();
+    let mut seen: HashSet<(String, u32)> = HashSet::new();
+    let mut top_callers: Vec<Edge> = target_names
+        .iter()
+        .flat_map(|name| idx.refs_to(name))
+        .filter(|r| r.file != query)
+        .filter(|r| seen.insert((r.file.clone(), r.line)))
+        .map(caller_edge)
+        .collect();
+    // Determinism: `target_names` is a HashSet so the per-name fan-out
+    // produces unspecified ordering. Sort by (file, line) to match
+    // the project's "Entity output is sorted deterministically"
+    // invariant.
+    top_callers.sort_by(|a, b| a.file.cmp(&b.file).then(a.line.cmp(&b.line)));
+
+    // Aggregate outbound callees: refs whose caller is inside this
+    // file but whose target resolves outside this file. Refs without a
+    // resolvable target (no defining entity) are kept — they are the
+    // file's external symbol references.
+    //
+    // Target-resolution check: a ref to a name `N` "resolves locally"
+    // only when `entities_by_name(N)` returns an entity defined in
+    // this same file. Refs to names that have a same-file definition
+    // AND an external definition (e.g. `parse` defined locally and
+    // also called as `serde::parse`) are kept — they're cross-file
+    // edges that just happen to share a short name with a local
+    // symbol.
+    let is_local_only_target = |name: &str| -> bool {
+        let mut any_local = false;
+        let mut any_external = false;
+        for e in idx.entities_by_name(name) {
+            if e.kind == "import" {
+                continue;
+            }
+            if e.file == query {
+                any_local = true;
+            } else {
+                any_external = true;
+            }
+        }
+        any_local && !any_external
+    };
+    let mut seen: HashSet<(String, u32, String)> = HashSet::new();
+    let mut top_callees: Vec<Edge> = idx
+        .entities_by_file(query)
+        .flat_map(|e| idx.refs_from(&e.name))
+        .filter(|r| r.file == query)
+        .filter(|r| !is_local_only_target(&r.name))
+        .filter(|r| seen.insert((r.file.clone(), r.line, r.name.clone())))
+        .map(callee_edge)
+        .collect();
+    // Deterministic order: (file, line, symbol). All refs are
+    // in-file by construction here (file == query), so the file
+    // component is constant — line + symbol drives the sort.
+    top_callees.sort_by(|a, b| {
+        a.file
+            .cmp(&b.file)
+            .then(a.line.cmp(&b.line))
+            .then(a.symbol.cmp(&b.symbol))
+    });
+
+    Some(FileContext {
+        q: query.to_string(),
+        file: query.to_string(),
+        entities,
+        top_callers: Some(top_callers),
+        top_callees: Some(top_callees),
+    })
+}
+
+/// Output of [`render_no_match`]: which stream the caller should print
+/// to. Keeps the CLI thin and lets unit tests assert routing without
+/// capturing process streams.
+#[derive(Debug)]
+pub enum NoMatchOutput {
+    Stdout(String),
+    Stderr(String),
+}
+
+pub fn render_no_match(nm: &NoMatch, format: ContextFormat, pretty: bool) -> NoMatchOutput {
+    match format {
+        ContextFormat::Agent => NoMatchOutput::Stdout(
+            serde_json::to_string(nm).expect("NoMatch serializes infallibly"),
+        ),
+        ContextFormat::Full => {
+            let json = if pretty {
+                serde_json::to_string_pretty(nm)
+            } else {
+                serde_json::to_string(nm)
+            }
+            .expect("NoMatch serializes infallibly");
+            NoMatchOutput::Stdout(json)
+        }
+        ContextFormat::Markdown => NoMatchOutput::Stderr(format!(
+            "no entity matches `{}`\nhint: try `sigil search {}` to find similar symbols",
+            nm.q, nm.q
+        )),
+    }
+}
+
 /// Primary entry point. Pure over `Index`.
 pub fn build_context(idx: &Index, query: &str, opts: &ContextOptions) -> Option<Context> {
     let resolved = resolve(idx, query);
@@ -248,9 +492,28 @@ pub fn build_context(idx: &Index, query: &str, opts: &ContextOptions) -> Option<
     } else {
         resolved
     };
-    let chosen_entity = resolved.first()?;
+
+    // Heritage-aware fallback: when a `Parent::name` query fails direct
+    // resolution, try walking the parent class's `extend`/`implement`/
+    // `trait_impl` chain looking for a class that defines `name`. This
+    // lets `Flask::testing` succeed even when `testing` lives on `App`
+    // (Flask's superclass) — the issue #38 Option-2 path.
+    let mut resolved_via_heritage: Option<String> = None;
+    let resolved_vec: Vec<&Entity> = if resolved.is_empty() {
+        match resolve_via_heritage(idx, query, opts) {
+            Some((entity, ancestor)) => {
+                resolved_via_heritage = Some(ancestor);
+                vec![entity]
+            }
+            None => return None,
+        }
+    } else {
+        resolved
+    };
+
+    let chosen_entity = resolved_vec.first()?;
     let chosen = SymbolRef::from_entity(chosen_entity);
-    let alternatives: Vec<SymbolRef> = resolved
+    let alternatives: Vec<SymbolRef> = resolved_vec
         .iter()
         .skip(1)
         .take(4) // cap alt list — more than 4 is rarely helpful, often noise
@@ -301,6 +564,11 @@ pub fn build_context(idx: &Index, query: &str, opts: &ContextOptions) -> Option<
         .collect();
     let skipped_types = type_refs.len().saturating_sub(related_types.len());
 
+    // Heritage parents: resolve each `extend`/`implement`/`trait_impl`
+    // edge on the chosen entity to a defining class entity. Lets an
+    // agent see `class Flask(App):` → App without a second tool call.
+    let parents = resolve_parents(idx, chosen_entity);
+
     // Inheritance delta: when the chosen symbol is a method (has a
     // parent class), find other classes that define a method with the
     // same tail segment. Cap at 5 so we don't blow the budget.
@@ -312,6 +580,10 @@ pub fn build_context(idx: &Index, query: &str, opts: &ContextOptions) -> Option<
         None
     };
 
+    let (resolved_via, ancestor) = match resolved_via_heritage {
+        Some(a) => (Some("heritage".to_string()), Some(a)),
+        None => (None, None),
+    };
     let mut ctx = Context {
         query: query.to_string(),
         chosen,
@@ -320,11 +592,14 @@ pub fn build_context(idx: &Index, query: &str, opts: &ContextOptions) -> Option<
         callers,
         callees,
         related_types,
+        parents,
         overrides,
         skipped_callers,
         skipped_callees,
         skipped_types,
         skipped_overrides,
+        resolved_via,
+        ancestor,
         estimated_tokens: 0,
     };
 
@@ -337,6 +612,155 @@ pub fn build_context(idx: &Index, query: &str, opts: &ContextOptions) -> Option<
 /// Tail segment of a qualified name — last `::`- or `.`-separated piece.
 fn tail_segment(name: &str) -> &str {
     name.rsplit(|c| c == ':' || c == '.').next().unwrap_or(name)
+}
+
+/// Look up the class entity for a bare or qualified class name.
+/// Prefers class-shaped kinds over imports, mirroring `resolve_parents`.
+fn lookup_class<'a>(idx: &'a Index, name: &str) -> Option<&'a Entity> {
+    let tail = tail_segment(name);
+    let needles = if tail == name {
+        vec![name.to_string()]
+    } else {
+        vec![name.to_string(), tail.to_string()]
+    };
+    for needle in needles {
+        if let Some(e) = idx
+            .entities_by_name(&needle)
+            .filter(|e| e.kind != "import")
+            .find(|e| {
+                matches!(
+                    e.kind.as_str(),
+                    "class" | "struct" | "interface" | "trait" | "enum"
+                )
+            })
+        {
+            return Some(e);
+        }
+    }
+    None
+}
+
+/// Heritage-aware fallback for `Parent::name` queries that didn't
+/// resolve directly. Walks the parent class's `extend`/`implement`/
+/// `trait_impl`/`embed` edges (BFS, depth-bounded) looking for an
+/// ancestor that defines `name` as a child. Returns the matched entity
+/// plus the ancestor's bare name where it was found.
+///
+/// Only fires when `query` parses as `Parent::name` (or its file-
+/// qualified forms `file::Parent::name`). Other query shapes return
+/// None — heritage walking doesn't apply to bare-name or
+/// file-only queries.
+fn resolve_via_heritage<'a>(
+    idx: &'a Index,
+    query: &str,
+    opts: &ContextOptions,
+) -> Option<(&'a Entity, String)> {
+    let (file_hint, parent_hint, name) = split_query(query);
+    let parent_name = parent_hint?;
+
+    let start = lookup_class(idx, parent_name)?;
+    // Visited keys on `(file, name)` so two different classes that share
+    // a bare name (e.g. `Base` in module A vs module B) can both be
+    // traversed. A bare-name key would prematurely terminate the BFS
+    // through the same-named class even when the actual entity differs.
+    let mut visited: HashSet<(String, String)> = HashSet::new();
+    visited.insert((start.file.clone(), start.name.clone()));
+    let mut frontier: Vec<&Entity> = vec![start];
+
+    // Bound the walk — pathological inheritance chains are rare, but a
+    // shallow cap keeps the worst case predictable.
+    for _depth in 0..16 {
+        let mut next_frontier: Vec<&Entity> = Vec::new();
+        for cls in &frontier {
+            for edge in &cls.heritage {
+                if !matches!(
+                    edge.kind.as_str(),
+                    "extend" | "implement" | "trait_impl" | "embed"
+                ) {
+                    continue;
+                }
+                let Some(parent_cls) = lookup_class(idx, &edge.target) else {
+                    continue;
+                };
+                if !visited.insert((parent_cls.file.clone(), parent_cls.name.clone())) {
+                    continue;
+                }
+                // Look for `name` as a child of this ancestor.
+                let needle = parent_cls.name.as_str();
+                let hit = idx
+                    .entities_by_name(name)
+                    .filter(|e| e.kind != "import")
+                    .filter(|e| match file_hint {
+                        Some(f) => e.file == f || e.file.ends_with(f),
+                        None => true,
+                    })
+                    .filter(|e| {
+                        e.parent.as_deref() == Some(needle)
+                            && (!opts.exclude_tests || !crate::entity::is_test_path(&e.file))
+                    })
+                    .next();
+                if let Some(e) = hit {
+                    // Use the file-qualified form
+                    // `<file>::<ClassName>` per issue #38 spec — gives
+                    // the agent a click-to-query handle on the
+                    // ancestor.
+                    let qualified =
+                        format!("{}::{}", parent_cls.file, parent_cls.name);
+                    return Some((e, qualified));
+                }
+                next_frontier.push(parent_cls);
+            }
+        }
+        if next_frontier.is_empty() {
+            break;
+        }
+        frontier = next_frontier;
+    }
+    None
+}
+
+/// Resolve `chosen`'s heritage edges (extend / implement / trait_impl /
+/// embed) to defining entities in the index. Each edge's `target` is
+/// looked up via `entities_by_name` — which indexes by both the
+/// qualified name and the bare leaf — so `target = "App"` and
+/// `target = "flask.sansio.app.App"` both reach the same definition.
+/// Duplicates by (file, name) are filtered (a class may extend
+/// multiple targets that resolve to overlapping definitions); class
+/// definitions are preferred over imports.
+fn resolve_parents(idx: &Index, chosen: &Entity) -> Vec<SymbolRef> {
+    let mut seen: HashSet<(String, String)> = HashSet::new();
+    let mut out: Vec<SymbolRef> = Vec::new();
+    for edge in &chosen.heritage {
+        // Try qualified target first, then fall back to its tail segment.
+        let needles = {
+            let tail = tail_segment(&edge.target);
+            if tail == edge.target.as_str() {
+                vec![edge.target.clone()]
+            } else {
+                vec![edge.target.clone(), tail.to_string()]
+            }
+        };
+        for needle in needles {
+            // Prefer class-shaped definitions; skip imports so
+            // `class Flask(App):` doesn't resolve to a `from … import App`.
+            let candidate = idx
+                .entities_by_name(&needle)
+                .filter(|e| e.kind != "import")
+                .find(|e| {
+                    matches!(
+                        e.kind.as_str(),
+                        "class" | "struct" | "interface" | "trait" | "enum"
+                    )
+                });
+            if let Some(e) = candidate
+                && seen.insert((e.file.clone(), e.name.clone()))
+            {
+                out.push(SymbolRef::from_entity(e));
+                break;
+            }
+        }
+    }
+    out
 }
 
 /// Find other classes in the index that define a method with the same
@@ -681,8 +1105,35 @@ struct AgentView<'a> {
     cr: Vec<AgentEdge<'a>>, // callers
     ce: Vec<AgentEdge<'a>>, // callees
     rt: Vec<AgentEdge<'a>>, // related types
+    /// Heritage block. Surfaces resolved parent classes so an agent
+    /// doesn't have to issue a separate `sigil heritage` call to find
+    /// where an inherited member lives. Elided when `parents` is empty.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    h: Option<AgentHeritage<'a>>,
+    /// `"heritage"` when the chosen entity was found by walking the
+    /// parent class's inheritance chain. Elided for direct matches.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    resolved_via: Option<&'a str>,
+    /// File-qualified handle for the ancestor where the inherited
+    /// member lives (e.g. `src/flask/sansio/app.py::App`). Set only
+    /// alongside `resolved_via = "heritage"`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ancestor: Option<&'a str>,
     #[serde(skip_serializing_if = "is_zero_skip")]
     sk: [usize; 3], // [callers, callees, types]
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct AgentHeritage<'a> {
+    parents: Vec<AgentSymbolRef<'a>>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct AgentSymbolRef<'a> {
+    f: &'a str,
+    n: &'a str,
+    k: &'a str,
+    l: [u32; 2],
 }
 
 fn is_zero_skip(s: &[usize; 3]) -> bool {
@@ -711,6 +1162,22 @@ pub fn render_agent_json(ctx: &Context) -> String {
         .blast_radius
         .as_ref()
         .map(|b| [b.direct_callers, b.direct_files, b.transitive_callers]);
+    let h = if ctx.parents.is_empty() {
+        None
+    } else {
+        Some(AgentHeritage {
+            parents: ctx
+                .parents
+                .iter()
+                .map(|p| AgentSymbolRef {
+                    f: &p.file,
+                    n: &p.name,
+                    k: &p.kind,
+                    l: [p.line_start, p.line_end],
+                })
+                .collect(),
+        })
+    };
     let view = AgentView {
         q: &ctx.query,
         f: &ctx.chosen.file,
@@ -726,6 +1193,9 @@ pub fn render_agent_json(ctx: &Context) -> String {
         cr: ctx.callers.iter().map(edge).collect(),
         ce: ctx.callees.iter().map(edge).collect(),
         rt: ctx.related_types.iter().map(edge).collect(),
+        h,
+        resolved_via: ctx.resolved_via.as_deref(),
+        ancestor: ctx.ancestor.as_deref(),
         sk: [ctx.skipped_callers, ctx.skipped_callees, ctx.skipped_types],
     };
     serde_json::to_string(&view).expect("AgentView serializes infallibly")
@@ -737,6 +1207,121 @@ pub fn render_full_json(ctx: &Context, pretty: bool) -> String {
     } else {
         serde_json::to_string(ctx).expect("Context serializes infallibly")
     }
+}
+
+/// Compact short-keyed view of [`FileContext`]. Mirrors the per-symbol
+/// `AgentView` shape but for a whole file digest: `kind="file"`, the
+/// per-entity rows use `n`/`k`/`l`/`v`/`d` keys, and `l` is rendered
+/// as a `[start, end]` tuple to halve the per-row JSON overhead.
+#[derive(Debug, Clone, Serialize)]
+struct FileAgentView<'a> {
+    q: &'a str,
+    kind: &'static str,
+    f: &'a str,
+    entities: Vec<FileAgentEntity<'a>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    top_callers: Option<Vec<AgentEdge<'a>>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    top_callees: Option<Vec<AgentEdge<'a>>>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct FileAgentEntity<'a> {
+    n: &'a str,
+    k: &'a str,
+    l: [u32; 2],
+    #[serde(skip_serializing_if = "Option::is_none")]
+    v: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    d: Option<&'a str>,
+}
+
+pub fn render_file_agent_json(fc: &FileContext) -> String {
+    fn edge<'a>(e: &'a Edge) -> AgentEdge<'a> {
+        AgentEdge {
+            f: &e.file,
+            l: e.line,
+            s: &e.symbol,
+            k: &e.kind,
+        }
+    }
+    let view = FileAgentView {
+        q: &fc.q,
+        kind: "file",
+        f: &fc.file,
+        entities: fc
+            .entities
+            .iter()
+            .map(|e| FileAgentEntity {
+                n: &e.name,
+                k: &e.kind,
+                l: [e.line_start, e.line_end],
+                v: e.visibility.as_deref(),
+                d: e.doc.as_deref(),
+            })
+            .collect(),
+        top_callers: fc
+            .top_callers
+            .as_ref()
+            .map(|edges| edges.iter().map(edge).collect()),
+        top_callees: fc
+            .top_callees
+            .as_ref()
+            .map(|edges| edges.iter().map(edge).collect()),
+    };
+    serde_json::to_string(&view).expect("FileAgentView serializes infallibly")
+}
+
+pub fn render_file_full_json(fc: &FileContext, pretty: bool) -> String {
+    if pretty {
+        serde_json::to_string_pretty(fc).expect("FileContext serializes infallibly")
+    } else {
+        serde_json::to_string(fc).expect("FileContext serializes infallibly")
+    }
+}
+
+pub fn render_file_markdown(fc: &FileContext) -> String {
+    let mut out = String::new();
+    out.push_str(&format!("# {}\n\n", fc.file));
+    if !fc.entities.is_empty() {
+        out.push_str("## Symbols\n\n");
+        for e in &fc.entities {
+            out.push_str(&format!(
+                "- `{}` ({}) @ L{}-{}",
+                e.name, e.kind, e.line_start, e.line_end
+            ));
+            if let Some(v) = &e.visibility {
+                out.push_str(&format!(" [{}]", v));
+            }
+            out.push('\n');
+            if let Some(d) = &e.doc {
+                let trimmed = d.lines().next().unwrap_or("").trim();
+                if !trimmed.is_empty() {
+                    out.push_str(&format!("  > {}\n", trimmed));
+                }
+            }
+        }
+        out.push('\n');
+    }
+    if let Some(callers) = &fc.top_callers
+        && !callers.is_empty()
+    {
+        out.push_str("## Top callers\n\n");
+        for e in callers {
+            out.push_str(&format!("- `{}` @ {}:{}\n", e.symbol, e.file, e.line));
+        }
+        out.push('\n');
+    }
+    if let Some(callees) = &fc.top_callees
+        && !callees.is_empty()
+    {
+        out.push_str("## Top callees\n\n");
+        for e in callees {
+            out.push_str(&format!("- `{}` @ {}:{}\n", e.symbol, e.file, e.line));
+        }
+        out.push('\n');
+    }
+    out
 }
 
 #[cfg(test)]
@@ -899,6 +1484,628 @@ mod tests {
             vec![],
         );
         assert!(build_context(&idx, "nonexistent", &ContextOptions::default()).is_none());
+    }
+
+    #[test]
+    fn build_file_context_returns_top_level_outline_when_file_matches() {
+        let idx = Index::build(
+            vec![
+                ent_full("src/foo.rs", "Foo", "struct", None, None, None, 0),
+                ent_full("src/foo.rs", "helper", "function", None, None, None, 0),
+                // Method on Foo — not top-level outline; should be excluded.
+                ent_full("src/foo.rs", "method", "method", Some("Foo"), None, None, 0),
+                // Different file — should be excluded.
+                ent_full("src/bar.rs", "Bar", "struct", None, None, None, 0),
+            ],
+            vec![],
+        );
+        let fc = build_file_context(&idx, "src/foo.rs").expect("file in index");
+        assert_eq!(fc.q, "src/foo.rs");
+        assert_eq!(fc.file, "src/foo.rs");
+        let names: Vec<&str> = fc.entities.iter().map(|e| e.name.as_str()).collect();
+        assert!(names.contains(&"Foo"), "missing Foo in {:?}", names);
+        assert!(names.contains(&"helper"), "missing helper in {:?}", names);
+        assert!(!names.contains(&"method"), "method should not appear as top-level");
+        assert!(!names.contains(&"Bar"), "different file should not appear");
+    }
+
+    #[test]
+    fn build_file_context_aggregates_top_callers_from_other_files() {
+        // Two top-level entities defined in src/foo.rs (`Foo`, `helper`).
+        // External callers from src/main.rs reference both. The
+        // file-context should aggregate them under `top_callers`.
+        let idx = Index::build(
+            vec![
+                ent_full("src/foo.rs", "Foo", "struct", None, None, None, 0),
+                ent_full("src/foo.rs", "helper", "function", None, None, None, 0),
+            ],
+            vec![
+                refr("src/main.rs", Some("main"), "Foo", "call", 5),
+                refr("src/main.rs", Some("main"), "helper", "call", 6),
+                // A self-ref from inside the file — should be excluded.
+                refr("src/foo.rs", Some("Foo"), "helper", "call", 2),
+            ],
+        );
+        let fc = build_file_context(&idx, "src/foo.rs").expect("file matches");
+        let callers = fc.top_callers.expect("top_callers populated");
+        // 2 external refs: main → Foo, main → helper.
+        assert_eq!(callers.len(), 2);
+        // The self-ref from inside the file is filtered out.
+        assert!(
+            callers.iter().all(|e| e.file != "src/foo.rs"),
+            "self-refs leaked into top_callers: {:?}",
+            callers
+        );
+    }
+
+    #[test]
+    fn build_file_context_edges_are_sorted_deterministically() {
+        // CLAUDE.md invariant: "Entity output is sorted deterministically
+        // by (file, line_start)". The original implementation iterated
+        // a HashSet to fan out per-target refs, producing
+        // unspecified order. Now top_callers/top_callees sort by
+        // `(file, line)`.
+        let idx = Index::build(
+            vec![
+                ent_full("src/foo.rs", "Foo", "struct", None, None, None, 0),
+                ent_full("src/foo.rs", "Bar", "struct", None, None, None, 0),
+                ent_full("src/foo.rs", "Baz", "struct", None, None, None, 0),
+            ],
+            vec![
+                // Many callers across different files / lines so the
+                // sort actually has work to do.
+                refr("z.rs", Some("main"), "Foo", "call", 12),
+                refr("a.rs", Some("main"), "Bar", "call", 7),
+                refr("m.rs", Some("main"), "Baz", "call", 3),
+                refr("a.rs", Some("main"), "Foo", "call", 1),
+            ],
+        );
+        // Run the build twice — same input, expect identical output
+        // shape.
+        let fc1 = build_file_context(&idx, "src/foo.rs").expect("file matches");
+        let fc2 = build_file_context(&idx, "src/foo.rs").expect("file matches");
+        let c1 = fc1.top_callers.expect("populated");
+        let c2 = fc2.top_callers.expect("populated");
+
+        // Deterministic: ascending by (file, line).
+        let expected: Vec<(String, u32)> = vec![
+            ("a.rs".to_string(), 1),
+            ("a.rs".to_string(), 7),
+            ("m.rs".to_string(), 3),
+            ("z.rs".to_string(), 12),
+        ];
+        let actual1: Vec<(String, u32)> =
+            c1.iter().map(|e| (e.file.clone(), e.line)).collect();
+        let actual2: Vec<(String, u32)> =
+            c2.iter().map(|e| (e.file.clone(), e.line)).collect();
+        assert_eq!(actual1, expected, "top_callers must be sorted");
+        assert_eq!(actual1, actual2, "two runs must produce identical order");
+    }
+
+    #[test]
+    fn build_file_context_does_not_drop_external_calls_sharing_a_local_name() {
+        // Regression: `top_callees` used to filter by bare name
+        // membership in `in_file_names`. If file `a.rs` defined
+        // `fn parse(...)` AND called an external `serde::parse(...)`,
+        // the external call was silently dropped because `"parse"`
+        // appeared in the file's entity-name set.
+        //
+        // Fix: only drop a ref when ALL entities named N live in this
+        // file. When the name has both a local AND an external
+        // definition, the ref is kept (it's cross-file).
+        let idx = Index::build(
+            vec![
+                // Two `parse` definitions: one local to a.rs, one in
+                // the external library file.
+                ent_full("src/a.rs", "parse", "function", None, None, None, 0),
+                ent_full("src/a.rs", "caller", "function", None, None, None, 0),
+                ent_full("src/lib.rs", "parse", "function", None, None, None, 0),
+            ],
+            vec![
+                // External call from a.rs::caller to parse — should
+                // resolve to src/lib.rs::parse (not a.rs::parse).
+                refr("src/a.rs", Some("caller"), "parse", "call", 5),
+            ],
+        );
+        let fc = build_file_context(&idx, "src/a.rs").expect("file matches");
+        let callees = fc.top_callees.expect("top_callees populated");
+        // The bare-name filter would have dropped this; with target-
+        // file resolution, the external call to lib.rs::parse remains.
+        assert_eq!(
+            callees.len(),
+            1,
+            "external call with name shared by an in-file entity was dropped: {:?}",
+            callees
+        );
+        assert_eq!(callees[0].symbol, "parse");
+    }
+
+    #[test]
+    fn build_file_context_aggregates_top_callees_from_inside_file() {
+        // Foo (in src/foo.rs) calls External.do (in src/ext.rs).
+        // top_callees should surface that outbound ref.
+        let idx = Index::build(
+            vec![
+                ent_full("src/foo.rs", "Foo", "struct", None, None, None, 0),
+                ent_full("src/ext.rs", "External", "function", None, None, None, 0),
+            ],
+            vec![
+                // Outbound call from Foo to External — should be picked up.
+                refr("src/foo.rs", Some("Foo"), "External", "call", 10),
+                // Self-call inside foo.rs — should be filtered out (target
+                // resolves to an entity in the same file).
+                refr("src/foo.rs", Some("Foo"), "Foo", "call", 11),
+            ],
+        );
+        let fc = build_file_context(&idx, "src/foo.rs").expect("file matches");
+        let callees = fc.top_callees.expect("top_callees populated");
+        assert_eq!(callees.len(), 1);
+        assert_eq!(callees[0].symbol, "External");
+    }
+
+    #[test]
+    fn render_file_agent_json_uses_short_keys_per_issue_37_spec() {
+        let fc = FileContext {
+            q: "src/foo.rs".to_string(),
+            file: "src/foo.rs".to_string(),
+            entities: vec![FileEntity {
+                name: "Foo".to_string(),
+                kind: "struct".to_string(),
+                line_start: 10,
+                line_end: 50,
+                visibility: Some("public".to_string()),
+                doc: Some("A foo".to_string()),
+            }],
+            top_callers: Some(vec![]),
+            top_callees: Some(vec![]),
+        };
+        let out = render_file_agent_json(&fc);
+        // Compact, no newlines.
+        assert!(!out.contains('\n'));
+        let v: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
+        assert_eq!(v["q"], "src/foo.rs");
+        assert_eq!(v["kind"], "file");
+        assert_eq!(v["f"], "src/foo.rs");
+        assert_eq!(v["entities"][0]["n"], "Foo");
+        assert_eq!(v["entities"][0]["k"], "struct");
+        // `l` is a [start, end] tuple per the issue spec.
+        assert_eq!(v["entities"][0]["l"][0], 10);
+        assert_eq!(v["entities"][0]["l"][1], 50);
+        assert_eq!(v["entities"][0]["v"], "public");
+        assert_eq!(v["entities"][0]["d"], "A foo");
+    }
+
+    #[test]
+    fn render_file_full_json_serializes_long_keys() {
+        let fc = FileContext {
+            q: "src/foo.rs".to_string(),
+            file: "src/foo.rs".to_string(),
+            entities: vec![FileEntity {
+                name: "Foo".to_string(),
+                kind: "struct".to_string(),
+                line_start: 10,
+                line_end: 50,
+                visibility: None,
+                doc: None,
+            }],
+            top_callers: Some(vec![]),
+            top_callees: Some(vec![]),
+        };
+        let out = render_file_full_json(&fc, false);
+        let v: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
+        // Long-form keys for the unabridged JSON view.
+        assert_eq!(v["q"], "src/foo.rs");
+        assert_eq!(v["file"], "src/foo.rs");
+        assert_eq!(v["entities"][0]["name"], "Foo");
+        assert_eq!(v["entities"][0]["line_start"], 10);
+        assert_eq!(v["entities"][0]["line_end"], 50);
+    }
+
+    #[test]
+    fn render_file_markdown_includes_file_path_and_entity_list() {
+        let fc = FileContext {
+            q: "src/foo.rs".to_string(),
+            file: "src/foo.rs".to_string(),
+            entities: vec![
+                FileEntity {
+                    name: "Foo".to_string(),
+                    kind: "struct".to_string(),
+                    line_start: 10,
+                    line_end: 50,
+                    visibility: None,
+                    doc: None,
+                },
+                FileEntity {
+                    name: "helper".to_string(),
+                    kind: "function".to_string(),
+                    line_start: 60,
+                    line_end: 70,
+                    visibility: None,
+                    doc: None,
+                },
+            ],
+            top_callers: Some(vec![]),
+            top_callees: Some(vec![]),
+        };
+        let md = render_file_markdown(&fc);
+        assert!(md.contains("src/foo.rs"));
+        assert!(md.contains("Foo"));
+        assert!(md.contains("helper"));
+        assert!(md.contains("struct"));
+        assert!(md.contains("function"));
+    }
+
+    #[test]
+    fn build_file_context_returns_none_when_file_absent() {
+        let idx = Index::build(
+            vec![ent_full("src/foo.rs", "Foo", "struct", None, None, None, 0)],
+            vec![],
+        );
+        assert!(build_file_context(&idx, "src/nonexistent.rs").is_none());
+    }
+
+    #[test]
+    fn render_no_match_agent_emits_compact_json_on_stdout() {
+        let nm = NoMatch {
+            q: "fooz".to_string(),
+            resolved: false,
+            reason: "no entity matches `fooz`".to_string(),
+            candidates: vec![Candidate {
+                f: "src/a.rs".to_string(),
+                n: "foo".to_string(),
+                k: "function".to_string(),
+                l: 12,
+            }],
+        };
+        let out = render_no_match(&nm, ContextFormat::Agent, false);
+        let body = match out {
+            NoMatchOutput::Stdout(s) => s,
+            NoMatchOutput::Stderr(_) => panic!("agent format must emit on stdout"),
+        };
+        // Compact JSON: no newlines or pretty indent.
+        assert!(!body.contains('\n'), "agent format should be compact");
+        let v: serde_json::Value = serde_json::from_str(&body).expect("valid JSON");
+        assert_eq!(v["q"], "fooz");
+        assert_eq!(v["resolved"], false);
+        assert_eq!(v["reason"], "no entity matches `fooz`");
+        assert_eq!(v["candidates"][0]["n"], "foo");
+        assert_eq!(v["candidates"][0]["f"], "src/a.rs");
+        assert_eq!(v["candidates"][0]["k"], "function");
+        assert_eq!(v["candidates"][0]["l"], 12);
+    }
+
+    #[test]
+    fn render_no_match_full_pretty_emits_pretty_json_on_stdout() {
+        let nm = NoMatch {
+            q: "fooz".to_string(),
+            resolved: false,
+            reason: "no entity matches `fooz`".to_string(),
+            candidates: vec![],
+        };
+        let out = render_no_match(&nm, ContextFormat::Full, true);
+        let body = match out {
+            NoMatchOutput::Stdout(s) => s,
+            NoMatchOutput::Stderr(_) => panic!("json format must emit on stdout"),
+        };
+        assert!(body.contains('\n'), "pretty JSON should span multiple lines");
+        let v: serde_json::Value = serde_json::from_str(&body).expect("valid JSON");
+        assert_eq!(v["q"], "fooz");
+    }
+
+    #[test]
+    fn render_no_match_markdown_emits_stderr_text() {
+        let nm = NoMatch {
+            q: "fooz".to_string(),
+            resolved: false,
+            reason: "no entity matches `fooz`".to_string(),
+            candidates: vec![],
+        };
+        let out = render_no_match(&nm, ContextFormat::Markdown, false);
+        let body = match out {
+            NoMatchOutput::Stderr(s) => s,
+            NoMatchOutput::Stdout(_) => panic!("markdown format must emit on stderr"),
+        };
+        assert!(body.contains("no entity matches"));
+        assert!(body.contains("fooz"));
+    }
+
+    #[test]
+    fn build_no_match_falls_back_to_suggest_similar_on_typo() {
+        // "proess_dta" has no substring overlap with "process_data" but
+        // is within edit-distance bounds. search() returns empty; the
+        // fallback should fill candidates by name-similarity.
+        let idx = Index::build(
+            vec![ent_full(
+                "src/lib.rs",
+                "process_data",
+                "function",
+                None,
+                None,
+                None,
+                0,
+            )],
+            vec![],
+        );
+        let direct = idx.search("proess_dta", crate::query::index::Scope::All, None, None, 10);
+        assert!(direct.is_empty(), "precondition: search must miss");
+
+        let nm = build_no_match(&idx, "proess_dta");
+        assert!(
+            nm.candidates.iter().any(|c| c.n == "process_data"),
+            "expected typo fallback to surface `process_data`, got: {:?}",
+            nm.candidates.iter().map(|c| &c.n).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn build_no_match_surfaces_file_matches_with_basename() {
+        let idx = Index::build(
+            vec![ent_full(
+                "src/auth_helpers.rs",
+                "something_else",
+                "function",
+                None,
+                None,
+                None,
+                0,
+            )],
+            vec![],
+        );
+        let nm = build_no_match(&idx, "auth_helpers");
+        let file_hits: Vec<_> = nm.candidates.iter().filter(|c| c.k == "file").collect();
+        assert_eq!(file_hits.len(), 1);
+        assert_eq!(file_hits[0].f, "src/auth_helpers.rs");
+        assert_eq!(file_hits[0].n, "auth_helpers.rs", "n is the basename");
+        assert_eq!(file_hits[0].l, 0);
+    }
+
+    #[test]
+    fn render_agent_json_surfaces_parents_under_h_key() {
+        let mut subclass = ent_full(
+            "src/sub.rs",
+            "Subclass",
+            "class",
+            None,
+            None,
+            None,
+            0,
+        );
+        subclass.heritage = vec![crate::entity::HeritageEdge {
+            kind: "extend".to_string(),
+            target: "Superclass".to_string(),
+        }];
+        let superclass = ent_full(
+            "src/super.rs",
+            "Superclass",
+            "class",
+            None,
+            None,
+            None,
+            0,
+        );
+        let idx = Index::build(vec![subclass, superclass], vec![]);
+        let ctx = build_context(&idx, "Subclass", &ContextOptions::default()).expect("resolves");
+        let agent = render_agent_json(&ctx);
+        let v: serde_json::Value = serde_json::from_str(&agent).expect("valid JSON");
+        let parents = v["h"]["parents"].as_array().expect("h.parents present");
+        assert_eq!(parents.len(), 1);
+        assert_eq!(parents[0]["n"], "Superclass");
+        assert_eq!(parents[0]["f"], "src/super.rs");
+        assert_eq!(parents[0]["k"], "class");
+        // Issue #38 spec: l is a [start, end] tuple.
+        assert_eq!(parents[0]["l"][0], 10);
+        assert_eq!(parents[0]["l"][1], 20);
+    }
+
+    #[test]
+    fn render_agent_json_omits_h_for_entity_without_parents() {
+        let idx = Index::build(
+            vec![ent_full("a.rs", "Foo", "class", None, None, None, 0)],
+            vec![],
+        );
+        let ctx = build_context(&idx, "Foo", &ContextOptions::default()).expect("resolves");
+        let agent = render_agent_json(&ctx);
+        let v: serde_json::Value = serde_json::from_str(&agent).expect("valid JSON");
+        assert!(v.get("h").is_none(), "h should be omitted when no parents");
+    }
+
+    #[test]
+    fn render_agent_json_surfaces_resolved_via_heritage() {
+        let mut subclass = ent_full(
+            "src/sub.rs",
+            "Subclass",
+            "class",
+            None,
+            None,
+            None,
+            0,
+        );
+        subclass.heritage = vec![crate::entity::HeritageEdge {
+            kind: "extend".to_string(),
+            target: "Superclass".to_string(),
+        }];
+        let superclass = ent_full(
+            "src/super.rs",
+            "Superclass",
+            "class",
+            None,
+            None,
+            None,
+            0,
+        );
+        let testing = ent_full(
+            "src/super.rs",
+            "testing",
+            "variable",
+            Some("Superclass"),
+            None,
+            None,
+            0,
+        );
+        let idx = Index::build(vec![subclass, superclass, testing], vec![]);
+        let ctx = build_context(&idx, "Subclass::testing", &ContextOptions::default())
+            .expect("heritage resolution");
+        let agent = render_agent_json(&ctx);
+        let v: serde_json::Value = serde_json::from_str(&agent).expect("valid JSON");
+        assert_eq!(v["resolved_via"], "heritage");
+        assert_eq!(v["ancestor"], "src/super.rs::Superclass");
+    }
+
+    #[test]
+    fn resolve_via_heritage_handles_same_named_classes_in_different_files() {
+        // Regression: the visited-set used to key on bare class name,
+        // so a second `Base` in a different file got silently skipped
+        // as "already visited" — the BFS would terminate before
+        // finding an inherited member that actually lives on the
+        // *other* Base. Now the visited key is `(file, name)`.
+        //
+        // Topology:
+        //   src/a.rs::Sub extends Base (resolves to whichever `Base`
+        //     comes first via `lookup_class`).
+        //   src/a.rs::Base — does NOT define `member`.
+        //   src/b.rs::Base — DOES define `member`.
+        //
+        // `lookup_class` returns the first `Base` it finds; if that's
+        // the one without `member`, the BFS used to bail. With the
+        // (file, name) key, BOTH `Base` entities can be enqueued.
+        let mut sub = ent_full("src/a.rs", "Sub", "class", None, None, None, 0);
+        sub.heritage = vec![crate::entity::HeritageEdge {
+            kind: "extend".to_string(),
+            target: "Base".to_string(),
+        }];
+        let mut base_a = ent_full("src/a.rs", "Base", "class", None, None, None, 0);
+        base_a.heritage = vec![crate::entity::HeritageEdge {
+            kind: "extend".to_string(),
+            // Point a.rs::Base at b.rs::Base so the BFS has to walk
+            // through the same-named class.
+            target: "Base".to_string(),
+        }];
+        let base_b = ent_full("src/b.rs", "Base", "class", None, None, None, 0);
+        let member = ent_full(
+            "src/b.rs",
+            "member",
+            "variable",
+            Some("Base"),
+            None,
+            None,
+            0,
+        );
+        let idx = Index::build(vec![sub, base_a, base_b, member], vec![]);
+
+        let ctx = build_context(&idx, "Sub::member", &ContextOptions::default())
+            .expect("heritage walk should find the b.rs Base");
+        assert_eq!(ctx.chosen.file, "src/b.rs");
+        assert_eq!(ctx.resolved_via.as_deref(), Some("heritage"));
+    }
+
+    #[test]
+    fn build_context_resolves_subclass_member_via_heritage() {
+        // Superclass defines `testing`. Subclass extends Superclass but
+        // does NOT define `testing` itself. Querying
+        // `Subclass::testing` should walk the heritage edge to
+        // Superclass and return its `testing` member with the marker
+        // `resolved_via = "heritage"` and `ancestor = "Superclass"`.
+        let mut subclass = ent_full(
+            "src/sub.rs",
+            "Subclass",
+            "class",
+            None,
+            None,
+            None,
+            0,
+        );
+        subclass.heritage = vec![crate::entity::HeritageEdge {
+            kind: "extend".to_string(),
+            target: "Superclass".to_string(),
+        }];
+        let superclass = ent_full(
+            "src/super.rs",
+            "Superclass",
+            "class",
+            None,
+            None,
+            None,
+            0,
+        );
+        let testing = ent_full(
+            "src/super.rs",
+            "testing",
+            "variable",
+            Some("Superclass"),
+            None,
+            None,
+            0,
+        );
+        let idx = Index::build(vec![subclass, superclass, testing], vec![]);
+
+        let ctx = build_context(&idx, "Subclass::testing", &ContextOptions::default())
+            .expect("heritage-aware resolution must succeed");
+        assert_eq!(ctx.chosen.name, "testing");
+        assert_eq!(ctx.chosen.file, "src/super.rs");
+        assert_eq!(ctx.resolved_via.as_deref(), Some("heritage"));
+        assert_eq!(ctx.ancestor.as_deref(), Some("src/super.rs::Superclass"));
+    }
+
+    #[test]
+    fn build_context_populates_parents_from_heritage_edges() {
+        // Subclass extends Superclass. The bundle for Subclass should
+        // surface Superclass under `parents` so an agent doesn't have
+        // to issue a separate `sigil heritage` call to discover it.
+        let mut subclass = ent_full(
+            "src/sub.rs",
+            "Subclass",
+            "class",
+            None,
+            None,
+            None,
+            0,
+        );
+        subclass.heritage = vec![crate::entity::HeritageEdge {
+            kind: "extend".to_string(),
+            target: "Superclass".to_string(),
+        }];
+        let superclass = ent_full(
+            "src/super.rs",
+            "Superclass",
+            "class",
+            None,
+            None,
+            None,
+            0,
+        );
+        let idx = Index::build(vec![subclass, superclass], vec![]);
+        let ctx = build_context(&idx, "Subclass", &ContextOptions::default()).expect("resolves");
+        assert_eq!(ctx.parents.len(), 1, "expected one parent");
+        let p = &ctx.parents[0];
+        assert_eq!(p.name, "Superclass");
+        assert_eq!(p.file, "src/super.rs");
+        assert_eq!(p.kind, "class");
+    }
+
+    #[test]
+    fn build_no_match_returns_substring_match_as_candidate() {
+        let idx = Index::build(
+            vec![ent_full(
+                "src/lib.rs",
+                "process_data",
+                "function",
+                None,
+                None,
+                None,
+                0,
+            )],
+            vec![],
+        );
+        let nm = build_no_match(&idx, "process");
+        assert_eq!(nm.q, "process");
+        assert!(!nm.resolved);
+        assert!(!nm.reason.is_empty(), "reason should be a human-readable string");
+        assert_eq!(nm.candidates.len(), 1);
+        let c = &nm.candidates[0];
+        assert_eq!(c.n, "process_data");
+        assert_eq!(c.f, "src/lib.rs");
+        assert_eq!(c.k, "function");
+        assert_eq!(c.l, 10);
     }
 
     #[test]
