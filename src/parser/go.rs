@@ -124,6 +124,16 @@ fn walk_node(
         "call_expression" => {
             extract_call(node, source, file_path, parent_ctx, references, imports);
         }
+        "composite_literal" => {
+            // `&Engine{...}` / `Engine{...}` / `[]Engine{...}` — emit a
+            // type_annotation ref for the literal's type so the type
+            // surfaces in `sigil callers Engine`. Recurse afterwards
+            // so nested literals and call expressions inside still get
+            // walked normally.
+            if let Some(typ) = find_child_by_field(node, "type") {
+                extract_type_refs_from_node(typ, source, file_path, parent_ctx, references);
+            }
+        }
         "comment" => {
             extract_go_comment(node, source, file_path, parent_ctx, texts);
             return;
@@ -394,6 +404,13 @@ fn extract_method(
     // Extract type references from result
     if let Some(result) = find_child_by_field(node, "result") {
         extract_type_refs_from_node(result, source, file_path, Some(&full_name), references);
+    }
+
+    // Extract type reference from receiver — `func (e *Engine) Foo()`
+    // emits an `Engine` type_annotation. Without this, `sigil callers
+    // Engine` misses every method declared on the type.
+    if let Some(recv) = find_child_by_field(node, "receiver") {
+        extract_type_refs_from_node(recv, source, file_path, Some(&full_name), references);
     }
 
     // Recurse into method body with method name as context
@@ -1280,6 +1297,65 @@ import (
         assert!(
             import_refs.iter().any(|r| r.name == "os"),
             "should find os import"
+        );
+    }
+
+    #[test]
+    fn test_go_method_receiver_type_ref() {
+        // Gap surfaced by the gin-gonic/gin audit: a method declaration
+        // `func (engine *Engine) Foo()` records `Engine` as the
+        // method's parent, but never emits a type_annotation Reference
+        // for the receiver type. `sigil callers Engine` should reach
+        // every method declared on it.
+        let source = b"package main
+
+type Engine struct { v int }
+
+func (engine *Engine) First() {}
+func (e Engine) Second() {}
+func (other *Other) Skip() {}
+";
+        let (_symbols, _texts, refs) = parse_file(source, "go", "test.go").unwrap();
+        let engine_recv: Vec<_> = refs
+            .iter()
+            .filter(|r| r.kind == "type_annotation" && r.name == "Engine")
+            .collect();
+        assert_eq!(
+            engine_recv.len(),
+            2,
+            "expected 2 Engine receiver refs (pointer + value); got {:?}",
+            refs.iter().map(|r| (&r.kind, &r.name)).collect::<Vec<_>>(),
+        );
+    }
+
+    #[test]
+    fn test_go_composite_literal_type_ref() {
+        // `&Engine{...}` and `Engine{...}` struct literals should
+        // surface `Engine` as a type_annotation ref so it shows up in
+        // `sigil callers Engine`. Gin's `New()` returns `&Engine{...}`.
+        let source = b"package main
+
+type Engine struct { v int }
+
+func New() *Engine {
+    return &Engine{v: 1}
+}
+
+func makeValue() Engine {
+    return Engine{v: 2}
+}
+";
+        let (_symbols, _texts, refs) = parse_file(source, "go", "test.go").unwrap();
+        let engine_lit: Vec<_> = refs
+            .iter()
+            .filter(|r| r.kind == "type_annotation" && r.name == "Engine")
+            .collect();
+        // Two struct literals + two return types = at least 2 literal-driven refs.
+        assert!(
+            engine_lit.len() >= 4,
+            "expected ≥4 Engine type-annotation refs (2 returns + 2 literals); got {} -> {:?}",
+            engine_lit.len(),
+            refs.iter().map(|r| (&r.kind, &r.name, r.line)).collect::<Vec<_>>(),
         );
     }
 
