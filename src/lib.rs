@@ -36,6 +36,7 @@ pub mod contracts;
 pub mod dead_code;
 pub mod decisions;
 pub mod map;
+pub mod mcp;
 pub mod outline;
 pub mod output;
 pub mod ownership;
