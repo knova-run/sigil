@@ -333,6 +333,14 @@ fn walk_node(
         "new_expression" => {
             extract_new_ref(node, source, file_path, parent_ctx, references);
         }
+        // JSX element use — `<Component />` / `<Component>...</Component>`.
+        // For React codebases this is the primary "where used" call
+        // site, more common than imports. Emit as kind=instantiation
+        // (consistent with `new Component()`). Capitalised-first-char
+        // gate to skip DOM intrinsics like `<div>` / `<span>`.
+        "jsx_self_closing_element" | "jsx_opening_element" => {
+            extract_jsx_element_ref(node, source, file_path, parent_ctx, references);
+        }
 
         "comment" => {
             extract_ts_comment(node, source, file_path, parent_ctx, texts);
@@ -568,6 +576,40 @@ fn extract_new_ref(
         name,
         kind: "instantiation".to_string(),
         line,
+        caller: parent_ctx.map(String::from),
+        project: String::new(),
+        confidence: None,
+    });
+}
+
+/// Extract a JSX element use site as an instantiation reference.
+/// Skips DOM intrinsics (lowercase first char of leftmost segment).
+fn extract_jsx_element_ref(
+    node: Node,
+    source: &[u8],
+    file_path: &str,
+    parent_ctx: Option<&str>,
+    references: &mut Vec<ReferenceEntry>,
+) {
+    // The element-name child carries the component name. Tree-sitter-tsx
+    // exposes it as the `name` field on jsx_opening_element /
+    // jsx_self_closing_element; values are `identifier` (single name)
+    // or `member_expression`/`nested_identifier` (e.g. `ns.Foo` / `A.B.C`).
+    let Some(name_node) = find_child_by_field(node, "name") else {
+        return;
+    };
+    let raw = node_text(name_node, source);
+    // Leftmost segment determines whether this is a DOM intrinsic
+    // (`<div>`) or a React component (`<Foo>` / `<ns.Foo>`).
+    let head = raw.split(|c| c == '.' || c == '<' || c == '>').next().unwrap_or(&raw);
+    if !head.chars().next().map(|c| c.is_ascii_uppercase()).unwrap_or(false) {
+        return;
+    }
+    references.push(ReferenceEntry {
+        file: file_path.to_string(),
+        name: raw,
+        kind: "instantiation".to_string(),
+        line: node_line_range(node),
         caller: parent_ctx.map(String::from),
         project: String::new(),
         confidence: None,
@@ -1838,6 +1880,36 @@ import type { User } from './types';";
         // Should NOT find console.log (builtin)
         let console_ref = refs.iter().find(|r| r.name == "console.log");
         assert!(console_ref.is_none());
+    }
+
+    #[test]
+    fn test_ts_jsx_element_emits_ref() {
+        // Regression: React QA showed that `<Component />` JSX elements
+        // were NOT being emitted as refs — only imports. For a React
+        // codebase, JSX use sites are the primary "where used" lookup,
+        // so this missing coverage masked thousands of relationships.
+        let source = b"function Page() {
+    return <>
+        <MonacoEditor value={x} />
+        <IconChevron />
+        <Activity>hello</Activity>
+        <ns.Module.Foo />
+    </>;
+}";
+        let (_, _, refs) = parse_file(source, "tsx", "test.tsx").unwrap();
+        let names: Vec<&str> = refs
+            .iter()
+            .filter(|r| r.kind == "instantiation")
+            .map(|r| r.name.as_str())
+            .collect();
+        assert!(names.contains(&"MonacoEditor"), "JSX <MonacoEditor /> should emit instantiation ref; got {:?}", names);
+        assert!(names.contains(&"IconChevron"), "JSX <IconChevron /> should emit; got {:?}", names);
+        assert!(names.contains(&"Activity"), "JSX <Activity> wrapper should emit; got {:?}", names);
+        // Lowercase HTML elements (`<div>`, `<span>`) must NOT emit
+        // refs — they're DOM intrinsics, not user components.
+        let lowercase_hit = refs.iter().any(|r| r.kind == "instantiation"
+            && r.name.chars().next().map(|c| c.is_lowercase()).unwrap_or(false));
+        assert!(!lowercase_hit, "lowercase JSX tags (DOM intrinsics) must not emit refs");
     }
 
     #[test]

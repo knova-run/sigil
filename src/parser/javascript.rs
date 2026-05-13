@@ -303,6 +303,12 @@ fn walk_node(
         "new_expression" => {
             extract_new_ref(node, source, file_path, parent_ctx, references);
         }
+        // JSX element use (`<Component />`). Emit as kind=instantiation
+        // — for React codebases JSX sites are the primary "where used"
+        // pattern. Capitalised-first-char gate skips DOM intrinsics.
+        "jsx_self_closing_element" | "jsx_opening_element" => {
+            extract_jsx_element_ref(node, source, file_path, parent_ctx, references);
+        }
 
         "comment" => {
             extract_js_comment(node, source, file_path, parent_ctx, texts);
@@ -493,6 +499,34 @@ fn extract_new_ref(
         name,
         kind: "instantiation".to_string(),
         line,
+        caller: parent_ctx.map(String::from),
+        project: String::new(),
+        confidence: None,
+    });
+}
+
+/// Extract a JSX element use site as an instantiation reference.
+/// Skips DOM intrinsics (lowercase first char). Mirrors TS parser.
+fn extract_jsx_element_ref(
+    node: Node,
+    source: &[u8],
+    file_path: &str,
+    parent_ctx: Option<&str>,
+    references: &mut Vec<ReferenceEntry>,
+) {
+    let Some(name_node) = find_child_by_field(node, "name") else {
+        return;
+    };
+    let raw = node_text(name_node, source);
+    let head = raw.split(|c| c == '.' || c == '<' || c == '>').next().unwrap_or(&raw);
+    if !head.chars().next().map(|c| c.is_ascii_uppercase()).unwrap_or(false) {
+        return;
+    }
+    references.push(ReferenceEntry {
+        file: file_path.to_string(),
+        name: raw,
+        kind: "instantiation".to_string(),
+        line: node_line_range(node),
         caller: parent_ctx.map(String::from),
         project: String::new(),
         confidence: None,
