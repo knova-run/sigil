@@ -753,7 +753,7 @@ mod tests {
             blast_radius: None,
             doc: None,
             heritage: Vec::new(),
-        }
+            alias: None,        }
     }
 
     fn make_diff_result(entities: Vec<EntityDiff>, patterns: Vec<CrossFilePattern>) -> DiffResult {

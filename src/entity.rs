@@ -47,6 +47,16 @@ pub struct Entity {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub doc: Option<String>,
 
+    /// Local-binding name for `import X as alias` style imports. Populated
+    /// only when the parser saw an explicit alias clause (Python `import
+    /// foo as f`, TS `import * as utils from "./u"`, Rust `use foo::Bar as
+    /// B;`, etc.); plain `import foo` has alias=None and binds to the
+    /// trailing segment of `name` instead. Member-call Strategy 1
+    /// (`alias.method()`) uses this to map the receiver back to the
+    /// import target.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub alias: Option<String>,
+
     /// Heritage edges this entity participates in — `extend`, `implement`,
     /// `embed`, `trait_impl`. Populated across 12 languages:
     ///   * Go — struct embedding (`embed`)

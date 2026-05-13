@@ -773,7 +773,7 @@ mod json_emit_tests {
             }),
             doc: None,
             heritage: Vec::new(),
-        }
+            alias: None,        }
     }
 
     fn sample_import() -> Entity {
@@ -795,7 +795,7 @@ mod json_emit_tests {
             blast_radius: Some(BlastRadius::default()), // all zeros
             doc: None,
             heritage: Vec::new(),
-        }
+            alias: None,        }
     }
 
     #[test]

@@ -957,7 +957,7 @@ fn row_to_entity(row: &duckdb::Row<'_>) -> duckdb::Result<Entity> {
         blast_radius: None,
         doc: None,
         heritage: Vec::new(),
-    })
+        alias: None,    })
 }
 
 /// DuckDB's SQL expects `'...'` strings; we single-quote by escaping any
@@ -1078,7 +1078,7 @@ mod tests {
             blast_radius: None,
             doc: None,
             heritage: Vec::new(),
-        }
+            alias: None,        }
     }
 
     fn refr(file: &str, caller: Option<&str>, name: &str, kind: &str, line: u32) -> Reference {

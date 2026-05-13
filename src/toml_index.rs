@@ -415,7 +415,7 @@ fn extract_table_entities(
             blast_radius: None,
             doc: None,
             heritage: Vec::new(),
-        });
+            alias: None,        });
 
         // Recurse into nested tables
         if let toml::Value::Table(nested_map) = value {

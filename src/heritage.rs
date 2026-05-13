@@ -207,6 +207,7 @@ mod tests {
                     target: t.to_string(),
                 })
                 .collect(),
+            alias: None,
         }
     }
 

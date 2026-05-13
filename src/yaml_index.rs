@@ -328,7 +328,7 @@ fn extract_mapping_entities(
             blast_radius: None,
             doc: None,
             heritage: Vec::new(),
-        });
+            alias: None,        });
 
         // Recurse into nested mappings
         let inner_value = match value {

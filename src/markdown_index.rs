@@ -62,7 +62,7 @@ fn close_headings(
                 blast_radius: None,
                 doc: None,
                 heritage: Vec::new(),
-            });
+                alias: None,            });
         } else {
             break;
         }
@@ -114,7 +114,7 @@ fn flush_accumulator(
         blast_radius: None,
         doc: None,
         heritage: Vec::new(),
-    });
+        alias: None,    });
 
     acc_kind.clear();
     acc_lines.clear();
@@ -301,7 +301,7 @@ pub fn parse_markdown_file(
                 blast_radius: None,
                 doc: None,
                 heritage: Vec::new(),
-            });
+                alias: None,            });
 
             // Delegate YAML parsing
             if let Ok((yaml_entities, _)) = crate::yaml_index::parse_yaml_file(&yaml_body, file_path) {
@@ -514,7 +514,7 @@ pub fn parse_markdown_file(
                         blast_radius: None,
                         doc: None,
                         heritage: Vec::new(),
-                    });
+                        alias: None,                    });
 
                     state = State::Normal;
                 } else {
@@ -561,7 +561,7 @@ pub fn parse_markdown_file(
                         blast_radius: None,
                         doc: None,
                         heritage: Vec::new(),
-                    });
+                        alias: None,                    });
 
                     state = State::Normal;
                     // Don't increment i -- re-process this line in Normal state
@@ -613,7 +613,7 @@ pub fn parse_markdown_file(
             blast_radius: None,
             doc: None,
             heritage: Vec::new(),
-        });
+            alias: None,        });
     }
 
     // Handle unclosed table at EOF (before draining heading stack)
@@ -646,7 +646,7 @@ pub fn parse_markdown_file(
             blast_radius: None,
             doc: None,
             heritage: Vec::new(),
-        });
+            alias: None,        });
     }
 
     // Close any remaining open headings (after handling unclosed blocks so they get correct parents)

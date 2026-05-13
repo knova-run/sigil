@@ -128,6 +128,7 @@ pub fn parse_single_file(
             blast_radius: None,
             doc,
             heritage,
+            alias: sym.alias.clone(),
         });
     }
 
@@ -651,9 +652,47 @@ fn resolve_member_call(entities: &[Entity], refs: &mut [Reference]) {
     // of name X (filled by walking entities once). Used for Strategy-2
     // imported-class lookup (global-unique check). Key is (class, method).
     let mut global_class_methods: HashMap<(&str, &str), Vec<&str>> = HashMap::new();
+    // Strategy 1 (module-alias receiver): per-file `local_name →
+    // import_target` table. local_name is alias when present (`import
+    // foo as f` → `f`), otherwise the trailing segment of name (plain
+    // `import foo` → `foo`). import_target is the import entity's
+    // unaliased name (`foo` / `./utils` / `numpy`). The receiver in a
+    // member call is matched against local_name; the target gets
+    // resolved to a workspace file via filename-stem lookup.
+    let mut file_aliases: HashMap<&str, HashMap<String, &str>> = HashMap::new();
+    // Per-file callable index used by Strategy 1 to verify that the
+    // target file actually defines the called leaf. Keyed by the
+    // leaf name (bare or qualified-tail) so `utils.run()` finds
+    // `def run` in utils.py.
+    let mut file_callables: HashMap<&str, HashSet<&str>> = HashMap::new();
     for e in entities {
+        if is_callable_kind(&e.kind) {
+            file_callables.entry(e.file.as_str()).or_default().insert(e.name.as_str());
+            if let Some(parent) = e.parent.as_deref() {
+                let leaf = e.name
+                    .strip_prefix(&format!("{parent}."))
+                    .or_else(|| e.name.strip_prefix(&format!("{parent}::")))
+                    .unwrap_or(e.name.as_str());
+                file_callables.entry(e.file.as_str()).or_default().insert(leaf);
+            }
+        }
         if e.kind == "class" {
             classes.insert((e.file.as_str(), e.name.as_str()));
+            file_callables.entry(e.file.as_str()).or_default().insert(e.name.as_str());
+            continue;
+        }
+        if e.kind == "import" {
+            let local = e.alias.clone().unwrap_or_else(|| {
+                e.name
+                    .rsplit(|c| c == '.' || c == '/')
+                    .next()
+                    .unwrap_or(&e.name)
+                    .to_string()
+            });
+            file_aliases
+                .entry(e.file.as_str())
+                .or_default()
+                .insert(local, e.name.as_str());
             continue;
         }
         if e.kind != "method" {
@@ -670,6 +709,17 @@ fn resolve_member_call(entities: &[Entity], refs: &mut [Reference]) {
             .entry((parent, leaf))
             .or_default()
             .push(e.file.as_str());
+    }
+
+    // file-stem → file map for Strategy 1's import-target → file lookup.
+    // For `import utils` we look up `utils` and find `utils.py` etc.
+    let mut file_by_stem: HashMap<&str, &str> = HashMap::new();
+    for f in file_callables.keys() {
+        let stem = std::path::Path::new(f)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or(f);
+        file_by_stem.entry(stem).or_insert(*f);
     }
 
     for r in refs.iter_mut() {
@@ -741,6 +791,43 @@ fn resolve_member_call(entities: &[Entity], refs: &mut [Reference]) {
                     _ => {}
                 }
                 r.callee_id = Some(format!("{target_file}::{head}::{leaf}"));
+                continue;
+            }
+        }
+
+        // Strategy 1 (module-alias receiver): receiver `head` is a
+        // local binding from an import in the caller's file. Look up
+        // the import's target module, resolve it to a workspace file by
+        // filename-stem, and verify the target defines a callable named
+        // `leaf`. Repowise's `_resolve_member_call` Strategy 1/1b lives
+        // at the same 0.88 tier as Strategy 2 imported.
+        if let Some(aliases) = file_aliases.get(r.file.as_str()) {
+            if let Some(target_module) = aliases.get(head) {
+                // Map import target ("utils" / "./utils" / "numpy") to
+                // a workspace file via stem match. Strip leading `./`
+                // and any trailing-segment after the final separator,
+                // then look up the bare stem.
+                let cleaned = target_module
+                    .trim_start_matches("./")
+                    .trim_start_matches("../");
+                let stem = cleaned
+                    .rsplit(|c| c == '/' || c == '.')
+                    .next()
+                    .unwrap_or(cleaned);
+                if let Some(target_file) = file_by_stem.get(stem) {
+                    if file_callables
+                        .get(target_file)
+                        .map(|s| s.contains(leaf))
+                        .unwrap_or(false)
+                    {
+                        match r.confidence {
+                            None => r.confidence = Some(0.88),
+                            Some(c) if c <= 0.85 => r.confidence = Some(0.88),
+                            _ => {}
+                        }
+                        r.callee_id = Some(format!("{target_file}::{leaf}"));
+                    }
+                }
             }
         }
     }
@@ -2683,7 +2770,7 @@ fn emit_external_sentinels(
             blast_radius: None,
             doc: None,
             heritage: Vec::new(),
-        });
+            alias: None,        });
     }
     out
 }
@@ -2962,7 +3049,7 @@ mod tests {
             blast_radius: None,
             doc: None,
             heritage: Vec::new(),
-        }
+            alias: None,        }
     }
 
     fn synth_call(file: &str, name: &str, confidence: Option<f64>) -> Reference {
