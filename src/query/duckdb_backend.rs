@@ -1275,6 +1275,21 @@ mod tests {
         from_idx.sort_by(|a, b| a.line.cmp(&b.line));
         assert_eq!(from_db, from_idx, "DuckDB and in-memory backends must agree on Reference shape");
 
+        // get_callees uses the same row_to_reference + 7-column SELECT —
+        // verify the round-trip there too so a future refactor that
+        // reorders columns can't quietly desync the two read paths.
+        let mut from_db_cee = db.get_callees("caller", None, 0).unwrap();
+        from_db_cee.sort_by(|a, b| a.line.cmp(&b.line));
+        let mut from_idx_cee: Vec<Reference> = idx
+            .get_callees("caller", None, 0)
+            .into_iter()
+            .cloned()
+            .collect();
+        from_idx_cee.sort_by(|a, b| a.line.cmp(&b.line));
+        assert_eq!(from_db_cee, from_idx_cee, "get_callees must also preserve confidence + callee_id");
+        assert_eq!(from_db_cee[0].confidence, Some(0.95));
+        assert_eq!(from_db_cee[0].callee_id.as_deref(), Some("a.rs::Foo"));
+
         std::fs::remove_dir_all(&root).ok();
     }
 
