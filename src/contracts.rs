@@ -603,6 +603,8 @@ fn scan_js_ts(file: &str, text: &str, ext: &str) -> Vec<ContractRow> {
     }
     // Redis / NATS pub-sub for JS/TS files.
     emit_pubsub_rows(file, text, language, &mut out);
+    // SQS/SNS/EventBridge/GCP/AMQP — aws-sdk-js, amqplib, @google-cloud/pubsub.
+    emit_cloud_queue_rows(file, text, language, &mut out);
     out
 }
 
@@ -819,6 +821,10 @@ fn scan_go(file: &str, text: &str) -> Vec<ContractRow> {
             });
         }
     }
+    // AWS / GCP / RabbitMQ for Go (aws-sdk-go, cloud.google.com/go/pubsub,
+    // streadway/amqp). The same kwarg shapes used by the Python boto3
+    // SDK appear as struct field names in Go (`QueueUrl: aws.String(...)`).
+    emit_cloud_queue_rows(file, text, "go", &mut out);
     out
 }
 
@@ -939,6 +945,7 @@ fn scan_java(file: &str, text: &str) -> Vec<ContractRow> {
             }
         }
     }
+    emit_cloud_queue_rows(file, text, "java", &mut out);
     out
 }
 
@@ -1100,6 +1107,7 @@ fn scan_ruby(file: &str, text: &str) -> Vec<ContractRow> {
         }
     }
     emit_pubsub_rows(file, text, "ruby", &mut out);
+    emit_cloud_queue_rows(file, text, "ruby", &mut out);
     // Quick filter: this file has to plausibly be a Rails routes file
     // or a controller — skip pure model / lib / spec files to avoid
     // matching `get :latest, on: :collection` in non-router contexts.
@@ -1517,6 +1525,7 @@ fn scan_php(file: &str, text: &str) -> Vec<ContractRow> {
             }
         }
     }
+    emit_cloud_queue_rows(file, text, "php", &mut out);
     out
 }
 
@@ -1715,7 +1724,174 @@ fn scan_csharp(file: &str, text: &str) -> Vec<ContractRow> {
             }
         }
     }
+    emit_cloud_queue_rows(file, text, "csharp", &mut out);
     out
+}
+
+// ─── Cloud queue contracts (SQS / SNS / GCP Pub/Sub / RabbitMQ / etc.) ──────
+//
+// These emit `kind=topic` rows. The topic identity is extracted from
+// SDK kwargs (e.g. `QueueUrl=…/orders` → `orders`, `TopicArn=…:user-events`
+// → `user-events`) or positional args (`channel.basic_publish(...,
+// routing_key='orders', ...)` → `orders`).
+
+fn sqs_send_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `<sqs>.send_message(QueueUrl='…/queue-name', …)` and the
+        // batch variant. Captures the QueueUrl literal; we trim to
+        // the last URL segment afterwards.
+        Regex::new(r#"\.send_message(?:_batch)?\s*\([^)]*QueueUrl\s*=\s*['"]([^'"]+)['"]"#).unwrap()
+    })
+}
+
+fn sqs_recv_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(r#"\.receive_message\s*\([^)]*QueueUrl\s*=\s*['"]([^'"]+)['"]"#).unwrap()
+    })
+}
+
+fn sns_publish_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `<sns>.publish(TopicArn='arn:aws:sns:…:user-events', …)`.
+        // The trailing `:<name>` is the topic name we want.
+        Regex::new(r#"\.publish\s*\([^)]*TopicArn\s*=\s*['"]([^'"]+)['"]"#).unwrap()
+    })
+}
+
+fn eventbridge_put_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `<events>.put_events(Entries=[{'Source': 'my-app', 'DetailType':
+        // 'OrderPlaced', ...}])`. We pull the DetailType which acts as
+        // the join key.
+        Regex::new(r#"['"]DetailType['"]\s*:\s*['"]([^'"]+)['"]"#).unwrap()
+    })
+}
+
+fn gcp_topic_path_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `publisher.topic_path('proj', 'user-events')`. Topic = 2nd arg.
+        Regex::new(r#"\.topic_path\s*\(\s*['"][^'"]*['"]\s*,\s*['"]([^'"]+)['"]"#).unwrap()
+    })
+}
+
+fn gcp_subscription_path_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        Regex::new(r#"\.subscription_path\s*\(\s*['"][^'"]*['"]\s*,\s*['"]([^'"]+)['"]"#).unwrap()
+    })
+}
+
+fn amqp_publish_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // pika (Python): `channel.basic_publish(exchange='', routing_key='orders', …)`.
+        // amqplib (Node): `channel.publish(exchange, 'order.placed', body)` /
+        //                 `channel.sendToQueue('orders', body)`.
+        // The routing_key / topic name is what we want.
+        Regex::new(
+            r#"\.basic_publish\s*\([^)]*routing_key\s*=\s*['"]([^'"]+)['"]|\.publish\s*\(\s*['"][^'"]*['"]\s*,\s*['"]([^'"]+)['"]|\.sendToQueue\s*\(\s*['"]([^'"]+)['"]"#,
+        )
+        .unwrap()
+    })
+}
+
+fn amqp_consume_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // pika: `channel.basic_consume(queue='orders', …)`.
+        // amqplib: `channel.consume('orders', handler)`.
+        Regex::new(r#"\.basic_consume\s*\([^)]*queue\s*=\s*['"]([^'"]+)['"]|\.consume\s*\(\s*['"]([^'"]+)['"]"#).unwrap()
+    })
+}
+
+/// Extract the trailing path segment from a URL or ARN. Used to
+/// recover queue/topic names from SQS QueueUrls, SNS TopicArns, and
+/// Azure Service Bus URLs.
+fn last_path_segment(s: &str) -> String {
+    // For ARNs (arn:aws:sns:region:account:name), split on `:`.
+    if s.starts_with("arn:") {
+        if let Some(last) = s.rsplit(':').next() {
+            return last.to_string();
+        }
+    }
+    // For URLs and queue names, split on `/`.
+    s.rsplit('/').next().unwrap_or(s).to_string()
+}
+
+fn push_cloud_topic(
+    out: &mut Vec<ContractRow>, file: &str, line_no: u32,
+    topic: &str, role: &str, language: &str, framework: &str,
+) {
+    out.push(ContractRow {
+        contract_id: format!("topic::{topic}"),
+        kind: "topic".to_string(),
+        role: role.to_string(),
+        method: None,
+        path: None,
+        topic: Some(topic.to_string()),
+        file: file.to_string(),
+        line: line_no,
+        language: language.to_string(),
+        framework: framework.to_string(),
+    });
+}
+
+/// Shared cloud-queue scanner that emits SQS / SNS / EventBridge / GCP
+/// Pub/Sub / AMQP rows. Called from each language's scanner.
+fn emit_cloud_queue_rows(file: &str, text: &str, language: &str, out: &mut Vec<ContractRow>) {
+    for (i, line) in text.lines().enumerate() {
+        if let Some(caps) = sqs_send_re().captures(line) {
+            let topic = last_path_segment(&caps[1]);
+            push_cloud_topic(out, file, (i + 1) as u32, &topic, "publisher", language, "sqs");
+            continue;
+        }
+        if let Some(caps) = sqs_recv_re().captures(line) {
+            let topic = last_path_segment(&caps[1]);
+            push_cloud_topic(out, file, (i + 1) as u32, &topic, "subscriber", language, "sqs");
+            continue;
+        }
+        if let Some(caps) = sns_publish_re().captures(line) {
+            let topic = last_path_segment(&caps[1]);
+            push_cloud_topic(out, file, (i + 1) as u32, &topic, "publisher", language, "sns");
+            continue;
+        }
+        if let Some(caps) = eventbridge_put_re().captures(line) {
+            let topic = caps[1].to_string();
+            push_cloud_topic(out, file, (i + 1) as u32, &topic, "publisher", language, "eventbridge");
+            continue;
+        }
+        if let Some(caps) = gcp_topic_path_re().captures(line) {
+            let topic = caps[1].to_string();
+            push_cloud_topic(out, file, (i + 1) as u32, &topic, "publisher", language, "gcp-pubsub");
+            continue;
+        }
+        if let Some(caps) = gcp_subscription_path_re().captures(line) {
+            let topic = caps[1].to_string();
+            push_cloud_topic(out, file, (i + 1) as u32, &topic, "subscriber", language, "gcp-pubsub");
+            continue;
+        }
+        if let Some(caps) = amqp_publish_re().captures(line) {
+            // Three capture groups; pick the first non-None.
+            let topic = caps.get(1).or(caps.get(2)).or(caps.get(3))
+                .map(|m| m.as_str().to_string());
+            if let Some(t) = topic {
+                push_cloud_topic(out, file, (i + 1) as u32, &t, "publisher", language, "amqp");
+                continue;
+            }
+        }
+        if let Some(caps) = amqp_consume_re().captures(line) {
+            let topic = caps.get(1).or(caps.get(2))
+                .map(|m| m.as_str().to_string());
+            if let Some(t) = topic {
+                push_cloud_topic(out, file, (i + 1) as u32, &t, "subscriber", language, "amqp");
+            }
+        }
+    }
 }
 
 // ─── Task queue contracts ────────────────────────────────────────────────────
@@ -2491,5 +2667,7 @@ fn scan_python(file: &str, text: &str) -> Vec<ContractRow> {
     }
     // Redis / NATS pub-sub for Python files.
     emit_pubsub_rows(file, text, "python", &mut out);
+    // SQS / SNS / EventBridge / GCP Pub/Sub / AMQP — boto3, pika, etc.
+    emit_cloud_queue_rows(file, text, "python", &mut out);
     out
 }

@@ -877,6 +877,103 @@ func main() {
     assert!(!subs.is_empty(), "expected NATS subscribers; got {nats:?}");
 }
 
+// ───── Batch 4: Cloud queue contracts (SQS/SNS/PubSub/RabbitMQ) ─────
+
+#[test]
+fn detects_aws_sqs_sns_python() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("worker.py"),
+        r#"import boto3
+sqs = boto3.client('sqs')
+sns = boto3.client('sns')
+
+sqs.send_message(QueueUrl='https://sqs.us-east-1.amazonaws.com/123/orders', MessageBody='...')
+sqs.receive_message(QueueUrl='https://sqs.us-east-1.amazonaws.com/123/orders')
+sns.publish(TopicArn='arn:aws:sns:us-east-1:123:user-events', Message='hi')
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let triples: Vec<(&str, &str, &str)> = rows.iter()
+        .map(|r| (r["contract_id"].as_str().unwrap(),
+                  r["role"].as_str().unwrap(),
+                  r["framework"].as_str().unwrap()))
+        .collect();
+    assert!(triples.iter().any(|t| t.0 == "topic::orders" && t.1 == "publisher" && t.2 == "sqs"),
+        "SQS send_message → publisher; got {triples:?}");
+    assert!(triples.iter().any(|t| t.0 == "topic::orders" && t.1 == "subscriber" && t.2 == "sqs"),
+        "SQS receive_message → subscriber; got {triples:?}");
+    assert!(triples.iter().any(|t| t.0 == "topic::user-events" && t.1 == "publisher" && t.2 == "sns"),
+        "SNS publish; got {triples:?}");
+}
+
+#[test]
+fn detects_gcp_pubsub_python() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("worker.py"),
+        r#"from google.cloud import pubsub_v1
+
+publisher = pubsub_v1.PublisherClient()
+topic_path = publisher.topic_path('my-project', 'user-events')
+publisher.publish(topic_path, data)
+
+subscriber = pubsub_v1.SubscriberClient()
+subscription_path = subscriber.subscription_path('my-project', 'user-events-sub')
+subscriber.subscribe(subscription_path, callback=handle)
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let triples: Vec<(&str, &str, &str)> = rows.iter()
+        .map(|r| (r["contract_id"].as_str().unwrap(),
+                  r["role"].as_str().unwrap(),
+                  r["framework"].as_str().unwrap()))
+        .collect();
+    // topic_path('proj', 'name') is the topic identifier; we capture the topic name.
+    assert!(triples.iter().any(|t| t.0 == "topic::user-events" && t.2 == "gcp-pubsub"),
+        "GCP Pub/Sub publisher topic_path; got {triples:?}");
+    assert!(triples.iter().any(|t| t.0 == "topic::user-events-sub" && t.2 == "gcp-pubsub" && t.1 == "subscriber"),
+        "GCP Pub/Sub subscription_path; got {triples:?}");
+}
+
+#[test]
+fn detects_rabbitmq_amqp_python_node() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("py_worker.py"),
+        r#"import pika
+channel = conn.channel()
+channel.basic_publish(exchange='', routing_key='orders', body=msg)
+channel.basic_consume(queue='orders', on_message_callback=handle)
+"#,
+    ).unwrap();
+    fs::write(
+        tmp.path().join("js_worker.js"),
+        r#"const amqplib = require('amqplib');
+channel.publish('events', 'order.placed', Buffer.from(msg));
+channel.consume('orders', handle);
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let triples: Vec<(&str, &str, &str)> = rows.iter()
+        .map(|r| (r["contract_id"].as_str().unwrap(),
+                  r["role"].as_str().unwrap(),
+                  r["framework"].as_str().unwrap()))
+        .collect();
+    assert!(triples.iter().any(|t| t.0 == "topic::orders" && t.1 == "publisher" && t.2 == "amqp"),
+        "Python pika basic_publish routing_key; got {triples:?}");
+    assert!(triples.iter().any(|t| t.0 == "topic::orders" && t.1 == "subscriber" && t.2 == "amqp"),
+        "Python pika basic_consume; got {triples:?}");
+    assert!(triples.iter().any(|t| t.0 == "topic::order.placed" && t.2 == "amqp"),
+        "Node amqplib publish routing_key; got {triples:?}");
+}
+
 // ───── Batch 3: Task queue contracts (Celery/Sidekiq/bullmq/RQ/asynq) ─────
 
 #[test]
