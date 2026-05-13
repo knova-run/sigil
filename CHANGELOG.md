@@ -6,6 +6,8 @@ All notable changes to sigil are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.5.5] — 2026-05-13 — call-graph accuracy, 15-language heritage, DuckDB parity, cross-repo external resolve
+
 ### Added
 
 - **Call-graph accuracy: tier-1/2/3 confidence-tagged resolver across all
@@ -109,6 +111,93 @@ All notable changes to sigil are documented here. Format follows
   `public` (default) / `private` / `protected` (→ `internal`) /
   `internal`. `@`-prefixed annotations attach as metaprogramming markers.
   Extensions: `.kt`, `.kts`.
+
+### Fixed
+
+- **12 cross-language call-graph + structural-coverage gaps** (PR #26)
+  surfaced by a multi-round QA pass across ~30 fresh popular OSS repos
+  (one per supported language plus polyglot stacks Go+Vue and
+  Python+React+Rust). Each fix is TDD-driven with a ground-truth grep
+  cross-check on a real repo:
+  * JS/TS builtin filter split — bare-name calls no longer blocked by
+    instance-method names (`match`, `map`, `filter`, `then`, …); ts-pattern
+    `callers match` 0 → 467.
+  * JS/TS function-expression caller context — `const dayjs = function()
+    { … }` now threads `parent_ctx = dayjs` into the body.
+  * Swift type-annotation refs for parameter / return / property types
+    (`emit_swift_type_refs`); swift-log `callers Logger` 8 → 206.
+  * Ruby `Class.new` un-filter — receiver-aware builtin gate; faraday
+    `callers Connection` 0 → 28.
+  * DuckDB-backend parity with the in-memory `Index` for both
+    `get_callers` and `get_callees` — slate `callers Editor` DuckDB
+    137 → 1236 (matches in-memory 1237).
+  * Heritage report filtered to class-like kinds; slate `heritage
+    Editor` 379 → 1.
+  * `contracts` skips `.yarn` / `.next` / `.turbo` / coverage / cache
+    dirs; slate contracts 46 → 0.
+  * `blast_radius` lookup uses entity.qualified_name + bare_leaf
+    alongside literal name; faraday `blast Connection` populated.
+  * `dead-code --safe-only` help text + docstring corrected to `≥ 0.85`.
+  * Swift `property_declaration` walks the value expression — captures
+    `let s = Session()` constructor calls; Alamofire `callers Session`
+    48 → 489.
+  * C++ parameter + struct/class field type-annotation refs; Catch2
+    `callers SectionInfo` 4 → 37.
+  * JSX `<Component />` and TSX/JS `<Component>` use sites emit
+    `kind=instantiation` refs; React `callers Suspense` 25 → 1416.
+  * Vue/Svelte/Astro `<template>` `<Component>` tag scanner with
+    balance-counted nested templates; gitea `callers SvgIcon` 0 → 73
+    (matches grep 1:1).
+- **TS `type_annotation` walker** (PR #26 follow-up) — parameter /
+  return / variable / generic-constraint type-position uses emit refs
+  via the existing recursive walker (was only firing on class_heritage
+  and type-alias bodies). excalidraw `callers ExcalidrawElement` 190 → 676.
+- **`compute_blast` transitive BFS** seeds with the same 3-key
+  expansion (e.name + qualified_name + bare_leaf) as the direct-caller
+  lookup. Ruby/Kotlin/Scala mixed-separator qualified-name entities
+  now report transitive_callers correctly (was silently 0). rspec-core
+  `blast Runner` transitive 0 → 112.
+- **DuckDB refs schema** (PR #34, closes #32) preserves `confidence`
+  + `callee_id` on round-trip. Adds `CURRENT_SCHEMA_VERSION` + a
+  `schema_version` field to the Stamp (`#[serde(default)]` for back-
+  compat) so existing `.sigil/index.duckdb` rebuilds on first open
+  after upgrade. gitea: a real ref now returns `confidence=0.7,
+  callee_id="modules/assetfs/embed.go::GenerateEmbedBindata"` instead
+  of None on both fields.
+
+### Added (call-resolver follow-ups, PR #35)
+
+- **Member-call Strategy 1 (module-alias receiver)** (issue #27).
+  `resolve_member_call` now resolves `alias.method()` style calls where
+  `alias` is bound by an import in the caller's file. Per-file
+  `local_name → import_target` table maps Python `import foo as f` /
+  TS `import * as utils` style aliases back to the target file. Confidence
+  **0.88**, symmetric with Strategy 2 imported.
+- **Gradle settings.gradle(.kts) resolver** (issue #28). `load_gradle_settings`
+  parses `include(":a:b:c")` directives into a module → directory map,
+  `project(":x").projectDir = file("custom")` overrides, and per-module
+  `srcDirs(...)` overrides in `build.gradle(.kts)`. Wired into
+  `resolve_jvm_fqn_imports` as a fallback (path-based heuristic stays
+  primary so default-layout repos see no regression). 0.7 confidence on
+  manifest-resolved edges.
+- **Scala sbt + Mill resolver** (issue #29). `load_sbt_modules` handles
+  two manifest shapes: sbt's `lazy val NAME = project.in(file("DIR"))`
+  and Mill's `build.sc` (each declares a module at its parent dir).
+  Same `resolve_jvm_fqn_imports` integration as Gradle.
+- **`sigil workspace resolve` cross-repo subcommand** (issue #30 MVP).
+  New CLI: `sigil workspace resolve --root <dir> --focus <repo>`. Walks
+  the focus repo's `external:<modpath>` sentinels, then scans every
+  sibling repo discovered via `workspace::scan` for a matching entity.
+  Emits one JSONL row per resolution at confidence 0.4 (cross-repo
+  binding inherently less certain than intra-repo). MVP scope: no
+  `package-deps` intersection yet, no separate workspace manifest file.
+
+### Schema
+
+- **`Entity.alias: Option<String>`** added (additive,
+  `#[serde(default, skip_serializing_if = "Option::is_none")]`).
+  Carries the local binding name from `import X as alias` style imports.
+  Old JSONL round-trips as None.
 
 ## [0.5.0] — 2026-05-09 — module-level constants, entity docstrings, top-K subsystem entities
 
