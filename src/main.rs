@@ -905,6 +905,21 @@ enum WorkspaceAction {
         #[arg(short, long, default_value = ".")]
         root: PathBuf,
     },
+    /// Cross-repo external-symbol resolution. For each `external:<modpath>`
+    /// sentinel in the focus repo, scans sibling repos under the
+    /// workspace root for a matching entity definition. Emits a JSONL row
+    /// per resolution at confidence 0.4 (cross-repo binding is inherently
+    /// less certain than intra-repo). MVP; doesn't yet constrain
+    /// resolution via `sigil package-deps` edges (open design question).
+    Resolve {
+        /// Workspace root — parent directory of child sigil-indexed repos.
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
+        /// Focus repo. External sentinels in this repo's index get
+        /// resolved against the others. Defaults to current working dir.
+        #[arg(short, long, default_value = ".")]
+        focus: PathBuf,
+    },
 }
 
 #[derive(Subcommand)]
@@ -1880,6 +1895,17 @@ fn main() {
                         Ok(s) => println!("{}", s),
                         Err(e) => {
                             eprintln!("workspace scan: failed to serialize: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+            }
+            WorkspaceAction::Resolve { root, focus } => {
+                for row in sigil::workspace::resolve_externals(&root, &focus) {
+                    match serde_json::to_string(&row) {
+                        Ok(s) => println!("{}", s),
+                        Err(e) => {
+                            eprintln!("workspace resolve: failed to serialize: {}", e);
                             std::process::exit(1);
                         }
                     }
