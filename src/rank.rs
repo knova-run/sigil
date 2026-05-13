@@ -287,15 +287,62 @@ fn compute_blast(
     transitive_depth: u32,
 ) -> HashMap<EntityKey, BlastRadius> {
     // `refs_to_name` maps a target symbol name to every (file, caller) that
-    // references it. Used both for direct counts and BFS.
-    let mut refs_to_name: HashMap<&str, Vec<&Reference>> = HashMap::new();
+    // references it. Mirror the alias-expansion that
+    // `src/query/index.rs::Index::build` does for `refs_by_name` so an
+    // entity with a qualified-form name (Ruby `Faraday.Connection`,
+    // Kotlin/Scala `Foo.Bar`) finds refs stored as
+    // `Faraday::Connection.new` or similar. Without this, blast_radius
+    // came back None on every Ruby/Kotlin/Scala class with a
+    // non-trivial namespace.
+    let mut refs_to_name: HashMap<String, Vec<&Reference>> = HashMap::new();
     for r in references {
-        refs_to_name.entry(r.name.as_str()).or_default().push(r);
+        // Literal name
+        refs_to_name.entry(r.name.clone()).or_default().push(r);
+        // bare_leaf (latest `.` or `::`)
+        if let Some(leaf) = crate::query::index::bare_leaf(&r.name) {
+            refs_to_name.entry(leaf.to_string()).or_default().push(r);
+        }
+        // `::` head + its leaf (uppercase-gated inside helper)
+        if r.name.contains("::") {
+            for h in crate::query::index::head_prefixes_with_sep(&r.name, "::") {
+                refs_to_name.entry(h).or_default().push(r);
+            }
+        }
+        // `.` head + its leaf
+        if r.name.contains('.') {
+            for h in crate::query::index::head_prefixes_with_sep(&r.name, ".") {
+                refs_to_name.entry(h).or_default().push(r);
+            }
+        }
     }
 
     let mut blast: HashMap<EntityKey, BlastRadius> = HashMap::new();
     for e in entities {
-        let direct = refs_to_name.get(e.name.as_str()).cloned().unwrap_or_default();
+        // Match by literal entity name AND by its qualified-name form
+        // (so a Ruby class named `Faraday.Connection` (entity-name
+        // convention with `.`) also matches refs aliased under
+        // `Faraday::Connection`).
+        let mut hits: Vec<&Reference> = refs_to_name
+            .get(e.name.as_str())
+            .cloned()
+            .unwrap_or_default();
+        if let Some(qn) = e.qualified_name.as_deref() {
+            if qn != e.name {
+                if let Some(extra) = refs_to_name.get(qn) {
+                    for r in extra {
+                        hits.push(r);
+                    }
+                }
+            }
+        }
+        // Dedup by pointer identity to avoid double-counting refs that
+        // matched both `e.name` and `e.qualified_name`.
+        let direct: Vec<&Reference> = {
+            let mut seen: HashSet<*const Reference> = HashSet::new();
+            hits.into_iter()
+                .filter(|r| seen.insert(*r as *const Reference))
+                .collect()
+        };
         let direct_callers = direct.len() as u32;
         let direct_files: HashSet<&str> = direct.iter().map(|r| r.file.as_str()).collect();
         let direct_files_count = direct_files.len() as u32;
@@ -318,7 +365,7 @@ fn compute_blast(
 /// prevent cycles from blowing up the count.
 fn transitive_caller_count(
     seed: &str,
-    refs_to_name: &HashMap<&str, Vec<&Reference>>,
+    refs_to_name: &HashMap<String, Vec<&Reference>>,
     max_depth: u32,
 ) -> u32 {
     if max_depth == 0 {
@@ -615,6 +662,38 @@ mod tests {
         let bar_br = entities[1].blast_radius.unwrap();
         assert_eq!(bar_br.direct_callers, 1);
         assert_eq!(bar_br.direct_files, 1);
+    }
+
+    #[test]
+    fn blast_radius_handles_qualified_ref_names() {
+        // QA pass on faraday (Ruby): entity name `Faraday.Connection`
+        // (with qualified_name `Faraday::Connection`) had 27 inbound
+        // refs of form `Faraday::Connection.new` (plus chained
+        // variants) but blast_radius came back None — the compute_blast
+        // lookup was literal-name only, missing the same bare_leaf /
+        // cc-head / dot-head expansion that `Index::refs_by_name`
+        // performs at index time. Entities with qualified-form names
+        // (Ruby/Kotlin/Scala emit `Foo.Bar`) should see their
+        // blast_radius populated from refs that target them via `::`
+        // or chain forms.
+        let mut e = ent("a.rb", "Faraday.Connection", "class");
+        e.qualified_name = Some("Faraday::Connection".to_string());
+        let mut entities = vec![e];
+        let refs = vec![
+            refr("b.rb", Some("u"), "Faraday::Connection.new"),
+            refr("c.rb", Some("u"), "Faraday::Connection.new"),
+        ];
+        let ranked = rank(&entities, &refs);
+        apply_blast_radius(&mut entities, &ranked);
+        let br = entities[0]
+            .blast_radius
+            .as_ref()
+            .expect("blast_radius should be set for entity with qualified-form name");
+        assert!(
+            br.direct_callers >= 2,
+            "expected ≥2 direct callers from `Faraday::Connection.new` refs; got {}",
+            br.direct_callers
+        );
     }
 
     #[test]

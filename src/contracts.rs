@@ -118,7 +118,46 @@ fn is_skipped_dir(path: &Path) -> bool {
         name.as_ref(),
         ".git" | "node_modules" | "vendor" | "target" | "dist" | "build"
             | ".venv" | "venv" | "__pycache__" | ".sigil" | ".repowise-workspace"
+            // QA pass surfaced contracts indexing `.yarn/releases/yarn-*.cjs`
+            // on slate (TypeScript) — a 2.7 MB minified vendored binary
+            // that hits Express-style route patterns by accident. Add the
+            // common JS/TS vendored / cache directory names so contracts
+            // doesn't mine artifacts.
+            | ".yarn" | ".pnp" | ".next" | ".nuxt" | ".turbo" | ".cache"
+            | "coverage" | ".coverage" | ".nyc_output" | "out" | ".output"
+            | ".gradle" | ".idea" | ".vscode"
     )
+}
+
+#[cfg(test)]
+mod skipped_dir_tests {
+    use super::is_skipped_dir;
+    use std::path::PathBuf;
+
+    #[test]
+    fn skips_yarn_releases_and_other_vendored_dirs() {
+        for name in [
+            ".yarn", ".pnp", ".next", ".turbo", ".cache",
+            "coverage", "node_modules", ".sigil",
+        ] {
+            assert!(
+                is_skipped_dir(&PathBuf::from(name)),
+                "`{}` should be skipped",
+                name
+            );
+        }
+    }
+
+    #[test]
+    fn does_not_skip_normal_dirs() {
+        for name in ["src", "lib", "packages", "tests"] {
+            assert!(
+                !is_skipped_dir(&PathBuf::from(name)),
+                "`{}` should NOT be skipped",
+                name
+            );
+        }
+    }
 }
 
 fn fastapi_re() -> &'static Regex {

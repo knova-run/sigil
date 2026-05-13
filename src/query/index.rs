@@ -170,7 +170,7 @@ fn cc_head_prefixes(name: &str) -> Vec<String> {
 /// what lets `callers Regex` reach `Regex::new` AND `callers Connection`
 /// reach `Faraday::Connection.new` without surfacing module-namespace
 /// noise like `callers crate` / `callers obj`.
-fn head_prefixes_with_sep(name: &str, sep: &str) -> Vec<String> {
+pub(crate) fn head_prefixes_with_sep(name: &str, sep: &str) -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
     let Some((head, _)) = name.rsplit_once(sep) else {
         return out;
@@ -195,7 +195,7 @@ fn head_prefixes_with_sep(name: &str, sep: &str) -> Vec<String> {
 /// both Ruby-style `Rack.Protection.Base` (dot-normalized namespaces)
 /// and Rust/Ruby `Sinatra::Base`. Returns None when `name` has no
 /// separator (i.e., is already bare).
-fn bare_leaf(name: &str) -> Option<&str> {
+pub(crate) fn bare_leaf(name: &str) -> Option<&str> {
     let dot_pos = name.rfind('.');
     let cc_pos = name.rfind("::");
     let cut = match (dot_pos, cc_pos) {

@@ -80,8 +80,31 @@ impl From<&Entity> for DefinitionView {
 /// * Incoming edges: scan every entity's heritage vec for `target == query`
 ///   OR `target` whose last segment equals the query (so `pkg.Foo` matches
 ///   a query for `Foo`).
+/// Entity kinds that can carry heritage edges. Excludes `import` and
+/// markdown `section`/`code_block` rows that leak in via the
+/// leaf-indexing pass — those aren't real type definitions and would
+/// pollute the report (QA pass on slate: `heritage Editor` was returning
+/// 366 import refs as "definitions").
+const HERITAGE_DEFINITION_KINDS: &[&str] = &[
+    "class",
+    "struct",
+    "interface",
+    "trait",
+    "enum",
+    "object",
+    "module",
+    "type_alias",
+];
+
+fn is_heritage_definition_kind(kind: &str) -> bool {
+    HERITAGE_DEFINITION_KINDS.contains(&kind)
+}
+
 pub fn build_report(idx: &Index, symbol: &str) -> HeritageReport {
-    let definitions: Vec<&Entity> = idx.entities_by_name(symbol).collect();
+    let definitions: Vec<&Entity> = idx
+        .entities_by_name(symbol)
+        .filter(|e| is_heritage_definition_kind(&e.kind))
+        .collect();
 
     // Outgoing: merge across all matching definitions, dedupe.
     let mut outgoing: Vec<OutgoingHeritage> = Vec::new();
@@ -185,6 +208,36 @@ mod tests {
                 })
                 .collect(),
         }
+    }
+
+    #[test]
+    fn definitions_filtered_to_class_like_kinds() {
+        // Regression: QA pass on slate (typescript) showed `sigil
+        // heritage Editor` returning 379 "definitions" — 366 of which
+        // were `import` refs, 1 was a markdown section, plus
+        // properties/variables. The heritage report should only list
+        // class/interface/struct/trait/enum entities — things that
+        // can actually CARRY heritage edges.
+        let mut import_ent = ent("Editor", "a.ts", vec![]);
+        import_ent.kind = "import".to_string();
+        let mut section_ent = ent("Editor", "docs/notes.md", vec![]);
+        section_ent.kind = "section".to_string();
+        let mut prop_ent = ent("Editor", "b.ts", vec![]);
+        prop_ent.kind = "property".to_string();
+        let mut var_ent = ent("Editor", "c.ts", vec![]);
+        var_ent.kind = "variable".to_string();
+        let real_class = ent("Editor", "core.ts", vec![]); // kind=struct from helper default
+        let idx = Index::build(
+            vec![import_ent, section_ent, prop_ent, var_ent, real_class],
+            Vec::<Reference>::new(),
+        );
+        let report = build_report(&idx, "Editor");
+        assert_eq!(
+            report.definitions.len(),
+            1,
+            "only the class-like entity should surface as a heritage definition; got {:?}",
+            report.definitions.iter().map(|d| &d.file).collect::<Vec<_>>(),
+        );
     }
 
     #[test]
