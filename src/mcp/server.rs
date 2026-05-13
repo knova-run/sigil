@@ -32,6 +32,14 @@ use crate::query::index::Index;
 /// convention.
 const PROTOCOL_VERSION: &str = "2024-11-05";
 
+/// Per-connection state. Captures capabilities the client declared in
+/// its `initialize` request — most importantly whether it supports
+/// MCP `sampling/createMessage` (issue #41).
+#[derive(Debug, Default, Clone)]
+pub struct ServerState {
+    pub supports_sampling: bool,
+}
+
 /// Load the index from `.sigil/` under `root` and run the JSON-RPC
 /// stdio loop. Returns on EOF (i.e. when the client closes stdin).
 pub fn run_stdio(root: PathBuf) -> Result<()> {
@@ -40,12 +48,13 @@ pub fn run_stdio(root: PathBuf) -> Result<()> {
     let stdin = std::io::stdin();
     let stdout = std::io::stdout();
     let mut stdout = stdout.lock();
+    let mut state = ServerState::default();
     for line in stdin.lock().lines() {
         let line = line.context("read stdin")?;
         if line.trim().is_empty() {
             continue;
         }
-        let response = handle_message(&line, &root, &idx, &rank);
+        let response = handle_message(&line, &root, &idx, &rank, &mut state);
         if let Some(resp) = response {
             writeln!(stdout, "{}", resp).context("write stdout")?;
             stdout.flush().context("flush stdout")?;
@@ -96,6 +105,7 @@ pub fn handle_message(
     root: &std::path::Path,
     idx: &Index,
     rank: &crate::rank::RankManifest,
+    state: &mut ServerState,
 ) -> Option<String> {
     let req: Value = match serde_json::from_str(line) {
         Ok(v) => v,
@@ -114,7 +124,7 @@ pub fn handle_message(
     // Notifications carry no id and never get a response.
     let is_notification = id.is_none();
 
-    let result = dispatch(method, req.get("params"), root, idx, rank);
+    let result = dispatch(method, req.get("params"), root, idx, rank, state);
 
     if is_notification {
         return None;
@@ -144,22 +154,35 @@ fn dispatch(
     root: &std::path::Path,
     idx: &Index,
     rank: &crate::rank::RankManifest,
+    state: &mut ServerState,
 ) -> Result<Value, McpError> {
     match method {
-        "initialize" => Ok(json!({
-            "protocolVersion": PROTOCOL_VERSION,
-            "capabilities": {
-                "tools": {}
-            },
-            "serverInfo": {
-                "name": "sigil",
-                "version": env!("CARGO_PKG_VERSION"),
+        "initialize" => {
+            // Capture client capabilities — most importantly whether
+            // they support `sampling/createMessage` for #41. The
+            // `capabilities.sampling` key being present means yes
+            // (its value is an object that may carry sub-flags).
+            if let Some(p) = params
+                && let Some(caps) = p.get("capabilities")
+                && caps.get("sampling").is_some()
+            {
+                state.supports_sampling = true;
             }
-        })),
+            Ok(json!({
+                "protocolVersion": PROTOCOL_VERSION,
+                "capabilities": {
+                    "tools": {}
+                },
+                "serverInfo": {
+                    "name": "sigil",
+                    "version": env!("CARGO_PKG_VERSION"),
+                }
+            }))
+        }
         "notifications/initialized" => Ok(Value::Null),
         "ping" => Ok(json!({})),
-        "tools/list" => Ok(json!({ "tools": tool_descriptors() })),
-        "tools/call" => call_tool(params, root, idx, rank),
+        "tools/list" => Ok(json!({ "tools": tool_descriptors(state) })),
+        "tools/call" => call_tool(params, root, idx, rank, state),
         _ => Err(McpError {
             code: -32601,
             message: format!("method not found: {}", method),
@@ -172,6 +195,7 @@ fn call_tool(
     root: &std::path::Path,
     idx: &Index,
     rank: &crate::rank::RankManifest,
+    state: &ServerState,
 ) -> Result<Value, McpError> {
     let params = params.ok_or_else(|| McpError {
         code: -32602,
@@ -265,6 +289,46 @@ fn call_tool(
             let q = args.get("query").and_then(|v| v.as_str());
             super::tools::why(root, q)
         }
+        "get_answer" => {
+            let question = args
+                .get("question")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| McpError {
+                    code: -32602,
+                    message: "get_answer requires `question` string".to_string(),
+                })?;
+            let max_targets = args
+                .get("max_targets")
+                .and_then(|v| v.as_u64())
+                .map(|n| n as usize)
+                .unwrap_or(8);
+            let bundle = super::tools::answer_bundle(idx, root, question, max_targets);
+            // Fallback path — without `sampling/createMessage`
+            // round-trip support in this synchronous stdio handler,
+            // the server returns the bundle and lets the agent
+            // synthesize inline. The bundle carries the synthesis
+            // prompt the client can use directly. When sampling is
+            // supported, we mark that in the response so the client
+            // knows it could chain a `sampling/createMessage` call
+            // with `bundle.synthesis_prompt` — but the round-trip
+            // itself is the caller's responsibility for now (a
+            // synchronous server-initiated request mid-tool-call
+            // requires interleaved stdio handling — tracked as
+            // future work; the bundle-only path already covers the
+            // sampling-incapable client case completely).
+            let mut response =
+                serde_json::to_value(&bundle).map_err(|e| McpError {
+                    code: -32603,
+                    message: format!("answer_bundle serialize: {}", e),
+                })?;
+            response["sampling_supported"] = json!(state.supports_sampling);
+            if !state.supports_sampling {
+                response["note"] = json!(
+                    "client does not support sampling; synthesize from bundle.synthesis_prompt inline"
+                );
+            }
+            response
+        }
         other => {
             return Err(McpError {
                 code: -32601,
@@ -284,7 +348,7 @@ fn call_tool(
     }))
 }
 
-fn tool_descriptors() -> Value {
+fn tool_descriptors(state: &ServerState) -> Value {
     json!([
         {
             "name": "sigil_search",
@@ -345,6 +409,22 @@ fn tool_descriptors() -> Value {
                 "properties": {
                     "query": {"type": "string"}
                 }
+            }
+        },
+        {
+            "name": "get_answer",
+            "description": if state.supports_sampling {
+                "Retrieval-augmented synthesis over the structural code index. Given a natural-language question, finds the most relevant symbols and architectural decisions, bundles their context, and provides a synthesis prompt the client can hand to its own model via MCP sampling. Sigil performs no LLM calls itself. Returns the bundle plus a `sampling_supported: true` flag — to get a synthesized answer, the client should pass `bundle.synthesis_prompt` through a `sampling/createMessage` request."
+            } else {
+                "Retrieval-augmented synthesis over the structural code index. Returns ranked entity bundles (signature, doc, callers/callees, heritage) plus a synthesis prompt — the calling agent synthesizes inline. The client does not advertise MCP sampling capability, so sigil cannot delegate the synthesis; the bundle-only fallback path is the only mode available."
+            },
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "question": {"type": "string"},
+                    "max_targets": {"type": "integer", "default": 8}
+                },
+                "required": ["question"]
             }
         }
     ])
@@ -407,11 +487,13 @@ mod tests {
             "method": "initialize",
             "params": {}
         });
+        let mut state = ServerState::default();
         let resp = handle_message(
             &serde_json::to_string(&req).unwrap(),
             std::path::Path::new("."),
             &idx,
             &rank,
+            &mut state,
         )
         .expect("initialize must respond");
         let v: Value = serde_json::from_str(&resp).expect("valid JSON");
@@ -430,17 +512,19 @@ mod tests {
             "method": "notifications/initialized",
             "params": {}
         });
+        let mut state = ServerState::default();
         let resp = handle_message(
             &serde_json::to_string(&req).unwrap(),
             std::path::Path::new("."),
             &idx,
             &rank,
+            &mut state,
         );
         assert!(resp.is_none(), "notifications must not get a response");
     }
 
     #[test]
-    fn tools_list_returns_all_five_tools() {
+    fn tools_list_returns_all_six_tools() {
         let idx = small_idx();
         let rank = crate::rank::RankManifest::default();
         let req = json!({
@@ -449,22 +533,25 @@ mod tests {
             "method": "tools/list",
             "params": {}
         });
+        let mut state = ServerState::default();
         let resp = handle_message(
             &serde_json::to_string(&req).unwrap(),
             std::path::Path::new("."),
             &idx,
             &rank,
+            &mut state,
         )
         .expect("tools/list must respond");
         let v: Value = serde_json::from_str(&resp).expect("valid JSON");
         let tools = v["result"]["tools"].as_array().expect("tools array");
-        assert_eq!(tools.len(), 5);
+        assert_eq!(tools.len(), 6);
         let names: Vec<&str> = tools.iter().filter_map(|t| t["name"].as_str()).collect();
         assert!(names.contains(&"sigil_search"));
         assert!(names.contains(&"get_context"));
         assert!(names.contains(&"get_overview"));
         assert!(names.contains(&"get_dead_code"));
         assert!(names.contains(&"get_why"));
+        assert!(names.contains(&"get_answer"));
     }
 
     #[test]
@@ -480,11 +567,13 @@ mod tests {
                 "arguments": {"query": "process", "limit": 10}
             }
         });
+        let mut state = ServerState::default();
         let resp = handle_message(
             &serde_json::to_string(&req).unwrap(),
             std::path::Path::new("."),
             &idx,
             &rank,
+            &mut state,
         )
         .expect("tools/call must respond");
         let v: Value = serde_json::from_str(&resp).expect("valid JSON");
@@ -506,11 +595,13 @@ mod tests {
             "id": 4,
             "method": "no_such_method"
         });
+        let mut state = ServerState::default();
         let resp = handle_message(
             &serde_json::to_string(&req).unwrap(),
             std::path::Path::new("."),
             &idx,
             &rank,
+            &mut state,
         )
         .expect("must respond with error");
         let v: Value = serde_json::from_str(&resp).expect("valid JSON");
@@ -521,14 +612,153 @@ mod tests {
     fn malformed_json_returns_parse_error() {
         let idx = small_idx();
         let rank = crate::rank::RankManifest::default();
+        let mut state = ServerState::default();
         let resp = handle_message(
             "{not json}",
             std::path::Path::new("."),
             &idx,
             &rank,
+            &mut state,
         )
         .expect("must respond with parse error");
         let v: Value = serde_json::from_str(&resp).expect("response is valid JSON");
         assert_eq!(v["error"]["code"], -32700);
+    }
+
+    #[test]
+    fn initialize_captures_client_sampling_capability() {
+        let idx = small_idx();
+        let rank = crate::rank::RankManifest::default();
+        let mut state = ServerState::default();
+        assert!(!state.supports_sampling);
+        let req = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+                "capabilities": {"sampling": {}}
+            }
+        });
+        let _ = handle_message(
+            &serde_json::to_string(&req).unwrap(),
+            std::path::Path::new("."),
+            &idx,
+            &rank,
+            &mut state,
+        );
+        assert!(state.supports_sampling, "sampling cap must be captured");
+    }
+
+    #[test]
+    fn initialize_does_not_set_sampling_when_absent() {
+        let idx = small_idx();
+        let rank = crate::rank::RankManifest::default();
+        let mut state = ServerState::default();
+        let req = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {"capabilities": {}}
+        });
+        let _ = handle_message(
+            &serde_json::to_string(&req).unwrap(),
+            std::path::Path::new("."),
+            &idx,
+            &rank,
+            &mut state,
+        );
+        assert!(!state.supports_sampling);
+    }
+
+    #[test]
+    fn tools_list_includes_get_answer_with_six_tools_total() {
+        let idx = small_idx();
+        let rank = crate::rank::RankManifest::default();
+        let mut state = ServerState::default();
+        let req = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/list",
+            "params": {}
+        });
+        let resp = handle_message(
+            &serde_json::to_string(&req).unwrap(),
+            std::path::Path::new("."),
+            &idx,
+            &rank,
+            &mut state,
+        )
+        .expect("response");
+        let v: Value = serde_json::from_str(&resp).unwrap();
+        let tools = v["result"]["tools"].as_array().expect("tools array");
+        assert_eq!(tools.len(), 6);
+        assert!(
+            tools.iter().any(|t| t["name"] == "get_answer"),
+            "get_answer must always be registered (fallback path)"
+        );
+    }
+
+    #[test]
+    fn get_answer_returns_bundle_with_sampling_supported_flag() {
+        let idx = small_idx();
+        let rank = crate::rank::RankManifest::default();
+        let mut state = ServerState {
+            supports_sampling: true,
+        };
+        let req = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {
+                "name": "get_answer",
+                "arguments": {"question": "how does process_data work?", "max_targets": 3}
+            }
+        });
+        let resp = handle_message(
+            &serde_json::to_string(&req).unwrap(),
+            std::path::Path::new("."),
+            &idx,
+            &rank,
+            &mut state,
+        )
+        .expect("response");
+        let v: Value = serde_json::from_str(&resp).unwrap();
+        let text = v["result"]["content"][0]["text"]
+            .as_str()
+            .expect("content text");
+        let payload: Value = serde_json::from_str(text).expect("valid inner JSON");
+        assert_eq!(payload["sampling_supported"], true);
+        assert!(payload["candidates"].is_array());
+        assert!(payload["synthesis_prompt"].is_string());
+        assert!(payload.get("note").is_none(), "no note when sampling supported");
+    }
+
+    #[test]
+    fn get_answer_returns_fallback_note_when_sampling_not_supported() {
+        let idx = small_idx();
+        let rank = crate::rank::RankManifest::default();
+        let mut state = ServerState::default(); // sampling = false
+        let req = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {
+                "name": "get_answer",
+                "arguments": {"question": "how does process_data work?"}
+            }
+        });
+        let resp = handle_message(
+            &serde_json::to_string(&req).unwrap(),
+            std::path::Path::new("."),
+            &idx,
+            &rank,
+            &mut state,
+        )
+        .expect("response");
+        let v: Value = serde_json::from_str(&resp).unwrap();
+        let text = v["result"]["content"][0]["text"].as_str().unwrap();
+        let payload: Value = serde_json::from_str(text).unwrap();
+        assert_eq!(payload["sampling_supported"], false);
+        assert!(payload["note"].as_str().unwrap().contains("synthesize"));
     }
 }

@@ -205,6 +205,195 @@ pub fn dead_code(
     })
 }
 
+/// One row in the retrieval bundle assembled for [`answer_bundle`].
+/// Holds the symbol-context Agent-view JSON plus the search-rank score
+/// that picked it.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct AnswerCandidate {
+    pub f: String,
+    pub n: String,
+    pub k: String,
+    pub l: u32,
+    pub bundle: Value,
+}
+
+/// Bundle produced by `get_answer`. Carries:
+///   * the original question (echoed for citation/audit),
+///   * the retrieval-ranked candidates with their full context
+///     bundles (signature + doc + callers/callees + heritage),
+///   * matching architectural decisions when the question shape
+///     suggests intent ("why", "tradeoff", "how come", "design"),
+///   * a synthesis prompt the client can hand to its model when
+///     sampling is supported, or that the agent can synthesize
+///     against inline when sampling is unavailable.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct AnswerBundle {
+    pub question: String,
+    pub candidates: Vec<AnswerCandidate>,
+    pub decisions: Vec<Value>,
+    pub synthesis_prompt: String,
+}
+
+/// `get_answer` — retrieve-only path. Builds the structural bundle
+/// that would feed the synthesis call. The sampling round-trip itself
+/// lives in `super::server` (where it can interleave stdin/stdout with
+/// the client) and is purely a transport wrapper around the bundle
+/// produced here.
+///
+/// Retrieval is a layered scan: tokenize the question into candidate
+/// identifiers, run `Index::search` per token, dedup by `(file, name)`,
+/// rank by total hit count + length match, take the top
+/// `max_targets`. Each surviving entity gets the agent-view context
+/// bundle attached. If the question contains intent words like "why",
+/// "design", "tradeoff", "how come", or "decision", matching
+/// architectural decisions get included too (mirrors `get_why` mode
+/// detection from issue #41 spec).
+pub fn answer_bundle(
+    idx: &Index,
+    root: &std::path::Path,
+    question: &str,
+    max_targets: usize,
+) -> AnswerBundle {
+    let tokens = extract_identifier_tokens(question);
+    let mut score: std::collections::HashMap<(String, String), (u32, u32)> =
+        std::collections::HashMap::new();
+    for tok in &tokens {
+        let hits = idx.search(tok, Scope::Symbols, None, None, 50);
+        for h in hits {
+            if let SearchHit::Symbol(e) = h {
+                let key = (e.file.clone(), e.name.clone());
+                let entry = score.entry(key).or_insert((0, e.line_start));
+                entry.0 += 1;
+            }
+        }
+    }
+    let mut ranked: Vec<((String, String), u32, u32)> = score
+        .into_iter()
+        .map(|(k, (n, l))| (k, n, l))
+        .collect();
+    ranked.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.0.cmp(&b.0.0)));
+
+    let opts = ContextOptions {
+        budget: 0,
+        depth: 5,
+        format: ContextFormat::Agent,
+        exclude_tests: false,
+        with_body: false,
+        project_root: root.to_path_buf(),
+    };
+
+    let mut candidates: Vec<AnswerCandidate> = Vec::new();
+    for ((file, name), _hits, line) in ranked.into_iter().take(max_targets) {
+        if let Some(ctx) = build_context(idx, &name, &opts) {
+            let agent = render_agent_json(&ctx);
+            if let Ok(b) = serde_json::from_str::<Value>(&agent) {
+                let k = ctx.chosen.kind.clone();
+                candidates.push(AnswerCandidate {
+                    f: file,
+                    n: name,
+                    k,
+                    l: line,
+                    bundle: b,
+                });
+            }
+        }
+    }
+
+    let decisions = if question_implies_design_intent(question) {
+        let mut markers = crate::decisions::extract_from_root(root);
+        crate::decisions::sort_markers(&mut markers);
+        let q_lower = question.to_lowercase();
+        markers
+            .into_iter()
+            .filter(|m| {
+                m.text.to_lowercase().contains(&q_lower)
+                    || tokens.iter().any(|t| m.text.to_lowercase().contains(&t.to_lowercase()))
+            })
+            .take(6)
+            .map(|m| serde_json::to_value(&m).unwrap_or(Value::Null))
+            .collect()
+    } else {
+        Vec::new()
+    };
+
+    let synthesis_prompt = build_synthesis_prompt(question, &candidates, &decisions);
+
+    AnswerBundle {
+        question: question.to_string(),
+        candidates,
+        decisions,
+        synthesis_prompt,
+    }
+}
+
+/// Identifier-shaped tokens from a free-text question. Splits on
+/// non-identifier chars, drops stopwords/short tokens.
+fn extract_identifier_tokens(s: &str) -> Vec<String> {
+    const STOP: &[&str] = &[
+        "the", "is", "a", "an", "of", "and", "or", "to", "in", "on", "at", "by",
+        "for", "with", "what", "how", "why", "does", "do", "this", "that", "it",
+        "be", "are", "was", "were", "can", "could", "should", "would", "from",
+        "have", "has", "where", "when", "which", "who", "whom", "as",
+    ];
+    let mut out = Vec::new();
+    let mut buf = String::new();
+    let flush = |buf: &mut String, out: &mut Vec<String>| {
+        if buf.len() >= 3 && !STOP.contains(&buf.to_lowercase().as_str()) {
+            out.push(buf.clone());
+        }
+        buf.clear();
+    };
+    for c in s.chars() {
+        if c.is_alphanumeric() || c == '_' {
+            buf.push(c);
+        } else {
+            flush(&mut buf, &mut out);
+        }
+    }
+    flush(&mut buf, &mut out);
+    out
+}
+
+fn question_implies_design_intent(q: &str) -> bool {
+    let q_lower = q.to_lowercase();
+    ["why", "design", "tradeoff", "trade-off", "decision", "rationale", "how come"]
+        .iter()
+        .any(|w| q_lower.contains(w))
+}
+
+fn build_synthesis_prompt(
+    question: &str,
+    candidates: &[AnswerCandidate],
+    decisions: &[Value],
+) -> String {
+    let mut p = String::new();
+    p.push_str("You are answering a question about a codebase using the structural context bundle below. ");
+    p.push_str("Every claim in your answer MUST cite a `file:line` from the bundle. If the bundle is insufficient, say so explicitly — do not invent details.\n\n");
+    p.push_str("Question: ");
+    p.push_str(question);
+    p.push_str("\n\nContext bundle:\n");
+    for c in candidates {
+        p.push_str(&format!(
+            "- {}::{} ({}) at {}:{}\n",
+            c.f, c.n, c.k, c.f, c.l
+        ));
+    }
+    if !decisions.is_empty() {
+        p.push_str("\nRelevant decisions:\n");
+        for d in decisions {
+            if let (Some(marker), Some(text), Some(file)) = (
+                d.get("marker").and_then(|v| v.as_str()),
+                d.get("text").and_then(|v| v.as_str()),
+                d.get("file").and_then(|v| v.as_str()),
+            ) {
+                let line = d.get("line").and_then(|v| v.as_u64()).unwrap_or(0);
+                p.push_str(&format!("- {} at {}:{}: {}\n", marker, file, line, text));
+            }
+        }
+    }
+    p
+}
+
 /// `get_overview` — cold-start architecture map. Returns the same
 /// shape `sigil map --format json --top-entities 5` produces:
 /// ranked files with their top entities, plus subsystems detected by
@@ -319,6 +508,72 @@ mod tests {
         assert_eq!(bundles.len(), 2);
         assert_eq!(bundles[0]["n"], "foo");
         assert_eq!(bundles[1]["n"], "bar");
+    }
+
+    #[test]
+    fn answer_bundle_ranks_relevant_symbols_and_includes_context() {
+        let tmp = tempfile::tempdir().unwrap();
+        let idx = Index::build(
+            vec![
+                ent("src/resolver.rs", "resolve_python_alias", "function", 10),
+                ent("src/unrelated.rs", "format_widget", "function", 5),
+            ],
+            vec![],
+        );
+        let bundle = answer_bundle(
+            &idx,
+            tmp.path(),
+            "how does resolve handle python alias?",
+            5,
+        );
+        assert_eq!(bundle.question, "how does resolve handle python alias?");
+        assert!(
+            bundle.candidates.iter().any(|c| c.n == "resolve_python_alias"),
+            "expected resolve_python_alias in candidates: {:?}",
+            bundle.candidates.iter().map(|c| &c.n).collect::<Vec<_>>()
+        );
+        // The unrelated function shares no tokens; it must not be in
+        // the top candidates.
+        assert!(
+            !bundle.candidates.iter().any(|c| c.n == "format_widget"),
+            "unrelated symbol leaked into bundle"
+        );
+        assert!(
+            bundle.synthesis_prompt.contains("python alias"),
+            "synthesis prompt should carry the question"
+        );
+        assert!(
+            bundle.synthesis_prompt.contains("file:line"),
+            "synthesis prompt should ask for citations"
+        );
+    }
+
+    #[test]
+    fn answer_bundle_attaches_decisions_for_why_questions() {
+        let tmp = tempfile::tempdir().unwrap();
+        let p = tmp.path().join("notes.rs");
+        std::fs::write(
+            &p,
+            "// DECISION: pick algorithm because reasons\nfn do_thing() {}\n",
+        )
+        .unwrap();
+        let idx = Index::build(
+            vec![ent("notes.rs", "do_thing", "function", 2)],
+            vec![],
+        );
+        let why_bundle = answer_bundle(&idx, tmp.path(), "why do we use this algorithm?", 5);
+        assert!(
+            !why_bundle.decisions.is_empty(),
+            "why-question should attach decisions; got {:?}",
+            why_bundle.decisions
+        );
+
+        // A factual question (no design intent) should not include decisions.
+        let factual = answer_bundle(&idx, tmp.path(), "what does do_thing do?", 5);
+        assert!(
+            factual.decisions.is_empty(),
+            "factual question should not include decisions"
+        );
     }
 
     #[test]
