@@ -40,11 +40,34 @@ adds a workspace-aware INDEX**, so all subsequent queries see one graph.
 
 ## CLI surface
 
-One new subcommand, no changes to existing commands.
+Workspace membership is **explicit**, not auto-discovered. The user
+opts each repo in with `add`, opts out with `remove`. `workspace index`
+re-merges over only the declared members.
 
 ```
-sigil workspace index <root>          # build workspace-level merged view
-sigil workspace index <root> --full   # force re-merge of all children
+sigil workspace add <repo-path> [--root <workspace-dir>]
+    # Register a repo as a workspace member. Path is resolved + canonicalised.
+    # If the repo has no .sigil/, queues it for indexing on the next
+    # `workspace index` run. Idempotent — adding the same repo twice is a no-op.
+
+sigil workspace remove <repo-name-or-path> [--root <workspace-dir>]
+    # De-register a repo. Drops it from the merged view on the next
+    # `workspace index` (or immediately if --rebuild is passed).
+    # Per-repo .sigil/ at the removed repo is left untouched.
+
+sigil workspace list [--root <workspace-dir>]
+    # Print the current membership (one JSONL row per member).
+
+sigil workspace index [--root <workspace-dir>] [--full]
+    # Build / refresh .sigil-workspace/ over the registered members.
+    # --full forces re-merge of every member; default re-merges only the
+    # ones whose .sigil/ changed since the last index.
+
+sigil workspace scan <root>
+    # UNCHANGED — still walks for child .git/ dirs. Now positioned as a
+    # *discovery helper* for callers who want to bulk-add: e.g.
+    #   sigil workspace scan ~/org | jq -r .path | xargs -I{} sigil workspace add {}
+    # Indexing no longer calls scan automatically.
 ```
 
 All query commands already take `--root` / `-r`. If `--root` points at a
@@ -55,6 +78,18 @@ reads the per-repo index. No new flag.
 Behind the scenes the dispatch is identical to today's `db`-feature
 auto-engage: `Backend::load(root)` already picks among in-memory vs
 DuckDB; we extend it to pick workspace vs per-repo first.
+
+### Why explicit membership
+
+Walk-based discovery is wrong for real orgs:
+
+- Mixed-purpose parent dirs (`~/Downloads/`, `~/code/`) contain repos
+  the user never wants in the workspace.
+- Vendor / submodule directories under a monorepo are git repos but not
+  workspace members.
+- Add/remove gives a clean editing surface and a stable manifest that's
+  reviewable, scriptable, and committable.
+- `workspace scan` is retained as a discovery helper for bulk-add.
 
 ## Storage layout
 
@@ -69,16 +104,48 @@ DuckDB; we extend it to pick workspace vs per-repo first.
 ├── repo-b/
 │   └── .sigil/
 └── .sigil-workspace/        # NEW — workspace-level merged view
-    ├── manifest.json        # version + per-child stamp (mtime + size)
-    ├── entities.jsonl       # all children's entities, file-path prefixed
-    ├── refs.jsonl           # all children's refs + cross-repo additions
+    ├── members.json         # AUTHORITATIVE membership list (add/remove writes here)
+    ├── manifest.json        # per-child stamp (mtime + size), schema version
+    ├── entities.jsonl       # all members' entities, file-path prefixed
+    ├── refs.jsonl           # all members' refs + cross-repo additions
     ├── rank.json            # PageRank computed across the merged graph
     └── index.duckdb         # optional, auto-engaged at the same 5 MB threshold
 ```
 
-`.sigil-workspace/` is gitignored by the workspace-install hook (matches
-`.sigil/`'s treatment). It can be regenerated from per-repo indexes at
-any time — it's a derived artifact.
+`.sigil-workspace/manifest.json` + `entities.jsonl` + `refs.jsonl` +
+`rank.json` + `index.duckdb` are **derived** — regenerable from
+`members.json` + each child's `.sigil/`. Safe to delete and rebuild.
+
+`.sigil-workspace/members.json` is **authoritative** — it's the only
+file the user cares about. Shape:
+
+```json
+{
+  "version": 1,
+  "members": [
+    {
+      "name": "repo-a",
+      "path": "/absolute/path/to/repo-a",
+      "added_at": "2026-05-13T13:42:11Z"
+    },
+    {
+      "name": "shared-lib",
+      "path": "/absolute/path/to/shared-lib",
+      "added_at": "2026-05-13T13:43:05Z"
+    }
+  ]
+}
+```
+
+`name` defaults to the path's basename; collisions trigger a numeric
+suffix (`repo-a`, `repo-a-2`) and surface a warning. The user can
+override with `sigil workspace add <path> --as <name>`.
+
+`.sigil-workspace/` (including `members.json`) is **committable** —
+unlike per-repo `.sigil/` which is auto-regenerated from source. The
+membership list IS the workspace definition and should be reviewable
+in PRs. The derived artifacts under it are gitignored by the
+workspace-install hook.
 
 ### Identity rules
 
@@ -101,11 +168,13 @@ any time — it's a derived artifact.
                                │
                                ▼
    ┌──────────────────────────────────────────────────────┐
-   │ 1. workspace::scan(root) → list of child repos      │
+   │ 1. Read .sigil-workspace/members.json (declared via  │
+   │    `sigil workspace add` / `remove`). Error out with │
+   │    a hint if it's empty.                             │
    └────────────────────┬─────────────────────────────────┘
                         │
         ┌───────────────┴─────────────────┐
-        │ 2. For each child:              │
+        │ 2. For each member:             │
         │    - Read its .sigil/           │
         │    - Or call build_index(child) │
         │      if .sigil/ missing/stale   │
@@ -115,10 +184,12 @@ any time — it's a derived artifact.
                         │
                         ▼
    ┌──────────────────────────────────────────────────────┐
-   │ 3. Merge per-child entities + refs:                  │
-   │    - Prefix `file` with `<repo>/`                    │
+   │ 3. Merge per-member entities + refs:                 │
+   │    - Prefix `file` with member's `name/`             │
    │    - Append to workspace entities.jsonl / refs.jsonl │
-   │    - Stamp each child (size + mtime) into manifest   │
+   │    - Stamp each member (size + mtime) into manifest  │
+   │    - Drop any stale slice for a member no longer     │
+   │      in members.json (removed-since-last-index)      │
    └────────────────────┬─────────────────────────────────┘
                         │
                         ▼
@@ -215,16 +286,56 @@ The `manifest.json` shape is new but versioned via the existing
 
 Each phase ships independently. Each is its own PR with TDD coverage.
 
-### Phase 1 — workspace index command
+### Phase 1 — membership + workspace index command
 
-- `sigil workspace index <root>` subcommand
-- Walks child repos via `workspace::scan`
-- Merges per-child JSONL into `.sigil-workspace/` with file-path rewrite
-- Stamps a `manifest.json`
-- New unit tests: 2-child merge, file-path prefix, stamp creation
+Ships four subcommands together — they're meaningless individually:
 
-Acceptance: `cat .sigil-workspace/entities.jsonl | jq '.file' | sort -u`
-shows entries prefixed with each child's name.
+- `sigil workspace add <repo-path> [--as <name>] [--root <ws>]`
+  Resolves + canonicalises the path, asserts it has a `.git/`, then
+  upserts an entry in `.sigil-workspace/members.json`. Creates the
+  workspace dir on first call. Default `name` is the path's basename;
+  `--as` overrides; collisions get a numeric suffix.
+
+- `sigil workspace remove <name-or-path> [--root <ws>]`
+  Drops the entry from `members.json`. Per-repo `.sigil/` at the
+  removed repo is untouched. The next `workspace index` run will
+  evict the member's slice from the merged JSONL.
+
+- `sigil workspace list [--root <ws>] [--json]`
+  Prints membership. Default human-readable; `--json` emits one row
+  per member.
+
+- `sigil workspace index [--root <ws>] [--full]`
+  Reads `members.json`, merges per-member JSONL into
+  `.sigil-workspace/entities.jsonl` / `refs.jsonl` with file-path
+  rewrite (`<member.name>/<rel-path>`), stamps each member into
+  `manifest.json`.
+
+New unit tests:
+- `workspace_add_creates_members_json_with_canonical_path`
+- `workspace_add_is_idempotent`
+- `workspace_add_with_alias_overrides_name`
+- `workspace_add_collision_appends_numeric_suffix`
+- `workspace_remove_drops_member`
+- `workspace_remove_idempotent_when_member_absent`
+- `workspace_list_prints_jsonl`
+- `workspace_index_merges_two_member_jsonl_with_prefix`
+- `workspace_index_evicts_slice_for_removed_member`
+- `workspace_index_errors_when_no_members`
+
+Acceptance:
+```
+sigil workspace add ~/code/repo-a --root ~/work/org
+sigil workspace add ~/code/repo-b --root ~/work/org
+sigil workspace list --root ~/work/org
+sigil workspace index --root ~/work/org
+jq '.file' ~/work/org/.sigil-workspace/entities.jsonl | sort -u
+# → entries start with repo-a/ and repo-b/
+sigil workspace remove repo-b --root ~/work/org
+sigil workspace index --root ~/work/org
+jq '.file' ~/work/org/.sigil-workspace/entities.jsonl | sort -u
+# → only repo-a/ entries remain
+```
 
 ### Phase 2 — workspace-aware backend load
 
@@ -255,13 +366,26 @@ caller, marked with `confidence = 0.4` (or 0.6).
 
 ### Phase 4 — incremental re-merge
 
-- Stamp-based child-change detection
-- `--full` flag forces full re-merge
-- Default re-merges only changed children + re-runs cross-repo + rank
+Three change axes the workspace index reacts to:
 
-Acceptance: touching one file in `repo-a`, re-indexing `repo-a`, then
-`sigil workspace index <root>` re-merges only `repo-a`'s slice
-(verifiable via timing or per-child stamp inspection).
+1. **Member added** (new entry in `members.json`) → emit its slice for
+   the first time.
+2. **Member removed** (entry gone from `members.json`) → drop its slice.
+3. **Member content changed** (per-repo `.sigil/entities.jsonl` mtime/size
+   diverges from the stamp) → re-read and re-emit that slice.
+
+`--full` flag forces re-merge of every member regardless of stamps.
+Default skips unchanged members. Cross-repo resolution + PageRank
+re-run iff any of the three axes fired.
+
+Acceptance:
+- Touching one file in `repo-a` + `sigil index` in `repo-a`, then
+  `sigil workspace index --root <ws>`, re-merges only `repo-a`'s slice
+  (verifiable via per-member stamp inspection).
+- `sigil workspace add <new>` + `sigil workspace index` only re-emits
+  the new member's slice.
+- `sigil workspace remove <r>` + `sigil workspace index` drops `r`'s
+  slice without touching the others.
 
 ### Phase 5 — DuckDB workspace backend
 
@@ -280,11 +404,13 @@ Acceptance: 10-repo workspace (~500 MB JSONL) opens against DuckDB and
 
 ## Open questions
 
-1. **Workspace manifest shape**. Today we discover children by walking
-   for `.git/`. Some orgs use `nx.json` / `pnpm-workspace.yaml` /
-   `Cargo.toml [workspace]` to declare members. Should `sigil workspace
-   index` honour those when present? **Tentative answer**: yes, with
-   a fallback to `workspace::scan`. Phase 4 follow-up.
+1. **Bulk-import from external manifests**. The authoritative source is
+   `sigil workspace add`, but some orgs already declare members in
+   `nx.json` / `pnpm-workspace.yaml` / `Cargo.toml [workspace] members`.
+   Should we offer `sigil workspace add --from-manifest <file>` that
+   bulk-adds from those? **Tentative answer**: yes, but as a Phase 6
+   convenience — never as the default discovery path. The user always
+   sees the diff before it lands in `members.json`.
 
 2. **Package-deps as a hard constraint**. Phase 3 makes 0.6 vs 0.4 a
    confidence call. Should we ever REQUIRE a `package-deps` edge before
@@ -335,12 +461,15 @@ Acceptance: 10-repo workspace (~500 MB JSONL) opens against DuckDB and
 
 ## Estimated size
 
-- Phase 1: ~200 LOC + tests
-- Phase 2: ~100 LOC + tests
-- Phase 3: ~150 LOC + tests (reuses `resolve_externals`)
-- Phase 4: ~100 LOC + tests
-- Phase 5: ~50 LOC (mostly path swap)
-- Phase 6: ~80 LOC (install hook, optional)
+- Phase 1: ~350 LOC + tests (add / remove / list / index + members.json
+  + manifest plumbing)
+- Phase 2: ~100 LOC + tests (Backend::load workspace branch)
+- Phase 3: ~150 LOC + tests (cross-repo resolution at index time;
+  reuses `resolve_externals`)
+- Phase 4: ~120 LOC + tests (incremental: add / remove / content axes)
+- Phase 5: ~50 LOC (mostly path swap for DuckDB)
+- Phase 6: ~100 LOC (`--from-manifest` bulk-add + optional git hook)
 
-Total: ~700 LOC for Phases 1–5. Comparable to a single typical
-manifest-resolver shipped in PR #35.
+Total: ~770 LOC for Phases 1–5. Phase 1 is heavier than the original
+estimate because the membership CLI (`add` / `remove` / `list`) ships
+together — they're meaningless without each other.
