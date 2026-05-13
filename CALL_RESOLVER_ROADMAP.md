@@ -78,6 +78,12 @@ Tracked in GitHub issues — pick from these to extend coverage:
   to entities in sibling sigil indexes, constrained by `sigil
   package-deps` edges. New ~0.4 confidence tier.
 
+- **#32 — DuckDB backend drops `confidence` + `callee_id` on round-trip.**
+  Storage-layer gap, adjacent to call resolution: `REFS_COLUMNS_SPEC`
+  in `src/query/duckdb_backend.rs` lacks the two columns, so the `db`
+  feature returns refs with both fields silently `None`. In-memory
+  backend preserves them.
+
 ## Decided against (or shipped enough)
 
 - **`file::__module__` synthetic caller** for module-level calls — low
