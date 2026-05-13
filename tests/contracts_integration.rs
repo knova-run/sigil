@@ -877,6 +877,267 @@ func main() {
     assert!(!subs.is_empty(), "expected NATS subscribers; got {nats:?}");
 }
 
+// ───── Batch 1: gRPC + Redis + NATS expanded across languages ─────
+
+#[test]
+fn detects_rust_tonic_grpc_server_and_client() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("server.rs"),
+        r#"use tonic::transport::Server;
+
+pub mod users { tonic::include_proto!("users"); }
+
+#[derive(Default)]
+pub struct MyService {}
+
+#[tonic::async_trait]
+impl users::user_service_server::UserService for MyService {
+    async fn get_user(&self, req: tonic::Request<users::Request>) -> Result<tonic::Response<users::Reply>, tonic::Status> { todo!() }
+}
+
+#[tokio::main]
+async fn main() {
+    Server::builder()
+        .add_service(users::user_service_server::UserServiceServer::new(MyService::default()))
+        .serve("[::1]:50051".parse().unwrap()).await.unwrap();
+}
+"#,
+    ).unwrap();
+    fs::write(
+        tmp.path().join("client.rs"),
+        r#"use tonic::transport::Channel;
+pub mod users { tonic::include_proto!("users"); }
+
+async fn run() {
+    let mut client = users::user_service_client::UserServiceClient::connect("http://[::1]:50051").await.unwrap();
+}
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let grpc: Vec<&serde_json::Value> = rows.iter().filter(|r| r["kind"] == "grpc").collect();
+    assert!(grpc.iter().any(|r| r["role"] == "provider" && r["contract_id"] == "grpc::UserService"),
+        "tonic provider; got {grpc:?}");
+    assert!(grpc.iter().any(|r| r["role"] == "consumer" && r["contract_id"] == "grpc::UserService"),
+        "tonic consumer; got {grpc:?}");
+}
+
+#[test]
+fn detects_node_grpc_js_server_and_client() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("server.js"),
+        r#"const grpc = require('@grpc/grpc-js');
+const protoLoader = require('@grpc/proto-loader');
+
+const server = new grpc.Server();
+server.addService(usersProto.UserService.service, { GetUser: getUser });
+"#,
+    ).unwrap();
+    fs::write(
+        tmp.path().join("client.js"),
+        r#"const grpc = require('@grpc/grpc-js');
+const client = new usersProto.UserService('localhost:50051', grpc.credentials.createInsecure());
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let grpc: Vec<serde_json::Value> = parse(&stdout)
+        .into_iter().filter(|r| r["kind"] == "grpc").collect();
+    let ids: Vec<&str> = grpc.iter().map(|r| r["contract_id"].as_str().unwrap()).collect();
+    assert!(ids.contains(&"grpc::UserService"),
+        "@grpc/grpc-js server.addService(UserService.service); got {ids:?}");
+}
+
+#[test]
+fn detects_ruby_grpc_server_and_stub() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("server.rb"),
+        r#"require 'grpc'
+require 'users_services_pb'
+
+class UserServiceImpl < Users::UserService::Service
+  def get_user(req, _call)
+    Users::Reply.new
+  end
+end
+"#,
+    ).unwrap();
+    fs::write(
+        tmp.path().join("client.rb"),
+        r#"require 'grpc'
+require 'users_services_pb'
+
+stub = Users::UserService::Stub.new('localhost:50051', :this_channel_is_insecure)
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let grpc: Vec<serde_json::Value> = parse(&stdout)
+        .into_iter().filter(|r| r["kind"] == "grpc").collect();
+    let by_role: std::collections::HashMap<&str, Vec<&str>> = {
+        let mut m: std::collections::HashMap<&str, Vec<&str>> = std::collections::HashMap::new();
+        for r in &grpc {
+            m.entry(r["role"].as_str().unwrap())
+                .or_default()
+                .push(r["contract_id"].as_str().unwrap());
+        }
+        m
+    };
+    assert!(by_role.get("provider").map(|v| v.contains(&"grpc::UserService")).unwrap_or(false),
+        "Ruby `< X::Y::Service` provider; got {grpc:?}");
+    assert!(by_role.get("consumer").map(|v| v.contains(&"grpc::UserService")).unwrap_or(false),
+        "Ruby `X::Y::Stub.new` consumer; got {grpc:?}");
+}
+
+#[test]
+fn detects_rust_redis_and_nats_pubsub() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("redis_worker.rs"),
+        r#"use redis::Commands;
+
+fn run(con: &mut redis::Connection) -> redis::RedisResult<()> {
+    con.publish("user-events", "created")?;
+    let mut pubsub = con.as_pubsub();
+    pubsub.subscribe("user-events")?;
+    Ok(())
+}
+"#,
+    ).unwrap();
+    fs::write(
+        tmp.path().join("nats_worker.rs"),
+        r#"use async_nats;
+
+async fn run(client: async_nats::Client) {
+    client.publish("events.user.created", "payload".into()).await.unwrap();
+    let _ = client.subscribe("events.user.>").await.unwrap();
+}
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let topics: Vec<serde_json::Value> = parse(&stdout)
+        .into_iter().filter(|r| r["kind"] == "topic").collect();
+    let triples: Vec<(String, String, String)> = topics.iter()
+        .map(|r| (r["contract_id"].as_str().unwrap().to_string(),
+                  r["role"].as_str().unwrap().to_string(),
+                  r["framework"].as_str().unwrap().to_string()))
+        .collect();
+    assert!(triples.iter().any(|(c, r, f)| c == "topic::user-events" && r == "publisher" && f == "redis"),
+        "Rust redis-rs publish; got {triples:?}");
+    assert!(triples.iter().any(|(c, r, _)| c == "topic::user-events" && r == "subscriber"),
+        "Rust redis-rs subscribe; got {triples:?}");
+    assert!(triples.iter().any(|(c, _, f)| c == "topic::events.user.created" && f == "nats"),
+        "Rust async-nats publish; got {triples:?}");
+}
+
+#[test]
+fn detects_java_jedis_redis_pubsub() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("Worker.java"),
+        r#"import redis.clients.jedis.Jedis;
+import redis.clients.jedis.JedisPubSub;
+
+public class Worker {
+    public void run(Jedis jedis) {
+        jedis.publish("user-events", "payload");
+        jedis.subscribe(new MyListener(), "user-events", "order-events");
+    }
+}
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let topics: Vec<serde_json::Value> = parse(&stdout)
+        .into_iter().filter(|r| r["kind"] == "topic").collect();
+    let ids: Vec<(&str, &str)> = topics.iter()
+        .map(|r| (r["contract_id"].as_str().unwrap(),
+                  r["role"].as_str().unwrap())).collect();
+    assert!(ids.contains(&("topic::user-events", "publisher")), "Jedis publish; got {ids:?}");
+    assert!(ids.contains(&("topic::user-events", "subscriber")), "Jedis subscribe; got {ids:?}");
+    assert!(ids.contains(&("topic::order-events", "subscriber")), "Jedis multi-arg subscribe; got {ids:?}");
+}
+
+#[test]
+fn detects_csharp_stackexchange_redis_pubsub() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("Worker.cs"),
+        r#"using StackExchange.Redis;
+
+public class Worker {
+    public void Run(ISubscriber sub) {
+        sub.Publish("user-events", "payload");
+        sub.Subscribe("user-events", (channel, msg) => {});
+    }
+}
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let topics: Vec<serde_json::Value> = parse(&stdout)
+        .into_iter().filter(|r| r["kind"] == "topic").collect();
+    let ids: Vec<(&str, &str)> = topics.iter()
+        .map(|r| (r["contract_id"].as_str().unwrap(),
+                  r["role"].as_str().unwrap())).collect();
+    assert!(ids.contains(&("topic::user-events", "publisher")), "C# Publish; got {ids:?}");
+    assert!(ids.contains(&("topic::user-events", "subscriber")), "C# Subscribe; got {ids:?}");
+}
+
+#[test]
+fn detects_ruby_redis_pubsub() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("worker.rb"),
+        r#"require 'redis'
+
+redis = Redis.new
+redis.publish('user-events', 'payload')
+redis.subscribe('user-events', 'order-events') do |on|
+  on.message { |ch, msg| puts msg }
+end
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let topics: Vec<serde_json::Value> = parse(&stdout)
+        .into_iter().filter(|r| r["kind"] == "topic").collect();
+    let ids: Vec<(&str, &str)> = topics.iter()
+        .map(|r| (r["contract_id"].as_str().unwrap(),
+                  r["role"].as_str().unwrap())).collect();
+    assert!(ids.contains(&("topic::user-events", "publisher")), "Ruby redis publish; got {ids:?}");
+    assert!(ids.contains(&("topic::user-events", "subscriber")), "Ruby redis subscribe; got {ids:?}");
+}
+
+#[test]
+fn detects_php_predis_pubsub() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("worker.php"),
+        r#"<?php
+use Predis\Client;
+$client = new Client();
+$client->publish('user-events', 'payload');
+$pubsub = $client->pubSubLoop();
+$pubsub->subscribe('user-events');
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let topics: Vec<serde_json::Value> = parse(&stdout)
+        .into_iter().filter(|r| r["kind"] == "topic").collect();
+    let ids: Vec<(&str, &str)> = topics.iter()
+        .map(|r| (r["contract_id"].as_str().unwrap(),
+                  r["role"].as_str().unwrap())).collect();
+    assert!(ids.contains(&("topic::user-events", "publisher")), "Predis publish; got {ids:?}");
+    assert!(ids.contains(&("topic::user-events", "subscriber")), "Predis subscribe; got {ids:?}");
+}
+
 #[test]
 fn contracts_works_on_workspace_root() {
     use std::process::Command;

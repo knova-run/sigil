@@ -534,6 +534,43 @@ fn scan_js_ts(file: &str, text: &str, ext: &str) -> Vec<ContractRow> {
             });
         }
     }
+    // @grpc/grpc-js — Node gRPC server + client patterns.
+    //   server: `server.addService(usersProto.UserService.service, handlers)`
+    //   client: `new usersProto.UserService(addr, credentials)` (no `Client`
+    //           suffix — the generated stub IS the named class).
+    static GRPC_JS_SERVER: OnceLock<Regex> = OnceLock::new();
+    let grpc_js_server = GRPC_JS_SERVER.get_or_init(|| {
+        Regex::new(r#"\.addService\s*\(\s*[A-Za-z_][A-Za-z0-9_\.]*\.([A-Z][A-Za-z0-9_]*)\.service"#).unwrap()
+    });
+    static GRPC_JS_CLIENT: OnceLock<Regex> = OnceLock::new();
+    let grpc_js_client = GRPC_JS_CLIENT.get_or_init(|| {
+        Regex::new(r#"\bnew\s+[A-Za-z_][A-Za-z0-9_\.]*\.([A-Z][A-Za-z0-9_]*)\s*\([^)]*credentials"#).unwrap()
+    });
+    let file_uses_grpc = text.contains("@grpc/grpc-js") || text.contains("@grpc/proto-loader") || text.contains("require('grpc')") || text.contains("from 'grpc'");
+    if file_uses_grpc {
+        for (i, line) in text.lines().enumerate() {
+            if let Some(caps) = grpc_js_server.captures(line) {
+                let svc = caps[1].to_string();
+                out.push(ContractRow {
+                    contract_id: format!("grpc::{svc}"),
+                    kind: "grpc".to_string(), role: "provider".to_string(),
+                    method: None, path: Some(svc), topic: None,
+                    file: file.to_string(), line: (i + 1) as u32,
+                    language: language.to_string(), framework: "grpc".to_string(),
+                });
+            }
+            if let Some(caps) = grpc_js_client.captures(line) {
+                let svc = caps[1].to_string();
+                out.push(ContractRow {
+                    contract_id: format!("grpc::{svc}"),
+                    kind: "grpc".to_string(), role: "consumer".to_string(),
+                    method: None, path: Some(svc), topic: None,
+                    file: file.to_string(), line: (i + 1) as u32,
+                    language: language.to_string(), framework: "grpc".to_string(),
+                });
+            }
+        }
+    }
     // Redis / NATS pub-sub for JS/TS files.
     emit_pubsub_rows(file, text, language, &mut out);
     out
@@ -806,6 +843,35 @@ fn scan_java(file: &str, text: &str) -> Vec<ContractRow> {
             });
         }
     }
+    // Java Jedis pub/sub: `jedis.publish("ch", msg)` /
+    // `jedis.subscribe(listener, "ch1", "ch2")`. Same shape as the
+    // Python/JS lowercase variants — reuse those regexes.
+    for (i, line) in text.lines().enumerate() {
+        if let Some(caps) = redis_publish_re().captures(line) {
+            let topic = caps[1].to_string();
+            let framework = if topic.contains('.') { "nats" } else { "redis" };
+            out.push(ContractRow {
+                contract_id: format!("topic::{topic}"),
+                kind: "topic".to_string(), role: "publisher".to_string(),
+                method: None, path: None, topic: Some(topic),
+                file: file.to_string(), line: (i + 1) as u32,
+                language: "java".to_string(), framework: framework.to_string(),
+            });
+            continue;
+        }
+        if redis_subscribe_re().is_match(line) {
+            for topic in extract_subscribe_topics(line) {
+                let framework = if topic.contains('.') { "nats" } else { "redis" };
+                out.push(ContractRow {
+                    contract_id: format!("topic::{topic}"),
+                    kind: "topic".to_string(), role: "subscriber".to_string(),
+                    method: None, path: None, topic: Some(topic),
+                    file: file.to_string(), line: (i + 1) as u32,
+                    language: "java".to_string(), framework: framework.to_string(),
+                });
+            }
+        }
+    }
     out
 }
 
@@ -900,8 +966,58 @@ fn rails_resources_re() -> &'static Regex {
     })
 }
 
+fn ruby_grpc_service_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `class Foo < Users::UserService::Service` — gRPC server impl.
+        // Captures the trailing service name before `::Service`.
+        Regex::new(r#"class\s+\w+\s*<\s*(?:[A-Za-z_][A-Za-z0-9_]*::)*([A-Z][A-Za-z0-9_]*)::Service\b"#).unwrap()
+    })
+}
+
+fn ruby_grpc_stub_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `Users::UserService::Stub.new(...)` — gRPC client stub.
+        Regex::new(r#"\b(?:[A-Za-z_][A-Za-z0-9_]*::)*([A-Z][A-Za-z0-9_]*)::Stub\.new"#).unwrap()
+    })
+}
+
 fn scan_ruby(file: &str, text: &str) -> Vec<ContractRow> {
     let mut out = Vec::new();
+    // Ruby gRPC + Redis pub-sub (scanned on every .rb file, independent
+    // of routes.rb gate below).
+    let file_uses_grpc = text.contains("require 'grpc'") || text.contains("require \"grpc\"")
+        || text.contains("_services_pb") || text.contains("GRPC::");
+    if file_uses_grpc {
+        for (i, line) in text.lines().enumerate() {
+            if let Some(caps) = ruby_grpc_service_re().captures(line) {
+                let svc = caps[1].to_string();
+                if svc.len() >= 2 {
+                    out.push(ContractRow {
+                        contract_id: format!("grpc::{svc}"),
+                        kind: "grpc".to_string(), role: "provider".to_string(),
+                        method: None, path: Some(svc), topic: None,
+                        file: file.to_string(), line: (i + 1) as u32,
+                        language: "ruby".to_string(), framework: "grpc".to_string(),
+                    });
+                }
+            }
+            if let Some(caps) = ruby_grpc_stub_re().captures(line) {
+                let svc = caps[1].to_string();
+                if svc.len() >= 2 {
+                    out.push(ContractRow {
+                        contract_id: format!("grpc::{svc}"),
+                        kind: "grpc".to_string(), role: "consumer".to_string(),
+                        method: None, path: Some(svc), topic: None,
+                        file: file.to_string(), line: (i + 1) as u32,
+                        language: "ruby".to_string(), framework: "grpc".to_string(),
+                    });
+                }
+            }
+        }
+    }
+    emit_pubsub_rows(file, text, "ruby", &mut out);
     // Quick filter: this file has to plausibly be a Rails routes file
     // or a controller — skip pure model / lib / spec files to avoid
     // matching `get :latest, on: :collection` in non-router contexts.
@@ -1016,6 +1132,54 @@ fn rust_reqwest_re() -> &'static Regex {
     })
 }
 
+fn rust_tonic_server_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // tonic provider: `impl users::user_service_server::UserService for X`
+        // or `add_service(UserServiceServer::new(...))`. Service name comes
+        // from the `_service_server::<Name>` module path or the
+        // `<Name>Server::new(` constructor.
+        Regex::new(r#"\b([A-Z][A-Za-z0-9_]*)(?:Server::new|_server::[a-z_]+)"#).unwrap()
+    })
+}
+
+fn rust_tonic_client_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // tonic consumer: `UserServiceClient::connect(...)` or the
+        // `_client::<Name>` module path.
+        Regex::new(r#"\b([A-Z][A-Za-z0-9_]*)Client::connect"#).unwrap()
+    })
+}
+
+fn rust_redis_publish_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // redis-rs: `con.publish("channel", msg)`. Method is lowercase
+        // in Rust (matches the redis::Commands trait).
+        Regex::new(r#"\b[A-Za-z_][A-Za-z0-9_]*\.publish[\s:<>(\),A-Za-z0-9_]*\(\s*"([A-Za-z0-9_][\w./:\-]*)""#).unwrap()
+    })
+}
+
+fn rust_redis_subscribe_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // redis-rs: `pubsub.subscribe("ch")` / `pubsub.subscribe(&["ch1", "ch2"])`.
+        // We pre-match the call shape then extract every quoted topic.
+        Regex::new(r#"\b[A-Za-z_][A-Za-z0-9_]*\.subscribe\s*\("#).unwrap()
+    })
+}
+
+fn rust_nats_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // async-nats: `client.publish("subject", payload).await` and
+        // `client.subscribe("subject").await`. The `.await` suffix is
+        // optional in our match — we capture the call.
+        Regex::new(r#"\b[A-Za-z_][A-Za-z0-9_]*\.(publish|subscribe)\s*\(\s*"([A-Za-z0-9_][\w./:>*\-]*)""#).unwrap()
+    })
+}
+
 fn scan_rust(file: &str, text: &str) -> Vec<ContractRow> {
     let mut out = Vec::new();
     for (i, line) in text.lines().enumerate() {
@@ -1072,6 +1236,76 @@ fn scan_rust(file: &str, text: &str) -> Vec<ContractRow> {
                 line: (i + 1) as u32,
                 language: "rust".to_string(),
                 framework: "actix".to_string(),
+            });
+            continue;
+        }
+        // tonic gRPC server
+        if let Some(caps) = rust_tonic_server_re().captures(line) {
+            let svc = caps[1].to_string();
+            // Skip generic short matches like `Server` from `Server::builder`
+            if svc != "Server" && svc.len() >= 3 {
+                out.push(ContractRow {
+                    contract_id: format!("grpc::{svc}"),
+                    kind: "grpc".to_string(), role: "provider".to_string(),
+                    method: None, path: Some(svc), topic: None,
+                    file: file.to_string(), line: (i + 1) as u32,
+                    language: "rust".to_string(), framework: "tonic".to_string(),
+                });
+                continue;
+            }
+        }
+        // tonic gRPC client
+        if let Some(caps) = rust_tonic_client_re().captures(line) {
+            let svc = caps[1].to_string();
+            if svc.len() >= 3 {
+                out.push(ContractRow {
+                    contract_id: format!("grpc::{svc}"),
+                    kind: "grpc".to_string(), role: "consumer".to_string(),
+                    method: None, path: Some(svc), topic: None,
+                    file: file.to_string(), line: (i + 1) as u32,
+                    language: "rust".to_string(), framework: "tonic".to_string(),
+                });
+                continue;
+            }
+        }
+        // Rust redis-rs publish
+        if let Some(caps) = rust_redis_publish_re().captures(line) {
+            let topic = caps[1].to_string();
+            let framework = if topic.contains('.') { "nats" } else { "redis" };
+            out.push(ContractRow {
+                contract_id: format!("topic::{topic}"),
+                kind: "topic".to_string(), role: "publisher".to_string(),
+                method: None, path: None, topic: Some(topic),
+                file: file.to_string(), line: (i + 1) as u32,
+                language: "rust".to_string(), framework: framework.to_string(),
+            });
+            continue;
+        }
+        if rust_redis_subscribe_re().is_match(line) {
+            for topic in extract_subscribe_topics(line) {
+                let framework = if topic.contains('.') { "nats" } else { "redis" };
+                out.push(ContractRow {
+                    contract_id: format!("topic::{topic}"),
+                    kind: "topic".to_string(), role: "subscriber".to_string(),
+                    method: None, path: None, topic: Some(topic),
+                    file: file.to_string(), line: (i + 1) as u32,
+                    language: "rust".to_string(), framework: framework.to_string(),
+                });
+            }
+            continue;
+        }
+        // async-nats — same shape, dotted subjects → nats framework
+        if let Some(caps) = rust_nats_re().captures(line) {
+            let verb = &caps[1];
+            let topic = caps[2].to_string();
+            let role = if verb == "publish" { "publisher" } else { "subscriber" };
+            let framework = if topic.contains('.') { "nats" } else { "redis" };
+            out.push(ContractRow {
+                contract_id: format!("topic::{topic}"),
+                kind: "topic".to_string(), role: role.to_string(),
+                method: None, path: None, topic: Some(topic),
+                file: file.to_string(), line: (i + 1) as u32,
+                language: "rust".to_string(), framework: framework.to_string(),
             });
             continue;
         }
@@ -1160,6 +1394,45 @@ fn scan_php(file: &str, text: &str) -> Vec<ContractRow> {
                 language: "php".to_string(),
                 framework: "laravel".to_string(),
             });
+        }
+    }
+    // PHP redis pub/sub. Predis uses `$client->publish('ch', msg)` and
+    // `$pubsub->subscribe('ch')` (and the `->` operator instead of `.`).
+    // Reuse the regexes by handling `->` separately.
+    static PHP_PUB_RE: OnceLock<Regex> = OnceLock::new();
+    let php_pub = PHP_PUB_RE.get_or_init(|| {
+        Regex::new(r#"\$[A-Za-z_][A-Za-z0-9_]*->publish\s*\(\s*['"]([A-Za-z0-9_][\w./:\-]*)['"]"#).unwrap()
+    });
+    static PHP_SUB_RE: OnceLock<Regex> = OnceLock::new();
+    let php_sub = PHP_SUB_RE.get_or_init(|| {
+        Regex::new(r#"\$[A-Za-z_][A-Za-z0-9_]*->subscribe\s*\("#).unwrap()
+    });
+    for (i, line) in text.lines().enumerate() {
+        if let Some(caps) = php_pub.captures(line) {
+            let topic = caps[1].to_string();
+            let framework = if topic.contains('.') { "nats" } else { "redis" };
+            out.push(ContractRow {
+                contract_id: format!("topic::{topic}"),
+                kind: "topic".to_string(), role: "publisher".to_string(),
+                method: None, path: None, topic: Some(topic),
+                file: file.to_string(), line: (i + 1) as u32,
+                language: "php".to_string(), framework: framework.to_string(),
+            });
+        }
+        if php_sub.is_match(line) {
+            // Replace `->subscribe` with `.subscribe` so the shared
+            // arg-extractor picks up the topic args.
+            let normalised = line.replace("->subscribe", ".subscribe");
+            for topic in extract_subscribe_topics(&normalised) {
+                let framework = if topic.contains('.') { "nats" } else { "redis" };
+                out.push(ContractRow {
+                    contract_id: format!("topic::{topic}"),
+                    kind: "topic".to_string(), role: "subscriber".to_string(),
+                    method: None, path: None, topic: Some(topic),
+                    file: file.to_string(), line: (i + 1) as u32,
+                    language: "php".to_string(), framework: framework.to_string(),
+                });
+            }
         }
     }
     out
@@ -1325,6 +1598,39 @@ fn scan_csharp(file: &str, text: &str) -> Vec<ContractRow> {
                 language: "csharp".to_string(),
                 framework: "httpclient".to_string(),
             });
+        }
+    }
+    // C# StackExchange.Redis pub/sub — same `.Publish(...)` / `.Subscribe(...)`
+    // shape as Go (PascalCase verb). Reuse the Go regex (it's case-
+    // sensitive so it won't match the lowercase JS/Python variants).
+    for (i, line) in text.lines().enumerate() {
+        if let Some(caps) = redis_go_publish_re().captures(line) {
+            let topic = caps[1].to_string();
+            let framework = if topic.contains('.') { "nats" } else { "redis" };
+            out.push(ContractRow {
+                contract_id: format!("topic::{topic}"),
+                kind: "topic".to_string(), role: "publisher".to_string(),
+                method: None, path: None, topic: Some(topic),
+                file: file.to_string(), line: (i + 1) as u32,
+                language: "csharp".to_string(), framework: framework.to_string(),
+            });
+            continue;
+        }
+        if redis_go_subscribe_re().is_match(line) {
+            // Find the args of `.Subscribe(...)` and extract topic strings.
+            let args_start = line.find(".Subscribe(").map(|p| p + ".Subscribe(".len()).unwrap_or(0);
+            let after = &line[args_start..];
+            for cap in quoted_topic_args_re().captures_iter(after) {
+                let topic = cap[1].to_string();
+                let framework = if topic.contains('.') { "nats" } else { "redis" };
+                out.push(ContractRow {
+                    contract_id: format!("topic::{topic}"),
+                    kind: "topic".to_string(), role: "subscriber".to_string(),
+                    method: None, path: None, topic: Some(topic),
+                    file: file.to_string(), line: (i + 1) as u32,
+                    language: "csharp".to_string(), framework: framework.to_string(),
+                });
+            }
         }
     }
     out
