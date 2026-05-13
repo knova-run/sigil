@@ -243,6 +243,33 @@ fn member_canonical_names(member_path: &Path) -> Vec<String> {
         }
     }
 
+    // pyproject.toml — both modern `[project] name` (PEP 621) and the
+    // legacy `[tool.poetry] name`. Python distribution names allow `-`
+    // and `_` interchangeably (PEP 503 normalises both forms), so we
+    // register both variants like we do for Cargo crates.
+    let pyproj = member_path.join("pyproject.toml");
+    if let Ok(text) = std::fs::read_to_string(&pyproj)
+        && let Ok(doc) = toml::from_str::<toml::Value>(&text)
+    {
+        let project_name = doc
+            .get("project")
+            .and_then(|p| p.get("name"))
+            .and_then(|n| n.as_str());
+        let poetry_name = doc
+            .get("tool")
+            .and_then(|t| t.get("poetry"))
+            .and_then(|p| p.get("name"))
+            .and_then(|n| n.as_str());
+        for name in project_name.into_iter().chain(poetry_name) {
+            out.push(name.to_string());
+            if name.contains('-') {
+                out.push(name.replace('-', "_"));
+            } else if name.contains('_') {
+                out.push(name.replace('_', "-"));
+            }
+        }
+    }
+
     // Cargo.toml. Two shapes to handle:
     //   * single-crate repo: `[package] name = "foo"` at the root.
     //   * Cargo workspace: `[workspace] members = ["foo", "foo-macros", …]`
