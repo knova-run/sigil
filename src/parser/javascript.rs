@@ -930,6 +930,30 @@ fn extract_method(
     );
 }
 
+/// Detect `require('<module>')` shape. Returns the module specifier
+/// (stripped of quotes) when `node` is a call_expression whose function
+/// identifier is `require` and whose first argument is a string literal.
+/// Used by `extract_variable_decl` to emit an import entity for the
+/// common CommonJS pattern `var X = require('Y')`.
+fn extract_require_module(node: Node, source: &[u8]) -> Option<String> {
+    if node.kind() != "call_expression" {
+        return None;
+    }
+    let func = find_child_by_field(node, "function")?;
+    if func.kind() != "identifier" || node_text(func, source) != "require" {
+        return None;
+    }
+    let args = find_child_by_field(node, "arguments")?;
+    let mut cursor = args.walk();
+    for arg in args.children(&mut cursor) {
+        if matches!(arg.kind(), "string" | "template_string") {
+            let raw = node_text(arg, source);
+            return Some(strip_string_quotes(&raw).to_string());
+        }
+    }
+    None
+}
+
 fn extract_variable_decl(
     node: Node,
     source: &[u8],
@@ -969,6 +993,31 @@ fn extract_variable_decl(
                     continue;
                 }
                 let name = node_text(n, source);
+
+                // CommonJS `var X = require('module')` — emit an import
+                // entity so cross-repo resolution sees this as a module
+                // dependency. Mirrors the ES `import X from 'module'`
+                // path above (extract_import). Without this, sigil's JS
+                // index has zero externals for repos that use require().
+                if let Some(v) = value_node
+                    && let Some(module) = extract_require_module(v, source)
+                {
+                    let full_name = module.clone();
+                    symbols.push(SymbolEntry {
+                        file: file_path.to_string(),
+                        name: full_name.clone(),
+                        kind: "import".to_string(),
+                        line,
+                        parent: None,
+                        tokens: None,
+                        alias: Some(name.clone()),
+                        visibility: Some("private".to_string()),
+                        sig: None,
+                        project: String::new(),
+                        heritage: Vec::new(),
+                    });
+                    continue;
+                }
 
                 // Check if the value is a function/arrow function
                 let is_func = value_node

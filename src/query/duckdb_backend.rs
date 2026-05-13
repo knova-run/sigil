@@ -113,6 +113,40 @@ pub struct DuckDbBackend {
 }
 
 impl DuckDbBackend {
+    /// Workspace-mode open: materialise the union of every enabled
+    /// member's `.sigil/{entities,refs}.jsonl` (file paths prefixed with
+    /// `<member.name>/`) plus `.sigil-workspace/cross_repo_refs.jsonl`
+    /// into `<root>/.sigil-workspace/index.duckdb`. Schema is identical
+    /// to the per-repo DB so every query method reads through unchanged.
+    pub fn open_workspace(root: &Path) -> Result<Self> {
+        let ws_dir = root.join(".sigil-workspace");
+        std::fs::create_dir_all(&ws_dir)?;
+        let db_path = ws_dir.join("index.duckdb");
+        let stamp_path = ws_dir.join("index.duckdb.stamp");
+
+        let expected = workspace_fingerprint(root);
+        let actual = Stamp::load(&stamp_path).ok();
+
+        let needs_rebuild = actual.as_ref() != Some(&expected);
+        if needs_rebuild && db_path.exists() {
+            std::fs::remove_file(&db_path).ok();
+        }
+
+        let conn = Connection::open(&db_path)
+            .with_context(|| format!("open DuckDB at {}", db_path.display()))?;
+
+        if needs_rebuild {
+            populate_workspace(&conn, root)
+                .context("rebuild workspace DuckDB index from per-repo JSONL")?;
+            expected.save(&stamp_path)?;
+        }
+
+        Ok(Self {
+            conn,
+            root: root.to_path_buf(),
+        })
+    }
+
     /// Open the backend at `root/.sigil/index.duckdb`, rebuilding from
     /// JSONL if the stamp file is stale or missing.
     pub fn open(root: &Path) -> Result<Self> {
@@ -1018,6 +1052,145 @@ fn count_tables(conn: &Connection) -> Option<(i64, i64)> {
         .query_row("SELECT COUNT(*) FROM refs", [], |r| r.get(0))
         .ok()?;
     Some((ents, refs))
+}
+
+/// Workspace-mode DuckDB populate. Builds the entities + refs tables as
+/// the UNION over each enabled member's `.sigil/` JSONL (with the
+/// `<member.name>/` file prefix applied at SELECT time), plus the
+/// workspace's `cross_repo_refs.jsonl` appended to the refs union. The
+/// resulting tables look exactly like a per-repo DB's tables, so every
+/// query method works unchanged.
+fn populate_workspace(conn: &Connection, ws_root: &Path) -> Result<()> {
+    let members = crate::workspace::list(ws_root)
+        .context("read workspace members.json")?;
+    let enabled: Vec<_> = members.into_iter().filter(|m| !m.disabled).collect();
+
+    // Entities — build a UNION ALL of every enabled member's
+    // entities.jsonl, prefixing `file` with `<member>/` (but keeping
+    // the synthetic `<external>` marker unprefixed).
+    let mut ent_selects: Vec<String> = Vec::new();
+    let mut ref_selects: Vec<String> = Vec::new();
+
+    for m in &enabled {
+        let ent_path = std::path::Path::new(&m.path).join(".sigil/entities.jsonl");
+        let ref_path = std::path::Path::new(&m.path).join(".sigil/refs.jsonl");
+        let prefix = m.name.replace('\'', "''");
+
+        if ent_path.exists() {
+            ent_selects.push(format!(
+                "SELECT CASE WHEN file = '<external>' THEN file \
+                              ELSE '{prefix}/' || file END AS file, \
+                        name, kind, line_start, line_end, parent, qualified_name, \
+                        sig, meta, body_hash, sig_hash, struct_hash, visibility, \
+                        rank, blast_radius, doc \
+                 FROM read_json('{path}', columns = {cols})",
+                path = path_for_sql(&ent_path),
+                cols = ENTITIES_COLUMNS_SPEC,
+            ));
+        }
+        if ref_path.exists() {
+            ref_selects.push(format!(
+                "SELECT '{prefix}/' || file AS file, \
+                        caller, name, kind, line, confidence, \
+                        CASE WHEN callee_id IS NULL THEN NULL \
+                             WHEN callee_id LIKE '<external>%' THEN callee_id \
+                             ELSE '{prefix}/' || callee_id END AS callee_id \
+                 FROM read_json('{path}', columns = {cols})",
+                path = path_for_sql(&ref_path),
+                cols = REFS_COLUMNS_SPEC,
+            ));
+        }
+    }
+
+    // Workspace's own cross-repo refs file — rows are already prefixed.
+    let cross_path = ws_root.join(".sigil-workspace/cross_repo_refs.jsonl");
+    if cross_path.exists() {
+        ref_selects.push(format!(
+            "SELECT file, caller, name, kind, line, confidence, callee_id \
+             FROM read_json('{path}', columns = {cols})",
+            path = path_for_sql(&cross_path),
+            cols = REFS_COLUMNS_SPEC,
+        ));
+    }
+
+    let entities_sql = if ent_selects.is_empty() {
+        empty_entities_table_sql().to_string()
+    } else {
+        format!("CREATE TABLE entities AS {};", ent_selects.join(" UNION ALL "))
+    };
+    let refs_sql = if ref_selects.is_empty() {
+        empty_refs_table_sql().to_string()
+    } else {
+        format!("CREATE TABLE refs AS {};", ref_selects.join(" UNION ALL "))
+    };
+
+    conn.execute_batch(&format!(
+        "{entities_sql}
+         {refs_sql}
+         CREATE INDEX idx_entities_name ON entities(name);
+         CREATE INDEX idx_entities_file ON entities(file);
+         CREATE INDEX idx_refs_name   ON refs(name);
+         CREATE INDEX idx_refs_caller ON refs(caller);
+         CREATE INDEX idx_refs_file   ON refs(file);",
+    ))
+    .context("populate workspace entities/refs tables + indexes")?;
+
+    Ok(())
+}
+
+/// Workspace fingerprint = sum of every enabled member's per-repo stamp
+/// + the workspace's own cross_repo_refs.jsonl stamp. Captures both
+/// per-repo content changes AND membership churn (disable / add /
+/// remove flip the member set's contribution).
+fn workspace_fingerprint(ws_root: &Path) -> Stamp {
+    let mut entities_len: u64 = 0;
+    let mut entities_mtime_ms: u128 = 0;
+    let mut refs_len: u64 = 0;
+    let mut refs_mtime_ms: u128 = 0;
+
+    let members = crate::workspace::list(ws_root).unwrap_or_default();
+    for m in members.iter().filter(|m| !m.disabled) {
+        let mp = std::path::Path::new(&m.path);
+        let (el, em) = meta_pair(&mp.join(".sigil/entities.jsonl"));
+        let (rl, rm) = meta_pair(&mp.join(".sigil/refs.jsonl"));
+        entities_len = entities_len.saturating_add(el);
+        refs_len = refs_len.saturating_add(rl);
+        entities_mtime_ms = entities_mtime_ms.max(em);
+        refs_mtime_ms = refs_mtime_ms.max(rm);
+    }
+
+    let (cross_len, cross_mtime) = meta_pair(&ws_root.join(".sigil-workspace/cross_repo_refs.jsonl"));
+    refs_len = refs_len.saturating_add(cross_len);
+    refs_mtime_ms = refs_mtime_ms.max(cross_mtime);
+
+    Stamp {
+        schema_version: CURRENT_SCHEMA_VERSION,
+        entities_len,
+        entities_mtime_ms,
+        refs_len,
+        refs_mtime_ms,
+    }
+}
+
+/// Auto-engage threshold check for workspace mode. Sums every enabled
+/// member's JSONL size. Mirrors `should_auto_engage` for per-repo.
+pub fn workspace_should_auto_engage(ws_root: &Path, threshold_bytes: u64) -> bool {
+    let members = crate::workspace::list(ws_root).unwrap_or_default();
+    let total: u64 = members
+        .iter()
+        .filter(|m| !m.disabled)
+        .map(|m| {
+            let mp = std::path::Path::new(&m.path);
+            let e = std::fs::metadata(mp.join(".sigil/entities.jsonl"))
+                .map(|x| x.len())
+                .unwrap_or(0);
+            let r = std::fs::metadata(mp.join(".sigil/refs.jsonl"))
+                .map(|x| x.len())
+                .unwrap_or(0);
+            e + r
+        })
+        .sum();
+    total >= threshold_bytes
 }
 
 fn fingerprint(sigil_dir: &Path) -> Stamp {

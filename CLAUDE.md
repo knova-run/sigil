@@ -79,9 +79,38 @@ src/
   identifiers.rs        — `sigil identifiers` — symbol-shaped token extraction
   decisions.rs          — `sigil decisions` — WHY:/DECISION:/RATIONALE:/TRADEOFF:/ADR:/REJECTED: marker scan
   package_deps.rs       — `sigil package-deps` — go.mod / package.json edges
-  contracts.rs          — `sigil contracts` — HTTP routes, gRPC services, queue topics
-  workspace.rs          — `sigil workspace scan` — discover child git repos
-  cross_repo_cochange.rs — `sigil cochange --workspace` — cross-repo file-pair mining
+  contracts.rs          — `sigil contracts [--root <repo-or-workspace>]` —
+                          extracts HTTP / WebSocket / gRPC / topic / task /
+                          RPC / GraphQL / db contracts across Python/JS-TS/
+                          Go/Rust/Java/Kotlin/Ruby/PHP/C# +
+                          .proto/.graphql/.sql/.yaml/.json. Workspace-aware
+                          via `extract_workspace_or_repo`. `ContractRow.kind`
+                          enum: `http | websocket | event | grpc | topic |
+                          task | rpc | graphql | db`. Env-var-aware:
+                          `os.environ['X']` / `process.env.X` / `ENV['X']` etc.
+                          become `topic::$ENV.<NAME>` contracts, resolved
+                          via `.env`/`docker-compose.yml` at workspace match
+                          time.
+  workspace.rs          — `sigil workspace {init,add,remove,enable,disable,
+                          set-default,list,index,install,uninstall,scan,
+                          resolve}` — explicit multi-repo membership +
+                          cross-repo intelligence (call graphs, co-change,
+                          contract matching with confidence tiers `1.0`
+                          literal / `0.9` env_value / `0.8` mixed / `0.6`
+                          env_name unresolved / `0.4` env_name disagree;
+                          reverse-proxy URL rewrite awareness for
+                          nginx/Caddy/Vercel; DuckDB workspace backend
+                          auto-engaging at 5 MB). See
+                          WORKSPACE_INDEXING_PLAN.md for the 6-phase design.
+                          Output JSONL artifacts (`cross_repo_refs.jsonl`,
+                          `contract_links.jsonl`, `contracts.jsonl`,
+                          `co_changes.jsonl`) are lexicographically sorted
+                          for deterministic diffs.
+  cross_repo_cochange.rs — `sigil cochange --workspace` — cross-repo file-pair
+                          mining with exp-decay (τ=180d) + `min_strength=1.0`
+                          + 200-edge cap (matches repowise). Workspace
+                          integration via `mine_members` taking explicit
+                          member paths.
   hotspots.rs           — `sigil hotspots` — file churn × line count risk score
   ownership.rs          — `sigil ownership` — per-file primary author from git log
   bus_factor.rs         — `sigil bus-factor` — per-file knowledge-concentration risk
