@@ -341,6 +341,18 @@ fn walk_node(
         "jsx_self_closing_element" | "jsx_opening_element" => {
             extract_jsx_element_ref(node, source, file_path, parent_ctx, references);
         }
+        // Type position — `: Foo`, `: Array<Foo>`, `: Foo | Bar`,
+        // `: readonly Foo[]`. These appear on function parameters,
+        // return types, variable declarations, class fields, generic
+        // constraints, etc. Without this arm, sigil's TS parser only
+        // emitted type-annotation refs from class_heritage and
+        // type_alias bodies — missing 80%+ of type uses in a real TS
+        // codebase. (QA: excalidraw `ExcalidrawElement` 67 type-ann
+        // refs vs ~948 source positions.)
+        "type_annotation" | "opting_type_annotation" => {
+            extract_type_refs(node, source, file_path, parent_ctx, references);
+            return;
+        }
 
         "comment" => {
             extract_ts_comment(node, source, file_path, parent_ctx, texts);
