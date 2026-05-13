@@ -822,7 +822,7 @@ fn extract_package(node: Node, source: &[u8], file_path: &str, symbols: &mut Vec
 
 /// Extract a function call as a reference.
 ///
-/// 3-tier resolver:
+/// Four structural cases by the call's function-field node kind:
 /// * Selector calls (`pkg.Func`) whose leading segment matches a file-local
 ///   import alias emit two refs:
 ///     1. The raw selector form `pkg.Func` with `confidence=0.8`, for
@@ -836,6 +836,11 @@ fn extract_package(node: Node, source: &[u8], file_path: &str, symbols: &mut Vec
 /// * Selector calls that don't resolve through the import table (method
 ///   calls on a local value, calls into nested receivers) keep the old
 ///   behaviour: emit the selector verbatim with `confidence=None`.
+/// * Parenthesized-expression "calls" — `(*Engine)(nil)` / `(Engine)(x)` —
+///   are Go type conversions. We delegate to `emit_cast_type_refs` which
+///   walks inside the parens and emits the type as a `type_annotation`
+///   reference (not a call), so `sigil callers Engine` reaches the cast
+///   site.
 fn extract_call(
     node: Node,
     source: &[u8],

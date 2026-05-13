@@ -142,31 +142,46 @@ fn qualified_tail(name: &str) -> Option<&str> {
     }
 }
 
-/// Each `::`-separated head prefix of a Rust-style FQN ref name. For
-/// `Regex::new` returns `["Regex"]`; for `foo::Bar::baz` returns
-/// `["foo::Bar", "foo", "Bar"]`. Used so `callers Regex` reaches refs
-/// stored as `Regex::new`. Skips the full name (already indexed) and
-/// empty strings. We restrict to `::` (not `.`) because dot-qualified
-/// refs like `requests.Session` should NOT surface under `callers
-/// requests` — that's module namespace bookkeeping, not a meaningful
-/// symbol use.
+/// Immediate `::` head of a Rust-style FQN ref name, plus the bare
+/// leaf of that head when the leaf looks like a type name (starts with
+/// an uppercase letter). Used so `callers Regex` reaches refs stored
+/// as `Regex::new`, and `callers Bar` reaches `Foo::Bar::baz`.
+///
+/// We restrict to ONE step back (not the full chain) and gate the leaf
+/// emission on case so we don't pollute lookups for module-root names:
+///  * `Regex::new`                → `["Regex"]`
+///  * `Foo::Bar::baz`             → `["Foo::Bar", "Bar"]`
+///  * `crate::parser::parse_file` → `["crate::parser"]` (no `parser` —
+///    lowercase module names would collide with legitimate workspace
+///    symbols of the same name; tested by `refs_to_does_not_pollute_*`)
+///  * `std::collections::HashMap` → `["std::collections"]`
+///
+/// We restrict to `::` (not `.`) because dot-qualified refs like
+/// `requests.Session` should NOT surface under `callers requests` —
+/// that's module-namespace bookkeeping, not a meaningful symbol use.
 fn cc_head_prefixes(name: &str) -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
-    let mut cur = name.to_string();
-    while let Some((head, _)) = cur.rsplit_once("::") {
-        if head.is_empty() {
-            break;
+    let Some((head, _)) = name.rsplit_once("::") else {
+        return out;
+    };
+    if head.is_empty() {
+        return out;
+    }
+    // The head itself: emit when it's multi-segment (always specific
+    // enough to not collide with workspace names) OR when its single
+    // segment starts uppercase (looks like a type). Skip single
+    // lowercase heads like `crate`, `std`, `super`, `self`.
+    let head_has_cc = head.contains("::");
+    let head_is_typey = head.starts_with(|c: char| c.is_ascii_uppercase());
+    if head_has_cc || head_is_typey {
+        out.push(head.to_string());
+    }
+    // Bare leaf of the head — emit only when uppercase. Skips lowercase
+    // module segments like `parser` from `crate::parser::Foo`.
+    if let Some(leaf) = bare_leaf(head) {
+        if leaf != head && leaf.starts_with(|c: char| c.is_ascii_uppercase()) {
+            out.push(leaf.to_string());
         }
-        let head_owned = head.to_string();
-        out.push(head_owned.clone());
-        // Also emit the leaf of this head so `foo::Bar::baz` indexes
-        // under `Bar` (the inner type), not just `foo::Bar` and `foo`.
-        if let Some(leaf) = bare_leaf(&head_owned) {
-            if leaf != head_owned {
-                out.push(leaf.to_string());
-            }
-        }
-        cur = head_owned;
     }
     out
 }
@@ -739,6 +754,73 @@ mod tests {
     }
 
     #[test]
+    fn refs_to_does_not_pollute_under_module_prefix() {
+        // `cc_head_prefixes` should reach `Regex` from `Regex::new` (a
+        // type), but NOT pollute `callers parser` / `callers std` /
+        // `callers crate` with every Rust scoped path. The heuristic:
+        // only walk one `::` head back, and only emit its bare leaf if
+        // the leaf starts with uppercase (i.e. looks like a type, not
+        // a module). Regression from PR #23 review.
+        let idx = Index::build(
+            vec![],
+            vec![
+                refr("a.rs", Some("f"), "std::collections::HashMap", "import"),
+                refr("b.rs", Some("g"), "crate::parser::parse_file", "call"),
+                refr("c.rs", Some("h"), "Foo::Bar::baz", "call"),  // nested type
+                refr("d.rs", Some("i"), "Regex::new", "call"),     // 2-segment type::method
+            ],
+        );
+        // Lowercase module-root names: MUST NOT match.
+        assert_eq!(
+            idx.refs_to("std").count(),
+            0,
+            "module root `std` should not surface refs under `callers std`"
+        );
+        assert_eq!(
+            idx.refs_to("crate").count(),
+            0,
+            "Rust path keyword `crate` should not surface refs"
+        );
+        assert_eq!(
+            idx.refs_to("parser").count(),
+            0,
+            "lowercase module name `parser` should not surface refs (would pollute when a `parser` module exists)"
+        );
+        assert_eq!(
+            idx.refs_to("collections").count(),
+            0,
+            "lowercase module segment `collections` should not surface refs"
+        );
+        // Also test single-segment lowercase head: `crate::Foo` should
+        // NOT make `callers crate` return refs.
+        let idx2 = Index::build(
+            vec![],
+            vec![refr("e.rs", Some("j"), "crate::Foo", "call")],
+        );
+        assert_eq!(
+            idx2.refs_to("crate").count(),
+            0,
+            "`crate::Foo`'s head `crate` is single-segment lowercase — skip"
+        );
+        assert_eq!(
+            idx2.refs_to("Foo").count(),
+            1,
+            "`crate::Foo`'s head `Foo` (uppercase) — should match"
+        );
+        // Type-name heads still work.
+        assert_eq!(
+            idx.refs_to("Regex").count(),
+            1,
+            "type head `Regex` from `Regex::new` should surface"
+        );
+        assert_eq!(
+            idx.refs_to("Bar").count(),
+            1,
+            "inner type leaf `Bar` from `Foo::Bar::baz` should surface"
+        );
+    }
+
+    #[test]
     fn refs_to_matches_cc_qualified_head_for_associated_calls() {
         // Rust `Regex::new()` constructor calls are stored as refs with
         // name=`Regex::new`. `sigil callers Regex` should reach those
@@ -763,7 +845,7 @@ mod tests {
         );
         // Leaf indexing still works for the method name itself.
         let to_new: Vec<_> = idx.refs_to("new").collect();
-        assert_eq!(to_new.len(), 3, "leaf `new` matches both Regex::new and OtherType::new");
+        assert_eq!(to_new.len(), 3, "leaf `new` matches both Regex::new entries plus OtherType::new");
     }
 
     #[test]
