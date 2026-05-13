@@ -35,8 +35,10 @@ adds a workspace-aware INDEX**, so all subsequent queries see one graph.
   parsed per-language graphs.
 - Replacing per-repo `.sigil/`. Per-repo indexes still ship and remain
   the primary unit of incremental work.
-- A workspace manifest format. Discovery stays sibling-walk via
-  `workspace::scan`.
+- Auto-discovery of workspace members. Membership is explicit and
+  user-managed via `add` / `remove`. `workspace scan` is retained as a
+  discovery HELPER for users who want to bulk-add, but it never writes
+  to `members.json` automatically.
 
 ## CLI surface
 
@@ -45,23 +47,51 @@ opts each repo in with `add`, opts out with `remove`. `workspace index`
 re-merges over only the declared members.
 
 ```
-sigil workspace add <repo-path> [--root <workspace-dir>]
-    # Register a repo as a workspace member. Path is resolved + canonicalised.
+sigil workspace init [<dir>]
+    # Bootstrap a workspace. Creates <dir>/.sigil-workspace/members.json
+    # (empty members list, schema version 1). <dir> defaults to cwd.
+    # Errors if .sigil-workspace/ already exists (idempotent re-init via
+    # --force). Required before any add/remove/index call against <dir>.
+
+sigil workspace add <repo-path> [--as <name>] [--root <workspace-dir>] [--disabled] [--description <text>]
+    # Register a repo as a workspace member. Path is resolved with
+    # `.` / `..` / `~` expansion and canonicalised to an absolute path.
+    # Symlinks in the path are PRESERVED (we don't resolve through them —
+    # users sometimes pin a stable symlink and rotate the target).
+    # Members can live ANYWHERE on disk; they are not required to be
+    # siblings of the workspace dir.
     # If the repo has no .sigil/, queues it for indexing on the next
-    # `workspace index` run. Idempotent — adding the same repo twice is a no-op.
+    # `workspace index` run. Idempotent — adding the same canonical path
+    # twice is a no-op (existing entry preserved, no fields overwritten).
+    # --disabled adds the member in the disabled state (skipped at index
+    # time until `workspace enable` flips it).
 
 sigil workspace remove <repo-name-or-path> [--root <workspace-dir>]
-    # De-register a repo. Drops it from the merged view on the next
-    # `workspace index` (or immediately if --rebuild is passed).
+    # De-register a repo. Drops the entry from members.json.
     # Per-repo .sigil/ at the removed repo is left untouched.
 
-sigil workspace list [--root <workspace-dir>]
-    # Print the current membership (one JSONL row per member).
+sigil workspace enable <repo-name-or-path> [--root <workspace-dir>]
+sigil workspace disable <repo-name-or-path> [--root <workspace-dir>]
+    # Flip the `disabled` flag on an existing member. Disabled members
+    # are kept in members.json (so the entry survives across audits) but
+    # are skipped by `workspace index`, union-load, and cross-repo
+    # resolution. Lets users temporarily quarantine a stale repo without
+    # losing their `--as` alias and description.
+
+sigil workspace list [--root <workspace-dir>] [--json]
+    # Print the current membership. Default human-readable; --json emits
+    # one JSONL row per member, including the `disabled` flag.
 
 sigil workspace index [--root <workspace-dir>] [--full]
     # Build / refresh .sigil-workspace/ over the registered members.
-    # --full forces re-merge of every member; default re-merges only the
-    # ones whose .sigil/ changed since the last index.
+    # --full forces re-merge of every enabled member; default re-merges
+    # only the ones whose .sigil/ changed since the last index.
+    # Missing member paths (the repo dir was deleted / moved out from
+    # under us) trigger a stderr warning and are SKIPPED for this run.
+    # members.json is NEVER mutated by `index` — only by add/remove/
+    # enable/disable. This means a transiently-unmounted repo recovers
+    # silently when its path returns; a permanently-gone repo stays in
+    # the manifest until the user runs `workspace remove` explicitly.
 
 sigil workspace scan <root>
     # UNCHANGED — still walks for child .git/ dirs. Now positioned as a
@@ -70,10 +100,27 @@ sigil workspace scan <root>
     # Indexing no longer calls scan automatically.
 ```
 
-All query commands already take `--root` / `-r`. If `--root` points at a
-directory containing a `.sigil-workspace/` directory, the command reads
-the workspace index. If it points at a directory with a `.sigil/`, it
-reads the per-repo index. No new flag.
+### `--root` resolution (strict)
+
+`--root` is the workspace selector for every workspace subcommand AND
+for every query command (`callers`, `where`, `map`, etc.). The rules:
+
+- `--root <dir>` is honored verbatim. If `<dir>/.sigil-workspace/`
+  exists, workspace mode engages. Else if `<dir>/.sigil/` exists,
+  per-repo mode engages. Else error.
+- `--root .` (or omitted) defaults to **cwd's `.sigil/`** — i.e. the
+  per-repo index for the repo the user is standing in. Never walks up
+  looking for a parent workspace.
+- A workspace requires an EXPLICIT `--root <workspace-dir>`. There is
+  no implicit-discovery mode. Rationale: users frequently `cd` into a
+  member repo to run a query; if `--root .` walked up to find the
+  workspace, every per-repo query inside a workspace member would
+  silently widen to the whole workspace. That's surprising and costly.
+
+If both `.sigil/` and `.sigil-workspace/` exist at the same `--root`
+(the user ran `sigil index` at the workspace root for some reason),
+the workspace wins. Per-repo at the workspace root makes no semantic
+sense — it would only index `.sigil-workspace/` files, not any member.
 
 Behind the scenes the dispatch is identical to today's `db`-feature
 auto-engage: `Backend::load(root)` already picks among in-memory vs
@@ -159,20 +206,35 @@ file the user cares about. Shape:
     {
       "name": "repo-a",
       "path": "/absolute/path/to/repo-a",
-      "added_at": "2026-05-13T13:42:11Z"
+      "added_at": "2026-05-13T13:42:11Z",
+      "description": "API service",
+      "disabled": false
     },
     {
       "name": "shared-lib",
       "path": "/absolute/path/to/shared-lib",
-      "added_at": "2026-05-13T13:43:05Z"
+      "added_at": "2026-05-13T13:43:05Z",
+      "disabled": false
     }
   ]
 }
 ```
 
-`name` defaults to the path's basename; collisions trigger a numeric
-suffix (`repo-a`, `repo-a-2`) and surface a warning. The user can
-override with `sigil workspace add <path> --as <name>`.
+Member entry schema:
+
+- `name` — defaults to the path's basename; collisions trigger a
+  numeric suffix (`repo-a`, `repo-a-2`) and surface a warning. The user
+  can override with `sigil workspace add <path> --as <name>`.
+- `path` — absolute, with `.` / `..` / `~` expanded. Symlinks are
+  preserved (we do NOT resolve through them — see `add` semantics
+  above). The natural key for deduplication and `remove <path>` lookup
+  is `(name, path)` after canonicalisation.
+- `added_at` — RFC 3339 UTC timestamp set by `add`. Untouched by any
+  other subcommand (preserves audit trail).
+- `description` — optional free-form text. Defaults to absent. Useful
+  for orgs that share a workspace definition across teams.
+- `disabled` — bool, defaults to `false`. Flipped by `workspace
+  enable / disable`. Omitted from JSON when false to keep diffs small.
 
 `.sigil-workspace/` (including `members.json`) is **committable** —
 unlike per-repo `.sigil/` which is auto-regenerated from source. The
@@ -263,20 +325,64 @@ workspace-install hook.
 
 Extending the existing scale (see `CALL_RESOLVER_ROADMAP.md`):
 
-| Tier      | What                                                       |
-|-----------|------------------------------------------------------------|
-| 0.95–0.85 | unchanged — same-file / known-class / receiver-aware paths |
-| 0.80      | tier-2 import-alias resolution                             |
-| 0.70      | tier-3 barrel + manifest resolvers                         |
-| **0.60**  | **cross-repo via declared `package-deps` edge (NEW)**      |
-| 0.50      | tier-3 global-unique                                       |
-| **0.40**  | **cross-repo without dep-graph constraint (NEW, MVP)**     |
-| None      | unresolved                                                 |
+| Tier      | What                                                          |
+|-----------|---------------------------------------------------------------|
+| 0.95–0.85 | unchanged — same-file / known-class / receiver-aware paths    |
+| 0.80      | tier-2 import-alias resolution                                |
+| 0.70      | tier-3 barrel + manifest resolvers                            |
+| **0.60**  | **cross-repo, unique match, direct `package-deps` edge (NEW)**|
+| 0.50      | tier-3 global-unique                                          |
+| **0.40**  | **cross-repo, unique match, no dep-graph evidence (NEW)**     |
+| **0.30**  | **cross-repo, ambiguous (multiple matches in one or more providers) (NEW)** |
+| None      | unresolved                                                    |
 
-Two cross-repo tiers because the workspace might or might not have
-`package-deps` edges. With them, we know A genuinely declares B as a
-dep — that's a stronger signal than blind sibling-scan. Without them,
-fall back to the MVP behaviour shipped in `sigil workspace resolve`.
+### Emission policy (permissive, ambiguity-demoting)
+
+For each `external:<modpath>` sentinel in a focus repo, the resolver
+scans every other enabled member for matching callable definitions.
+What we emit depends on the match count:
+
+- **Single match** (exactly one provider, exactly one matching file):
+  - 0.6 if `package-deps` declares the focus → provider edge directly
+    (see "Package-deps evidence" below)
+  - 0.4 otherwise
+- **Multiple matches** (either: one provider with several matching
+  files, or several providers each with their own match): emit ALL
+  matches at **0.3**, one tier below the corresponding single-match
+  confidence. The query layer decides what to do with them; the index
+  doesn't filter ambiguous candidates out.
+- **Cap**: at most 10 emissions per sentinel. If more candidates
+  exist, drop the excess deterministically by sort key `(provider_repo,
+  provider_file)` and append a debug warning. Prevents pathological
+  blow-up on common names (`run`, `init`, `main`).
+
+### Package-deps evidence — direct edge required
+
+The 0.6 tier requires a **direct** dependency edge in
+`sigil package-deps` from the focus repo to the provider repo. That is:
+
+- The focus repo's `package.json` / `go.mod` / `Cargo.toml` /
+  `composer.json` / `requirements.txt` etc. declares a package that
+  resolves to the provider repo (by name, by module path, or by
+  workspace alias).
+- **Transitive edges do NOT count.** Even if focus → middle → provider
+  exists in the dep graph, the focus must declare provider directly to
+  earn 0.6.
+- **No `package-deps` integration in either repo** → everything falls
+  back to 0.4 / 0.3 by definition. Sigil's `package_deps.rs` runs
+  per-repo, so the workspace just unions those edges; nothing new to
+  parse here.
+
+Rationale: 0.6 should be a high-confidence "this binding is real, the
+focus genuinely depends on the provider." Transitive ties through a
+shim crate are noisier — we'd rather under-promise and let the user
+opt in by adding the missing direct dep declaration.
+
+Why three tiers, not two: the workspace might or might not have
+`package-deps` edges, and even with them the matches might be
+ambiguous. The three tiers separate three different uncertainty
+sources: dep-evidence (0.6 vs 0.4), match-ambiguity (0.4 vs 0.3),
+language uncertainty (already encoded in the higher tiers).
 
 ## Incremental indexing
 
@@ -330,58 +436,100 @@ Each phase ships independently. Each is its own PR with TDD coverage.
 
 ### Phase 1 — membership + workspace index command
 
-Ships four subcommands together — they're meaningless individually:
+Ships seven subcommands together — they form one cohesive UX surface
+(membership editing + index refresh):
 
-- `sigil workspace add <repo-path> [--as <name>] [--root <ws>]`
-  Resolves + canonicalises the path, asserts it has a `.git/`, then
-  upserts an entry in `.sigil-workspace/members.json`. Creates the
-  workspace dir on first call. Default `name` is the path's basename;
-  `--as` overrides; collisions get a numeric suffix.
+- `sigil workspace init [<dir>] [--force]`
+  Creates `<dir>/.sigil-workspace/members.json` with an empty members
+  list at schema version 1. `<dir>` defaults to cwd. Errors if
+  `.sigil-workspace/` already exists unless `--force` is passed (which
+  preserves `members.json` if non-empty — never silently destructive).
+
+- `sigil workspace add <repo-path> [--as <name>] [--description <text>] [--disabled] [--root <ws>]`
+  Expands `.` / `..` / `~` and canonicalises the path to absolute form
+  WITHOUT resolving through symlinks. Asserts the path exists and is a
+  directory containing `.git/`. Upserts an entry in `members.json`.
+  Default `name` = path basename; `--as` overrides; collisions get a
+  numeric suffix (`repo-a`, `repo-a-2`) with a warning. Re-adding the
+  same canonical path is a no-op (returns the existing entry; never
+  overwrites `description` / `added_at` / `disabled`). `--root` is
+  REQUIRED unless cwd already contains a `.sigil-workspace/`.
 
 - `sigil workspace remove <name-or-path> [--root <ws>]`
   Drops the entry from `members.json`. Per-repo `.sigil/` at the
-  removed repo is untouched. The next `workspace index` run will
-  evict the member's slice from the merged JSONL.
+  removed repo is untouched. Lookup is by name OR by canonical path
+  (so `remove ~/code/foo` and `remove foo` both work, regardless of
+  which form the user typed at `add` time). Idempotent — removing an
+  absent member emits a warning and exits 0.
+
+- `sigil workspace enable <name-or-path> [--root <ws>]`
+- `sigil workspace disable <name-or-path> [--root <ws>]`
+  Flip `members[].disabled`. Disabled members survive in `members.json`
+  but are skipped by `index`, union-load, and cross-repo resolution.
 
 - `sigil workspace list [--root <ws>] [--json]`
-  Prints membership. Default human-readable; `--json` emits one row
-  per member.
+  Prints membership. Default human-readable table; `--json` emits one
+  JSONL row per member with all fields (incl. `disabled`).
 
 - `sigil workspace index [--root <ws>] [--full]`
-  Reads `members.json`. For each member, ensures its `.sigil/` is fresh
-  (auto-builds via `build_index(member)` if missing/stale), then stamps
-  its `entities.jsonl` + `refs.jsonl` size/mtime into
-  `manifest.json`. Does NOT copy per-repo data into the workspace —
-  the per-repo JSONL stays the source of truth. Phase 1 leaves
-  `cross_repo_refs.jsonl` empty (Phase 3 fills it).
+  Reads `members.json`. For each ENABLED member:
+  - If `member.path` doesn't exist on disk → stderr warning, SKIP this
+    member for the run, do NOT mutate `members.json`. The user is the
+    only one who can remove members.
+  - If `member.path/.sigil/` is missing or stale → auto-build via
+    `build_index(member.path)`.
+  - Stamp its `entities.jsonl` + `refs.jsonl` size/mtime into
+    `.sigil-workspace/manifest.json`.
+  Does NOT copy per-repo data into the workspace — the per-repo JSONL
+  stays the source of truth. Phase 1 leaves `cross_repo_refs.jsonl`
+  empty (Phase 3 fills it). Errors out (exit 2) if `members.json`
+  doesn't exist (user must `workspace init` first) or contains zero
+  ENABLED members.
 
 New unit tests:
+- `workspace_init_creates_empty_members_json`
+- `workspace_init_errors_when_already_initialized`
 - `workspace_add_creates_members_json_with_canonical_path`
+- `workspace_add_expands_home_dir`
+- `workspace_add_preserves_symlinks_in_path`
 - `workspace_add_is_idempotent`
+- `workspace_add_idempotent_preserves_description`
 - `workspace_add_with_alias_overrides_name`
 - `workspace_add_collision_appends_numeric_suffix`
+- `workspace_add_with_disabled_flag`
 - `workspace_remove_drops_member`
-- `workspace_remove_idempotent_when_member_absent`
-- `workspace_list_prints_jsonl`
+- `workspace_remove_by_path_works`
+- `workspace_remove_warns_when_member_absent`
+- `workspace_enable_disable_round_trip`
+- `workspace_list_prints_table`
+- `workspace_list_json_includes_disabled_flag`
 - `workspace_index_stamps_each_member_jsonl`
+- `workspace_index_skips_disabled_member`
+- `workspace_index_warns_and_skips_missing_path`
+- `workspace_index_does_not_mutate_members_json`
 - `workspace_index_drops_stamp_for_removed_member`
-- `workspace_index_errors_when_no_members`
+- `workspace_index_errors_when_uninitialized`
+- `workspace_index_errors_when_no_enabled_members`
 - `workspace_index_auto_builds_member_missing_sigil`
 
 Acceptance:
 ```
+sigil workspace init ~/work/org
 sigil workspace add ~/code/repo-a --root ~/work/org
-sigil workspace add ~/code/repo-b --root ~/work/org
-sigil workspace list --root ~/work/org
+sigil workspace add ~/code/repo-b --root ~/work/org --description "auth lib"
+sigil workspace list --root ~/work/org --json
 sigil workspace index --root ~/work/org
 jq '.members' ~/work/org/.sigil-workspace/manifest.json
 # → both members appear with non-zero entities_len + refs_len stamps
 ls -la ~/work/org/.sigil-workspace/
 # → members.json + manifest.json + (empty until Phase 3) cross_repo_refs.jsonl
-sigil workspace remove repo-b --root ~/work/org
+sigil workspace disable repo-b --root ~/work/org
 sigil workspace index --root ~/work/org
 jq '.members | length' ~/work/org/.sigil-workspace/manifest.json
-# → 1 (repo-b's stamp gone)
+# → 1 (repo-b skipped while disabled; entry still in members.json)
+sigil workspace remove repo-b --root ~/work/org
+jq '.members | length' ~/work/org/.sigil-workspace/members.json
+# → 1 (repo-b's entry gone for good)
 ```
 
 ### Phase 2 — workspace-aware backend load (union over N + 1 files)
@@ -463,45 +611,58 @@ Acceptance: 10-repo workspace (~500 MB JSONL) opens against DuckDB and
   `sigil workspace index` after any child repo's hook fires
 - Optional — Phases 1–5 work without this
 
+## Decided design points (locked by /grill-me interview)
+
+1. **Member location**: members can live anywhere on disk; not required
+   to be siblings of `.sigil-workspace/`. `members.json` stores absolute
+   paths with `.` / `..` / `~` expanded; symlinks preserved.
+2. **`--root` resolution**: strict. Workspace mode requires explicit
+   `--root <workspace-dir>` (or cwd containing `.sigil-workspace/`); we
+   never walk up from a member to find a workspace. See the "--root
+   resolution" section.
+3. **Missing member at index time**: warn + skip; never mutate
+   `members.json`. The user is the sole authority on membership.
+4. **Member schema**: `name` / `path` / `added_at` / `description?` /
+   `disabled` (default false). `disabled` is omitted from JSON when
+   false to keep diffs small.
+5. **Disable / enable**: separate subcommands (not a flag on `add`).
+   Disabled members survive in `members.json` but are skipped at index
+   time.
+6. **Match emission**: permissive. Single match → 0.6 (w/ direct
+   package-deps edge) or 0.4. Multiple matches in one or more providers
+   → 0.3 each. Cap of 10 emissions per sentinel.
+7. **Package-deps evidence (0.6 tier)**: direct edge required.
+   Transitive deps don't count. No `package-deps` data → falls through
+   to 0.4 / 0.3.
+
 ## Open questions
 
-1. **Bulk-import from external manifests**. The authoritative source is
-   `sigil workspace add`, but some orgs already declare members in
-   `nx.json` / `pnpm-workspace.yaml` / `Cargo.toml [workspace] members`.
-   Should we offer `sigil workspace add --from-manifest <file>` that
-   bulk-adds from those? **Tentative answer**: yes, but as a Phase 6
-   convenience — never as the default discovery path. The user always
-   sees the diff before it lands in `members.json`.
+1. **Bulk-import from external manifests**. Some orgs already declare
+   members in `nx.json` / `pnpm-workspace.yaml` / `Cargo.toml
+   [workspace] members`. Phase 6 will offer `sigil workspace add
+   --from-manifest <file>` as a convenience — never as the default
+   discovery path. The user always sees the diff before it lands in
+   `members.json`. Format for the diff preview is TBD (likely a unified
+   diff of `members.json` printed to stderr with `--dry-run` always
+   implied unless `--apply` is passed).
 
-2. **Package-deps as a hard constraint**. Phase 3 makes 0.6 vs 0.4 a
-   confidence call. Should we ever REQUIRE a `package-deps` edge before
-   emitting a cross-repo binding? **Tentative answer**: no — sigil's
-   philosophy is "surface what's there, let consumers filter on
-   confidence." A 0.4 ref is opt-in for any consumer that wants
-   strictness.
+2. **Cross-repo dead-code / communities / heritage behavior**. Most of
+   these "just work" against the union-loaded index: `heritage.rs`
+   already scans every entity (verified), `dead_code.rs` counts callers
+   (now cross-repo), `communities.rs` runs Leiden over the merged
+   graph. Open question is whether `dead-code` needs a separate
+   confidence threshold for "no callers found, but maybe an external
+   consumer outside the workspace calls it" — currently treats the
+   workspace as the closed world. Revisit after Phase 3.
 
-3. **What about repos with no `.sigil/`?** Two options: auto-build via
-   `build_index` (slow on first run), or skip and warn (faster but
-   surprising). **Tentative answer**: auto-build, since users running
-   `sigil workspace index` clearly want the workspace.
+3. **Concurrency / locking**. Two simultaneous `workspace index`
+   invocations would race on `manifest.json` + `cross_repo_refs.jsonl`.
+   Today's per-repo `sigil index` has no lock either; we just don't
+   advertise concurrency. Defer until users hit it; trivially fixable
+   with an advisory file lock at `.sigil-workspace/.lock`.
 
-4. **Symbol-name collisions across repos**. `User` exists in both
-   repo-a and repo-b. Current `(file, name)` key already disambiguates,
-   but `sigil where User` will return both. Is this a feature or a bug?
-   **Tentative answer**: feature. The result rows already carry the
-   file path, so the user sees which repo each `User` lives in.
-
-5. **CLI override**. If both `.sigil/` (at the workspace root, because
-   the user happened to run `sigil index` there) AND `.sigil-workspace/`
-   exist, which wins? **Tentative answer**: workspace wins. Per-repo at
-   the workspace root makes no semantic sense (it would only index the
-   workspace itself, not children).
-
-6. **What about repowise / graphify parity**. Repowise has a notion of
-   "wiki" that includes cross-repo. Not a goal to match feature-for-
-   feature, but if there are obvious gaps the workspace index should
-   close them. **Tentative answer**: defer until Phase 1–3 ship and we
-   have real user feedback.
+4. **Repowise / graphify parity**. Not a goal to match feature-for-
+   feature. Defer until Phases 1–5 ship and we have user feedback.
 
 ## Existing surface this builds on
 
