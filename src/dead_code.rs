@@ -21,7 +21,9 @@
 //!   - 0.70 — internal (private) helper with zero call sites
 //!   - <0.70 — surfaced only with `--include-low-confidence`
 //!
-//! `--safe-only` filters to confidence ≥ 0.70.
+//! `--safe-only` filters to confidence ≥ 0.85 (the CI-safe tier — file-
+//! level dead files + exported-orphan symbols; drops the 0.70
+//! internal-helper tier, which is higher false-positive rate).
 
 use anyhow::Result;
 use regex::Regex;
@@ -335,7 +337,9 @@ pub fn first_framework_match_in_text(text: &str, language: &str) -> Option<&'sta
 
 /// Configuration for `find_dead_code`.
 pub struct DeadCodeConfig {
-    /// Filter out anything below 0.70 unless `include_low_confidence` is set.
+    /// Restrict to confidence ≥ 0.85 (the CI-safe tier: dead files +
+    /// exported-orphan symbols; excludes the 0.70 internal-helper tier
+    /// because its false-positive rate is too high for CI gates).
     pub safe_only: bool,
     /// Include candidates with confidence < 0.70 (off by default).
     pub include_low_confidence: bool,

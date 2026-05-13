@@ -220,7 +220,10 @@ fn is_js_bare_global_call(name: &str) -> bool {
         | "beforeAll"
         | "afterAll"
         | "jest"
-        | "spyOn"
+        // `spyOn` is always called as `jest.spyOn(...)` (member call,
+        // filtered by the `jest` object-prefix check). Keeping it here
+        // would silently drop any user-defined bare `spyOn` function,
+        // the exact class of bug `match`/`map`/`filter` removal fixed.
     )
 }
 
@@ -518,7 +521,9 @@ fn extract_jsx_element_ref(
         return;
     };
     let raw = node_text(name_node, source);
-    let head = raw.split(|c| c == '.' || c == '<' || c == '>').next().unwrap_or(&raw);
+    // Same as the TS parser — leftmost segment of a potentially-dotted
+    // name. `<` / `>` never appear in tree-sitter's name-field text.
+    let head = raw.split('.').next().unwrap_or(&raw);
     if !head.chars().next().map(|c| c.is_ascii_uppercase()).unwrap_or(false) {
         return;
     }

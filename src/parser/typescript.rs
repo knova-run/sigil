@@ -187,7 +187,10 @@ fn is_ts_bare_global_call(name: &str) -> bool {
         | "beforeAll"
         | "afterAll"
         | "jest"
-        | "spyOn"
+        // `spyOn` is always called as `jest.spyOn(...)` — the `jest`
+        // prefix already filters that. Bare-name `spyOn` here would
+        // silently drop user-defined functions of that name (same
+        // class of bug as the previously-removed `match`/`map`/`filter`).
     )
 }
 
@@ -613,7 +616,11 @@ fn extract_jsx_element_ref(
     let raw = node_text(name_node, source);
     // Leftmost segment determines whether this is a DOM intrinsic
     // (`<div>`) or a React component (`<Foo>` / `<ns.Foo>`).
-    let head = raw.split(|c| c == '.' || c == '<' || c == '>').next().unwrap_or(&raw);
+    // `name` field text is `identifier` / `member_expression` /
+    // `nested_identifier` — never contains `<` or `>`. Only `.` can
+    // appear (e.g. `ns.Foo` / `A.B.C`), so we split on it to grab the
+    // leftmost segment for the DOM-intrinsic check.
+    let head = raw.split('.').next().unwrap_or(&raw);
     if !head.chars().next().map(|c| c.is_ascii_uppercase()).unwrap_or(false) {
         return;
     }

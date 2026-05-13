@@ -361,7 +361,24 @@ fn compute_blast(
         let direct_callers = direct.len() as u32;
         let direct_files: HashSet<&str> = direct.iter().map(|r| r.file.as_str()).collect();
         let direct_files_count = direct_files.len() as u32;
-        let transitive = transitive_caller_count(&e.name, &refs_to_name, transitive_depth);
+        // BFS seed: try the same three name forms as the direct-caller
+        // lookup (`e.name`, `e.qualified_name`, `bare_leaf(e.name)`)
+        // so transitive coverage matches direct for mixed-separator
+        // qualified-name entities (Ruby/Kotlin/Scala). Without this,
+        // `Faraday.Connection` showed direct=2 but transitive=0 even
+        // when a chain existed.
+        let mut seeds: Vec<&str> = vec![e.name.as_str()];
+        if let Some(qn) = e.qualified_name.as_deref() {
+            if qn != e.name {
+                seeds.push(qn);
+            }
+        }
+        if let Some(leaf) = crate::query::index::bare_leaf(&e.name) {
+            if leaf != e.name {
+                seeds.push(leaf);
+            }
+        }
+        let transitive = transitive_caller_count(&seeds, &refs_to_name, transitive_depth);
 
         blast.insert(
             EntityKey::from_entity(e),
@@ -375,22 +392,28 @@ fn compute_blast(
     blast
 }
 
-/// BFS over the reverse-call graph: how many unique callers reach `seed`
-/// within `max_depth` hops. The caller-name set doubles as a visited set to
-/// prevent cycles from blowing up the count.
+/// BFS over the reverse-call graph: how many unique callers reach any
+/// `seed` within `max_depth` hops. Multiple seeds let mixed-separator
+/// qualified-name entities reach their inbound refs (Ruby/Kotlin/Scala —
+/// `Faraday.Connection` seeds `Faraday::Connection` and `Connection`).
+/// The visited set is shared across seeds so a caller reachable from
+/// more than one seed is counted once.
 fn transitive_caller_count(
-    seed: &str,
+    seeds: &[&str],
     refs_to_name: &HashMap<String, Vec<&Reference>>,
     max_depth: u32,
 ) -> u32 {
-    if max_depth == 0 {
+    if max_depth == 0 || seeds.is_empty() {
         return 0;
     }
     let mut visited: HashSet<&str> = HashSet::new();
     // Queue items: (symbol_name, depth_from_seed).
     let mut queue: VecDeque<(&str, u32)> = VecDeque::new();
-    queue.push_back((seed, 0));
-    visited.insert(seed);
+    for seed in seeds {
+        if visited.insert(seed) {
+            queue.push_back((seed, 0));
+        }
+    }
 
     let mut count: u32 = 0;
     while let Some((sym, depth)) = queue.pop_front() {
@@ -708,6 +731,44 @@ mod tests {
             br.direct_callers >= 2,
             "expected ≥2 direct callers from `Faraday::Connection.new` refs; got {}",
             br.direct_callers
+        );
+    }
+
+    #[test]
+    fn blast_radius_transitive_callers_use_expanded_seed() {
+        // Regression: PR #26 review surfaced that direct-callers lookup
+        // expanded to try `e.name`, `e.qualified_name`, AND
+        // `bare_leaf(e.name)`, but `transitive_caller_count` was still
+        // called with only `&e.name`. For a Ruby entity
+        // `Faraday.Connection` (qualified_name `Faraday::Connection`),
+        // refs are indexed under `Faraday::Connection` / `Connection`
+        // but NOT under `Faraday.Connection` — so BFS started cold
+        // (transitive=0) even though direct=2. Setup: a 2-hop
+        // transitive chain that the BFS can ONLY follow when seeded by
+        // qualified_name or bare_leaf.
+        let mut e = ent("a.rb", "Faraday.Connection", "class");
+        e.qualified_name = Some("Faraday::Connection".to_string());
+        let mut entities = vec![e];
+        let refs = vec![
+            // Direct hop: u_outer calls Faraday::Connection.new
+            refr("b.rb", Some("u_outer"), "Faraday::Connection.new"),
+            // Indirect hop: top_caller calls u_outer (transitive seed
+            // is "Connection" via bare_leaf, then BFS visits ref
+            // targeting u_outer once it follows the chain).
+            refr("c.rb", Some("top_caller"), "u_outer"),
+        ];
+        let ranked = rank(&entities, &refs);
+        apply_blast_radius(&mut entities, &ranked);
+        let br = entities[0].blast_radius.as_ref().expect("blast_radius should be set");
+        assert!(
+            br.direct_callers >= 1,
+            "expected ≥1 direct caller; got {}",
+            br.direct_callers
+        );
+        assert!(
+            br.transitive_callers >= 1,
+            "transitive BFS should follow the chain from Faraday::Connection.new → u_outer → top_caller; got transitive={}",
+            br.transitive_callers
         );
     }
 
