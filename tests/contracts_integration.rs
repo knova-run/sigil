@@ -877,6 +877,105 @@ func main() {
     assert!(!subs.is_empty(), "expected NATS subscribers; got {nats:?}");
 }
 
+// ───── Batch 6: database table contracts ─────
+
+#[test]
+fn detects_sqlalchemy_and_django_tables() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("sqlalchemy_models.py"),
+        r#"from sqlalchemy.orm import declarative_base
+Base = declarative_base()
+
+class User(Base):
+    __tablename__ = "users"
+
+class Order(Base):
+    __tablename__ = 'orders'
+"#,
+    ).unwrap();
+    fs::write(
+        tmp.path().join("django_models.py"),
+        r#"from django.db import models
+
+class Project(models.Model):
+    class Meta:
+        db_table = 'projects'
+
+class Person(models.Model):
+    pass  # default db_table = appname_person
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let dbs: Vec<_> = rows.iter().filter(|r| r["kind"] == "db").collect();
+    let ids: Vec<&str> = dbs.iter().map(|r| r["contract_id"].as_str().unwrap()).collect();
+    assert!(ids.contains(&"db::users"), "SQLAlchemy __tablename__; got {ids:?}");
+    assert!(ids.contains(&"db::orders"), "second SQLAlchemy table; got {ids:?}");
+    assert!(ids.contains(&"db::projects"), "Django db_table; got {ids:?}");
+    // Owner role for all
+    assert!(dbs.iter().all(|r| r["role"] == "owner"),
+        "model files own the tables they declare; got {dbs:?}");
+}
+
+#[test]
+fn detects_mongo_collections() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("worker.js"),
+        r#"const users = db.collection('users');
+users.insertOne({ name: 'x' });
+db.collection("orders").find({});
+"#,
+    ).unwrap();
+    fs::write(
+        tmp.path().join("py_worker.py"),
+        r#"users = db["users"]
+orders = db.get_collection("orders")
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let mongo: Vec<_> = rows.iter().filter(|r| r["framework"] == "mongo").collect();
+    let ids: Vec<&str> = mongo.iter().map(|r| r["contract_id"].as_str().unwrap()).collect();
+    assert!(ids.contains(&"db::users"), "mongo collection('users'); got {ids:?}");
+    assert!(ids.contains(&"db::orders"), "mongo collection('orders'); got {ids:?}");
+}
+
+#[test]
+fn detects_sql_migration_create_table() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("0001_init.sql"),
+        r#"CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS orders (
+    id SERIAL PRIMARY KEY
+);
+"#,
+    ).unwrap();
+    fs::write(
+        tmp.path().join("0002_alembic.py"),
+        r#"def upgrade():
+    op.create_table('events',
+        sa.Column('id', sa.Integer(), primary_key=True),
+    )
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let dbs: Vec<_> = rows.iter().filter(|r| r["kind"] == "db" && r["role"] == "owner").collect();
+    let ids: Vec<&str> = dbs.iter().map(|r| r["contract_id"].as_str().unwrap()).collect();
+    assert!(ids.contains(&"db::users"), "SQL CREATE TABLE users; got {ids:?}");
+    assert!(ids.contains(&"db::orders"), "SQL CREATE TABLE IF NOT EXISTS; got {ids:?}");
+    assert!(ids.contains(&"db::events"), "Alembic op.create_table; got {ids:?}");
+}
+
 // ───── Batch 5: GraphQL + tRPC + JSON-RPC ─────
 
 #[test]

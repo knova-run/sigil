@@ -228,6 +228,7 @@ fn walk(root: &Path, dir: &Path, out: &mut Vec<ContractRow>) {
             "cs" => out.extend(scan_csharp(&rel, &text)),
             "proto" => out.extend(scan_proto(&rel, &text)),
             "graphql" | "gql" => out.extend(scan_graphql(&rel, &text)),
+            "sql" => emit_db_table_rows(&rel, &text, "sql", out),
             _ => {}
         }
     }
@@ -655,6 +656,8 @@ fn scan_js_ts(file: &str, text: &str, ext: &str) -> Vec<ContractRow> {
     emit_pubsub_rows(file, text, language, &mut out);
     // SQS/SNS/EventBridge/GCP/AMQP — aws-sdk-js, amqplib, @google-cloud/pubsub.
     emit_cloud_queue_rows(file, text, language, &mut out);
+    // DB table contracts (TypeORM / Prisma / Sequelize / Mongo).
+    emit_db_table_rows(file, text, language, &mut out);
     out
 }
 
@@ -875,6 +878,7 @@ fn scan_go(file: &str, text: &str) -> Vec<ContractRow> {
     // streadway/amqp). The same kwarg shapes used by the Python boto3
     // SDK appear as struct field names in Go (`QueueUrl: aws.String(...)`).
     emit_cloud_queue_rows(file, text, "go", &mut out);
+    emit_db_table_rows(file, text, "go", &mut out);
     out
 }
 
@@ -996,6 +1000,7 @@ fn scan_java(file: &str, text: &str) -> Vec<ContractRow> {
         }
     }
     emit_cloud_queue_rows(file, text, "java", &mut out);
+    emit_db_table_rows(file, text, "java", &mut out);
     out
 }
 
@@ -1158,6 +1163,7 @@ fn scan_ruby(file: &str, text: &str) -> Vec<ContractRow> {
     }
     emit_pubsub_rows(file, text, "ruby", &mut out);
     emit_cloud_queue_rows(file, text, "ruby", &mut out);
+    emit_db_table_rows(file, text, "ruby", &mut out);
     // Quick filter: this file has to plausibly be a Rails routes file
     // or a controller — skip pure model / lib / spec files to avoid
     // matching `get :latest, on: :collection` in non-router contexts.
@@ -1576,6 +1582,7 @@ fn scan_php(file: &str, text: &str) -> Vec<ContractRow> {
         }
     }
     emit_cloud_queue_rows(file, text, "php", &mut out);
+    emit_db_table_rows(file, text, "php", &mut out);
     out
 }
 
@@ -1775,7 +1782,110 @@ fn scan_csharp(file: &str, text: &str) -> Vec<ContractRow> {
         }
     }
     emit_cloud_queue_rows(file, text, "csharp", &mut out);
+    emit_db_table_rows(file, text, "csharp", &mut out);
     out
+}
+
+// ─── Database table contracts ────────────────────────────────────────────────
+//
+// `kind=db`, contract_id `db::<table-or-collection>`. Roles:
+//   * `owner` — declares the table/collection (ORM model, migration)
+//   * `writer` — explicit INSERT/UPDATE/DELETE references (future work)
+//   * `reader` — SELECT / .find / .objects.filter (future work)
+//
+// MVP focuses on `owner` rows from ORM declarations and migrations.
+// Cross-service "two services both own/write the same table" is the
+// strongest signal for hidden coupling.
+
+fn sqlalchemy_tablename_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `__tablename__ = "users"` — SQLAlchemy declarative.
+        Regex::new(r#"__tablename__\s*=\s*['"]([A-Za-z_][\w]*)['"]"#).unwrap()
+    })
+}
+
+fn django_dbtable_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `db_table = 'projects'` — Django `class Meta`.
+        Regex::new(r#"db_table\s*=\s*['"]([A-Za-z_][\w]*)['"]"#).unwrap()
+    })
+}
+
+fn sql_create_table_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `CREATE TABLE [IF NOT EXISTS] <name>`. Case-insensitive.
+        Regex::new(r#"(?i)CREATE\s+TABLE(?:\s+IF\s+NOT\s+EXISTS)?\s+`?"?([A-Za-z_][\w]*)`?"?"#).unwrap()
+    })
+}
+
+fn alembic_create_table_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // Alembic: `op.create_table('events', ...)`.
+        Regex::new(r#"op\.create_table\s*\(\s*['"]([A-Za-z_][\w]*)['"]"#).unwrap()
+    })
+}
+
+fn mongo_collection_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `db.collection('users')` / `db.collection("users")` /
+        // `db.get_collection('orders')` / `db["users"]` /
+        // `getCollection('users')`.
+        Regex::new(r#"\b(?:collection|get_collection|getCollection)\s*\(\s*['"]([A-Za-z_][\w]*)['"]|\bdb\[\s*['"]([A-Za-z_][\w]*)['"]\s*\]"#).unwrap()
+    })
+}
+
+fn push_db_row(
+    out: &mut Vec<ContractRow>, file: &str, line_no: u32,
+    table: &str, role: &str, language: &str, framework: &str,
+) {
+    out.push(ContractRow {
+        contract_id: format!("db::{table}"),
+        kind: "db".to_string(),
+        role: role.to_string(),
+        method: None,
+        path: Some(table.to_string()),
+        topic: None,
+        file: file.to_string(),
+        line: line_no,
+        language: language.to_string(),
+        framework: framework.to_string(),
+    });
+}
+
+/// Shared scanner for DB table contracts across all languages. Each
+/// language's scanner calls this — most patterns are language-
+/// agnostic regex over text.
+fn emit_db_table_rows(file: &str, text: &str, language: &str, out: &mut Vec<ContractRow>) {
+    for (i, line) in text.lines().enumerate() {
+        if let Some(caps) = sqlalchemy_tablename_re().captures(line) {
+            push_db_row(out, file, (i + 1) as u32, &caps[1], "owner", language, "sqlalchemy");
+            continue;
+        }
+        if let Some(caps) = django_dbtable_re().captures(line) {
+            push_db_row(out, file, (i + 1) as u32, &caps[1], "owner", language, "django");
+            continue;
+        }
+        if let Some(caps) = alembic_create_table_re().captures(line) {
+            push_db_row(out, file, (i + 1) as u32, &caps[1], "owner", language, "alembic");
+            continue;
+        }
+        if let Some(caps) = sql_create_table_re().captures(line) {
+            push_db_row(out, file, (i + 1) as u32, &caps[1], "owner", language, "sql");
+            continue;
+        }
+        if let Some(caps) = mongo_collection_re().captures(line) {
+            // First capture group OR second capture group (the two alternatives).
+            let name = caps.get(1).or(caps.get(2)).map(|m| m.as_str().to_string());
+            if let Some(n) = name {
+                push_db_row(out, file, (i + 1) as u32, &n, "reader", language, "mongo");
+            }
+        }
+    }
 }
 
 // ─── GraphQL / tRPC / JSON-RPC ───────────────────────────────────────────────
@@ -2923,5 +3033,7 @@ fn scan_python(file: &str, text: &str) -> Vec<ContractRow> {
     emit_pubsub_rows(file, text, "python", &mut out);
     // SQS / SNS / EventBridge / GCP Pub/Sub / AMQP — boto3, pika, etc.
     emit_cloud_queue_rows(file, text, "python", &mut out);
+    // DB table contracts (SQLAlchemy / Django / Alembic / Mongo / raw SQL).
+    emit_db_table_rows(file, text, "python", &mut out);
     out
 }
