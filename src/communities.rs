@@ -521,12 +521,41 @@ fn build_file_edges(
 fn collect_nodes(entities: &[Entity], references: &[Reference]) -> Vec<String> {
     let mut set: BTreeSet<String> = BTreeSet::new();
     for e in entities {
+        if is_excluded_community_file(&e.file) {
+            continue;
+        }
         set.insert(e.file.clone());
     }
     for r in references {
+        if is_excluded_community_file(&r.file) {
+            continue;
+        }
         set.insert(r.file.clone());
     }
     set.into_iter().collect()
+}
+
+/// Files we never include as community nodes. Mirrors the dead-code
+/// `is_non_source_file` filter — P5.15 external sentinels and sigil's
+/// native JSON/YAML/TOML/Markdown entities aren't source code and
+/// shouldn't appear as standalone single-file clusters that drown out
+/// the real subsystem structure.
+fn is_excluded_community_file(file: &str) -> bool {
+    if file == "<external>" || file.starts_with("external:") {
+        return true;
+    }
+    let lower = file.to_ascii_lowercase();
+    for ext in &[
+        ".md", ".markdown", ".rst", ".txt",
+        ".yml", ".yaml", ".toml", ".json", ".jsonc",
+        ".ini", ".cfg", ".conf",
+        ".csv", ".tsv", ".xml",
+    ] {
+        if lower.ends_with(ext) {
+            return true;
+        }
+    }
+    false
 }
 
 // ─────────────────────────────────────────────────────────────────────────
