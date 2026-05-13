@@ -142,6 +142,35 @@ fn qualified_tail(name: &str) -> Option<&str> {
     }
 }
 
+/// Each `::`-separated head prefix of a Rust-style FQN ref name. For
+/// `Regex::new` returns `["Regex"]`; for `foo::Bar::baz` returns
+/// `["foo::Bar", "foo", "Bar"]`. Used so `callers Regex` reaches refs
+/// stored as `Regex::new`. Skips the full name (already indexed) and
+/// empty strings. We restrict to `::` (not `.`) because dot-qualified
+/// refs like `requests.Session` should NOT surface under `callers
+/// requests` — that's module namespace bookkeeping, not a meaningful
+/// symbol use.
+fn cc_head_prefixes(name: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    let mut cur = name.to_string();
+    while let Some((head, _)) = cur.rsplit_once("::") {
+        if head.is_empty() {
+            break;
+        }
+        let head_owned = head.to_string();
+        out.push(head_owned.clone());
+        // Also emit the leaf of this head so `foo::Bar::baz` indexes
+        // under `Bar` (the inner type), not just `foo::Bar` and `foo`.
+        if let Some(leaf) = bare_leaf(&head_owned) {
+            if leaf != head_owned {
+                out.push(leaf.to_string());
+            }
+        }
+        cur = head_owned;
+    }
+    out
+}
+
 /// Bare-leaf segment after the LATEST `.` or `::` separator. Handles
 /// both Ruby-style `Rack.Protection.Base` (dot-normalized namespaces)
 /// and Rust/Ruby `Sinatra::Base`. Returns None when `name` has no
@@ -189,11 +218,13 @@ impl Index {
             // Also index entities under the trailing segment of their
             // qualified name so a lookup like `context Base` matches an
             // entity stored as `Sinatra.Base` (Ruby/Kotlin/Scala emit the
-            // qualified form). Mirrors `refs_by_name`'s qualified-tail
-            // indexing for callee lookups.
-            if let Some(tail) = qualified_tail(&e.name) {
-                if tail != e.name {
-                    entities_by_name.entry(tail.to_string()).or_default().push(i);
+            // qualified form). Uses `bare_leaf` so both `::` and `.`
+            // separators are recognised — Python emits `requests.Session`,
+            // Rust emits `crate::sessions::Session`. Mirrors
+            // `refs_by_name`'s leaf indexing for callee lookups.
+            if let Some(leaf) = bare_leaf(&e.name) {
+                if leaf != e.name {
+                    entities_by_name.entry(leaf.to_string()).or_default().push(i);
                 }
             }
             entities_by_file.entry(e.file.clone()).or_default().push(i);
@@ -204,12 +235,27 @@ impl Index {
         let mut refs_by_file: HashMap<String, Vec<usize>> = HashMap::new();
         for (i, r) in references.iter().enumerate() {
             refs_by_name.entry(r.name.clone()).or_default().push(i);
-            // Also index qualified names under their trailing segment so that
-            // `callers parse_file` matches refs whose stored name is
-            // `crate::parser::treesitter::parse_file` (the form the Rust
-            // extractor emits for a fully-qualified call site).
-            if let Some(tail) = qualified_tail(&r.name) {
-                refs_by_name.entry(tail.to_string()).or_default().push(i);
+            // Also index qualified names under their trailing segment so
+            // that `callers parse_file` matches refs whose stored name is
+            // `crate::parser::treesitter::parse_file` (Rust FQN), AND
+            // `callers Session` matches `requests.Session` (Python
+            // dot-qualified member-call refs from the tier-2 alias
+            // resolver). `bare_leaf` cuts on whichever separator (`.`
+            // or `::`) is latest in the name.
+            if let Some(leaf) = bare_leaf(&r.name) {
+                refs_by_name.entry(leaf.to_string()).or_default().push(i);
+            }
+            // Also index `::`-qualified refs under each `::`-separated
+            // head segment so `callers Regex` reaches `Regex::new()`
+            // constructor calls. The leaf indexing above buys us
+            // `callers new`; this loop adds the type-side view. Only
+            // `::` segments are walked back (NOT `.`) — dot-qualified
+            // refs like `requests.Session` should not surface under
+            // `callers requests` (module-namespace pollution).
+            if r.name.contains("::") {
+                for head in cc_head_prefixes(&r.name) {
+                    refs_by_name.entry(head).or_default().push(i);
+                }
             }
             if let Some(caller) = &r.caller {
                 refs_by_caller.entry(caller.clone()).or_default().push(i);
@@ -690,6 +736,60 @@ mod tests {
         assert_eq!(from_main.len(), 2);
         let from_helper: Vec<_> = idx.refs_from("helper").collect();
         assert_eq!(from_helper.len(), 1);
+    }
+
+    #[test]
+    fn refs_to_matches_cc_qualified_head_for_associated_calls() {
+        // Rust `Regex::new()` constructor calls are stored as refs with
+        // name=`Regex::new`. `sigil callers Regex` should reach those
+        // refs — calling the constructor IS a use of the `Regex`
+        // type. Leaf-only indexing (which buys us `callers new`) is
+        // not enough.
+        let idx = Index::build(
+            vec![ent("regex.rs", "Regex", "struct")],
+            vec![
+                refr("a.rs", Some("f1"), "Regex::new", "call"),
+                refr("b.rs", Some("f2"), "Regex::new", "call"),
+                refr("c.rs", Some("f3"), "Regex::is_match", "call"),
+                refr("d.rs", Some("f4"), "OtherType::new", "call"), // must NOT match Regex
+            ],
+        );
+        let to_regex: Vec<_> = idx.refs_to("Regex").collect();
+        assert_eq!(
+            to_regex.len(),
+            3,
+            "callers of `Regex` should reach `Regex::new` + `Regex::is_match` refs; got {:?}",
+            to_regex.iter().map(|r| (&r.file, &r.name)).collect::<Vec<_>>(),
+        );
+        // Leaf indexing still works for the method name itself.
+        let to_new: Vec<_> = idx.refs_to("new").collect();
+        assert_eq!(to_new.len(), 3, "leaf `new` matches both Regex::new and OtherType::new");
+    }
+
+    #[test]
+    fn refs_to_matches_dot_qualified_callee_leaf() {
+        // Python tier-2 alias resolution stores member calls like
+        // `requests.Session(...)` as a ref with name=`requests.Session`.
+        // `sigil callers Session` should reach those refs — the leaf
+        // segment after the `.` IS the symbol the user is asking
+        // about. Currently `qualified_tail` only splits `::`, so this
+        // is a real gap surfaced by the requests-repo audit.
+        let idx = Index::build(
+            vec![ent("a.py", "Session", "class")],
+            vec![
+                refr("b.py", Some("main"), "Session", "call"),
+                refr("c.py", Some("api"), "requests.Session", "call"),
+                refr("d.py", Some("helper"), "sessions.Session", "call"),
+                refr("e.py", Some("test"), "SessionRedirectMixin", "call"), // must NOT match
+            ],
+        );
+        let to_session: Vec<_> = idx.refs_to("Session").collect();
+        assert_eq!(
+            to_session.len(),
+            3,
+            "callers of `Session` should reach bare + both dot-qualified refs; got {:?}",
+            to_session.iter().map(|r| (&r.file, &r.name)).collect::<Vec<_>>(),
+        );
     }
 
     #[test]
