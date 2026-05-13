@@ -93,28 +93,61 @@ Walk-based discovery is wrong for real orgs:
 
 ## Storage layout
 
+**Storage policy**: per-repo `.sigil/` remains the source of truth for
+each member's own entities + refs + rank. The workspace directory
+stores ONLY the cross-repo delta: membership, stamps, and refs that
+didn't exist in any per-repo index. No duplication of per-repo data.
+
+DuckDB is the one exception — when it auto-engages (≥5 MB merged
+JSONL) it materialises a unified table for query speed. But the
+materialised DuckDB file is a derived cache, rebuildable on the fly
+from members.json + per-repo + workspace deltas.
+
 ```
 <workspace-root>/
 ├── repo-a/
-│   └── .sigil/              # unchanged per-repo index
+│   └── .sigil/              # unchanged per-repo SoT — owns this repo's data
 │       ├── entities.jsonl
 │       ├── refs.jsonl
 │       ├── rank.json
 │       └── cache.json
 ├── repo-b/
 │   └── .sigil/
-└── .sigil-workspace/        # NEW — workspace-level merged view
+└── .sigil-workspace/        # NEW — workspace-level delta only
     ├── members.json         # AUTHORITATIVE membership list (add/remove writes here)
-    ├── manifest.json        # per-child stamp (mtime + size), schema version
-    ├── entities.jsonl       # all members' entities, file-path prefixed
-    ├── refs.jsonl           # all members' refs + cross-repo additions
-    ├── rank.json            # PageRank computed across the merged graph
-    └── index.duckdb         # optional, auto-engaged at the same 5 MB threshold
+    ├── manifest.json        # per-member stamp (mtime + size of each .sigil/), schema version
+    ├── cross_repo_refs.jsonl  # cross-repo Reference rows produced at index time
+    ├── workspace_rank.json    # PageRank over the union (per-repo rank.json stays as is)
+    └── index.duckdb           # optional — materialised union of per-repo JSONL + cross_repo_refs
 ```
 
-`.sigil-workspace/manifest.json` + `entities.jsonl` + `refs.jsonl` +
-`rank.json` + `index.duckdb` are **derived** — regenerable from
-`members.json` + each child's `.sigil/`. Safe to delete and rebuild.
+**Why deltas-only and not a full merged copy:**
+
+- **Storage**: 50-repo workspace at 50 MB each = 2.5 GB per-repo. A
+  full merge would double that to ≈5 GB. Deltas keep workspace
+  overhead tiny (a few MB of cross-repo refs).
+- **Incremental**: child's `sigil index` updates only its own
+  `.sigil/`. The workspace doesn't have to re-emit any per-repo data;
+  it just re-stamps and re-runs the cross-repo resolver. No per-member
+  slice maintenance, no eviction logic on `workspace remove` beyond
+  forgetting the stamp.
+- **Single source of truth per fact**: a ref defined in repo-a appears
+  in exactly one file (`repo-a/.sigil/refs.jsonl`). A ref that crosses
+  repos lives in `.sigil-workspace/cross_repo_refs.jsonl`. No risk of
+  stale duplicates after a partial rebuild.
+- **In-memory backend reads N+1 files** at workspace load time — fast
+  for any realistic N. File-path prefixing (`<member.name>/<rel>`) is
+  applied at LOAD time, not stored on disk.
+- **DuckDB materialises** the union for query speed when it
+  auto-engages. The materialised table contains the prefixed paths;
+  the schema-version stamp from PR #34 already handles invalidation.
+
+`.sigil-workspace/members.json` + `manifest.json` + `cross_repo_refs.jsonl`
++ `workspace_rank.json` total ≈ a few KB to a few MB. Committable;
+sized to fit in a git diff.
+
+`.sigil-workspace/index.duckdb` is **derived**, gitignored, rebuilt
+on stamp mismatch.
 
 `.sigil-workspace/members.json` is **authoritative** — it's the only
 file the user cares about. Shape:
@@ -184,12 +217,15 @@ workspace-install hook.
                         │
                         ▼
    ┌──────────────────────────────────────────────────────┐
-   │ 3. Merge per-member entities + refs:                 │
-   │    - Prefix `file` with member's `name/`             │
-   │    - Append to workspace entities.jsonl / refs.jsonl │
-   │    - Stamp each member (size + mtime) into manifest  │
-   │    - Drop any stale slice for a member no longer     │
-   │      in members.json (removed-since-last-index)      │
+   │ 3. Refresh workspace stamps + cross-repo deltas:     │
+   │    - Stamp each member's .sigil/{entities,refs}.jsonl│
+   │      (size + mtime) into manifest.json               │
+   │    - DO NOT copy per-repo data into the workspace —  │
+   │      it stays as-is in each member's .sigil/         │
+   │    - Re-run cross-repo resolution iff any stamp      │
+   │      changed (Phase 3 logic)                         │
+   │    - Drop manifest entries for members no longer in  │
+   │      members.json (removed-since-last-index)         │
    └────────────────────┬─────────────────────────────────┘
                         │
                         ▼
@@ -206,14 +242,20 @@ workspace-install hook.
                         │
                         ▼
    ┌──────────────────────────────────────────────────────┐
-   │ 5. PageRank + blast-radius across the merged graph   │
-   │    (reuses src/rank.rs, just bigger input)           │
+   │ 5. PageRank + blast-radius across the union          │
+   │    (load N per-repo + cross-repo deltas into one     │
+   │    in-memory Index, run src/rank.rs over it,         │
+   │    write workspace_rank.json). Per-repo rank.json    │
+   │    stays as-is.                                      │
    └────────────────────┬─────────────────────────────────┘
                         │
                         ▼
    ┌──────────────────────────────────────────────────────┐
    │ 6. (optional) materialise .sigil-workspace/index.duckdb │
-   │    if total JSONL exceeds the 5 MB auto-engage gate  │
+   │    by running read_json over each member's .sigil/   │
+   │    + cross_repo_refs.jsonl, UNION ALL, then          │
+   │    rewriting the `file` column with the member       │
+   │    prefix. Auto-engaged at the 5 MB total threshold. │
    └──────────────────────────────────────────────────────┘
 ```
 
@@ -306,10 +348,12 @@ Ships four subcommands together — they're meaningless individually:
   per member.
 
 - `sigil workspace index [--root <ws>] [--full]`
-  Reads `members.json`, merges per-member JSONL into
-  `.sigil-workspace/entities.jsonl` / `refs.jsonl` with file-path
-  rewrite (`<member.name>/<rel-path>`), stamps each member into
-  `manifest.json`.
+  Reads `members.json`. For each member, ensures its `.sigil/` is fresh
+  (auto-builds via `build_index(member)` if missing/stale), then stamps
+  its `entities.jsonl` + `refs.jsonl` size/mtime into
+  `manifest.json`. Does NOT copy per-repo data into the workspace —
+  the per-repo JSONL stays the source of truth. Phase 1 leaves
+  `cross_repo_refs.jsonl` empty (Phase 3 fills it).
 
 New unit tests:
 - `workspace_add_creates_members_json_with_canonical_path`
@@ -319,9 +363,10 @@ New unit tests:
 - `workspace_remove_drops_member`
 - `workspace_remove_idempotent_when_member_absent`
 - `workspace_list_prints_jsonl`
-- `workspace_index_merges_two_member_jsonl_with_prefix`
-- `workspace_index_evicts_slice_for_removed_member`
+- `workspace_index_stamps_each_member_jsonl`
+- `workspace_index_drops_stamp_for_removed_member`
 - `workspace_index_errors_when_no_members`
+- `workspace_index_auto_builds_member_missing_sigil`
 
 Acceptance:
 ```
@@ -329,63 +374,79 @@ sigil workspace add ~/code/repo-a --root ~/work/org
 sigil workspace add ~/code/repo-b --root ~/work/org
 sigil workspace list --root ~/work/org
 sigil workspace index --root ~/work/org
-jq '.file' ~/work/org/.sigil-workspace/entities.jsonl | sort -u
-# → entries start with repo-a/ and repo-b/
+jq '.members' ~/work/org/.sigil-workspace/manifest.json
+# → both members appear with non-zero entities_len + refs_len stamps
+ls -la ~/work/org/.sigil-workspace/
+# → members.json + manifest.json + (empty until Phase 3) cross_repo_refs.jsonl
 sigil workspace remove repo-b --root ~/work/org
 sigil workspace index --root ~/work/org
-jq '.file' ~/work/org/.sigil-workspace/entities.jsonl | sort -u
-# → only repo-a/ entries remain
+jq '.members | length' ~/work/org/.sigil-workspace/manifest.json
+# → 1 (repo-b's stamp gone)
 ```
 
-### Phase 2 — workspace-aware backend load
+### Phase 2 — workspace-aware backend load (union over N + 1 files)
 
-- `Index::load_workspace`
-- `Backend::load` prefers workspace over per-repo when both exist
+- `Index::load_workspace(root)` — reads `members.json`, then for each
+  member calls `read_jsonl::<Entity>` and `read_jsonl::<Reference>` on
+  the member's `.sigil/`. Applies the `<member.name>/<rel-path>` file
+  prefix as it loads each row (no copy to disk). Appends
+  `cross_repo_refs.jsonl` rows last. Returns a single `Index`.
+- `Backend::load(root)` checks for `.sigil-workspace/members.json`
+  first; if present, builds against the workspace. Falls back to
+  per-repo `.sigil/`.
 - Query commands (`callers`, `callees`, `where`, `heritage`, `context`,
   `search`, `symbols`, `children`, `explore`, `outline`, `map`, `blast`,
   `duplicates`, `communities`) all work transparently against the
-  workspace index without flag changes
+  workspace index without flag changes.
 - Integration test: cross-repo `callers` returns refs from multiple
-  repos
+  repos via the union load.
 
-Acceptance: with two indexed repos under `~/work/org/` and `sigil index`
-having been run in each, `sigil --root ~/work/org workspace index` then
+Acceptance: with two indexed repos under `~/work/org/`, `sigil
+workspace add` for each, then `sigil --root ~/work/org workspace index`,
 `sigil --root ~/work/org callers SomeSymbol` returns hits from both
-children.
+members — file paths in the output have the `repo-a/` / `repo-b/`
+prefix.
 
 ### Phase 3 — cross-repo resolution at index time
 
-- Extend `resolve_externals` (already in `src/workspace.rs`) to write its
-  results into the workspace `refs.jsonl` instead of stdout
+- Extend `resolve_externals` (already in `src/workspace.rs`) to write
+  its results into `.sigil-workspace/cross_repo_refs.jsonl` — a stable
+  on-disk delta, distinct from any per-repo `refs.jsonl`
 - New confidence tier 0.4 (or 0.6 with `package-deps` evidence)
-- Integration test: a real `external:<modpath>` in one repo gets a
-  workspace-tier ref in the merged view
+- Integration test: a real `external:<modpath>` in one member gets a
+  cross-repo ref row appended to `cross_repo_refs.jsonl`, and `Backend::
+  load_workspace` surfaces it in `callers`
 
 Acceptance: `sigil --root <root> callers <leaf>` returns the cross-repo
-caller, marked with `confidence = 0.4` (or 0.6).
+caller, marked with `confidence = 0.4` (or 0.6). The ref lives in
+`.sigil-workspace/cross_repo_refs.jsonl` and nowhere else.
 
-### Phase 4 — incremental re-merge
+### Phase 4 — incremental cross-repo + rank refresh
 
-Three change axes the workspace index reacts to:
+Since per-repo data is not duplicated at the workspace level, the only
+work the workspace index actually does on each invocation is:
 
-1. **Member added** (new entry in `members.json`) → emit its slice for
-   the first time.
-2. **Member removed** (entry gone from `members.json`) → drop its slice.
-3. **Member content changed** (per-repo `.sigil/entities.jsonl` mtime/size
-   diverges from the stamp) → re-read and re-emit that slice.
+1. Refresh `manifest.json` stamps for each member's
+   `.sigil/entities.jsonl` + `refs.jsonl`.
+2. Re-run cross-repo resolution iff any member's stamp changed
+   (`Phase 3` logic).
+3. Re-run PageRank iff any stamp changed or membership changed
+   (writes `workspace_rank.json`).
 
-`--full` flag forces re-merge of every member regardless of stamps.
-Default skips unchanged members. Cross-repo resolution + PageRank
-re-run iff any of the three axes fired.
+`--full` flag forces all three even when nothing changed. Default
+short-circuits when every member's stamp matches and members.json is
+unchanged.
 
 Acceptance:
 - Touching one file in `repo-a` + `sigil index` in `repo-a`, then
-  `sigil workspace index --root <ws>`, re-merges only `repo-a`'s slice
-  (verifiable via per-member stamp inspection).
-- `sigil workspace add <new>` + `sigil workspace index` only re-emits
-  the new member's slice.
+  `sigil workspace index --root <ws>`, re-runs cross-repo + rank only
+  (no per-repo data churn at the workspace).
+- `sigil workspace add <new>` + `sigil workspace index` stamps the new
+  member and runs cross-repo + rank.
 - `sigil workspace remove <r>` + `sigil workspace index` drops `r`'s
-  slice without touching the others.
+  stamp and re-runs cross-repo + rank.
+- No-op invocations (`workspace index` twice in a row) finish in well
+  under a second on a 10-member workspace.
 
 ### Phase 5 — DuckDB workspace backend
 
@@ -461,15 +522,19 @@ Acceptance: 10-repo workspace (~500 MB JSONL) opens against DuckDB and
 
 ## Estimated size
 
-- Phase 1: ~350 LOC + tests (add / remove / list / index + members.json
-  + manifest plumbing)
-- Phase 2: ~100 LOC + tests (Backend::load workspace branch)
-- Phase 3: ~150 LOC + tests (cross-repo resolution at index time;
-  reuses `resolve_externals`)
-- Phase 4: ~120 LOC + tests (incremental: add / remove / content axes)
-- Phase 5: ~50 LOC (mostly path swap for DuckDB)
+- Phase 1: ~280 LOC + tests (add / remove / list / index + members.json
+  + manifest stamps — no per-repo data copy)
+- Phase 2: ~150 LOC + tests (union-load: read N per-repo + cross-repo
+  deltas, prefix file paths in memory, return one Index)
+- Phase 3: ~150 LOC + tests (cross-repo resolution writes
+  `cross_repo_refs.jsonl`; reuses `resolve_externals`)
+- Phase 4: ~80 LOC + tests (stamp-based skip, no per-member slice
+  maintenance because there's no per-member slice in the first place)
+- Phase 5: ~100 LOC (DuckDB workspace mode: read_json over each
+  member's .sigil/ + cross_repo_refs, UNION with member-name prefix,
+  schema-version-stamp invalidation)
 - Phase 6: ~100 LOC (`--from-manifest` bulk-add + optional git hook)
 
-Total: ~770 LOC for Phases 1–5. Phase 1 is heavier than the original
-estimate because the membership CLI (`add` / `remove` / `list`) ships
-together — they're meaningless without each other.
+Total: ~760 LOC for Phases 1–5. Workspace-level on-disk JSONL stays
+small (members.json + manifest.json + cross_repo_refs.jsonl, a few KB
+to a few MB).
