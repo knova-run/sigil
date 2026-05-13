@@ -377,6 +377,7 @@ mod tests {
             rank: None,
             blast_radius: None,
             doc: None,
+            heritage: Vec::new(),
         }
     }
 
@@ -387,6 +388,8 @@ mod tests {
             name: name.to_string(),
             ref_kind: "call".to_string(),
             line: 1,
+            confidence: None,
+            callee_id: None,
         }
     }
 

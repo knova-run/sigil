@@ -61,6 +61,7 @@ fn close_headings(
                 rank: None,
                 blast_radius: None,
                 doc: None,
+                heritage: Vec::new(),
             });
         } else {
             break;
@@ -112,6 +113,7 @@ fn flush_accumulator(
         rank: None,
         blast_radius: None,
         doc: None,
+        heritage: Vec::new(),
     });
 
     acc_kind.clear();
@@ -298,6 +300,7 @@ pub fn parse_markdown_file(
                 rank: None,
                 blast_radius: None,
                 doc: None,
+                heritage: Vec::new(),
             });
 
             // Delegate YAML parsing
@@ -510,6 +513,7 @@ pub fn parse_markdown_file(
                         rank: None,
                         blast_radius: None,
                         doc: None,
+                        heritage: Vec::new(),
                     });
 
                     state = State::Normal;
@@ -556,6 +560,7 @@ pub fn parse_markdown_file(
                         rank: None,
                         blast_radius: None,
                         doc: None,
+                        heritage: Vec::new(),
                     });
 
                     state = State::Normal;
@@ -607,6 +612,7 @@ pub fn parse_markdown_file(
             rank: None,
             blast_radius: None,
             doc: None,
+            heritage: Vec::new(),
         });
     }
 
@@ -639,6 +645,7 @@ pub fn parse_markdown_file(
             rank: None,
             blast_radius: None,
             doc: None,
+            heritage: Vec::new(),
         });
     }
 

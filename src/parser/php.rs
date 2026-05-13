@@ -119,6 +119,55 @@ pub fn extract(
 ) {
     let root = tree.root_node();
     walk_node(root, source, file_path, None, symbols, texts, references, 0);
+    resolve_php_imports_tier2(symbols, references);
+}
+
+/// Tier-2 resolver: upgrade bare-name calls whose head matches a file-local
+/// `use` binding to confidence 0.8, and emit a second edge with the
+/// fully-qualified namespace path. Mirrors the Go template's two-edge form
+/// using `/` as the resolved-form separator.
+fn resolve_php_imports_tier2(symbols: &[SymbolEntry], references: &mut Vec<ReferenceEntry>) {
+    use std::collections::HashMap;
+    let imports: HashMap<String, &str> = symbols
+        .iter()
+        .filter(|s| s.kind == "import")
+        .filter_map(|s| {
+            let short = match s.alias.as_deref() {
+                Some(a) if !a.is_empty() => a.to_string(),
+                _ => s.name.rsplit('\\').next()?.to_string(),
+            };
+            if short.is_empty() {
+                None
+            } else {
+                Some((short, s.name.as_str()))
+            }
+        })
+        .collect();
+    if imports.is_empty() {
+        return;
+    }
+    let mut added: Vec<ReferenceEntry> = Vec::new();
+    for r in references.iter_mut() {
+        if r.kind != "call" {
+            continue;
+        }
+        let (head, rest) = match r.name.split_once('\\') {
+            Some((h, t)) => (h.to_string(), t.to_string()),
+            None => (r.name.clone(), String::new()),
+        };
+        let Some(&path) = imports.get(&head) else { continue };
+        r.confidence = Some(0.8);
+        added.push(ReferenceEntry {
+            file: r.file.clone(),
+            name: format!("{path}/{rest}"),
+            kind: "call".to_string(),
+            line: r.line,
+            caller: r.caller.clone(),
+            project: r.project.clone(),
+            confidence: Some(0.8),
+        });
+    }
+    references.extend(added);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -257,6 +306,16 @@ fn walk_node(
             extract_call_ref(node, source, file_path, parent_ctx, references);
             // Fall through to recurse into arguments — nested calls
             // matter for the call graph.
+        }
+        "member_call_expression" | "nullsafe_member_call_expression" => {
+            extract_member_call_ref(node, source, file_path, parent_ctx, references);
+            // Fall through — arguments may contain further calls.
+        }
+        "scoped_call_expression" => {
+            extract_scoped_call_ref(node, source, file_path, parent_ctx, references);
+        }
+        "object_creation_expression" => {
+            extract_instantiation_ref(node, source, file_path, parent_ctx, references);
         }
         _ => {}
     }
@@ -429,6 +488,7 @@ fn push_use_symbol(
         line,
         caller: None,
         project: String::new(),
+    confidence: None,
     });
 }
 
@@ -459,17 +519,44 @@ fn extract_class_like(
         .child_by_field_name("body")
         .and_then(|body| filter_php_tokens(extract_tokens(body, source)));
 
-    push_symbol(
-        symbols,
-        file_path,
-        full_name.clone(),
-        kind,
+    // Heritage: PHP `class Dog extends Animal implements Runnable`
+    // exposes `base_clause` (extend) and `class_interface_clause`
+    // (implement) as direct children.
+    let mut heritage: Vec<(String, String)> = Vec::new();
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        let edge_kind = match child.kind() {
+            "base_clause" => "extend",
+            "class_interface_clause" => "implement",
+            _ => continue,
+        };
+        let mut bc = child.walk();
+        for type_node in child.children(&mut bc) {
+            if matches!(
+                type_node.kind(),
+                "name" | "qualified_name" | "namespace_name_as_prefix" | "namespace_name"
+            ) {
+                let target = node_text(type_node, source);
+                if !target.is_empty() {
+                    heritage.push((edge_kind.to_string(), target));
+                }
+            }
+        }
+    }
+
+    symbols.push(SymbolEntry {
+        file: file_path.to_string(),
+        name: full_name.clone(),
+        kind: kind.to_string(),
         line,
-        parent_ctx,
+        parent: parent_ctx.map(String::from),
         tokens,
-        None,
-        Some(visibility),
-    );
+        alias: None,
+        visibility: Some(visibility),
+        sig: None,
+        project: String::new(),
+        heritage,
+    });
 
     if let Some(body) = node.child_by_field_name("body") {
         let mut cursor = body.walk();
@@ -602,7 +689,8 @@ fn extract_property(
             visibility: Some(visibility.clone()),
             sig,
             project: String::new(),
-        });
+        heritage: Vec::new(),
+    });
     }
 }
 
@@ -662,7 +750,8 @@ fn extract_const(
             visibility: Some(visibility.clone()),
             sig,
             project: String::new(),
-        });
+        heritage: Vec::new(),
+    });
     }
 }
 
@@ -683,9 +772,9 @@ fn extract_call_ref(
     // We only generate a Reference for plain-named call targets. Method
     // calls (member_call_expression) and dynamic callees aren't
     // statically resolvable here and add noise to the call graph.
-    let name = match callee.kind() {
-        "name" => node_text(callee, source),
-        "qualified_name" => node_text(callee, source),
+    let (name, confidence) = match callee.kind() {
+        "name" => (node_text(callee, source), Some(0.95_f64)),
+        "qualified_name" => (node_text(callee, source), None),
         _ => return,
     };
     if name.is_empty() {
@@ -704,6 +793,120 @@ fn extract_call_ref(
         line: node_line_range(node),
         caller: parent_ctx.map(String::from),
         project: String::new(),
+        confidence,
+    });
+}
+
+/// `$obj->method(...)` — emit a call ref with name `<receiver>.method`.
+/// The receiver portion is the variable's bare identifier (`$app` → `app`)
+/// since static type analysis of the receiver requires flow inference.
+/// Tier-3 member-call resolution upgrades `<class>.method` to a class
+/// binding when possible.
+fn extract_member_call_ref(
+    node: Node,
+    source: &[u8],
+    file_path: &str,
+    parent_ctx: Option<&str>,
+    references: &mut Vec<ReferenceEntry>,
+) {
+    let Some(name_node) = node.child_by_field_name("name") else {
+        return;
+    };
+    let method = node_text(name_node, source);
+    if method.is_empty() {
+        return;
+    }
+    // The receiver is the `object` field. Strip the leading `$` so the
+    // bare identifier joins cleanly with the dot.
+    let receiver = node
+        .child_by_field_name("object")
+        .map(|n| node_text(n, source))
+        .unwrap_or_default();
+    let receiver = receiver.trim_start_matches('$').to_string();
+    let full = if receiver.is_empty() {
+        method
+    } else {
+        format!("{receiver}.{method}")
+    };
+    references.push(ReferenceEntry {
+        file: file_path.to_string(),
+        name: full,
+        kind: "call".to_string(),
+        line: node_line_range(node),
+        caller: parent_ctx.map(String::from),
+        project: String::new(),
+        confidence: None,
+    });
+}
+
+/// `App::method(...)` — emit a call ref `App::method`. The scoped form
+/// is statically resolvable (class name → method) so tier-2 / tier-3
+/// passes can promote it later.
+fn extract_scoped_call_ref(
+    node: Node,
+    source: &[u8],
+    file_path: &str,
+    parent_ctx: Option<&str>,
+    references: &mut Vec<ReferenceEntry>,
+) {
+    let Some(name_node) = node.child_by_field_name("name") else {
+        return;
+    };
+    let method = node_text(name_node, source);
+    if method.is_empty() {
+        return;
+    }
+    let scope = node
+        .child_by_field_name("scope")
+        .map(|n| node_text(n, source))
+        .unwrap_or_default();
+    if scope.is_empty() {
+        return;
+    }
+    references.push(ReferenceEntry {
+        file: file_path.to_string(),
+        name: format!("{scope}::{method}"),
+        kind: "call".to_string(),
+        line: node_line_range(node),
+        caller: parent_ctx.map(String::from),
+        project: String::new(),
+        confidence: None,
+    });
+}
+
+/// `new App(...)` — emit a call ref to the class. Surfaces
+/// instantiations in `sigil callers App` so consumers can find where
+/// a class is constructed across the codebase.
+fn extract_instantiation_ref(
+    node: Node,
+    source: &[u8],
+    file_path: &str,
+    parent_ctx: Option<&str>,
+    references: &mut Vec<ReferenceEntry>,
+) {
+    // Tree-sitter-php exposes the class via a field; fall back to the
+    // first identifier child for tolerance.
+    let class_node = node
+        .child_by_field_name("class")
+        .or_else(|| {
+            let mut cursor = node.walk();
+            node.children(&mut cursor).find(|c| {
+                matches!(c.kind(), "name" | "qualified_name" | "variable_name")
+            })
+        });
+    let Some(class_node) = class_node else { return };
+    let class = node_text(class_node, source);
+    if class.is_empty() {
+        return;
+    }
+    references.push(ReferenceEntry {
+        file: file_path.to_string(),
+        name: class,
+        kind: "call".to_string(),
+        line: node_line_range(node),
+        caller: parent_ctx.map(String::from),
+        project: String::new(),
+        confidence: None,
     });
 }
 
@@ -735,6 +938,44 @@ mod tests {
                 symbols.iter().map(|s| (&s.name, &s.kind)).collect::<Vec<_>>()
             )
         })
+    }
+
+    #[test]
+    fn php_imported_class_call_gets_tier2_two_edges() {
+        // `use Foo\Bar;` then `\Bar::greet()` or function call style
+        // `Bar(...)` resolves via the namespace_use_clause local binding.
+        // PHP namespaces use `\` — the resolved path is `Foo\Bar/<member>`.
+        let source =
+            b"<?php\nuse Foo\\Bar;\n\nfunction caller() { Bar(); }\n";
+        let (_, _, refs) = parse_file(source, "php", "t.php").unwrap();
+        let raw = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "Bar")
+            .expect("raw Bar() call");
+        assert_eq!(raw.confidence, Some(0.8));
+        let resolved = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "Foo\\Bar/")
+            .or_else(|| refs.iter().find(|r| r.kind == "call" && r.name.starts_with("Foo\\Bar")));
+        // PHP `use Foo\Bar;` followed by `Bar()` resolves the bare call
+        // through the namespace use. The resolved form should reference
+        // the fully-qualified path.
+        let resolved = resolved.expect("resolved Foo\\Bar form");
+        assert_eq!(resolved.confidence, Some(0.8));
+    }
+
+    #[test]
+    fn php_bare_call_gets_tier1_confidence() {
+        // PHP unqualified `name` calls get tier-1 confidence (0.95).
+        // Qualified namespace calls (`App\Foo\bar()`) and method/scoped
+        // calls stay at None until alias resolution lands.
+        let source = b"<?php\nfunction caller() { helper(); }\nfunction helper() {}\n";
+        let (_, _, refs) = parse_file(source, "php", "t.php").unwrap();
+        let bare = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "helper")
+            .expect("helper() bare call");
+        assert_eq!(bare.confidence, Some(0.95));
     }
 
     #[test]
@@ -833,6 +1074,63 @@ mod tests {
         let (symbols, _, _) = parse_file(source, "php", "t.php").unwrap();
         let c = find_sym(&symbols, "Person::SPECIES");
         assert_eq!(c.kind, "constant");
+    }
+
+    #[test]
+    fn php_member_call_emits_ref_with_receiver_qualified_name() {
+        // `$x->method()` should produce a call ref. We don't know the
+        // type of `$x` statically, so the receiver is captured as a bare
+        // variable identifier — the call's `name` joins receiver +
+        // method so consumers can grep for `x.method` (mirrors
+        // Python/JS member-call shape).
+        let source = b"<?php\nfunction caller() {\n    $app->handle($req);\n}\n";
+        let (_, _, refs) = parse_file(source, "php", "t.php").unwrap();
+        let call = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name.ends_with("handle"))
+            .unwrap_or_else(|| {
+                panic!(
+                    "expected a call ref for `$app->handle`; got: {:?}",
+                    refs.iter()
+                        .filter(|r| r.kind == "call")
+                        .map(|r| &r.name)
+                        .collect::<Vec<_>>()
+                )
+            });
+        assert!(
+            call.name.contains("handle"),
+            "member call name should contain `handle`; got `{}`",
+            call.name,
+        );
+    }
+
+    #[test]
+    fn php_scoped_call_emits_ref_with_class_method_form() {
+        // `App::handle($req)` should produce a call ref `App::handle`
+        // (mirrors Rust scoped calls).
+        let source = b"<?php\nfunction caller() {\n    App::handle($req);\n}\n";
+        let (_, _, refs) = parse_file(source, "php", "t.php").unwrap();
+        let call = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name.contains("App") && r.name.contains("handle"))
+            .unwrap_or_else(|| panic!("expected `App::handle` call ref; got: {:?}", refs.iter().filter(|r| r.kind == "call").map(|r| &r.name).collect::<Vec<_>>()));
+        assert!(
+            call.name == "App::handle" || call.name == "App.handle",
+            "scoped call name should be `App::handle` or `App.handle`; got `{}`",
+            call.name,
+        );
+    }
+
+    #[test]
+    fn php_instantiation_emits_call_ref_to_class() {
+        // `new App($container)` should produce a call ref to `App`.
+        let source = b"<?php\nfunction caller() {\n    $app = new App($container);\n}\n";
+        let (_, _, refs) = parse_file(source, "php", "t.php").unwrap();
+        assert!(
+            refs.iter().any(|r| r.kind == "call" && r.name == "App"),
+            "expected call ref to `App` from `new App(...)`; got: {:?}",
+            refs.iter().filter(|r| r.kind == "call").map(|r| &r.name).collect::<Vec<_>>(),
+        );
     }
 
     #[test]

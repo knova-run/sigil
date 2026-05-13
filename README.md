@@ -1,10 +1,10 @@
 # sigil
 
-**Deterministic structural code intelligence for AI coding agents — and humans.**
+**Deterministic code intelligence for AI coding agents — and humans.**
 
-sigil cuts the orientation tax AI coding agents pay on every new repo. Instead of grepping through a codebase line by line, agents ask sigil: _"who calls this?"_, _"what's in this file?"_, _"what changed in this PR?"_ — and get back structured answers from a parsed AST index, not text matches.
+sigil cuts the orientation tax AI coding agents pay on every new repo. Instead of grepping through a codebase line by line, agents ask sigil: _"who calls this?"_, _"what's the blast radius if I rename X?"_, _"what's load-bearing in this repo?"_, _"what changed in this PR?"_ — and get back structured answers from a parsed AST index plus git-history analytics.
 
-No LLM in the code path. No embeddings. No cloud. Just tree-sitter + BLAKE3 + PageRank.
+No LLM in the code path. No embeddings. No cloud. Just tree-sitter + BLAKE3 + PageRank, with optional DuckDB for monorepo scale.
 
 ```
 Median: 35× fewer tokens per agent query on sigil's own source.
@@ -15,33 +15,86 @@ Measured with the GPT-4o/o3 BPE tokenizer. Reproduce with `sigil benchmark` on y
 
 ---
 
+## What's in the index
+
+Sigil indexes once and then answers four families of question. Everything is local, deterministic, and committable.
+
+**1. Call graph with tier-tagged confidence (15 languages).** Every call edge carries a `confidence` score so consumers can pick a precision floor. Tiers (highest → lowest):
+
+| Tier | When |
+|---|---|
+| `0.95` | Same-file bare-identifier match; `self.X()` / `this.X()` bound to caller's class. |
+| `0.93` | `Class.method` where `Class` is defined in the same file. |
+| `0.88` | `Class.method` where exactly one definition exists globally in the caller's language. |
+| `0.85` | Bare-name call where exactly one imported file (incl. `from X import *`) defines the name. |
+| `0.8` | File-local import-alias resolution. |
+| `0.7` | File-resolved edge via a manifest-aware resolver (see below). |
+| `0.5` | Tier-3 global-unique fallback (language-gated). |
+
+Manifest-aware resolvers turn cross-file edges into file-resolved edges by reading the build system: **tsconfig.json paths** (JS/TS), **go.mod** (Go), **composer.json PSR-4** (PHP), **Cargo.toml [workspace]** (Rust), **Package.swift** (Swift), **csproj/sln/global-usings/implicit-usings** (C#), **compile_commands.json** (C/C++), **Rails autoload conventions** (Ruby), plus path-based FQN disambiguation for Kotlin and Scala. Resolved edges also carry a stable `callee_id` of form `<file>::<symbol-path>` so downstream consumers reach the target entity without re-doing name matching.
+
+**2. Heritage graph across 12 languages.** `sigil heritage <symbol>` answers "find all impls/subclasses of X" without an LSP:
+
+- Java / TypeScript / JavaScript / Kotlin / Scala / C# / Swift / C++ / PHP — class `extends` & `implements`
+- Python — `extends` (including `ABC` subclassing and `metaclass=` keyword args)
+- Rust — `trait_impl` (`impl Trait for Type` and `trait Sub: Super` super-bounds)
+- Go — `embed` (anonymous struct fields)
+
+**Caller/callee queries fan out across naming conventions.** `callers Session` reaches `requests.Session(...)` member calls; `callers Regex` reaches `Regex::new()` constructor calls; `callees Base` reaches refs whose caller is `Rack::Protection::Base.<method>` even when the parser normalises `::` to `.`. Single-segment lowercase heads (`std`, `crate`, `parser`) are skipped to avoid module-namespace pollution.
+
+**3. Structural diff & PR review.** Three BLAKE3 hashes per entity (`struct_hash`, `body_hash`, `sig_hash`) classify every change as breaking / logic / formatting. Renames matched across the commit via `body_hash` equality so "deleted foo + added bar with same body" becomes one row, not two. JSON/YAML/TOML/Markdown also get structural diff (key-level for data formats, heading-level for Markdown).
+
+**4. Repo-level intelligence layers.** Five analyses derived from the entity graph + git history:
+
+- **PageRank + blast radius** — `sigil map`, `sigil blast`: load-bearing files and per-symbol downstream impact.
+- **Subsystem communities** — `sigil communities`: Leiden clustering over the import/call graph, refinement-pass guarantees every cluster is internally connected.
+- **Hotspots, ownership, bus-factor** — `sigil hotspots`, `sigil ownership`, `sigil bus-factor`: churn × complexity, primary authors, knowledge-concentration risk from git blame.
+- **Co-change mining** — `sigil cochange [--workspace]`: file-pair coupling from git history; cross-repo when pointed at a parent directory of git repos.
+- **Decisions, contracts, dead-code, security signals** — `sigil decisions`, `sigil contracts`, `sigil dead-code`, `sigil security-scan`: WHY/DECISION/RATIONALE markers (plus `--include-git-history` for commit-message decisions), HTTP routes + gRPC services + queue topics, framework-aware dead code with confidence tiers, regex security signals (eval/exec, pickle.loads, weak hashes, `verify=False`).
+
+Imports that don't resolve to a workspace file (third-party deps, NuGet, external SPM targets) surface as `external:<modpath>` sentinel entities — first-class graph nodes you can query, not silently-dropped edges.
+
+---
+
 ## What it does
 
 **Structural diff — the original power tool, with or without agents:**
 - `sigil diff HEAD~1` — per-entity change list (struct / fn / class), classified breaking vs logic vs formatting via three BLAKE3 hashes. Line-level inline diffs with code context.
 - `sigil diff main..HEAD --markdown` — pastes straight into a PR. Reviewers skim 20 entity-level bullets instead of wading through 800 lines.
-- `sigil diff --files old.py new.py` — compares any two files without git. Works on all 11 code languages + JSON / YAML / TOML (e.g., `"port": 8080 → 8443` detected as a structural change, not just "line 14 changed").
+- `sigil diff --files old.py new.py` — compares any two files without git. Works on all 15 code languages + JSON / YAML / TOML / Markdown (e.g., `"port": 8080 → 8443` detected as a structural change, not just "line 14 changed").
 - `sigil diff main..HEAD --json` — pipe into `jq` for CI gates.
 
-**Impact & navigation — blast radius is the second headline:**
+**Impact & navigation:**
 - `sigil blast <symbol>` — direct callers, direct files, transitive reach. Before touching a function, see how many files it breaks.
-- `sigil callers <symbol>` — exact reference sites from the parsed AST. Not every string match grep catches.
+- `sigil callers <symbol>` — exact reference sites from the parsed AST, each with a `confidence` score from the tier model above. Filter on `--kind` to slice by call / import / type_annotation / instantiation.
 - `sigil callees <caller>` — what a symbol depends on.
+- `sigil heritage <symbol>` — inbound/outbound `extend` / `implement` / `embed` / `trait_impl` edges across 12 languages.
 - `sigil symbols <file>` / `sigil children <file> <parent>` / `sigil search <q>` — precise AST lookups, not regex guesses.
 - `sigil duplicates` — clone report (free — sigil already hashes entity bodies).
 
 **For AI agents — one-shot primitives that fit a context window:**
 - `sigil where <symbol>` — single-shot definition locator. Returns file + line + class + signature + overloads in one call. Replaces the grep-narrow-read_file chain.
-- `sigil context <symbol>` — signature + callers + callees + related types + inheritance overrides, in ~500 tokens.
-- `sigil map` — ranked codebase digest. Cold-start orientation in one tool call.
+- `sigil context <symbol>` — signature + docstring + callers + callees + related types + inheritance overrides, in ~500 tokens.
+- `sigil map` — ranked codebase digest. Cold-start orientation in one tool call. Lists subsystems (Leiden communities) with top entities per subsystem.
 - `sigil outline [--path DIR]` — hierarchical top-level tree of classes + fns grouped by file.
 - `sigil review A..B` — PR review: `diff` + blast radius + co-change misses. Replaces `git diff` for review.
+
+**Repo intelligence (git-history-aware):**
+- `sigil hotspots` — files where churn × line-count signals high-risk change history.
+- `sigil ownership` — per-file primary author + share.
+- `sigil bus-factor` — knowledge concentration risk; flags files where one author owns ≥80%.
+- `sigil cochange [--commits N]` / `sigil cochange --workspace DIR` — file-pair coupling from history; cross-repo edges when run on a workspace of git repos.
+- `sigil communities` — Leiden file clusters over the import/call graph (NDJSON or `--pretty`).
+- `sigil dead-code` — framework-aware (excludes Flask/FastAPI/Express/NestJS routes, Django views, Go chi/gin/echo handlers); confidence tiers 1.00 / 0.85 / 0.70 / 0.50.
+- `sigil decisions` — `WHY:` / `DECISION:` / `RATIONALE:` / `TRADEOFF:` / `ADR:` / `REJECTED:` markers in source comments; `--include-git-history` also scans commit bodies.
+- `sigil contracts` — HTTP routes (FastAPI/Express/axios), gRPC services (`.proto`), Kafka-style topics — cross-repo matchable via normalised `contract_id`.
+- `sigil security-scan` — regex signals (eval/exec, pickle.loads, hardcoded secrets, weak hashes, `verify=False`), language-aware to avoid false positives.
 
 On empty results sigil emits a `Did you mean: X, Y, Z?` hint on stderr so agents don't abandon the tool on the first wrong guess. First query on a fresh clone auto-runs `sigil index` — zero-config onboarding.
 
 **For scripts & CI:**
 - Every command supports `--json`; output is minified by default (pass `--pretty` for indented).
-- `sigil query "SELECT ..."` for ad-hoc SQL against the materialized index.
+- `sigil query "SELECT ..."` for ad-hoc SQL against the materialized DuckDB index (tables: `entities`, `refs`, plus `rank` / `blast` views).
 - `sigil callers X --group-by file` collapses per-call-site output to a `{file: count}` map when you only need distribution.
 
 ### `git sigil` — the git-native alias
@@ -125,7 +178,7 @@ sudo mv sigil-aarch64-apple-darwin/sigil /usr/local/bin/
 
 Available archives: `sigil-aarch64-apple-darwin.tar.gz`, `sigil-x86_64-apple-darwin.tar.gz`, `sigil-aarch64-unknown-linux-gnu.tar.gz`, `sigil-x86_64-unknown-linux-gnu.tar.gz`, `sigil-x86_64-pc-windows-msvc.zip`.
 
-Single binary, ~20 MB. Every command ships in it: `index` / `diff` / `map` / `context` / `where` / `outline` / `review` / `blast` / `query` — plus the DuckDB backend for monorepo scale and a BPE-accurate tokenizer for `sigil benchmark`. No opt-in features, no partial builds.
+Single binary, ~20 MB. Every command ships in it: `index` / `diff` / `map` / `context` / `where` / `outline` / `review` / `blast` / `heritage` / `query` / `communities` / `hotspots` / `ownership` / `bus-factor` / `cochange` / `decisions` / `contracts` / `dead-code` / `security-scan` — plus the DuckDB backend for monorepo scale and a BPE-accurate tokenizer for `sigil benchmark`. No opt-in features, no partial builds.
 
 ### Building from source (optional)
 
@@ -134,7 +187,7 @@ git clone https://github.com/knova-run/sigil && cd sigil
 cargo build --release
 ```
 
-The default build produces the full binary (all 11 languages + DuckDB + tokenizer). Requires a C++17 toolchain for DuckDB (Xcode CLT on macOS, `build-essential` on Debian/Ubuntu, MSVC on Windows) — DuckDB sources are bundled. The compiled binary lands at `target/release/sigil`.
+The default build produces the full binary (all 15 languages + 4 data-format parsers + DuckDB + tokenizer). Requires a C++17 toolchain for DuckDB (Xcode CLT on macOS, `build-essential` on Debian/Ubuntu, MSVC on Windows) — DuckDB sources are bundled. The compiled binary lands at `target/release/sigil`.
 
 ### Python bindings
 
@@ -359,7 +412,7 @@ Median: **35×**. BPE-accurate counts via `o200k_base`. Raw JSON at [evals/resul
                   ┌──────────────────────────────────────────┐
                   │  source files (.rs .py .ts .go …)        │
                   └──────────────────┬───────────────────────┘
-                                     │ tree-sitter (11 languages)
+                                     │ tree-sitter (15 languages)
                                      ▼
                   ┌──────────────────────────────────────────┐
                   │  Entity  — struct/fn/class with 3 BLAKE3 │
@@ -382,10 +435,10 @@ Median: **35×**. BPE-accurate counts via `o200k_base`. Raw JSON at [evals/resul
  (small repos)    (monorepo scale)
 ```
 
-1. **tree-sitter parser** extracts entities (functions, structs, classes, types, imports) with line ranges. 11 languages ship by default; language grammars can be opted out of at build time for a slimmer binary.
+1. **tree-sitter parser** extracts entities (functions, structs, classes, types, imports) with line ranges. 15 languages ship by default; language grammars can be opted out of at build time for a slimmer binary.
 2. **BLAKE3 hashes** per entity — `struct_hash` (raw), `body_hash` (normalized, ignores whitespace), `sig_hash` (signature only). Powers classify: formatting-only vs logic-change vs API-change.
-3. **Reference table** — call / import / type_annotation / instantiation / definition rows, linking caller → target.
-4. **PageRank** over the file import graph ranks which files are load-bearing. **Blast radius** per entity = BFS over the reverse-reference graph, capped at depth 3.
+3. **Reference table** — call / import / type_annotation / instantiation / definition rows, linking caller → target. Each edge carries a `confidence` (0.95 → 0.5 across 7 tiers) and optional stable `callee_id` from the 3-tier resolver + manifest-aware passes (tsconfig / go.mod / PSR-4 / Cargo / SPM / .NET csproj/sln / compile_commands / Rails autoload). Unresolved imports surface as `external:<modpath>` sentinel entities so external deps stay first-class graph nodes.
+4. **PageRank** over the file import graph ranks which files are load-bearing. **Blast radius** per entity = BFS over the reverse-reference graph, capped at depth 3. **Leiden communities** segment files into internally-connected subsystems for `sigil map` / `sigil communities`.
 5. **Two backends** behind a single router:
    - **In-memory** `HashMap<String, Vec<usize>>` lookups. Sub-20 ms queries, zero dependencies.
    - **DuckDB** persistent store, columnar + vectorized. Auto-engages above 5 MB of JSONL. Handles monorepo scale without re-parsing on every invocation.
@@ -598,7 +651,7 @@ Yes — `sigil diff --files old.py new.py` compares two files directly without a
 `git diff` is line-oriented text: a renamed function becomes "delete + add" noise; whitespace-only edits look identical to logic changes; you can't tell a breaking-API change from a body refactor without reading every hunk. `sigil diff` matches entities by body hash (so renames collapse into one row), classifies every change by three BLAKE3 hashes (breaking / logic / formatting), and extracts entity-level markdown that pastes straight into PRs. Use `git diff` to see lines; use `sigil diff` to review the change.
 
 **Q: What does `sigil diff --files` support?**
-All 11 tree-sitter languages + JSON + YAML + TOML + Markdown. Pass any two paths; sigil picks the parser from the extension. Works offline, no git, no index.
+All 15 tree-sitter languages + JSON + YAML + TOML + Markdown. Pass any two paths; sigil picks the parser from the extension. Works offline, no git, no index.
 
 ---
 

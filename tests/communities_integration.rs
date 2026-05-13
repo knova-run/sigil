@@ -31,6 +31,7 @@ fn ent(file: &str, name: &str) -> Entity {
         rank: None,
         blast_radius: None,
         doc: None,
+        heritage: Vec::new(),
     }
 }
 
@@ -41,6 +42,8 @@ fn refr(file: &str, caller: &str, target: &str) -> Reference {
         name: target.to_string(),
         ref_kind: "call".to_string(),
         line: 1,
+        confidence: None,
+        callee_id: None,
     }
 }
 

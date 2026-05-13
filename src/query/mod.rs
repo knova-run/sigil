@@ -344,6 +344,7 @@ pub fn ensure_indexed(root: &Path) -> Result<()> {
         /* files */ None,
         /* full */ true,
         /* include_refs */ true,
+        /* tier3 */ true,
         /* verbose */ false,
     );
     // Populate file-level PageRank and per-entity blast radius so
@@ -771,6 +772,7 @@ mod json_emit_tests {
                 transitive_callers: 7,
             }),
             doc: None,
+            heritage: Vec::new(),
         }
     }
 
@@ -792,6 +794,7 @@ mod json_emit_tests {
             rank: None,
             blast_radius: Some(BlastRadius::default()), // all zeros
             doc: None,
+            heritage: Vec::new(),
         }
     }
 
@@ -858,6 +861,8 @@ mod json_emit_tests {
             name: "foo".into(),
             ref_kind: "call".into(),
             line: 7,
+            confidence: None,
+            callee_id: None,
         };
         let s = serde_json::to_string(&r).unwrap();
         assert!(s.contains("\"kind\":\"call\""));

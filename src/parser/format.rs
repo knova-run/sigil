@@ -30,6 +30,13 @@ pub struct SymbolEntry {
     pub sig: Option<String>,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub project: String,
+    /// Heritage edges this symbol participates in (struct embedding, class
+    /// extension, interface implementation). Currently only Go struct
+    /// embedding is populated. `(kind, target)` pairs — `target` is the
+    /// referenced symbol's bare name. Carried through to the on-disk
+    /// `Entity.heritage` field unchanged.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub heritage: Vec<(String, String)>,
 }
 
 /// A text block (docstring, comment, etc.) extracted from the AST.
@@ -46,7 +53,7 @@ pub struct TextEntry {
 }
 
 /// A reference to a symbol (call, import, type annotation, instantiation, definition).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ReferenceEntry {
     pub file: String,
     pub name: String,
@@ -56,4 +63,10 @@ pub struct ReferenceEntry {
     pub caller: Option<String>,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub project: String,
+    /// Resolver confidence — see `crate::entity::Reference::confidence` for
+    /// the semantics. `None` ≡ unresolved bare textual reference. The Go
+    /// extractor populates this for call edges that resolve through a
+    /// file-local import-alias table; other languages still emit `None`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub confidence: Option<f64>,
 }

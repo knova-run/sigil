@@ -85,6 +85,58 @@ pub fn extract(
 ) {
     let root = tree.root_node();
     walk_node(root, source, file_path, None, symbols, texts, references, 0);
+    resolve_java_imports_tier2(symbols, references);
+}
+
+/// Tier-2 resolver: for each call ref whose name is `Class.method` where
+/// `Class` matches a file-local Java `import` (last segment of the
+/// dotted path), upgrade the edge from `confidence: None` to `Some(0.8)`
+/// AND emit a sibling resolved-form edge `<full-import-path>/method`
+/// also at `Some(0.8)`. Matches the Go resolver shape.
+fn resolve_java_imports_tier2(
+    symbols: &[SymbolEntry],
+    references: &mut Vec<ReferenceEntry>,
+) {
+    use std::collections::HashMap;
+    // Build short-name → full-path table from import symbols.
+    let imports: HashMap<&str, &str> = symbols
+        .iter()
+        .filter(|s| s.kind == "import")
+        .filter_map(|s| {
+            let short = s.name.rsplit('.').next()?;
+            if short.is_empty() {
+                None
+            } else {
+                Some((short, s.name.as_str()))
+            }
+        })
+        .collect();
+    if imports.is_empty() {
+        return;
+    }
+    let mut added: Vec<ReferenceEntry> = Vec::new();
+    for r in references.iter_mut() {
+        if r.kind != "call" {
+            continue;
+        }
+        let Some((head, rest)) = r.name.split_once('.') else {
+            continue;
+        };
+        let Some(&path) = imports.get(head) else {
+            continue;
+        };
+        r.confidence = Some(0.8);
+        added.push(ReferenceEntry {
+            file: r.file.clone(),
+            name: format!("{path}/{rest}"),
+            kind: "call".to_string(),
+            line: r.line,
+            caller: r.caller.clone(),
+            project: r.project.clone(),
+            confidence: Some(0.8),
+        });
+    }
+    references.extend(added);
 }
 
 // ---------------------------------------------------------------------------
@@ -458,6 +510,14 @@ fn extract_call_ref(
     if name.is_empty() || is_java_builtin(&name) {
         return;
     }
+    // Tier-1 confidence when the invocation has no `object` qualifier —
+    // same-file resolution. Qualified invocations (`obj.method()`,
+    // `pkg.Class.method()`) stay None until import-table resolution lands.
+    let confidence = if find_child_by_field(node, "object").is_none() {
+        Some(0.95_f64)
+    } else {
+        None
+    };
 
     let line = node_line_range(node);
     references.push(ReferenceEntry {
@@ -467,6 +527,7 @@ fn extract_call_ref(
         line,
         caller: parent_ctx.map(String::from),
         project: String::new(),
+        confidence,
     });
 }
 
@@ -497,6 +558,7 @@ fn extract_new_ref(
         line,
         caller: parent_ctx.map(String::from),
         project: String::new(),
+        confidence: None,
     });
 }
 
@@ -574,6 +636,7 @@ fn extract_type_refs(
         line,
         caller: parent_ctx.map(String::from),
         project: String::new(),
+        confidence: None,
     });
 }
 
@@ -606,22 +669,53 @@ fn extract_class(
         name.clone()
     };
 
-    // Extract superclass reference
+    // Heritage edges. Java's tree-sitter exposes three field names for the
+    // parent-type clauses:
+    //   * `superclass` — `class Foo extends Bar` (single)
+    //   * `interfaces` — `class Foo implements Bar, Baz` (list)
+    //   * `extends_interfaces` — `interface Foo extends Bar, Baz` (list)
+    let mut heritage: Vec<(String, String)> = Vec::new();
     if let Some(superclass) = find_child_by_field(node, "superclass") {
         extract_type_refs(superclass, source, file_path, Some(&full_name), references);
+        let target = get_type_name(superclass, source);
+        if !target.is_empty() {
+            heritage.push(("extend".to_string(), target));
+        }
     }
-
-    // Extract interfaces references
-    if let Some(interfaces) = find_child_by_field(node, "interfaces") {
-        let mut cursor = interfaces.walk();
-        for child in interfaces.children(&mut cursor) {
+    // `interfaces` is a tree-sitter field on class_declaration; interface
+    // declarations expose their parents via an `extends_interfaces` child
+    // node (not a named field on most tree-sitter-java versions). Try the
+    // field first, then scan kind=="extends_interfaces" as a fallback.
+    let parents_clause = find_child_by_field(node, "interfaces")
+        .map(|n| ("implement", n))
+        .or_else(|| find_child_by_field(node, "extends_interfaces").map(|n| ("extend", n)))
+        .or_else(|| {
+            let mut cursor = node.walk();
+            for child in node.children(&mut cursor) {
+                if child.kind() == "extends_interfaces" {
+                    return Some(("extend", child));
+                }
+            }
+            None
+        });
+    if let Some((edge_kind, clause)) = parents_clause {
+        let mut cursor = clause.walk();
+        for child in clause.children(&mut cursor) {
             if child.kind() == "type_list" {
                 let mut type_cursor = child.walk();
                 for type_child in child.children(&mut type_cursor) {
                     extract_type_refs(type_child, source, file_path, Some(&full_name), references);
+                    let target = get_type_name(type_child, source);
+                    if !target.is_empty() {
+                        heritage.push((edge_kind.to_string(), target));
+                    }
                 }
             } else {
                 extract_type_refs(child, source, file_path, Some(&full_name), references);
+                let target = get_type_name(child, source);
+                if !target.is_empty() {
+                    heritage.push((edge_kind.to_string(), target));
+                }
             }
         }
     }
@@ -630,17 +724,21 @@ fn extract_class(
     let tokens = find_child_by_field(node, "body")
         .and_then(|body| filter_java_tokens(extract_tokens(body, source)));
 
-    push_symbol(
-        symbols,
-        file_path,
-        full_name.clone(),
-        kind,
+    // Push the class symbol manually (rather than via push_symbol) so we
+    // can carry the heritage vec through to the SymbolEntry.
+    symbols.push(crate::parser::format::SymbolEntry {
+        file: file_path.to_string(),
+        name: full_name.clone(),
+        kind: kind.to_string(),
         line,
-        parent_ctx,
+        parent: parent_ctx.map(String::from),
         tokens,
-        None,
-        Some(visibility),
-    );
+        alias: None,
+        visibility: Some(visibility),
+        sig: None,
+        project: String::new(),
+        heritage,
+    });
 
     // Walk class body with Javadoc tracking so that `/** … */` blocks before
     // each method/field attach as that member's doc.
@@ -829,6 +927,7 @@ fn extract_field(
                 visibility: Some(visibility.clone()),
                 sig,
                 project: String::new(),
+                heritage: Vec::new(),
             });
         }
     }
@@ -867,6 +966,7 @@ fn extract_import(
                 line,
                 caller: None,
                 project: String::new(),
+                confidence: None,
             });
         }
     }
@@ -1047,6 +1147,41 @@ mod tests {
 
         let name = find_sym(&symbols, "Config.name");
         assert_eq!(name.visibility.as_deref(), Some("internal"));
+    }
+
+    #[test]
+    fn java_imported_class_call_gets_tier2_two_edges() {
+        // `import com.foo.Bar;` then `Bar.greet()` resolves via the
+        // file-local import table. Emit TWO edges, both confidence 0.8:
+        //   1. raw selector form `Bar.greet`
+        //   2. resolved qualified form `com.foo.Bar/greet`
+        let source = b"import com.foo.Bar;\nclass C { void caller() { Bar.greet(); } }\n";
+        let (_, _, refs) = parse_file(source, "java", "T.java").unwrap();
+        let raw = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "Bar.greet")
+            .expect("raw selector Bar.greet");
+        assert_eq!(raw.confidence, Some(0.8));
+        let resolved = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "com.foo.Bar/greet")
+            .expect("resolved com.foo.Bar/greet");
+        assert_eq!(resolved.confidence, Some(0.8));
+    }
+
+    #[test]
+    fn java_bare_call_gets_tier1_confidence() {
+        let source = b"class C { void caller() { helper(); obj.method(); } void helper() {} }\n";
+        let (_, _, refs) = parse_file(source, "java", "T.java").unwrap();
+        let bare = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "helper")
+            .expect("helper() bare call");
+        assert_eq!(bare.confidence, Some(0.95));
+        let member = refs.iter().find(|r| r.kind == "call" && r.name == "obj.method");
+        if let Some(m) = member {
+            assert_eq!(m.confidence, None);
+        }
     }
 
     #[test]

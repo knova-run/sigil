@@ -65,6 +65,70 @@ pub fn extract(
 ) {
     let root = tree.root_node();
     walk_node(root, source, file_path, None, symbols, texts, references, 0);
+    resolve_js_imports_tier2(symbols, references);
+}
+
+/// Tier-2 resolver: upgrade bare- and member-head calls whose head matches a
+/// file-local ES module import binding to confidence 0.8, and emit a second
+/// edge with the import's resolved path. The resolved form uses `/` as the
+/// path/member separator. For namespace imports (`import * as ns from "m"`)
+/// the stored path ends in `.*`; that suffix is trimmed for the resolved
+/// edge so `ns.foo()` resolves to `m/foo`, not `m.*/foo`.
+///
+/// Short-name resolution rules:
+///   * `import foo from "mod"`      → short = `foo`, path = `mod`
+///   * `import { x } from "mod"`    → short = `x`,   path = `mod.x`
+///   * `import { x as y } "mod"`    → short = `y`,   path = `mod.x`
+///   * `import * as ns from "mod"`  → short = `ns`,  path = `mod` (trimmed)
+pub(crate) fn resolve_js_imports_tier2(
+    symbols: &[SymbolEntry],
+    references: &mut Vec<ReferenceEntry>,
+) {
+    use std::collections::HashMap;
+    let imports: HashMap<String, String> = symbols
+        .iter()
+        .filter(|s| s.kind == "import")
+        .filter_map(|s| {
+            let short = match s.alias.as_deref() {
+                Some(a) if !a.is_empty() => a.to_string(),
+                _ => s.name.rsplit('.').next()?.to_string(),
+            };
+            if short.is_empty() || short == "*" {
+                return None;
+            }
+            let path = s
+                .name
+                .strip_suffix(".*")
+                .unwrap_or(&s.name)
+                .to_string();
+            Some((short, path))
+        })
+        .collect();
+    if imports.is_empty() {
+        return;
+    }
+    let mut added: Vec<ReferenceEntry> = Vec::new();
+    for r in references.iter_mut() {
+        if r.kind != "call" {
+            continue;
+        }
+        let (head, rest) = match r.name.split_once('.') {
+            Some((h, t)) => (h.to_string(), t.to_string()),
+            None => (r.name.clone(), String::new()),
+        };
+        let Some(path) = imports.get(&head) else { continue };
+        r.confidence = Some(0.8);
+        added.push(ReferenceEntry {
+            file: r.file.clone(),
+            name: format!("{path}/{rest}"),
+            kind: "call".to_string(),
+            line: r.line,
+            caller: r.caller.clone(),
+            project: r.project.clone(),
+            confidence: Some(0.8),
+        });
+    }
+    references.extend(added);
 }
 
 // ---------------------------------------------------------------------------
@@ -275,6 +339,12 @@ fn walk_node(
         "import_statement" => {
             extract_import(node, source, file_path, symbols, references);
         }
+        "export_statement" => {
+            // Re-exports (`export ... from "./y"`) are import-equivalent for
+            // tier-3 barrel-follow; declaration exports are handled by the
+            // existing extractors that recurse into the wrapped declaration.
+            extract_reexport(node, source, file_path, symbols, references);
+        }
 
         // --- Reference extraction ---
         "call_expression" => {
@@ -429,6 +499,13 @@ fn extract_call_ref(
     if name.is_empty() || is_js_builtin_call(&name) {
         return;
     }
+    // Tier-1 confidence on bare-identifier calls; member-expression calls
+    // (`obj.method()`) stay None until namespace-import resolution lands.
+    let confidence = if func.kind() == "identifier" {
+        Some(0.95_f64)
+    } else {
+        None
+    };
 
     let line = node_line_range(node);
     references.push(ReferenceEntry {
@@ -438,6 +515,7 @@ fn extract_call_ref(
         line,
         caller: parent_ctx.map(String::from),
         project: String::new(),
+        confidence,
     });
 }
 
@@ -467,6 +545,7 @@ fn extract_new_ref(
         line,
         caller: parent_ctx.map(String::from),
         project: String::new(),
+        confidence: None,
     });
 }
 
@@ -595,8 +674,10 @@ fn extract_class(
         name.clone()
     };
 
-    // Extract class heritage references (extends)
-    // Try different tree-sitter node structures for extends clause
+    // Extract class heritage references (extends) — and capture them into
+    // `heritage` for the SymbolEntry. JS has no `implements` keyword; only
+    // `extend` edges land here.
+    let mut heritage: Vec<(String, String)> = Vec::new();
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         match child.kind() {
@@ -616,12 +697,14 @@ fn extract_class(
                             if !super_name.is_empty() && !is_js_builtin_call(&super_name) {
                                 references.push(ReferenceEntry {
                                     file: file_path.to_string(),
-                                    name: super_name,
+                                    name: super_name.clone(),
                                     kind: "type_annotation".to_string(),
                                     line: node_line_range(heritage_child),
                                     caller: Some(full_name.clone()),
                                     project: String::new(),
+                                    confidence: None,
                                 });
+                                heritage.push(("extend".to_string(), super_name));
                             }
                         }
                     } else if matches!(heritage_child.kind(), "identifier" | "member_expression") {
@@ -630,12 +713,14 @@ fn extract_class(
                         if !super_name.is_empty() && !is_js_builtin_call(&super_name) {
                             references.push(ReferenceEntry {
                                 file: file_path.to_string(),
-                                name: super_name,
+                                name: super_name.clone(),
                                 kind: "type_annotation".to_string(),
                                 line: node_line_range(heritage_child),
                                 caller: Some(full_name.clone()),
                                 project: String::new(),
+                                confidence: None,
                             });
+                            heritage.push(("extend".to_string(), super_name));
                         }
                     }
                 }
@@ -650,12 +735,14 @@ fn extract_class(
                     if !super_name.is_empty() && !is_js_builtin_call(&super_name) {
                         references.push(ReferenceEntry {
                             file: file_path.to_string(),
-                            name: super_name,
+                            name: super_name.clone(),
                             kind: "type_annotation".to_string(),
                             line: node_line_range(child),
                             caller: Some(full_name.clone()),
                             project: String::new(),
+                            confidence: None,
                         });
+                        heritage.push(("extend".to_string(), super_name));
                     }
                 }
             }
@@ -667,17 +754,20 @@ fn extract_class(
     let tokens = find_child_by_field(node, "body")
         .and_then(|body| filter_js_tokens(extract_tokens(body, source)));
 
-    push_symbol(
-        symbols,
-        file_path,
-        full_name.clone(),
-        "class",
+    // Push the class symbol manually so we can carry heritage.
+    symbols.push(crate::parser::format::SymbolEntry {
+        file: file_path.to_string(),
+        name: full_name.clone(),
+        kind: "class".to_string(),
         line,
-        parent_ctx,
+        parent: parent_ctx.map(String::from),
         tokens,
-        None,
-        Some(visibility),
-    );
+        alias: None,
+        visibility: Some(visibility),
+        sig: None,
+        project: String::new(),
+        heritage,
+    });
 
     // Walk class body
     if let Some(body) = find_child_by_field(node, "body") {
@@ -883,6 +973,7 @@ fn extract_variable_decl(
                     visibility: Some(visibility.clone()),
                     sig,
                     project: String::new(),
+                    heritage: Vec::new(),
                 });
             }
         }
@@ -935,6 +1026,7 @@ fn extract_import(
                             line,
                             caller: None,
                             project: String::new(),
+                            confidence: None,
                         });
                     }
                     "named_imports" => {
@@ -968,6 +1060,7 @@ fn extract_import(
                                         line,
                                         caller: None,
                                         project: String::new(),
+                                        confidence: None,
                                     });
                                 }
                             }
@@ -1004,11 +1097,100 @@ fn extract_import(
                             line,
                             caller: None,
                             project: String::new(),
+                            confidence: None,
                         });
                     }
                     _ => {}
                 }
             }
+        }
+    }
+}
+
+/// Handle `export { x } from "./y"` / `export * from "./y"` re-export
+/// statements. These bind a name in the current module that was originally
+/// defined elsewhere — semantically equivalent to an import for our purposes
+/// (barrel-follow walks the import chain via these symbols). Emits the same
+/// `kind: "import"` symbols as `extract_import` so the tier-3 barrel-follow
+/// pass treats both forms uniformly.
+pub(crate) fn extract_reexport(
+    node: Node,
+    source: &[u8],
+    file_path: &str,
+    symbols: &mut Vec<SymbolEntry>,
+    references: &mut Vec<ReferenceEntry>,
+) {
+    let line = node_line_range(node);
+    // Only export_statement forms with a `source` field are re-exports.
+    let Some(source_node) = find_child_by_field(node, "source") else {
+        return;
+    };
+    let source_module = strip_string_quotes(&node_text(source_node, source)).to_string();
+
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        match child.kind() {
+            "export_clause" => {
+                // `export { a, b as c } from "./y"`
+                let mut spec_cursor = child.walk();
+                for spec in child.children(&mut spec_cursor) {
+                    if spec.kind() != "export_specifier" {
+                        continue;
+                    }
+                    let imp_name = find_child_by_field(spec, "name").map(|n| node_text(n, source));
+                    let alias = find_child_by_field(spec, "alias")
+                        .map(|n| node_text(n, source))
+                        .or_else(|| imp_name.clone());
+                    if let Some(name) = imp_name {
+                        let full_name = format!("{source_module}.{name}");
+                        push_symbol(
+                            symbols,
+                            file_path,
+                            full_name.clone(),
+                            "import",
+                            line,
+                            None,
+                            None,
+                            alias,
+                            Some("private".to_string()),
+                        );
+                        references.push(ReferenceEntry {
+                            file: file_path.to_string(),
+                            name: full_name,
+                            kind: "import".to_string(),
+                            line,
+                            caller: None,
+                            project: String::new(),
+                            confidence: None,
+                        });
+                    }
+                }
+            }
+            "*" => {
+                // `export * from "./y"` — wildcard re-export. No local alias.
+                let full_name = format!("{source_module}.*");
+                push_symbol(
+                    symbols,
+                    file_path,
+                    full_name.clone(),
+                    "import",
+                    line,
+                    None,
+                    None,
+                    None,
+                    Some("private".to_string()),
+                );
+                references.push(ReferenceEntry {
+                    file: file_path.to_string(),
+                    name: full_name,
+                    kind: "import".to_string(),
+                    line,
+                    caller: None,
+                    project: String::new(),
+                    confidence: None,
+                });
+            }
+            _ => {}
         }
     }
 }
@@ -1097,6 +1279,61 @@ mod tests {
             .iter()
             .find(|s| s.name == name)
             .unwrap_or_else(|| panic!("symbol not found: {name}"))
+    }
+
+    #[test]
+    fn js_bare_call_gets_tier1_confidence() {
+        // Tier 1: bare `identifier` call → confidence 0.95. member_expression
+        // calls (e.g., `obj.method()`) stay None until namespace-alias
+        // resolution (`import * as ns from ...; ns.foo()`) lands.
+        let source = b"function caller() { helper(); obj.method(); }\nfunction helper() {}\n";
+        let (_, _, refs) = parse_file(source, "javascript", "t.js").unwrap();
+        let bare = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "helper")
+            .expect("helper() bare call");
+        assert_eq!(bare.confidence, Some(0.95));
+        let member = refs.iter().find(|r| r.kind == "call" && r.name == "obj.method");
+        if let Some(m) = member {
+            assert_eq!(m.confidence, None);
+        }
+    }
+
+    #[test]
+    fn js_named_import_call_gets_tier2_two_edges() {
+        // `import { helper } from "./utils"` then `helper()`:
+        //   * raw `helper` upgraded to 0.8
+        //   * resolved `./utils.helper/` at 0.8
+        let source = b"import { helper } from \"./utils\";\nfunction caller() { helper(); }\n";
+        let (_, _, refs) = parse_file(source, "javascript", "t.js").unwrap();
+        let raw = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "helper")
+            .expect("raw helper call");
+        assert_eq!(raw.confidence, Some(0.8));
+        let resolved = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "./utils.helper/")
+            .expect("resolved ./utils.helper/ form");
+        assert_eq!(resolved.confidence, Some(0.8));
+    }
+
+    #[test]
+    fn js_namespace_import_member_call_resolves_tier2() {
+        // `import * as np from "numpy"; np.array()` → resolved `numpy/array`.
+        // The trailing `.*` in the import's stored path is trimmed.
+        let source = b"import * as np from \"numpy\";\nfunction caller() { np.array(); }\n";
+        let (_, _, refs) = parse_file(source, "javascript", "t.js").unwrap();
+        let raw = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "np.array")
+            .expect("raw np.array call");
+        assert_eq!(raw.confidence, Some(0.8));
+        let resolved = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "numpy/array")
+            .expect("resolved numpy/array form");
+        assert_eq!(resolved.confidence, Some(0.8));
     }
 
     #[test]

@@ -1,10 +1,24 @@
 //! Go symbol and text extraction.
 
+use std::collections::HashMap;
+
 use tree_sitter::{Node, Tree};
 
 use crate::parser::format::{ReferenceEntry, SymbolEntry, TextEntry};
 use crate::parser::helpers::*;
 use crate::parser::treesitter::MAX_DEPTH;
+
+/// File-local Go import-resolution table.
+///
+/// Maps the bare identifier a Go file uses to refer to a package — the
+/// alias when one is given (`import io "io/ioutil"` ⇒ `"io"`), otherwise
+/// the last segment of the import path (`import "encoding/json"` ⇒
+/// `"json"`) — to the fully-qualified import path.
+///
+/// Built once per file before symbol/ref walking, then passed read-only to
+/// the call extractor. Used to upgrade an unresolved `pkg.Func` selector
+/// into a confidence-tagged edge against the package path.
+type ImportTable = HashMap<String, String>;
 
 pub fn extract(
     tree: &Tree,
@@ -15,7 +29,45 @@ pub fn extract(
     references: &mut Vec<ReferenceEntry>,
 ) {
     let root = tree.root_node();
-    walk_node(root, source, file_path, None, symbols, texts, references, 0);
+    // Pre-pass: walk the whole tree just for `import_declaration` nodes so
+    // call/ref extraction below sees a complete alias map even when imports
+    // appear deeper than the file's top level (rare, but valid Go).
+    let imports = collect_imports(root, source);
+    walk_node(
+        root, source, file_path, None, symbols, texts, references, 0, &imports,
+    );
+}
+
+/// Walk the parse tree once just to populate the per-file `ImportTable`.
+fn collect_imports(root: Node, source: &[u8]) -> ImportTable {
+    let mut table = ImportTable::new();
+    let mut stack = vec![root];
+    while let Some(n) = stack.pop() {
+        if n.kind() == "import_spec" {
+            // path is mandatory; alias optional
+            if let Some(path_node) = find_child_by_field(n, "path") {
+                let path = strip_string_quotes(&node_text(path_node, source));
+                if !path.is_empty() {
+                    let alias = find_child_by_field(n, "name").map(|a| node_text(a, source));
+                    let local_name = match alias.as_deref() {
+                        // Blank/dot imports introduce no usable local name.
+                        Some("_") | Some(".") => continue,
+                        Some(a) => a.to_string(),
+                        None => path.rsplit('/').next().unwrap_or(&path).to_string(),
+                    };
+                    if !local_name.is_empty() {
+                        table.insert(local_name, path);
+                    }
+                }
+            }
+            continue;
+        }
+        let mut cursor = n.walk();
+        for child in n.children(&mut cursor) {
+            stack.push(child);
+        }
+    }
+    table
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -28,6 +80,7 @@ fn walk_node(
     texts: &mut Vec<TextEntry>,
     references: &mut Vec<ReferenceEntry>,
     depth: usize,
+    imports: &ImportTable,
 ) {
     // Prevent stack overflow on deeply nested code
     if depth > MAX_DEPTH {
@@ -38,11 +91,15 @@ fn walk_node(
 
     match kind {
         "function_declaration" => {
-            extract_function(node, source, file_path, symbols, texts, references, depth);
+            extract_function(
+                node, source, file_path, symbols, texts, references, depth, imports,
+            );
             return; // handled recursively
         }
         "method_declaration" => {
-            extract_method(node, source, file_path, symbols, texts, references, depth);
+            extract_method(
+                node, source, file_path, symbols, texts, references, depth, imports,
+            );
             return; // handled recursively
         }
         "type_declaration" => {
@@ -57,6 +114,24 @@ fn walk_node(
         }
         "var_declaration" | "const_declaration" => {
             extract_var_const(node, source, file_path, parent_ctx, symbols);
+            // Also emit type_annotation refs for the var_spec's
+            // explicit type (`var x *Engine` or `var x Engine`). The
+            // walker recursion below visits the value expression but
+            // skips the `type` field — it's a leaf node from the
+            // walker's perspective. Without this, top-level
+            // declarations of `*Engine` are unreachable from `sigil
+            // callers Engine`.
+            let mut cursor = node.walk();
+            for child in node.children(&mut cursor) {
+                if !matches!(child.kind(), "var_spec" | "const_spec") {
+                    continue;
+                }
+                if let Some(typ) = find_child_by_field(child, "type") {
+                    extract_type_refs_from_node(
+                        typ, source, file_path, parent_ctx, references,
+                    );
+                }
+            }
         }
         "import_declaration" => {
             extract_imports(node, source, file_path, symbols, references);
@@ -65,7 +140,17 @@ fn walk_node(
             extract_package(node, source, file_path, symbols);
         }
         "call_expression" => {
-            extract_call(node, source, file_path, parent_ctx, references);
+            extract_call(node, source, file_path, parent_ctx, references, imports);
+        }
+        "composite_literal" => {
+            // `&Engine{...}` / `Engine{...}` / `[]Engine{...}` — emit a
+            // type_annotation ref for the literal's type so the type
+            // surfaces in `sigil callers Engine`. Recurse afterwards
+            // so nested literals and call expressions inside still get
+            // walked normally.
+            if let Some(typ) = find_child_by_field(node, "type") {
+                extract_type_refs_from_node(typ, source, file_path, parent_ctx, references);
+            }
         }
         "comment" => {
             extract_go_comment(node, source, file_path, parent_ctx, texts);
@@ -143,6 +228,7 @@ fn walk_node(
             texts,
             references,
             depth + 1,
+            imports,
         );
     }
 }
@@ -208,6 +294,7 @@ fn extract_function(
     texts: &mut Vec<TextEntry>,
     references: &mut Vec<ReferenceEntry>,
     depth: usize,
+    imports: &ImportTable,
 ) {
     let name = match find_child_by_field(node, "name") {
         Some(n) => node_text(n, source),
@@ -257,6 +344,7 @@ fn extract_function(
                 texts,
                 references,
                 depth + 1,
+                imports,
             );
         }
     }
@@ -271,6 +359,7 @@ fn extract_method(
     texts: &mut Vec<TextEntry>,
     references: &mut Vec<ReferenceEntry>,
     depth: usize,
+    imports: &ImportTable,
 ) {
     let name = match find_child_by_field(node, "name") {
         Some(n) => node_text(n, source),
@@ -335,6 +424,13 @@ fn extract_method(
         extract_type_refs_from_node(result, source, file_path, Some(&full_name), references);
     }
 
+    // Extract type reference from receiver — `func (e *Engine) Foo()`
+    // emits an `Engine` type_annotation. Without this, `sigil callers
+    // Engine` misses every method declared on the type.
+    if let Some(recv) = find_child_by_field(node, "receiver") {
+        extract_type_refs_from_node(recv, source, file_path, Some(&full_name), references);
+    }
+
     // Recurse into method body with method name as context
     if let Some(body) = find_child_by_field(node, "body") {
         let mut cursor = body.walk();
@@ -348,6 +444,7 @@ fn extract_method(
                 texts,
                 references,
                 depth + 1,
+                imports,
             );
         }
     }
@@ -398,17 +495,11 @@ fn extract_type_spec(
         })
         .unwrap_or("type_alias");
 
-    push_symbol(
-        symbols,
-        file_path,
-        name.clone(),
-        kind,
-        line,
-        parent_ctx,
-        None,
-        None,
-        Some(visibility),
-    );
+    // Embed targets collected here, then attached to the just-pushed
+    // SymbolEntry once we know its index. Go interfaces could also embed
+    // interfaces, but interface-impl detection is deferred (interfaces in
+    // Go are structural — would need a separate cross-file pass).
+    let mut embeds: Vec<(String, String)> = Vec::new();
 
     // For structs, extract fields and their type references
     if let Some(type_n) = type_node {
@@ -438,6 +529,12 @@ fn extract_type_spec(
                             None,
                             Some(field_vis),
                         );
+                    } else if let Some(embed_target) =
+                        detect_embedded_field(child, source)
+                    {
+                        // Anonymous field == struct embedding. Emit a
+                        // heritage edge against the embedded type name.
+                        embeds.push(("embed".to_string(), embed_target));
                     }
                     // Extract type references from field type
                     if let Some(field_type) = find_child_by_field(child, "type") {
@@ -482,6 +579,63 @@ fn extract_type_spec(
             }
         }
     }
+
+    // Push the parent type symbol. We do this AFTER scanning fields so the
+    // heritage vec is already populated. The struct/interface symbol must
+    // also live before its child property/method symbols in the sorted
+    // output, so the placement here is fine — `index.rs` re-sorts by
+    // (file, line_start) before serializing.
+    symbols.push(SymbolEntry {
+        file: file_path.to_string(),
+        name: name.clone(),
+        kind: kind.to_string(),
+        line,
+        parent: parent_ctx.map(String::from),
+        tokens: None,
+        alias: None,
+        visibility: Some(visibility),
+        sig: None,
+        project: String::new(),
+        heritage: embeds,
+    });
+}
+
+/// Recognise a struct embed: a `field_declaration` whose body is just a
+/// bare type name (no field name).
+///
+/// Returns the embedded type's name. Handles four cases:
+/// * `Bar`           → `Bar` (type_identifier)
+/// * `*Bar`          → `Bar` (pointer_type wrapping type_identifier)
+/// * `pkg.Bar`       → `pkg.Bar` (qualified_type)
+/// * `*pkg.Bar`      → `pkg.Bar` (pointer_type wrapping qualified_type)
+///
+/// Returns `None` for nominal fields (those with names) and for malformed
+/// nodes the grammar might surface.
+fn detect_embedded_field(field: Node, source: &[u8]) -> Option<String> {
+    // Tree-sitter-go represents embeds as `field_declaration` nodes with a
+    // `type` field and no `name` field. We've already established no name
+    // above, but double-check here for safety against grammar quirks.
+    if find_child_by_field(field, "name").is_some() {
+        return None;
+    }
+    let type_node = find_child_by_field(field, "type")?;
+    fn extract_target(t: Node, source: &[u8]) -> Option<String> {
+        match t.kind() {
+            "type_identifier" => Some(node_text(t, source)),
+            "qualified_type" => Some(node_text(t, source)),
+            "pointer_type" => {
+                // pointer_type wraps `_type` field — unwrap and recurse.
+                let inner = find_child_by_field(t, "type").or_else(|| {
+                    let mut c = t.walk();
+                    t.children(&mut c)
+                        .find(|n| matches!(n.kind(), "type_identifier" | "qualified_type"))
+                })?;
+                extract_target(inner, source)
+            }
+            _ => None,
+        }
+    }
+    extract_target(type_node, source)
 }
 
 fn extract_var_const(
@@ -526,6 +680,7 @@ fn extract_var_const(
                     visibility: Some(visibility),
                     sig: value_text.clone(),
                     project: String::new(),
+                    heritage: Vec::new(),
                 });
             }
             // Handle multiple names in one spec: `var a, b, c int`
@@ -553,6 +708,7 @@ fn extract_var_const(
                         visibility: Some(extra_vis),
                         sig: value_text.clone(),
                         project: String::new(),
+                        heritage: Vec::new(),
                     });
                 }
             }
@@ -598,6 +754,7 @@ fn extract_imports(
                     line,
                     caller: None,
                     project: String::new(),
+                    confidence: None,
                 });
             }
         }
@@ -633,6 +790,7 @@ fn extract_imports(
                             line: spec_line,
                             caller: None,
                             project: String::new(),
+                            confidence: None,
                         });
                     }
                 }
@@ -663,12 +821,33 @@ fn extract_package(node: Node, source: &[u8], file_path: &str, symbols: &mut Vec
 }
 
 /// Extract a function call as a reference.
+///
+/// Four structural cases by the call's function-field node kind:
+/// * Selector calls (`pkg.Func`) whose leading segment matches a file-local
+///   import alias emit two refs:
+///     1. The raw selector form `pkg.Func` with `confidence=0.8`, for
+///        backwards-compatible textual `callers`/`callees` queries.
+///     2. The resolved qualified form `<import-path>/Func` with
+///        `confidence=0.8`, for cross-file/cross-repo resolution.
+///   Both edges share line + caller so consumers can dedupe by line.
+/// * Plain identifier calls (`SomeFunc`) emit a single edge with
+///   `confidence=0.95` — same-file resolution is implicit at this layer
+///   (the caller and callee both live in the file's symbol table).
+/// * Selector calls that don't resolve through the import table (method
+///   calls on a local value, calls into nested receivers) keep the old
+///   behaviour: emit the selector verbatim with `confidence=None`.
+/// * Parenthesized-expression "calls" — `(*Engine)(nil)` / `(Engine)(x)` —
+///   are Go type conversions. We delegate to `emit_cast_type_refs` which
+///   walks inside the parens and emits the type as a `type_annotation`
+///   reference (not a call), so `sigil callers Engine` reaches the cast
+///   site.
 fn extract_call(
     node: Node,
     source: &[u8],
     file_path: &str,
     parent_ctx: Option<&str>,
     references: &mut Vec<ReferenceEntry>,
+    imports: &ImportTable,
 ) {
     let line = node_line_range(node);
 
@@ -678,9 +857,22 @@ fn extract_call(
     };
 
     // Extract the name of the called function
-    let name = match func.kind() {
-        "identifier" => node_text(func, source),
-        "selector_expression" => node_text(func, source),
+    let (name, is_selector) = match func.kind() {
+        "identifier" => (node_text(func, source), false),
+        "selector_expression" => (node_text(func, source), true),
+        // `(*Engine)(nil)` or `(Engine)(x)` — parenthesized type used as
+        // a cast/conversion. Tree-sitter parses these ambiguously
+        // because at parse-time `Engine` is just an identifier (no
+        // type/value distinction): `*Engine` shows up as
+        // `unary_expression` over `identifier`, not `pointer_type` over
+        // `type_identifier`. So we walk inside the parens looking for
+        // any identifier and emit it as a type_annotation ref — the
+        // surrounding call context disambiguates it as a type cast.
+        // We skip builtin/primitive Go type names to avoid noise.
+        "parenthesized_expression" => {
+            emit_cast_type_refs(func, source, file_path, parent_ctx, references);
+            return;
+        }
         _ => return,
     };
 
@@ -689,6 +881,52 @@ fn extract_call(
         return;
     }
 
+    if is_selector {
+        // Selector form: `<head>.<rest>` — head is the leftmost segment.
+        if let Some((head, rest)) = name.split_once('.') {
+            if let Some(import_path) = imports.get(head) {
+                // Tier 2 — resolved through file-local import alias.
+                // Emit the bare textual form for legacy text-match consumers
+                // first…
+                references.push(ReferenceEntry {
+                    file: file_path.to_string(),
+                    name: name.clone(),
+                    kind: "call".to_string(),
+                    line,
+                    caller: parent_ctx.map(String::from),
+                    project: String::new(),
+                    confidence: Some(0.8),
+                });
+                // …then the qualified form (`encoding/json/Marshal`).
+                // We use `/` as the join character to stay consistent with
+                // Go's package-path convention; consumers that want
+                // `pkg.Marshal` can split on `/` and take the tail.
+                references.push(ReferenceEntry {
+                    file: file_path.to_string(),
+                    name: format!("{import_path}/{rest}"),
+                    kind: "call".to_string(),
+                    line,
+                    caller: parent_ctx.map(String::from),
+                    project: String::new(),
+                    confidence: Some(0.8),
+                });
+                return;
+            }
+        }
+        // Unresolved selector — keep legacy behaviour, no confidence tag.
+        references.push(ReferenceEntry {
+            file: file_path.to_string(),
+            name,
+            kind: "call".to_string(),
+            line,
+            caller: parent_ctx.map(String::from),
+            project: String::new(),
+            confidence: None,
+        });
+        return;
+    }
+
+    // Bare identifier — tier 1, exact same-file resolution.
     references.push(ReferenceEntry {
         file: file_path.to_string(),
         name,
@@ -696,6 +934,7 @@ fn extract_call(
         line,
         caller: parent_ctx.map(String::from),
         project: String::new(),
+        confidence: Some(0.95),
     });
 }
 
@@ -744,6 +983,7 @@ fn extract_type_refs_from_node(
                         line: node_line_range(n),
                         caller: parent_ctx.map(String::from),
                         project: String::new(),
+                        confidence: None,
                     });
                 }
             }
@@ -756,6 +996,7 @@ fn extract_type_refs_from_node(
                     line: node_line_range(n),
                     caller: parent_ctx.map(String::from),
                     project: String::new(),
+                    confidence: None,
                 });
                 continue; // Don't recurse into children
             }
@@ -763,6 +1004,58 @@ fn extract_type_refs_from_node(
         }
 
         // Recurse into children
+        let mut cursor = n.walk();
+        for child in n.children(&mut cursor) {
+            stack.push(child);
+        }
+    }
+}
+
+/// Emit type_annotation refs for the inner identifier of a parenthesized
+/// expression in cast position (`(*T)(x)` / `(T)(x)`). Tree-sitter-go
+/// parses these ambiguously — `*T` becomes `unary_expression` over
+/// `identifier`, not `pointer_type` over `type_identifier`. Walk for
+/// any plain identifier and emit it (filtering primitives + builtin
+/// function names like `len`/`make` to avoid noise).
+fn emit_cast_type_refs(
+    node: Node,
+    source: &[u8],
+    file_path: &str,
+    parent_ctx: Option<&str>,
+    references: &mut Vec<ReferenceEntry>,
+) {
+    let mut stack = vec![node];
+    while let Some(n) = stack.pop() {
+        match n.kind() {
+            "identifier" | "type_identifier" => {
+                let name = node_text(n, source);
+                if !is_go_primitive_type(&name) && !is_go_builtin_call(&name) {
+                    references.push(ReferenceEntry {
+                        file: file_path.to_string(),
+                        name,
+                        kind: "type_annotation".to_string(),
+                        line: node_line_range(n),
+                        caller: parent_ctx.map(String::from),
+                        project: String::new(),
+                        confidence: None,
+                    });
+                }
+            }
+            "qualified_type" | "selector_expression" => {
+                // `(*pkg.Engine)(nil)` — emit the qualified form.
+                references.push(ReferenceEntry {
+                    file: file_path.to_string(),
+                    name: node_text(n, source),
+                    kind: "type_annotation".to_string(),
+                    line: node_line_range(n),
+                    caller: parent_ctx.map(String::from),
+                    project: String::new(),
+                    confidence: None,
+                });
+                continue;
+            }
+            _ => {}
+        }
         let mut cursor = n.walk();
         for child in n.children(&mut cursor) {
             stack.push(child);
@@ -1092,6 +1385,123 @@ import (
         assert!(
             import_refs.iter().any(|r| r.name == "os"),
             "should find os import"
+        );
+    }
+
+    #[test]
+    fn test_go_method_receiver_type_ref() {
+        // Gap surfaced by the gin-gonic/gin audit: a method declaration
+        // `func (engine *Engine) Foo()` records `Engine` as the
+        // method's parent, but never emits a type_annotation Reference
+        // for the receiver type. `sigil callers Engine` should reach
+        // every method declared on it.
+        let source = b"package main
+
+type Engine struct { v int }
+
+func (engine *Engine) First() {}
+func (e Engine) Second() {}
+func (other *Other) Skip() {}
+";
+        let (_symbols, _texts, refs) = parse_file(source, "go", "test.go").unwrap();
+        let engine_recv: Vec<_> = refs
+            .iter()
+            .filter(|r| r.kind == "type_annotation" && r.name == "Engine")
+            .collect();
+        assert_eq!(
+            engine_recv.len(),
+            2,
+            "expected 2 Engine receiver refs (pointer + value); got {:?}",
+            refs.iter().map(|r| (&r.kind, &r.name)).collect::<Vec<_>>(),
+        );
+    }
+
+    #[test]
+    fn test_go_composite_literal_type_ref() {
+        // `&Engine{...}` and `Engine{...}` struct literals should
+        // surface `Engine` as a type_annotation ref so it shows up in
+        // `sigil callers Engine`. Gin's `New()` returns `&Engine{...}`.
+        let source = b"package main
+
+type Engine struct { v int }
+
+func New() *Engine {
+    return &Engine{v: 1}
+}
+
+func makeValue() Engine {
+    return Engine{v: 2}
+}
+";
+        let (_symbols, _texts, refs) = parse_file(source, "go", "test.go").unwrap();
+        let engine_lit: Vec<_> = refs
+            .iter()
+            .filter(|r| r.kind == "type_annotation" && r.name == "Engine")
+            .collect();
+        // Two struct literals + two return types = at least 2 literal-driven refs.
+        assert!(
+            engine_lit.len() >= 4,
+            "expected ≥4 Engine type-annotation refs (2 returns + 2 literals); got {} -> {:?}",
+            engine_lit.len(),
+            refs.iter().map(|r| (&r.kind, &r.name, r.line)).collect::<Vec<_>>(),
+        );
+    }
+
+    #[test]
+    fn test_go_var_type_annotation_ref() {
+        // Top-level `var x *Engine` / `var x Engine` should emit an
+        // Engine type_annotation ref. Without this, declarations like
+        // `var defaultLogger *Logger` aren't reachable via `callers
+        // Logger`.
+        let source = b"package main
+
+type Engine struct { v int }
+
+var globalEngine *Engine
+var localEngine Engine
+const _ = 1
+
+func makeIt() {
+    var inner *Engine
+    _ = inner
+}
+";
+        let (_symbols, _texts, refs) = parse_file(source, "go", "test.go").unwrap();
+        let engine_var: Vec<_> = refs
+            .iter()
+            .filter(|r| r.kind == "type_annotation" && r.name == "Engine")
+            .collect();
+        assert!(
+            engine_var.len() >= 3,
+            "expected ≥3 Engine type_annotation refs (2 top-level vars + 1 in-func var); got {} -> {:?}",
+            engine_var.len(),
+            refs.iter().map(|r| (&r.kind, &r.name, r.line)).collect::<Vec<_>>(),
+        );
+    }
+
+    #[test]
+    fn test_go_parenthesized_type_cast_ref() {
+        // `var _ IRouter = (*Engine)(nil)` is a type cast — the
+        // call expression's "function" is a parenthesized pointer_type.
+        // `Engine` should surface as a type_annotation ref so
+        // `sigil callers Engine` reaches the cast site. Gin's gin.go:191
+        // is the canonical example: `var _ IRouter = (*Engine)(nil)`.
+        let source = b"package main
+
+type Engine struct { v int }
+type IRouter interface { GET() }
+
+var _ IRouter = (*Engine)(nil)
+";
+        let (_symbols, _texts, refs) = parse_file(source, "go", "test.go").unwrap();
+        let engine_cast: Vec<_> = refs
+            .iter()
+            .filter(|r| r.kind == "type_annotation" && r.name == "Engine")
+            .collect();
+        assert!(
+            !engine_cast.is_empty(),
+            "expected ≥1 Engine type_annotation from the cast; got refs {:?}",
+            refs.iter().map(|r| (&r.kind, &r.name)).collect::<Vec<_>>(),
         );
     }
 

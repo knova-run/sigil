@@ -145,6 +145,57 @@ pub fn extract(
 ) {
     let root = tree.root_node();
     walk_node(root, source, file_path, None, symbols, texts, references, 0);
+    resolve_kotlin_imports_tier2(symbols, references);
+}
+
+/// Tier-2 resolver. Kotlin imports bind either the last `.`-segment
+/// (`import foo.Bar` → `Bar`) or the explicit `as` alias
+/// (`import foo.Bar as B` → `B`). Selector calls (`navigation_expression`)
+/// whose head matches an alias get upgraded to two confidence-0.8 edges:
+/// the raw selector and the resolved `<import-path>/<rest>` form.
+fn resolve_kotlin_imports_tier2(
+    symbols: &[SymbolEntry],
+    references: &mut Vec<ReferenceEntry>,
+) {
+    use std::collections::HashMap;
+    let mut imports: HashMap<String, String> = HashMap::new();
+    for s in symbols.iter().filter(|s| s.kind == "import") {
+        let path = s.name.clone();
+        let short = match &s.alias {
+            Some(a) if !a.is_empty() => a.clone(),
+            _ => match path.rsplit('.').next() {
+                Some(seg) if !seg.is_empty() => seg.to_string(),
+                _ => continue,
+            },
+        };
+        imports.insert(short, path);
+    }
+    if imports.is_empty() {
+        return;
+    }
+    let mut added: Vec<ReferenceEntry> = Vec::new();
+    for r in references.iter_mut() {
+        if r.kind != "call" {
+            continue;
+        }
+        let Some((head, rest)) = r.name.split_once('.') else {
+            continue;
+        };
+        let Some(path) = imports.get(head) else {
+            continue;
+        };
+        r.confidence = Some(0.8);
+        added.push(ReferenceEntry {
+            file: r.file.clone(),
+            name: format!("{path}/{rest}"),
+            kind: "call".to_string(),
+            line: r.line,
+            caller: r.caller.clone(),
+            project: r.project.clone(),
+            confidence: Some(0.8),
+        });
+    }
+    references.extend(added);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -409,6 +460,7 @@ fn extract_import(
         line,
         caller: None,
         project: String::new(),
+    confidence: None,
     });
 }
 
@@ -436,17 +488,39 @@ fn extract_class_like(
     let tokens = first_child_of_kind(node, "class_body")
         .and_then(|body| filter_kotlin_tokens(extract_tokens(body, source)));
 
-    push_symbol(
-        symbols,
-        file_path,
-        full_name.clone(),
-        kind,
+    // Heritage: Kotlin's `class Dog : Animal(), Runnable` exposes its
+    // supertypes via `delegation_specifier` children inside an inner
+    // `class_body`-sibling list. We walk all descendants for
+    // `delegation_specifier` and extract the first user_type / identifier
+    // within each. Discriminating extend (single concrete superclass)
+    // from implement (interfaces) requires a symbol table; for now
+    // every supertype lands as `extend` — same trade-off the Kotlin
+    // grammar makes (no explicit `implements` keyword).
+    let mut heritage: Vec<(String, String)> = Vec::new();
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if child.kind() != "delegation_specifier" {
+            continue;
+        }
+        let target = kotlin_supertype_name(child, source);
+        if !target.is_empty() {
+            heritage.push(("extend".to_string(), target));
+        }
+    }
+
+    symbols.push(SymbolEntry {
+        file: file_path.to_string(),
+        name: full_name.clone(),
+        kind: kind.to_string(),
         line,
-        parent_ctx,
+        parent: parent_ctx.map(String::from),
         tokens,
-        None,
-        Some(visibility),
-    );
+        alias: None,
+        visibility: Some(visibility),
+        sig: None,
+        project: String::new(),
+        heritage,
+    });
 
     if let Some(body) = first_child_of_kind(node, "class_body") {
         let mut cursor = body.walk();
@@ -463,6 +537,40 @@ fn extract_class_like(
             );
         }
     }
+}
+
+/// Pull the supertype name from a Kotlin `delegation_specifier` node.
+/// Common shapes:
+///   * `user_type` (Foo)
+///   * `constructor_invocation` (Foo()) → first user_type child
+///   * `explicit_delegation` (Foo by bar) → first user_type child
+fn kotlin_supertype_name(node: Node, source: &[u8]) -> String {
+    fn extract_user_type(n: Node, source: &[u8]) -> String {
+        // Strip the generic-args / `?` suffix by taking the first type_identifier.
+        let mut cursor = n.walk();
+        for c in n.children(&mut cursor) {
+            if c.kind() == "type_identifier" {
+                return node_text(c, source);
+            }
+        }
+        node_text(n, source)
+    }
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        match child.kind() {
+            "user_type" => return extract_user_type(child, source),
+            "constructor_invocation" | "explicit_delegation" => {
+                let mut inner = child.walk();
+                for c in child.children(&mut inner) {
+                    if c.kind() == "user_type" {
+                        return extract_user_type(c, source);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    String::new()
 }
 
 fn function_name(node: Node, source: &[u8]) -> Option<String> {
@@ -595,7 +703,8 @@ fn extract_property(
             visibility: Some(visibility.clone()),
             sig,
             project: String::new(),
-        });
+        heritage: Vec::new(),
+    });
     }
 }
 
@@ -637,9 +746,9 @@ fn extract_call_ref(
     let Some(callee) = callee else {
         return;
     };
-    let name = match callee.kind() {
-        "simple_identifier" => node_text(callee, source),
-        "navigation_expression" => node_text(callee, source),
+    let (name, confidence) = match callee.kind() {
+        "simple_identifier" => (node_text(callee, source), Some(0.95_f64)),
+        "navigation_expression" => (node_text(callee, source), None),
         _ => return,
     };
     if name.is_empty() {
@@ -659,6 +768,7 @@ fn extract_call_ref(
         line: node_line_range(node),
         caller: parent_ctx.map(String::from),
         project: String::new(),
+        confidence,
     });
 }
 
@@ -712,6 +822,51 @@ mod tests {
         // Non-stopword identifiers survive.
         assert!(out.split_whitespace().any(|t| t == "myValue"));
         assert!(out.split_whitespace().any(|t| t == "helperFn"));
+    }
+
+    #[test]
+    fn kotlin_imported_class_call_gets_tier2_two_edges() {
+        // `import foo.Bar` then `Bar.greet()` resolves via the import
+        // table. Emit two confidence-0.8 edges: raw + `foo.Bar/greet`.
+        let source = b"import foo.Bar\n\nfun caller() { Bar.greet() }\n";
+        let (_, _, refs) = parse_file(source, "kotlin", "t.kt").unwrap();
+        let raw = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "Bar.greet")
+            .expect("raw Bar.greet");
+        assert_eq!(raw.confidence, Some(0.8));
+        let resolved = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "foo.Bar/greet")
+            .expect("resolved foo.Bar/greet");
+        assert_eq!(resolved.confidence, Some(0.8));
+    }
+
+    #[test]
+    fn kotlin_imported_alias_call_resolves() {
+        // `import foo.Bar as B` then `B.greet()` resolves via alias.
+        let source = b"import foo.Bar as B\n\nfun caller() { B.greet() }\n";
+        let (_, _, refs) = parse_file(source, "kotlin", "t.kt").unwrap();
+        let resolved = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "foo.Bar/greet")
+            .expect("resolved foo.Bar/greet via alias B");
+        assert_eq!(resolved.confidence, Some(0.8));
+    }
+
+    #[test]
+    fn kotlin_bare_call_gets_tier1_confidence() {
+        let source = b"fun caller() { helper(); obj.method() }\nfun helper() {}\n";
+        let (_, _, refs) = parse_file(source, "kotlin", "t.kt").unwrap();
+        let bare = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "helper")
+            .expect("helper() bare call");
+        assert_eq!(bare.confidence, Some(0.95));
+        let nav = refs.iter().find(|r| r.kind == "call" && r.name == "obj.method");
+        if let Some(n) = nav {
+            assert_eq!(n.confidence, None);
+        }
     }
 
     #[test]

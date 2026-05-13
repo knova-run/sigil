@@ -13,6 +13,7 @@ pub mod git;
 pub mod grep_cmd;
 pub mod grouping;
 pub mod hasher;
+pub mod heritage;
 pub mod hotspots;
 pub mod identifiers;
 pub mod index;

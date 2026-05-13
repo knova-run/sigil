@@ -183,19 +183,9 @@ fn walk_node(
             if let Some(body) = first_child_of_kind(node, "function_body") {
                 let fn_name = function_name(node, source).unwrap_or_default();
                 let full = qualify(parent_ctx, &fn_name);
-                let mut cursor = body.walk();
-                for child in body.children(&mut cursor) {
-                    walk_node(
-                        child,
-                        source,
-                        file_path,
-                        Some(&full),
-                        symbols,
-                        texts,
-                        references,
-                        depth + 1,
-                    );
-                }
+                walk_swift_children_with_docs(
+                    body, source, file_path, Some(&full), symbols, texts, references, depth,
+                );
             }
             return;
         }
@@ -203,19 +193,9 @@ fn walk_node(
             extract_init(node, source, file_path, parent_ctx, symbols);
             if let Some(body) = first_child_of_kind(node, "function_body") {
                 let full = qualify(parent_ctx, "init");
-                let mut cursor = body.walk();
-                for child in body.children(&mut cursor) {
-                    walk_node(
-                        child,
-                        source,
-                        file_path,
-                        Some(&full),
-                        symbols,
-                        texts,
-                        references,
-                        depth + 1,
-                    );
-                }
+                walk_swift_children_with_docs(
+                    body, source, file_path, Some(&full), symbols, texts, references, depth,
+                );
             }
             return;
         }
@@ -250,19 +230,9 @@ fn walk_node(
         _ => {}
     }
 
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        walk_node(
-            child,
-            source,
-            file_path,
-            parent_ctx,
-            symbols,
-            texts,
-            references,
-            depth + 1,
-        );
-    }
+    walk_swift_children_with_docs(
+        node, source, file_path, parent_ctx, symbols, texts, references, depth,
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -358,7 +328,124 @@ fn extract_import(
         line,
         caller: None,
         project: String::new(),
+    confidence: None,
     });
+}
+
+/// Return the qualified name the SymbolEntry would carry for `node` if it
+/// were one of Swift's symbol-emitting node kinds. Used by the doc-comment
+/// buffer (pending_docs) to attach leading `///` / `/** */` comments to
+/// the following symbol — matching Rust/Python/TS behaviour.
+fn swift_item_name(node: Node, source: &[u8], parent_ctx: Option<&str>) -> Option<String> {
+    let kind = node.kind();
+    match kind {
+        "class_declaration" => {
+            let name = class_like_name(node, source)?;
+            Some(qualify(parent_ctx, &name))
+        }
+        "protocol_declaration" => {
+            let n = first_child_of_kind(node, "type_identifier")?;
+            Some(qualify(parent_ctx, &node_text(n, source)))
+        }
+        "function_declaration" => {
+            let n = function_name(node, source)?;
+            Some(qualify(parent_ctx, &n))
+        }
+        "init_declaration" => Some(qualify(parent_ctx, "init")),
+        "protocol_function_declaration" => {
+            let n = function_name(node, source)?;
+            Some(qualify(parent_ctx, &n))
+        }
+        "property_declaration" | "protocol_property_declaration" => {
+            // First identifier child names the property — good enough for
+            // doc-attachment purposes.
+            let mut cursor = node.walk();
+            for c in node.children(&mut cursor) {
+                if c.kind() == "pattern" {
+                    let mut p = c.walk();
+                    for inner in c.children(&mut p) {
+                        if inner.kind() == "simple_identifier" {
+                            return Some(qualify(parent_ctx, &node_text(inner, source)));
+                        }
+                    }
+                }
+                if c.kind() == "simple_identifier" {
+                    return Some(qualify(parent_ctx, &node_text(c, source)));
+                }
+            }
+            None
+        }
+        _ => None,
+    }
+}
+
+/// If `comment_node` is a Swift doc comment (`///`, `/** */`, `/*! */`),
+/// return its cleaned body text. Plain `//` and `/* */` comments return
+/// None — those break the pending-docs chain rather than feeding it.
+fn swift_doc_comment_text(comment_node: Node, source: &[u8]) -> Option<String> {
+    let raw = node_text(comment_node, source);
+    if raw.starts_with("///") || raw.starts_with("//!") {
+        let cleaned = strip_doc_comment_prefix(&raw);
+        if !cleaned.trim().is_empty() {
+            return Some(cleaned);
+        }
+        None
+    } else if raw.starts_with("/**") || raw.starts_with("/*!") {
+        let cleaned = strip_block_comment(&raw);
+        if !cleaned.trim().is_empty() {
+            return Some(cleaned);
+        }
+        None
+    } else {
+        None
+    }
+}
+
+/// Iterate `parent`'s children, attaching leading doc comments to the
+/// symbol that follows. Each doc comment is also emitted as a regular
+/// `TextEntry` via `walk_node` so consumers that read texts directly
+/// still see the comment row. The extra docstring row (with `parent`
+/// set to the following item) is what makes `Entity.doc` resolve
+/// correctly through `docs_by_parent` in `src/index.rs`.
+#[allow(clippy::too_many_arguments)]
+fn walk_swift_children_with_docs(
+    parent: Node,
+    source: &[u8],
+    file_path: &str,
+    parent_ctx: Option<&str>,
+    symbols: &mut Vec<SymbolEntry>,
+    texts: &mut Vec<TextEntry>,
+    references: &mut Vec<ReferenceEntry>,
+    depth: usize,
+) {
+    let mut pending_docs: Vec<String> = Vec::new();
+    let mut cursor = parent.walk();
+    for child in parent.children(&mut cursor) {
+        let kind = child.kind();
+        if matches!(kind, "comment" | "multiline_comment") {
+            if let Some(text) = swift_doc_comment_text(child, source) {
+                pending_docs.push(text);
+            } else {
+                pending_docs.clear();
+            }
+            walk_node(child, source, file_path, parent_ctx, symbols, texts, references, depth + 1);
+            continue;
+        }
+        if !pending_docs.is_empty() {
+            if let Some(item_name) = swift_item_name(child, source, parent_ctx) {
+                texts.push(TextEntry {
+                    file: file_path.to_string(),
+                    kind: "docstring".to_string(),
+                    line: node_line_range(child),
+                    text: pending_docs.join("\n"),
+                    parent: Some(item_name),
+                    project: String::new(),
+                });
+            }
+            pending_docs.clear();
+        }
+        walk_node(child, source, file_path, parent_ctx, symbols, texts, references, depth + 1);
+    }
 }
 
 /// Pull the textual name of a `class_declaration`. For `class` / `struct` /
@@ -379,6 +466,29 @@ fn class_like_name(node: Node, source: &[u8]) -> Option<String> {
 }
 
 #[allow(clippy::too_many_arguments)]
+/// Extract the type name from an `inheritance_specifier` node. Tree-
+/// sitter-swift wraps the parent type in either a `user_type` or
+/// `type_identifier` child.
+fn swift_inheritance_target(node: Node, source: &[u8]) -> String {
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        match child.kind() {
+            "user_type" => {
+                let mut inner = child.walk();
+                for c in child.children(&mut inner) {
+                    if c.kind() == "type_identifier" {
+                        return node_text(c, source);
+                    }
+                }
+                return node_text(child, source);
+            }
+            "type_identifier" => return node_text(child, source),
+            _ => {}
+        }
+    }
+    String::new()
+}
+
 fn extract_class_like(
     node: Node,
     source: &[u8],
@@ -404,36 +514,42 @@ fn extract_class_like(
 
     let tokens = body.and_then(|b| filter_swift_tokens(extract_tokens(b, source)));
 
-    // All class-like declarations surface as `class` per the spec — the
-    // distinction between class / struct / enum / actor / extension lives
-    // in the source and is recoverable, but the symbol kind is uniform
-    // so downstream queries don't need to special-case each variant.
-    push_symbol(
-        symbols,
-        file_path,
-        full_name.clone(),
-        "class",
+    // Heritage: Swift's `class Dog: Animal, Runnable` exposes inheritance
+    // via `inheritance_specifier` children. Without a symbol-table lookup
+    // we can't distinguish superclass from adopted protocols — both land
+    // as `extend` edges. (Refinement: the first specifier is always the
+    // superclass when it's a class type; protocols follow. Conservative
+    // here.)
+    let mut heritage: Vec<(String, String)> = Vec::new();
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if child.kind() != "inheritance_specifier" {
+            continue;
+        }
+        let target = swift_inheritance_target(child, source);
+        if !target.is_empty() {
+            heritage.push(("extend".to_string(), target));
+        }
+    }
+
+    symbols.push(SymbolEntry {
+        file: file_path.to_string(),
+        name: full_name.clone(),
+        kind: "class".to_string(),
         line,
-        parent_ctx,
+        parent: parent_ctx.map(String::from),
         tokens,
-        None,
-        Some(visibility),
-    );
+        alias: None,
+        visibility: Some(visibility),
+        sig: None,
+        project: String::new(),
+        heritage,
+    });
 
     if let Some(body) = body {
-        let mut cursor = body.walk();
-        for child in body.children(&mut cursor) {
-            walk_node(
-                child,
-                source,
-                file_path,
-                Some(&full_name),
-                symbols,
-                texts,
-                references,
-                depth + 1,
-            );
-        }
+        walk_swift_children_with_docs(
+            body, source, file_path, Some(&full_name), symbols, texts, references, depth,
+        );
     }
 }
 
@@ -473,19 +589,9 @@ fn extract_protocol(
     );
 
     if let Some(body) = body {
-        let mut cursor = body.walk();
-        for child in body.children(&mut cursor) {
-            walk_node(
-                child,
-                source,
-                file_path,
-                Some(&full_name),
-                symbols,
-                texts,
-                references,
-                depth + 1,
-            );
-        }
+        walk_swift_children_with_docs(
+            body, source, file_path, Some(&full_name), symbols, texts, references, depth,
+        );
     }
 }
 
@@ -698,6 +804,7 @@ fn extract_property(
         visibility: Some(visibility),
         sig,
         project: String::new(),
+    heritage: Vec::new(),
     });
 }
 
@@ -770,9 +877,9 @@ fn extract_call_ref(
     let Some(callee) = callee else {
         return;
     };
-    let name = match callee.kind() {
-        "simple_identifier" => node_text(callee, source),
-        "navigation_expression" => node_text(callee, source),
+    let (name, confidence) = match callee.kind() {
+        "simple_identifier" => (node_text(callee, source), Some(0.95_f64)),
+        "navigation_expression" => (node_text(callee, source), None),
         _ => return,
     };
     if name.is_empty() {
@@ -790,6 +897,7 @@ fn extract_call_ref(
         line: node_line_range(node),
         caller: parent_ctx.map(String::from),
         project: String::new(),
+        confidence,
     });
 }
 
@@ -808,6 +916,21 @@ mod tests {
                     .collect::<Vec<_>>()
             )
         })
+    }
+
+    #[test]
+    fn swift_bare_call_gets_tier1_confidence() {
+        let source = b"func caller() { helper(); obj.method() }\nfunc helper() {}\n";
+        let (_, _, refs) = parse_file(source, "swift", "t.swift").unwrap();
+        let bare = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "helper")
+            .expect("helper() bare call");
+        assert_eq!(bare.confidence, Some(0.95));
+        let nav = refs.iter().find(|r| r.kind == "call" && r.name == "obj.method");
+        if let Some(n) = nav {
+            assert_eq!(n.confidence, None);
+        }
     }
 
     #[test]

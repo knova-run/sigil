@@ -16,6 +16,61 @@ pub fn extract(
 ) {
     let root = tree.root_node();
     walk_node(root, source, file_path, None, symbols, texts, references, 0);
+    resolve_rust_imports_tier2(symbols, references);
+}
+
+/// Tier-2 resolver: upgrade scoped-call heads (`Head::member`) whose head
+/// matches a file-local `use` binding to confidence 0.8, and emit a resolved
+/// edge using `/` as the path/member separator (Go convention).
+///
+/// Short-name resolution rules:
+///   * `use foo::Bar;`         → short = `Bar`, path = `foo::Bar`
+///   * `use foo::Bar as Baz;`  → short = `Baz`, path = `foo::Bar`
+///   * `use foo::{Bar, Baz};`  → two entries, short `Bar`/`Baz`
+///   * `use foo::*;` (wildcard) is skipped — namespace-glob shadowing needs
+///     cross-file analysis.
+fn resolve_rust_imports_tier2(symbols: &[SymbolEntry], references: &mut Vec<ReferenceEntry>) {
+    use std::collections::HashMap;
+    let imports: HashMap<String, &str> = symbols
+        .iter()
+        .filter(|s| s.kind == "import")
+        .filter_map(|s| {
+            let short = match s.alias.as_deref() {
+                Some(a) if !a.is_empty() => a.to_string(),
+                _ => s.name.rsplit("::").next()?.to_string(),
+            };
+            if short.is_empty() || short == "*" || short.ends_with('*') {
+                None
+            } else {
+                Some((short, s.name.as_str()))
+            }
+        })
+        .collect();
+    if imports.is_empty() {
+        return;
+    }
+    let mut added: Vec<ReferenceEntry> = Vec::new();
+    for r in references.iter_mut() {
+        if r.kind != "call" {
+            continue;
+        }
+        let (head, rest) = match r.name.split_once("::") {
+            Some((h, t)) => (h.to_string(), t.to_string()),
+            None => (r.name.clone(), String::new()),
+        };
+        let Some(&path) = imports.get(&head) else { continue };
+        r.confidence = Some(0.8);
+        added.push(ReferenceEntry {
+            file: r.file.clone(),
+            name: format!("{path}/{rest}"),
+            kind: "call".to_string(),
+            line: r.line,
+            caller: r.caller.clone(),
+            project: r.project.clone(),
+            confidence: Some(0.8),
+        });
+    }
+    references.extend(added);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -50,7 +105,7 @@ fn walk_node(
             extract_named_symbol(node, source, file_path, "enum", parent_ctx, symbols);
         }
         "trait_item" => {
-            extract_named_symbol(node, source, file_path, "interface", parent_ctx, symbols);
+            extract_trait(node, source, file_path, parent_ctx, symbols);
         }
         "type_item" => {
             extract_named_symbol(node, source, file_path, "type_alias", parent_ctx, symbols);
@@ -291,6 +346,62 @@ fn extract_rust_const(
         visibility: Some(visibility),
         sig,
         project: String::new(),
+        heritage: Vec::new(),
+    });
+}
+
+/// Extract a `trait_item` with its super-bound heritage.
+///
+/// `trait Pretty: Display + Debug` exposes the super-bound clause as a
+/// `bounds` field — a `trait_bounds` node containing one or more
+/// type_identifier / scoped_type_identifier children. Each parent trait
+/// becomes an `extend` heritage edge on the trait entity.
+fn extract_trait(
+    node: Node,
+    source: &[u8],
+    file_path: &str,
+    parent_ctx: Option<&str>,
+    symbols: &mut Vec<SymbolEntry>,
+) {
+    let name = match find_child_by_field(node, "name") {
+        Some(n) => node_text(n, source),
+        None => return,
+    };
+    let visibility = extract_visibility(node, source);
+    let line = node_line_range(node);
+
+    let mut heritage: Vec<(String, String)> = Vec::new();
+    if let Some(bounds) = find_child_by_field(node, "bounds") {
+        let mut cursor = bounds.walk();
+        for child in bounds.children(&mut cursor) {
+            match child.kind() {
+                "type_identifier"
+                | "scoped_type_identifier"
+                | "generic_type"
+                | "higher_ranked_trait_bound"
+                | "trait_bound" => {
+                    let target = node_text(child, source);
+                    if !target.is_empty() {
+                        heritage.push(("extend".to_string(), target));
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    symbols.push(crate::parser::format::SymbolEntry {
+        file: file_path.to_string(),
+        name,
+        kind: "interface".to_string(),
+        line,
+        parent: parent_ctx.map(String::from),
+        tokens: None,
+        alias: None,
+        visibility: Some(visibility),
+        sig: None,
+        project: String::new(),
+        heritage,
     });
 }
 
@@ -379,18 +490,30 @@ fn extract_impl(
         "impl"
     };
 
-    // impl blocks are containers, no meaningful tokens
-    push_symbol(
-        symbols,
-        file_path,
-        impl_type_name.clone(),
-        kind,
+    // Heritage: for `impl Trait for Type` emit an `implement` edge on the
+    // impl entity targeting the Trait. Bare `impl Type` blocks have no
+    // heritage; inherent methods don't form a heritage relationship.
+    let mut heritage: Vec<(String, String)> = Vec::new();
+    if let Some(t) = trait_name.as_ref() {
+        if !t.is_empty() {
+            heritage.push(("implement".to_string(), t.clone()));
+        }
+    }
+
+    // impl blocks are containers, no meaningful tokens.
+    symbols.push(crate::parser::format::SymbolEntry {
+        file: file_path.to_string(),
+        name: impl_type_name.clone(),
+        kind: kind.to_string(),
         line,
-        None,
-        None,
-        None,
-        Some(visibility),
-    );
+        parent: None,
+        tokens: None,
+        alias: None,
+        visibility: Some(visibility),
+        sig: None,
+        project: String::new(),
+        heritage,
+    });
 
     // Walk children of the body to find methods. Same doc-comment
     // attachment as in `walk_node` — `///` / `/** */` lines immediately
@@ -540,6 +663,7 @@ fn extract_use_paths(
                     line: *line,
                     caller: None,
                     project: String::new(),
+                    confidence: None,
                 });
             }
         }
@@ -572,6 +696,7 @@ fn extract_use_paths(
                 line: *line,
                 caller: None,
                 project: String::new(),
+                confidence: None,
             });
         }
         "scoped_identifier" | "identifier" => {
@@ -595,6 +720,7 @@ fn extract_use_paths(
                 line: *line,
                 caller: None,
                 project: String::new(),
+                confidence: None,
             });
         }
         _ => {
@@ -638,10 +764,11 @@ fn extract_call(
         return;
     };
 
-    // Extract the name of the called function
-    let name = match func.kind() {
-        "identifier" => node_text(func, source),
-        "scoped_identifier" | "field_expression" => node_text(func, source),
+    // Tier-1 confidence on bare identifiers; scoped / field-expression
+    // calls stay at None until full `use`-alias resolution lands.
+    let (name, confidence) = match func.kind() {
+        "identifier" => (node_text(func, source), Some(0.95_f64)),
+        "scoped_identifier" | "field_expression" => (node_text(func, source), None),
         _ => return,
     };
 
@@ -657,6 +784,7 @@ fn extract_call(
         line,
         caller: parent_ctx.map(String::from),
         project: String::new(),
+        confidence,
     });
 }
 
@@ -729,6 +857,7 @@ fn extract_type_refs_from_node(
                         line: node_line_range(n),
                         caller: parent_ctx.map(String::from),
                         project: String::new(),
+                        confidence: None,
                     });
                 }
             }
@@ -742,6 +871,7 @@ fn extract_type_refs_from_node(
                         line: node_line_range(n),
                         caller: parent_ctx.map(String::from),
                         project: String::new(),
+                        confidence: None,
                     });
                 }
                 continue; // Don't recurse into children
@@ -758,6 +888,7 @@ fn extract_type_refs_from_node(
                             line: node_line_range(type_node),
                             caller: parent_ctx.map(String::from),
                             project: String::new(),
+                            confidence: None,
                         });
                     }
                 }
@@ -1105,6 +1236,62 @@ pub fn documented() {}
 fn helper() {}";
         let (_symbols, texts, _refs) = parse_file(source, "rust", "test.rs").unwrap();
         assert!(texts.iter().any(|t| t.kind == "comment"));
+    }
+
+    #[test]
+    fn rust_bare_call_gets_tier1_confidence() {
+        // Tier 1: bare `identifier` call → confidence 0.95. Scoped /
+        // field-expression calls stay at None until full `use`-alias
+        // resolution lands.
+        let source = b"fn caller() { helper(); module::other(); }\nfn helper() {}\n";
+        let (_, _, refs) = parse_file(source, "rust", "t.rs").unwrap();
+        let bare = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "helper")
+            .expect("helper() call");
+        assert_eq!(bare.confidence, Some(0.95));
+        let scoped = refs.iter().find(|r| r.kind == "call" && r.name == "module::other");
+        if let Some(s) = scoped {
+            assert_eq!(s.confidence, None);
+        }
+    }
+
+    #[test]
+    fn rust_use_alias_scoped_call_gets_tier2_two_edges() {
+        // `use foo::Bar;` then `Bar::greet()`:
+        //   * raw `Bar::greet` upgraded to 0.8
+        //   * resolved `foo::Bar/greet` at 0.8
+        let source = b"use foo::Bar;\nfn caller() { Bar::greet(); }\n";
+        let (_, _, refs) = parse_file(source, "rust", "t.rs").unwrap();
+        let raw = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "Bar::greet")
+            .expect("raw Bar::greet call");
+        assert_eq!(raw.confidence, Some(0.8));
+        let resolved = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "foo::Bar/greet")
+            .expect("resolved foo::Bar/greet form");
+        assert_eq!(resolved.confidence, Some(0.8));
+    }
+
+    #[test]
+    fn rust_use_as_clause_call_resolves_tier2() {
+        // `use foo::Bar as Baz;` then `Baz::greet()`:
+        //   * raw `Baz::greet` upgraded to 0.8
+        //   * resolved `foo::Bar/greet` at 0.8
+        let source = b"use foo::Bar as Baz;\nfn caller() { Baz::greet(); }\n";
+        let (_, _, refs) = parse_file(source, "rust", "t.rs").unwrap();
+        let raw = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "Baz::greet")
+            .expect("raw Baz::greet call");
+        assert_eq!(raw.confidence, Some(0.8));
+        let resolved = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "foo::Bar/greet")
+            .expect("resolved foo::Bar/greet form");
+        assert_eq!(resolved.confidence, Some(0.8));
     }
 
     #[test]

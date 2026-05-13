@@ -248,12 +248,28 @@ pub fn extract_comment(
         return;
     }
 
+    // Docstring-kind TextEntries don't carry the enclosing scope as
+    // `parent`. The enclosing scope is the wrong attachment target
+    // (e.g. `/// Says hello.` inside `class Greeter` would otherwise
+    // bind to Greeter, shadowing the class's own leading docstring in
+    // `docs_by_parent`). The doc → entity binding goes through the
+    // per-parser `pending_docs` flush, which sets `parent` to the
+    // *following* item. Bare comments (`//`, `/* */`, `#`) keep
+    // `parent=enclosing` because they participate in raw-comment
+    // queries, not the `docs_by_parent` exact-match lookup (which
+    // filters by `kind=="docstring"`).
+    let entry_parent = if kind == "docstring" {
+        None
+    } else {
+        parent_ctx.map(String::from)
+    };
+
     texts.push(TextEntry {
         file: file_path.to_string(),
         kind: kind.to_string(),
         line,
         text,
-        parent: parent_ctx.map(String::from),
+        parent: entry_parent,
         project: String::new(),
     });
 }
@@ -308,6 +324,7 @@ pub fn push_symbol(
         visibility,
         sig: None,
         project: String::new(),
+        heritage: Vec::new(),
     });
 }
 

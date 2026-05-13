@@ -775,6 +775,7 @@ mod tests {
                 transitive_callers: blast_files * 5,
             }),
             doc: None,
+            heritage: Vec::new(),
         }
     }
 
@@ -785,6 +786,8 @@ mod tests {
             name: name.to_string(),
             ref_kind: kind.to_string(),
             line,
+            confidence: None,
+            callee_id: None,
         }
     }
 

@@ -581,6 +581,13 @@ fn extract_call_ref(
     if name.is_empty() || is_csharp_builtin_call(&name) {
         return;
     }
+    // Tier-1 confidence on bare-identifier invocations; member-access /
+    // qualified invocations stay None until C# `using`-alias resolution
+    // lands.
+    let confidence = match func.kind() {
+        "identifier" => Some(0.95_f64),
+        _ => None,
+    };
 
     let line = node_line_range(node);
     references.push(ReferenceEntry {
@@ -590,6 +597,7 @@ fn extract_call_ref(
         line,
         caller: parent_ctx.map(String::from),
         project: String::new(),
+        confidence,
     });
 }
 
@@ -619,6 +627,7 @@ fn extract_new_ref(
         line,
         caller: parent_ctx.map(String::from),
         project: String::new(),
+        confidence: None,
     });
 }
 
@@ -699,6 +708,7 @@ fn extract_type_ref(
         line,
         caller: parent_ctx.map(String::from),
         project: String::new(),
+        confidence: None,
     });
 }
 
@@ -743,16 +753,24 @@ fn extract_type_decl(
         name.clone()
     };
 
-    // Extract base type references
+    // Extract base type references + heritage. C# `: Animal, IRunnable`
+    // doesn't syntactically distinguish base class from interfaces —
+    // both land as `extend` edges. (A workspace-level lookup against the
+    // DotNetIndex's namespace_map for `interface X` vs `class X` could
+    // refine this to `implement` for interfaces; deferred.)
+    let mut heritage: Vec<(String, String)> = Vec::new();
     if let Some(base_list) = bases {
         let mut cursor = base_list.walk();
         for child in base_list.children(&mut cursor) {
-            // Look for base types in base_list
             if matches!(
                 child.kind(),
                 "identifier" | "identifier_name" | "generic_name" | "qualified_name"
             ) {
                 extract_type_ref(child, source, file_path, Some(&full_name), references);
+                let target = node_text(child, source);
+                if !target.is_empty() {
+                    heritage.push(("extend".to_string(), target));
+                }
             }
         }
     }
@@ -761,17 +779,19 @@ fn extract_type_decl(
     let tokens = find_child_by_field(node, "body")
         .and_then(|body| filter_csharp_tokens(extract_tokens(body, source)));
 
-    push_symbol(
-        symbols,
-        file_path,
-        full_name.clone(),
-        kind,
+    symbols.push(crate::parser::format::SymbolEntry {
+        file: file_path.to_string(),
+        name: full_name.clone(),
+        kind: kind.to_string(),
         line,
-        parent_ctx,
+        parent: parent_ctx.map(String::from),
         tokens,
-        None,
-        Some(visibility),
-    );
+        alias: None,
+        visibility: Some(visibility),
+        sig: None,
+        project: String::new(),
+        heritage,
+    });
 
     // Walk body with XML-doc tracking so `///` runs before each member
     // attach as that member's doc.
@@ -1157,6 +1177,7 @@ fn extract_field(
                         visibility: Some(visibility.clone()),
                         sig,
                         project: String::new(),
+                        heritage: Vec::new(),
                     });
                 }
             }
@@ -1223,6 +1244,7 @@ fn extract_using(
                     line,
                     caller: None,
                     project: String::new(),
+                    confidence: None,
                 });
 
                 push_symbol(
@@ -1255,6 +1277,7 @@ fn extract_using(
                             line,
                             caller: None,
                             project: String::new(),
+                            confidence: None,
                         });
 
                         push_symbol(
@@ -1378,6 +1401,21 @@ mod tests {
             .iter()
             .find(|s| s.name == name)
             .unwrap_or_else(|| panic!("symbol not found: {name}"))
+    }
+
+    #[test]
+    fn csharp_bare_call_gets_tier1_confidence() {
+        let source = b"class C { void caller() { Helper(); obj.Method(); } void Helper() {} }\n";
+        let (_, _, refs) = parse_file(source, "csharp", "T.cs").unwrap();
+        let bare = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "Helper")
+            .expect("Helper() bare call");
+        assert_eq!(bare.confidence, Some(0.95));
+        let member = refs.iter().find(|r| r.kind == "call" && r.name.contains('.'));
+        if let Some(m) = member {
+            assert_eq!(m.confidence, None);
+        }
     }
 
     #[test]

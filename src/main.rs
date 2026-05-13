@@ -48,6 +48,7 @@ sigil groups commands into two tiers:
     security-scan Lightweight regex security-signal extractor
     communities   Leiden modularity clustering over the file graph
     dead-code     Framework-aware dead-code detection with confidence tiers
+    heritage      Struct embedding / extension / impl graph for a symbol
 
   INSTALLERS (platform integrations, all idempotent):
     claude · cursor · codex · gemini · opencode · aider · copilot · hook
@@ -87,6 +88,12 @@ enum Cli {
         /// default; this flag is a one-off opt-out for CI/speed cases.
         #[arg(long)]
         no_rank: bool,
+
+        /// Skip the tier-3 call resolver pass (global-unique fallback
+        /// across the index, plus JS/TS + Python barrel one-hop). On by
+        /// default; this flag opts out for strict-only call graphs.
+        #[arg(long)]
+        no_tier3: bool,
 
         /// Print progress information
         #[arg(short, long)]
@@ -865,6 +872,24 @@ enum Cli {
         #[arg(long)]
         exclude_pattern: Vec<String>,
     },
+    /// Heritage graph for a symbol — outgoing edges (this symbol embeds /
+    /// extends / implements X) and incoming edges (Y embeds / extends /
+    /// implements this symbol).
+    ///
+    /// Currently only Go struct embedding populates the graph; future
+    /// extractors will add class extension, interface implementation, and
+    /// trait impl edges through the same schema.
+    Heritage {
+        /// Symbol name to query. Matches the entity's bare name, or the
+        /// tail segment of a `pkg.Foo`-shaped heritage target.
+        symbol: String,
+        /// Project root directory
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
+        /// Pretty-print the JSON output.
+        #[arg(long)]
+        pretty: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -898,9 +923,9 @@ fn main() {
     let cli = Cli::parse();
 
     match cli {
-        Cli::Index { root, files, stdout, pretty, full, no_refs, no_rank, verbose } => {
+        Cli::Index { root, files, stdout, pretty, full, no_refs, no_rank, no_tier3, verbose } => {
             let files_arg = if files.is_empty() { None } else { Some(files.as_slice()) };
-            let mut result = index::build_index(&root, files_arg, full, !no_refs, verbose);
+            let mut result = index::build_index(&root, files_arg, full, !no_refs, !no_tier3, verbose);
 
             // Phase 1 rank pass. On by default; `--no-rank` skips it (useful
             // in CI or when refs are also skipped). Rank is a whole-repo
@@ -2031,6 +2056,20 @@ fn main() {
                     eprintln!("dead-code: {}", e);
                     std::process::exit(1);
                 }
+            }
+        }
+        Cli::Heritage { symbol, root, pretty } => {
+            let idx = query::load(&root)
+                .unwrap_or_else(|e| { eprintln!("error: {}", e); std::process::exit(1); });
+            let report = sigil::heritage::build_report(&idx, &symbol);
+            println!("{}", sigil::heritage::render_json(&report, pretty));
+            // Exit non-zero when the symbol has no edges in either direction
+            // and no matching definition — same convention as `sigil blast`.
+            if report.definitions.is_empty()
+                && report.incoming.is_empty()
+                && report.outgoing.is_empty()
+            {
+                std::process::exit(2);
             }
         }
     }

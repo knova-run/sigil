@@ -46,6 +46,36 @@ pub struct Entity {
     /// follow-up file read.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub doc: Option<String>,
+
+    /// Heritage edges this entity participates in — `extend`, `implement`,
+    /// `embed`, `trait_impl`. Populated across 12 languages:
+    ///   * Go — struct embedding (`embed`)
+    ///   * Java / TypeScript / JavaScript / Kotlin / Scala / C# / Swift /
+    ///     C++ / PHP — class `extends` / `implements` (and interface
+    ///     `extends` where the grammar exposes it)
+    ///   * Python — class inheritance, including `class Foo(ABC)` and
+    ///     `metaclass=Meta` keyword args
+    ///   * Rust — `impl Trait for Type` (`implement`, on the impl entity)
+    ///     and trait super-bounds (`trait Sub: Super` → `extend`).
+    /// Empty vec is elided from JSON. Some grammars don't syntactically
+    /// distinguish superclass from interfaces/protocols/mixins (Kotlin,
+    /// Scala, C#, Swift, C++); those land as `extend` uniformly.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub heritage: Vec<HeritageEdge>,
+}
+
+/// One heritage relationship between two entities — e.g. struct embedding,
+/// class extension, interface implementation. The `target` is the bare name
+/// of the referenced entity (qualified when the parser can resolve it via
+/// the file-local import table; bare otherwise). Resolution at the JSONL
+/// layer is left to consumers, who already index entities by `name`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct HeritageEdge {
+    /// `"embed"` for Go struct embedding. Reserved values: `"extend"`,
+    /// `"implement"`, `"trait_impl"`.
+    pub kind: String,
+    /// Name (possibly qualified) of the parent / embedded entity.
+    pub target: String,
 }
 
 /// Compose the `qualified_name` field at construction time.
@@ -312,7 +342,7 @@ mod is_test_path_tests {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Reference {
     pub file: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -325,4 +355,36 @@ pub struct Reference {
     #[serde(rename = "kind", alias = "ref_kind")]
     pub ref_kind: String,
     pub line: u32,
+    /// Resolver confidence for this edge. Tiers (highest → lowest):
+    ///   * `0.95` — same-file resolution (caller and callee both in this
+    ///     file's symbol table); also `self.X()` / `this.X()` bound to the
+    ///     caller's own class.
+    ///   * `0.93` — `Class.method` where `Class` is defined in the same file.
+    ///   * `0.88` — `Class.method` where `Class.method` resolves to exactly
+    ///     one definition globally in the caller's language.
+    ///   * `0.85` — bare-name call where exactly one imported file (incl.
+    ///     Python `from X import *`) defines the name as a callable.
+    ///   * `0.8` — file-local import-alias resolution (`bar()` after
+    ///     `import { foo as bar }`).
+    ///   * `0.7` — file-resolved edge from a manifest-aware resolver
+    ///     (tsconfig paths, go.mod, composer.json PSR-4, Cargo workspace,
+    ///     Package.swift, Rails autoload, JVM FQN, compile_commands.json,
+    ///     .NET csproj/sln/global-usings).
+    ///   * `0.5` — tier-3 global-unique fallback (language-gated).
+    ///   * `None` — bare textual reference, no resolution attempted.
+    /// Old refs.jsonl rows (pre-confidence-field) round-trip as `None`.
+    /// Rows written by a pre-realignment build with `1.0` for tier-1 are
+    /// handled identically to `0.95` by `resolve_tier3`'s guard.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub confidence: Option<f64>,
+
+    /// Stable per-symbol identifier for the resolved callee — populated
+    /// when a tier-3 pass binds the edge to a specific file and entity.
+    /// Format: `<file>::<symbol_path>`, e.g. `src/foo.rs::Foo::bar` for
+    /// a method, `src/foo.rs::helper` for a top-level function. Lets
+    /// downstream consumers (heritage CLI, blast-radius, IDE jump-to-
+    /// definition) reach the target entity without re-doing name matching.
+    /// Old refs.jsonl round-trips as None.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub callee_id: Option<String>,
 }

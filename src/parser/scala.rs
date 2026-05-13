@@ -108,6 +108,61 @@ pub fn extract(
 ) {
     let root = tree.root_node();
     walk_node(root, source, file_path, None, symbols, texts, references, 0);
+    resolve_scala_imports_tier2(symbols, references);
+}
+
+/// Tier-2 resolver: upgrade member-head calls (`Head.member`) whose head
+/// matches a file-local `import` binding to confidence 0.8, and emit a
+/// resolved edge using `/` as the path/member separator.
+///
+/// Short-name resolution rules:
+///   * `import a.b.C`               → short = `C`, path = `a.b.C`
+///   * `import a.b.{C => D}`        → short = `D`, path = `a.b.C` (Scala 2)
+///   * `import a.b.c as e`          → short = `e`, path = `a.b.c` (Scala 3)
+///   * Wildcard (`a.b._`) is skipped — namespace-level shadowing needs
+///     cross-file analysis to resolve safely.
+fn resolve_scala_imports_tier2(symbols: &[SymbolEntry], references: &mut Vec<ReferenceEntry>) {
+    use std::collections::HashMap;
+    let imports: HashMap<String, &str> = symbols
+        .iter()
+        .filter(|s| s.kind == "import")
+        .filter_map(|s| {
+            let short = match s.alias.as_deref() {
+                Some(a) if !a.is_empty() => a.to_string(),
+                _ => s.name.rsplit('.').next()?.to_string(),
+            };
+            if short.is_empty() || short == "_" {
+                None
+            } else {
+                Some((short, s.name.as_str()))
+            }
+        })
+        .collect();
+    if imports.is_empty() {
+        return;
+    }
+    let mut added: Vec<ReferenceEntry> = Vec::new();
+    for r in references.iter_mut() {
+        if r.kind != "call" {
+            continue;
+        }
+        let (head, rest) = match r.name.split_once('.') {
+            Some((h, t)) => (h.to_string(), t.to_string()),
+            None => (r.name.clone(), String::new()),
+        };
+        let Some(&path) = imports.get(&head) else { continue };
+        r.confidence = Some(0.8);
+        added.push(ReferenceEntry {
+            file: r.file.clone(),
+            name: format!("{path}/{rest}"),
+            kind: "call".to_string(),
+            line: r.line,
+            caller: r.caller.clone(),
+            project: r.project.clone(),
+            confidence: Some(0.8),
+        });
+    }
+    references.extend(added);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -414,7 +469,8 @@ fn extract_import(
                         line,
                         caller: None,
                         project: String::new(),
-                    });
+                    confidence: None,
+    });
                     emitted_any = true;
                 }
             }
@@ -442,7 +498,8 @@ fn extract_import(
                     line,
                     caller: None,
                     project: String::new(),
-                });
+                confidence: None,
+    });
                 emitted_any = true;
             }
             "as_renamed_identifier" => {
@@ -476,7 +533,8 @@ fn extract_import(
                     line,
                     caller: None,
                     project: String::new(),
-                });
+                confidence: None,
+    });
                 emitted_any = true;
             }
             _ => {}
@@ -505,7 +563,8 @@ fn extract_import(
             line,
             caller: None,
             project: String::new(),
-        });
+        confidence: None,
+    });
     }
 }
 
@@ -574,17 +633,48 @@ fn extract_class_like(
         .child_by_field_name("body")
         .and_then(|body| filter_scala_tokens(extract_tokens(body, source)));
 
-    push_symbol(
-        symbols,
-        file_path,
-        full_name.clone(),
-        kind,
+    // Heritage: Scala's `extends Foo with Bar with Baz` is exposed as an
+    // `extends_clause` child whose children are the parent types. Both
+    // the base class and the mixed-in traits are syntactically
+    // indistinguishable — both land as `extend` edges (same trade-off as
+    // Kotlin / Swift / C# / C++).
+    let mut heritage: Vec<(String, String)> = Vec::new();
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if child.kind() != "extends_clause" {
+            continue;
+        }
+        let mut ec = child.walk();
+        for type_node in child.children(&mut ec) {
+            match type_node.kind() {
+                "type_identifier"
+                | "generic_type"
+                | "compound_type"
+                | "projected_type"
+                | "stable_type_identifier" => {
+                    let target = node_text(type_node, source);
+                    if !target.is_empty() {
+                        heritage.push(("extend".to_string(), target));
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    symbols.push(SymbolEntry {
+        file: file_path.to_string(),
+        name: full_name.clone(),
+        kind: kind.to_string(),
         line,
-        parent_ctx,
+        parent: parent_ctx.map(String::from),
         tokens,
-        None,
-        Some(visibility),
-    );
+        alias: None,
+        visibility: Some(visibility),
+        sig: None,
+        project: String::new(),
+        heritage,
+    });
 
     if let Some(body) = node.child_by_field_name("body") {
         let mut cursor = body.walk();
@@ -721,7 +811,8 @@ fn extract_value(
             visibility: Some(visibility.clone()),
             sig,
             project: String::new(),
-        });
+        heritage: Vec::new(),
+    });
     }
 }
 
@@ -769,11 +860,10 @@ fn extract_call_ref(
         Some(f) => f,
         None => return,
     };
-    let name = match function.kind() {
-        "identifier" | "field_expression" | "operator_identifier" | "generic_function" => {
-            node_text(function, source)
-        }
-        _ => node_text(function, source),
+    let (name, confidence) = match function.kind() {
+        "identifier" | "operator_identifier" => (node_text(function, source), Some(0.95_f64)),
+        "field_expression" | "generic_function" => (node_text(function, source), None),
+        _ => (node_text(function, source), None),
     };
     if name.is_empty() {
         return;
@@ -791,6 +881,7 @@ fn extract_call_ref(
         line: node_line_range(node),
         caller: parent_ctx.map(String::from),
         project: String::new(),
+        confidence,
     });
 }
 
@@ -824,6 +915,59 @@ mod tests {
                     symbols.iter().map(|s| (&s.name, &s.kind)).collect::<Vec<_>>()
                 )
             })
+    }
+
+    #[test]
+    fn scala_bare_call_gets_tier1_confidence() {
+        let source = b"def caller(): Unit = { helper(); obj.method() }\ndef helper(): Unit = ()\n";
+        let (_, _, refs) = parse_file(source, "scala", "t.scala").unwrap();
+        let bare = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "helper")
+            .expect("helper() bare call");
+        assert_eq!(bare.confidence, Some(0.95));
+        let field = refs.iter().find(|r| r.kind == "call" && r.name == "obj.method");
+        if let Some(f) = field {
+            assert_eq!(f.confidence, None);
+        }
+    }
+
+    #[test]
+    fn scala_imported_object_call_gets_tier2_two_edges() {
+        // `import a.b.C` then `C.greet()`:
+        //   * raw `C.greet` upgraded to 0.8
+        //   * resolved `a.b.C/greet` at 0.8
+        let source = b"import a.b.C\n\ndef caller(): Unit = { C.greet() }\n";
+        let (_, _, refs) = parse_file(source, "scala", "t.scala").unwrap();
+        let raw = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "C.greet")
+            .expect("raw C.greet call");
+        assert_eq!(raw.confidence, Some(0.8));
+        let resolved = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "a.b.C/greet")
+            .expect("resolved a.b.C/greet form");
+        assert_eq!(resolved.confidence, Some(0.8));
+    }
+
+    #[test]
+    fn scala_renamed_import_call_resolves_tier2() {
+        // Scala 2: `import a.b.{C => D}` then `D.greet()`:
+        //   * raw `D.greet` upgraded to 0.8
+        //   * resolved `a.b.C/greet` at 0.8
+        let source = b"import a.b.{C => D}\n\ndef caller(): Unit = { D.greet() }\n";
+        let (_, _, refs) = parse_file(source, "scala", "t.scala").unwrap();
+        let raw = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "D.greet")
+            .expect("raw D.greet call");
+        assert_eq!(raw.confidence, Some(0.8));
+        let resolved = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "a.b.C/greet")
+            .expect("resolved a.b.C/greet form");
+        assert_eq!(resolved.confidence, Some(0.8));
     }
 
     #[test]

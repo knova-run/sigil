@@ -740,6 +740,7 @@ mod tests {
                 transitive_callers: 0,
             }),
             doc: None,
+            heritage: Vec::new(),
         }
     }
 
@@ -839,6 +840,8 @@ mod tests {
                     name: "foo".to_string(),
                     ref_kind: "call".to_string(),
                     line: 42,
+                    confidence: None,
+                    callee_id: None,
                 },
             ],
         );
@@ -950,6 +953,8 @@ mod tests {
                 name: "fb".to_string(),
                 ref_kind: "call".to_string(),
                 line: 1,
+                confidence: None,
+                callee_id: None,
             },
             Reference {
                 file: "b.rs".to_string(),
@@ -957,6 +962,8 @@ mod tests {
                 name: "fa".to_string(),
                 ref_kind: "call".to_string(),
                 line: 1,
+                confidence: None,
+                callee_id: None,
             },
         ];
         let idx = Index::build(entities, references);

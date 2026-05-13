@@ -610,3 +610,156 @@ fn symfony_route_attribute_is_not_flagged() {
         "Symfony #[Route(...)] attribute must framework-exclude BlogController.php; rows={rows:?}",
     );
 }
+
+// ──────────────────────────────────────────────────────────────────────
+// External sentinel entities (from P5.15) must not surface in dead-code.
+// ──────────────────────────────────────────────────────────────────────
+#[test]
+fn external_sentinel_entity_is_not_flagged_as_dead() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(tmp.path().join("main.go"), "package main\n").unwrap();
+    seed_sigil(
+        tmp.path(),
+        &[
+            // A real callable that's unused — should be flagged.
+            entity("main.go", "Helper", "function", Some("public")),
+            // The external sentinel — must NOT be flagged.
+            serde_json::json!({
+                "file": "<external>",
+                "name": "external:github.com/x/y",
+                "kind": "external",
+                "line_start": 0,
+                "line_end": 0,
+                "struct_hash": "0000000000000000",
+            }),
+        ],
+        &[],
+    );
+    let (stdout, stderr, ok) = run_dead_code(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let files: Vec<&str> = rows.iter().filter_map(|r| r["file"].as_str()).collect();
+    assert!(
+        !files.iter().any(|f| f.contains("external")),
+        "external sentinel must not appear in dead-code output: {rows:?}",
+    );
+    let names: Vec<&str> = rows.iter().filter_map(|r| r["name"].as_str()).collect();
+    assert!(
+        !names.iter().any(|n| n.starts_with("external:")),
+        "external:* name must not appear in dead-code output: {rows:?}",
+    );
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Markdown / data-format files: sigil's native JSON/YAML/TOML/Markdown
+// parsers produce entities (keys, headings) — but those aren't code,
+// and dead-code reports should ignore them.
+// ──────────────────────────────────────────────────────────────────────
+#[test]
+fn markdown_and_data_files_are_not_flagged_as_dead() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(tmp.path().join("README.md"), "# Title\n").unwrap();
+    fs::write(tmp.path().join("config.yml"), "key: value\n").unwrap();
+    fs::write(tmp.path().join("Cargo.toml"), "[package]\nname = \"x\"\n").unwrap();
+    fs::write(tmp.path().join("data.json"), "{\"k\": 1}\n").unwrap();
+    seed_sigil(
+        tmp.path(),
+        &[
+            // Each non-source file gets an entity from its native parser.
+            entity("README.md", "Title", "heading", None),
+            entity("config.yml", "key", "property", None),
+            entity("Cargo.toml", "package", "object", None),
+            entity("data.json", "k", "property", None),
+        ],
+        &[],
+    );
+    let (stdout, stderr, ok) = run_dead_code(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let files: Vec<&str> = rows.iter().filter_map(|r| r["file"].as_str()).collect();
+    for non_code in &["README.md", "config.yml", "Cargo.toml", "data.json"] {
+        assert!(
+            !files.contains(non_code),
+            "non-source file {non_code} must not appear in dead-code output: {rows:?}",
+        );
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// --safe-only must be MORE restrictive than the default 0.70 floor.
+// Internal helpers at 0.70 should be dropped; only ≥0.85 (exported
+// orphan, dead file) should pass.
+// ──────────────────────────────────────────────────────────────────────
+#[test]
+fn safe_only_excludes_internal_helpers_at_0_70() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("svc.py"),
+        "def _helper(): pass\ndef public_orphan(): pass\n",
+    )
+    .unwrap();
+    seed_sigil(
+        tmp.path(),
+        &[
+            // `_`-prefixed Python identifier = internal → 0.70 tier.
+            entity("svc.py", "_helper", "function", None),
+            // Exported orphan → 0.85 tier.
+            entity("svc.py", "public_orphan", "function", Some("public")),
+        ],
+        &[],
+    );
+    let (stdout, stderr, ok) = run_dead_code(tmp.path(), &["--safe-only"]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let names: Vec<&str> = rows.iter().filter_map(|r| r["name"].as_str()).collect();
+    assert!(
+        !names.contains(&"_helper"),
+        "--safe-only should drop the 0.70 internal helper; got {rows:?}",
+    );
+    assert!(
+        names.contains(&"public_orphan"),
+        "--safe-only should keep the 0.85 exported orphan; got {rows:?}",
+    );
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Dead-code findings should carry the per-file primary owner from git
+// blame when the repo has history. Repowise emits this as `primary_owner`
+// on each finding; sigil mirrors the convention.
+// ──────────────────────────────────────────────────────────────────────
+#[test]
+fn dead_code_findings_carry_primary_owner_from_git() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(tmp.path().join("svc.py"), "def public_orphan(): pass\n").unwrap();
+    // Initialise a git repo + one commit so ownership::mine has data.
+    fn git(cwd: &Path, args: &[&str]) -> std::process::Output {
+        std::process::Command::new("git")
+            .args(args)
+            .current_dir(cwd)
+            .output()
+            .unwrap()
+    }
+    git(tmp.path(), &["init", "-q"]);
+    git(tmp.path(), &["config", "user.email", "owner@example.com"]);
+    git(tmp.path(), &["config", "user.name", "Test Owner"]);
+    git(tmp.path(), &["add", "svc.py"]);
+    git(tmp.path(), &["commit", "-q", "--no-gpg-sign", "-m", "initial"]);
+
+    seed_sigil(
+        tmp.path(),
+        &[entity("svc.py", "public_orphan", "function", Some("public"))],
+        &[],
+    );
+    let (stdout, stderr, ok) = run_dead_code(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let row = rows
+        .iter()
+        .find(|r| r["name"].as_str() == Some("public_orphan"))
+        .expect("public_orphan should be reported");
+    assert_eq!(
+        row["primary_owner"].as_str(),
+        Some("owner@example.com"),
+        "dead-code finding should carry primary_owner from git blame; got {row:?}",
+    );
+}

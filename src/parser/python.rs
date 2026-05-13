@@ -30,6 +30,61 @@ pub fn extract(
         references,
         0,
     );
+    resolve_python_imports_tier2(symbols, references);
+}
+
+/// Tier-2 resolver: upgrade bare- and attribute-head calls whose head matches
+/// a file-local `import` / `from ... import` binding to confidence 0.8, and
+/// emit a second edge with the import's fully-qualified path. The resolved
+/// form uses `/` as the path/member separator, matching the Go template.
+///
+/// Short-name resolution rules:
+///   * `import foo`           → short = `foo`,  path = `foo`
+///   * `import foo as bar`    → short = `bar`,  path = `foo`
+///   * `from x import y`      → short = `y`,    path = `x.y`
+///   * `from x import y as z` → short = `z`,    path = `x.y`
+fn resolve_python_imports_tier2(symbols: &[SymbolEntry], references: &mut Vec<ReferenceEntry>) {
+    use std::collections::HashMap;
+    let imports: HashMap<String, &str> = symbols
+        .iter()
+        .filter(|s| s.kind == "import")
+        .filter_map(|s| {
+            let short = match s.alias.as_deref() {
+                Some(a) if !a.is_empty() => a.to_string(),
+                _ => s.name.rsplit('.').next()?.to_string(),
+            };
+            if short.is_empty() || short == "*" {
+                None
+            } else {
+                Some((short, s.name.as_str()))
+            }
+        })
+        .collect();
+    if imports.is_empty() {
+        return;
+    }
+    let mut added: Vec<ReferenceEntry> = Vec::new();
+    for r in references.iter_mut() {
+        if r.kind != "call" {
+            continue;
+        }
+        let (head, rest) = match r.name.split_once('.') {
+            Some((h, t)) => (h.to_string(), t.to_string()),
+            None => (r.name.clone(), String::new()),
+        };
+        let Some(&path) = imports.get(&head) else { continue };
+        r.confidence = Some(0.8);
+        added.push(ReferenceEntry {
+            file: r.file.clone(),
+            name: format!("{path}/{rest}"),
+            kind: "call".to_string(),
+            line: r.line,
+            caller: r.caller.clone(),
+            project: r.project.clone(),
+            confidence: Some(0.8),
+        });
+    }
+    references.extend(added);
 }
 
 /// Extract `__all__` list from module level if present.
@@ -315,17 +370,45 @@ fn extract_class(
         name.clone()
     };
 
-    push_symbol(
-        symbols,
-        file_path,
-        full_name.clone(),
-        "class",
+    // Heritage edges. Python's tree-sitter exposes `class Foo(Base, Mixin):`
+    // as a `superclasses` field whose body is an `argument_list` containing
+    // one node per base. Keyword args like `metaclass=Meta` are
+    // `keyword_argument` nodes — we treat the right-hand-side identifier
+    // as an `extend` edge to capture `ABCMeta` / `type`-driven heritage.
+    let mut heritage: Vec<(String, String)> = Vec::new();
+    if let Some(supers) = find_child_by_field(node, "superclasses") {
+        let mut cursor = supers.walk();
+        for child in supers.children(&mut cursor) {
+            let target = match child.kind() {
+                "identifier" | "attribute" | "subscript" => node_text(child, source),
+                "keyword_argument" => {
+                    // `metaclass=ABCMeta` style — record the value.
+                    find_child_by_field(child, "value")
+                        .map(|v| node_text(v, source))
+                        .unwrap_or_default()
+                }
+                _ => String::new(),
+            };
+            if !target.is_empty() {
+                heritage.push(("extend".to_string(), target));
+            }
+        }
+    }
+
+    // Push the class symbol manually so we can carry heritage.
+    symbols.push(crate::parser::format::SymbolEntry {
+        file: file_path.to_string(),
+        name: full_name.clone(),
+        kind: "class".to_string(),
         line,
-        parent_ctx,
+        parent: parent_ctx.map(String::from),
         tokens,
-        None,
-        Some(visibility),
-    );
+        alias: None,
+        visibility: Some(visibility),
+        sig: None,
+        project: String::new(),
+        heritage,
+    });
 
     // Walk class body
     if let Some(body) = find_child_by_field(node, "body") {
@@ -395,6 +478,7 @@ fn extract_import(
                     line,
                     caller: None,
                     project: String::new(),
+                    confidence: None,
                 });
             }
             "aliased_import" => {
@@ -422,6 +506,7 @@ fn extract_import(
                         line,
                         caller: None,
                         project: String::new(),
+                        confidence: None,
                     });
                 }
             }
@@ -481,6 +566,7 @@ fn extract_import_from(
                     line,
                     caller: None,
                     project: String::new(),
+                    confidence: None,
                 });
             }
             "aliased_import" => {
@@ -513,6 +599,7 @@ fn extract_import_from(
                         line,
                         caller: None,
                         project: String::new(),
+                        confidence: None,
                     });
                 }
             }
@@ -541,6 +628,7 @@ fn extract_import_from(
                     line,
                     caller: None,
                     project: String::new(),
+                    confidence: None,
                 });
             }
             _ => {}
@@ -614,6 +702,7 @@ fn extract_assignment(
         visibility: Some(visibility),
         sig,
         project: String::new(),
+        heritage: Vec::new(),
     });
 }
 
@@ -633,22 +722,15 @@ fn extract_call(
         return;
     };
 
-    // Extract the name of the called function
-    let name = match func.kind() {
-        "identifier" => {
-            // Simple call: foo()
-            node_text(func, source)
-        }
-        "attribute" => {
-            // Method call: obj.method() or chained: a.b.c()
-            // We capture the full attribute chain
-            node_text(func, source)
-        }
-        _ => {
-            // Complex expression like lambda calls, subscript calls, etc.
-            // Skip these as they're hard to resolve statically
-            return;
-        }
+    // Extract the name and tag the 3-tier resolver confidence:
+    //   * bare identifier (`foo()`) — tier 1, same-file resolution → 1.0
+    //   * attribute chain (`obj.method`, `a.b.c`) — tier 3 unresolved;
+    //     full Python import-alias resolution (`import x as y` / `from m
+    //     import x as y`) is a planned follow-up.
+    let (name, confidence) = match func.kind() {
+        "identifier" => (node_text(func, source), Some(0.95_f64)),
+        "attribute" => (node_text(func, source), None),
+        _ => return,
     };
 
     // Skip builtins and common patterns that aren't useful references
@@ -663,6 +745,7 @@ fn extract_call(
         line,
         caller: parent_ctx.map(String::from),
         project: String::new(),
+        confidence,
     });
 }
 
@@ -965,6 +1048,74 @@ class Bar:
     pass";
         let (_symbols, texts, _refs) = parse_file(source, "python", "test.py").unwrap();
         assert!(texts.iter().any(|t| t.kind == "docstring"));
+    }
+
+    #[test]
+    fn python_bare_call_gets_tier1_confidence() {
+        // 3-tier resolver, tier 1: a bare-identifier call (`foo()`) is a
+        // same-file resolution candidate and must be tagged with
+        // `confidence: Some(0.95)`. Attribute-chain calls (`obj.method`)
+        // stay at `confidence: None` until per-language import-alias
+        // resolution lands.
+        let source = b"def caller():\n    helper()\n    obj.method()\n\ndef helper():\n    pass\n";
+        let (_symbols, _texts, refs) = parse_file(source, "python", "t.py").unwrap();
+        let call = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "helper")
+            .expect("helper() bare call");
+        assert_eq!(
+            call.confidence,
+            Some(0.95),
+            "bare `helper()` call must carry tier-1 confidence (0.95); got {:?}",
+            call.confidence,
+        );
+        let attr = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "obj.method")
+            .expect("obj.method() attribute call");
+        assert_eq!(
+            attr.confidence, None,
+            "attribute-chain call stays at confidence=None until alias resolver lands; got {:?}",
+            attr.confidence,
+        );
+    }
+
+    #[test]
+    fn python_imported_attr_call_gets_tier2_two_edges() {
+        // `from pkg import obj` then `obj.method()` should produce:
+        //   * raw `obj.method` call ref at confidence=0.8 (was None)
+        //   * resolved `pkg.obj/method` call ref at confidence=0.8
+        let source = b"from pkg import obj\n\ndef caller():\n    obj.method()\n";
+        let (_, _, refs) = parse_file(source, "python", "t.py").unwrap();
+        let raw = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "obj.method")
+            .expect("raw obj.method call");
+        assert_eq!(raw.confidence, Some(0.8));
+        let resolved = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "pkg.obj/method")
+            .expect("resolved pkg.obj/method form");
+        assert_eq!(resolved.confidence, Some(0.8));
+    }
+
+    #[test]
+    fn python_aliased_import_call_resolves_tier2() {
+        // `import numpy as np` then `np.array()`:
+        //   * raw `np.array` at 0.8
+        //   * resolved `numpy/array` at 0.8
+        let source = b"import numpy as np\n\ndef caller():\n    np.array()\n";
+        let (_, _, refs) = parse_file(source, "python", "t.py").unwrap();
+        let raw = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "np.array")
+            .expect("raw np.array call");
+        assert_eq!(raw.confidence, Some(0.8));
+        let resolved = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "numpy/array")
+            .expect("resolved numpy/array form");
+        assert_eq!(resolved.confidence, Some(0.8));
     }
 
     #[test]

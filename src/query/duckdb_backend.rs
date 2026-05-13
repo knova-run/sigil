@@ -814,6 +814,8 @@ fn row_to_reference(row: &duckdb::Row<'_>) -> duckdb::Result<Reference> {
         name: row.get::<_, String>(2)?,
         ref_kind: row.get::<_, String>(3)?,
         line: row.get::<_, i64>(4)? as u32,
+        confidence: None,
+        callee_id: None,
     })
 }
 
@@ -884,6 +886,7 @@ fn row_to_entity(row: &duckdb::Row<'_>) -> duckdb::Result<Entity> {
         rank: None,
         blast_radius: None,
         doc: None,
+        heritage: Vec::new(),
     })
 }
 
@@ -986,6 +989,7 @@ mod tests {
             rank: None,
             blast_radius: None,
             doc: None,
+            heritage: Vec::new(),
         }
     }
 
@@ -996,6 +1000,8 @@ mod tests {
             name: name.to_string(),
             ref_kind: kind.to_string(),
             line,
+            confidence: None,
+            callee_id: None,
         }
     }
 

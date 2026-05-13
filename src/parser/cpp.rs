@@ -535,6 +535,12 @@ fn extract_call_ref(
     if name.is_empty() || is_cpp_builtin_call(&name) {
         return;
     }
+    // Tier-1 confidence on bare identifiers; qualified / member-access
+    // calls stay None until C++ `using`-declaration resolution lands.
+    let confidence = match func.kind() {
+        "identifier" => Some(0.95_f64),
+        _ => None,
+    };
 
     let line = node_line_range(node);
     references.push(ReferenceEntry {
@@ -544,6 +550,7 @@ fn extract_call_ref(
         line,
         caller: parent_ctx.map(String::from),
         project: String::new(),
+        confidence,
     });
 }
 
@@ -573,6 +580,7 @@ fn extract_new_ref(
         line,
         caller: parent_ctx.map(String::from),
         project: String::new(),
+        confidence: None,
     });
 }
 
@@ -644,6 +652,7 @@ fn extract_type_ref(
         line,
         caller: parent_ctx.map(String::from),
         project: String::new(),
+        confidence: None,
     });
 }
 
@@ -814,6 +823,7 @@ fn extract_declaration(
                             visibility: Some(visibility.clone()),
                             sig,
                             project: String::new(),
+                            heritage: Vec::new(),
                         });
                     }
                 }
@@ -890,6 +900,7 @@ fn extract_class(
         node.children(&mut cursor)
             .find(|c| c.kind() == "base_class_clause")
     });
+    let mut heritage: Vec<(String, String)> = Vec::new();
     if let Some(bases) = bases {
         let mut cursor = bases.walk();
         for child in bases.children(&mut cursor) {
@@ -909,29 +920,43 @@ fn extract_class(
                                 Some(&full_name),
                                 references,
                             );
+                            let target = node_text(
+                                base_child,
+                                source,
+                            );
+                            if !target.is_empty() {
+                                heritage.push(("extend".to_string(), target));
+                            }
                         }
                     }
                 }
                 // Direct type identifier (without access specifier)
                 "type_identifier" | "qualified_identifier" | "template_type" => {
                     extract_type_ref(child, source, file_path, Some(&full_name), references);
+                    let target =
+                        node_text(child, source);
+                    if !target.is_empty() {
+                        heritage.push(("extend".to_string(), target));
+                    }
                 }
                 _ => {}
             }
         }
     }
 
-    push_symbol(
-        symbols,
-        file_path,
-        full_name.clone(),
-        kind,
+    symbols.push(crate::parser::format::SymbolEntry {
+        file: file_path.to_string(),
+        name: full_name.clone(),
+        kind: kind.to_string(),
         line,
-        parent_ctx,
-        None,
-        None,
-        Some("public".to_string()),
-    );
+        parent: parent_ctx.map(String::from),
+        tokens: None,
+        alias: None,
+        visibility: Some("public".to_string()),
+        sig: None,
+        project: String::new(),
+        heritage,
+    });
 
     // Walk class body with access tracking
     if let Some(body) = find_child_by_field(node, "body") {
@@ -1231,6 +1256,7 @@ fn extract_include(
             line,
             caller: None,
             project: String::new(),
+            confidence: None,
         });
     }
 }
@@ -1268,6 +1294,7 @@ fn extract_macro(node: Node, source: &[u8], file_path: &str, symbols: &mut Vec<S
         visibility: Some("public".to_string()),
         sig,
         project: String::new(),
+        heritage: Vec::new(),
     });
 }
 
@@ -1348,6 +1375,17 @@ mod tests {
             .iter()
             .find(|s| s.name == name)
             .unwrap_or_else(|| panic!("symbol not found: {name}"))
+    }
+
+    #[test]
+    fn cpp_bare_call_gets_tier1_confidence() {
+        let source = b"int helper() { return 1; }\nint caller() { return helper(); }\n";
+        let (_, _, refs) = parse_file(source, "cpp", "t.cpp").unwrap();
+        let bare = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "helper")
+            .expect("helper() bare call");
+        assert_eq!(bare.confidence, Some(0.95));
     }
 
     #[test]

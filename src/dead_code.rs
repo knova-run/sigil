@@ -61,6 +61,14 @@ pub struct DeadCodeCandidate {
     /// True if the file's last commit is within `--activity-window-days`.
     #[serde(skip_serializing_if = "is_false")]
     pub recent_activity: bool,
+    /// Per-file primary author from git history (highest commit-count
+    /// author email over the last `--activity-window-days * N` commits;
+    /// see `crate::ownership::mine`). None when the file has no git
+    /// history in this repo. Mirrors repowise's `primary_owner` field
+    /// on dead-code findings, useful for `@-mention the right person
+    /// before deleting their code` flows.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub primary_owner: Option<String>,
 }
 
 fn is_false(b: &bool) -> bool {
@@ -366,7 +374,23 @@ impl Default for DeadCodeConfig {
 ///      Go chi/gin/echo route registrations).
 pub fn find_dead_code(root: &Path, cfg: &DeadCodeConfig) -> Result<Vec<DeadCodeCandidate>> {
     let idx = query::load(root)?;
-    Ok(find_dead_code_in_index(root, &idx, cfg))
+    let mut out = find_dead_code_in_index(root, &idx, cfg);
+    // Join per-file primary owner from git history. Mining is cheap on
+    // small repos and capped at 500 commits — same default as
+    // `sigil ownership`. Silently tolerate non-git repos / missing
+    // history.
+    if let Ok(rows) = crate::ownership::mine(root, 500) {
+        let owners: HashMap<String, String> = rows
+            .into_iter()
+            .map(|r| (r.file, r.primary_owner))
+            .collect();
+        for c in &mut out {
+            if let Some(o) = owners.get(&c.file) {
+                c.primary_owner = Some(o.clone());
+            }
+        }
+    }
+    Ok(out)
 }
 
 /// Pure version of `find_dead_code` — takes an already-loaded Index.
@@ -428,6 +452,11 @@ pub fn find_dead_code_in_index(
         if !is_callable_kind(&entity.kind) {
             continue;
         }
+        // P5.15 external sentinels + sigil's native non-source-file
+        // parsers (Markdown/JSON/YAML/TOML) shouldn't surface here.
+        if is_non_source_file(&entity.file) {
+            continue;
+        }
         // Refs are indexed by both fully-qualified name and trailing
         // segment, so a plain `refs_to(name)` here matches both forms.
         let has_callers = idx.refs_to(&entity.name).next().is_some();
@@ -478,7 +507,7 @@ pub fn find_dead_code_in_index(
         if !cfg.include_low_confidence && confidence < 0.70 {
             continue;
         }
-        if cfg.safe_only && confidence < 0.70 {
+        if cfg.safe_only && confidence < SAFE_ONLY_THRESHOLD {
             continue;
         }
 
@@ -491,6 +520,7 @@ pub fn find_dead_code_in_index(
             confidence,
             dynamic_name_match: dynamic.map(|s| s.to_string()),
             recent_activity: activity_for(&entity.file),
+            primary_owner: None,
         });
     }
 
@@ -503,6 +533,9 @@ pub fn find_dead_code_in_index(
             continue;
         }
         if crate::entity::is_test_path(&entity.file) {
+            continue;
+        }
+        if is_non_source_file(&entity.file) {
             continue;
         }
         if files_with_referenced_symbols.contains(&entity.file) {
@@ -521,7 +554,7 @@ pub fn find_dead_code_in_index(
         // in the file and not framework-registered.
         let confidence = 1.00;
 
-        if cfg.safe_only && confidence < 0.70 {
+        if cfg.safe_only && confidence < SAFE_ONLY_THRESHOLD {
             continue;
         }
 
@@ -534,6 +567,7 @@ pub fn find_dead_code_in_index(
             confidence,
             dynamic_name_match: None,
             recent_activity: activity_for(&entity.file),
+            primary_owner: None,
         });
     }
 
@@ -555,6 +589,39 @@ pub fn find_dead_code_in_index(
 fn is_callable_kind(kind: &str) -> bool {
     matches!(kind, "function" | "method" | "class" | "struct" | "interface" | "enum")
 }
+
+/// Files we never report as dead — these aren't executable code even
+/// when sigil's native JSON/YAML/TOML/Markdown parsers emit entities
+/// for their keys/headings. Source code is the dead-code target; docs
+/// and config rot is a separate problem (handled by linters / git
+/// hygiene, not by a call-graph dead-code report).
+fn is_non_source_file(file: &str) -> bool {
+    // The P5.15 synthetic external entities have a `<external>` file
+    // marker that isn't a real path. Drop those first.
+    if file == "<external>" || file.starts_with("external:") {
+        return true;
+    }
+    let lower = file.to_ascii_lowercase();
+    for ext in &[
+        ".md", ".markdown", ".rst", ".txt",
+        ".yml", ".yaml", ".toml", ".json", ".jsonc",
+        ".ini", ".cfg", ".conf",
+        ".csv", ".tsv", ".xml",
+    ] {
+        if lower.ends_with(ext) {
+            return true;
+        }
+    }
+    false
+}
+
+/// Confidence floor enforced by `--safe-only`. Set just above the
+/// internal-helper tier (0.70) so the flag is strictly more restrictive
+/// than the default — admits `unused_export` (0.85) and `dead_file`
+/// (1.00), drops `internal_helper` (0.70) and `dynamic_name_match`
+/// (0.50). Matches the docstring's "for CI shipping" intent: CI auto-
+/// delete should only run on the highest-confidence findings.
+const SAFE_ONLY_THRESHOLD: f64 = 0.85;
 
 /// Whether an entity is exported (public visibility). The parser writes
 /// visibility as None when private (default for many languages), or

@@ -94,6 +94,9 @@ pub fn extract(
 ) {
     let root = tree.root_node();
     walk_node(root, source, file_path, None, symbols, texts, references, 0);
+    // TS imports share the JS emission shape (default / named with optional
+    // alias / namespace `* as ns`), so the JS tier-2 resolver applies as-is.
+    crate::parser::javascript::resolve_js_imports_tier2(symbols, references);
 }
 
 // ---------------------------------------------------------------------------
@@ -387,6 +390,13 @@ fn walk_node(
         "import_statement" => {
             extract_import(node, source, file_path, symbols, references);
         }
+        "export_statement" => {
+            // TS re-exports share the JS export-from grammar; reuse the JS
+            // re-export extractor so tier-3 barrel-follow works the same way.
+            crate::parser::javascript::extract_reexport(
+                node, source, file_path, symbols, references,
+            );
+        }
 
         // --- TS-specific constructs ---
         "interface_declaration" => {
@@ -559,6 +569,13 @@ fn extract_call_ref(
     if name.is_empty() || is_ts_builtin_call(&name) {
         return;
     }
+    // Tier-1 confidence on bare-identifier calls; member-expression calls
+    // stay None until namespace-import resolution lands.
+    let confidence = if func.kind() == "identifier" {
+        Some(0.95_f64)
+    } else {
+        None
+    };
 
     let line = node_line_range(node);
     references.push(ReferenceEntry {
@@ -568,6 +585,7 @@ fn extract_call_ref(
         line,
         caller: parent_ctx.map(String::from),
         project: String::new(),
+        confidence,
     });
 }
 
@@ -597,6 +615,7 @@ fn extract_new_ref(
         line,
         caller: parent_ctx.map(String::from),
         project: String::new(),
+        confidence: None,
     });
 }
 
@@ -669,6 +688,7 @@ fn extract_type_refs_recursive(
                     line,
                     caller: parent_ctx.map(String::from),
                     project: String::new(),
+                    confidence: None,
                 });
             }
         }
@@ -685,6 +705,7 @@ fn extract_type_refs_recursive(
                         line,
                         caller: parent_ctx.map(String::from),
                         project: String::new(),
+                        confidence: None,
                     });
                 }
             }
@@ -825,11 +846,43 @@ fn extract_class(
         name.clone()
     };
 
-    // Extract type references from class heritage (extends/implements)
+    // Extract type references + heritage from class_heritage clause.
+    // Tree-sitter-typescript shape:
+    //   class_heritage
+    //     extends_clause           ← single base class
+    //       value: identifier
+    //     implements_clause        ← one or more interfaces
+    //       type: type_identifier (one per interface)
+    let mut heritage: Vec<(String, String)> = Vec::new();
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
-        if child.kind() == "class_heritage" {
-            extract_type_refs(child, source, file_path, Some(&full_name), references);
+        if child.kind() != "class_heritage" {
+            continue;
+        }
+        extract_type_refs(child, source, file_path, Some(&full_name), references);
+        let mut h_cursor = child.walk();
+        for heritage_child in child.children(&mut h_cursor) {
+            let edge_kind = match heritage_child.kind() {
+                "extends_clause" => "extend",
+                "implements_clause" => "implement",
+                _ => continue,
+            };
+            let mut hc_cursor = heritage_child.walk();
+            for type_node in heritage_child.children(&mut hc_cursor) {
+                match type_node.kind() {
+                    "identifier"
+                    | "type_identifier"
+                    | "generic_type"
+                    | "nested_type_identifier"
+                    | "member_expression" => {
+                        let target = node_text(type_node, source);
+                        if !target.is_empty() {
+                            heritage.push((edge_kind.to_string(), target));
+                        }
+                    }
+                    _ => {}
+                }
+            }
         }
     }
 
@@ -837,17 +890,20 @@ fn extract_class(
     let tokens = find_child_by_field(node, "body")
         .and_then(|body| filter_ts_tokens(extract_tokens(body, source)));
 
-    push_symbol(
-        symbols,
-        file_path,
-        full_name.clone(),
-        "class",
+    // Push the class symbol manually so we can carry heritage.
+    symbols.push(crate::parser::format::SymbolEntry {
+        file: file_path.to_string(),
+        name: full_name.clone(),
+        kind: "class".to_string(),
         line,
-        parent_ctx,
+        parent: parent_ctx.map(String::from),
         tokens,
-        None,
-        Some(visibility.to_string()),
-    );
+        alias: None,
+        visibility: Some(visibility.to_string()),
+        sig: None,
+        project: String::new(),
+        heritage,
+    });
 
     if let Some(body) = find_child_by_field(node, "body") {
         let mut cursor = body.walk();
@@ -1069,6 +1125,7 @@ fn extract_variable_decl(
                     visibility: Some(visibility.to_string()),
                     sig,
                     project: String::new(),
+                    heritage: Vec::new(),
                 });
             }
         }
@@ -1118,6 +1175,7 @@ fn extract_import(
                             line,
                             caller: None,
                             project: String::new(),
+                            confidence: None,
                         });
                     }
                     "named_imports" => {
@@ -1149,6 +1207,7 @@ fn extract_import(
                                         line,
                                         caller: None,
                                         project: String::new(),
+                                        confidence: None,
                                     });
                                 }
                             }
@@ -1183,6 +1242,7 @@ fn extract_import(
                             line,
                             caller: None,
                             project: String::new(),
+                            confidence: None,
                         });
                     }
                     _ => {}
@@ -1240,26 +1300,48 @@ fn extract_interface(
         name.clone()
     };
 
-    // Extract type references from extends clause
+    // Extract type references + heritage `extend` edges. An
+    // extends_type_clause wraps one or more (identifier | type_identifier |
+    // generic_type | nested_type_identifier) children — one per parent.
+    let mut heritage: Vec<(String, String)> = Vec::new();
     if let Some(ext) = extends_node {
         extract_type_refs(ext, source, file_path, Some(&full_name), references);
+        let mut cursor = ext.walk();
+        for child in ext.children(&mut cursor) {
+            match child.kind() {
+                "identifier"
+                | "type_identifier"
+                | "generic_type"
+                | "nested_type_identifier"
+                | "member_expression" => {
+                    let target = node_text(child, source);
+                    if !target.is_empty() {
+                        heritage.push(("extend".to_string(), target));
+                    }
+                }
+                _ => {}
+            }
+        }
     }
 
     // Extract tokens from interface body (type references)
     let tokens = find_child_by_field(node, "body")
         .and_then(|body| filter_ts_tokens(extract_tokens(body, source)));
 
-    push_symbol(
-        symbols,
-        file_path,
-        full_name.clone(),
-        "interface",
+    // Push the interface symbol manually so we can carry heritage.
+    symbols.push(crate::parser::format::SymbolEntry {
+        file: file_path.to_string(),
+        name: full_name.clone(),
+        kind: "interface".to_string(),
         line,
-        parent_ctx,
+        parent: parent_ctx.map(String::from),
         tokens,
-        None,
-        Some(visibility.to_string()),
-    );
+        alias: None,
+        visibility: Some(visibility.to_string()),
+        sig: None,
+        project: String::new(),
+        heritage,
+    });
 
     // Walk interface body for method signatures and extract type refs
     if let Some(body) = find_child_by_field(node, "body") {
@@ -1555,6 +1637,53 @@ mod tests {
             .iter()
             .find(|s| s.name == name)
             .unwrap_or_else(|| panic!("symbol not found: {name}"))
+    }
+
+    #[test]
+    fn ts_bare_call_gets_tier1_confidence() {
+        let source = b"function caller() { helper(); obj.method(); }\nfunction helper(): void {}\n";
+        let (_, _, refs) = parse_file(source, "typescript", "t.ts").unwrap();
+        let bare = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "helper")
+            .expect("helper() bare call");
+        assert_eq!(bare.confidence, Some(0.95));
+        let member = refs.iter().find(|r| r.kind == "call" && r.name == "obj.method");
+        if let Some(m) = member {
+            assert_eq!(m.confidence, None);
+        }
+    }
+
+    #[test]
+    fn ts_named_import_call_gets_tier2_two_edges() {
+        let source = b"import { helper } from \"./utils\";\nfunction caller() { helper(); }\n";
+        let (_, _, refs) = parse_file(source, "typescript", "t.ts").unwrap();
+        let raw = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "helper")
+            .expect("raw helper call");
+        assert_eq!(raw.confidence, Some(0.8));
+        let resolved = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "./utils.helper/")
+            .expect("resolved ./utils.helper/ form");
+        assert_eq!(resolved.confidence, Some(0.8));
+    }
+
+    #[test]
+    fn ts_namespace_import_member_call_resolves_tier2() {
+        let source = b"import * as np from \"numpy\";\nfunction caller() { np.array(); }\n";
+        let (_, _, refs) = parse_file(source, "typescript", "t.ts").unwrap();
+        let raw = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "np.array")
+            .expect("raw np.array call");
+        assert_eq!(raw.confidence, Some(0.8));
+        let resolved = refs
+            .iter()
+            .find(|r| r.kind == "call" && r.name == "numpy/array")
+            .expect("resolved numpy/array form");
+        assert_eq!(resolved.confidence, Some(0.8));
     }
 
     #[test]

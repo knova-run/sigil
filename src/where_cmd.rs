@@ -337,6 +337,7 @@ mod tests {
             rank: None,
             blast_radius: Some(BlastRadius::default()),
             doc: None,
+            heritage: Vec::new(),
         }
     }
 
@@ -582,6 +583,8 @@ mod tests {
             name: "foo".into(),
             ref_kind: "call".into(),
             line: 1,
+            confidence: None,
+            callee_id: None,
         }
     }
 }
