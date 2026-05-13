@@ -219,7 +219,7 @@ impl DuckDbBackend {
         let inner_cc_after_cc = format!("%::{}::%", name);
 
         let mut sql = String::from(
-            "SELECT DISTINCT file, caller, name, kind, line \
+            "SELECT DISTINCT file, caller, name, kind, line, confidence, callee_id \
              FROM refs \
              WHERE (name = ?",
         );
@@ -294,7 +294,7 @@ impl DuckDbBackend {
         let inner_cc_after_dot = format!("%.{}::%", caller);
 
         let mut sql = String::from(
-            "SELECT DISTINCT file, caller, name, kind, line \
+            "SELECT DISTINCT file, caller, name, kind, line, confidence, callee_id \
              FROM refs \
              WHERE (caller = ?",
         );
@@ -832,7 +832,8 @@ fn empty_entities_table_sql() -> &'static str {
 fn empty_refs_table_sql() -> &'static str {
     "CREATE TABLE refs (
         file VARCHAR, caller VARCHAR, name VARCHAR,
-        kind VARCHAR, line BIGINT
+        kind VARCHAR, line BIGINT,
+        confidence DOUBLE, callee_id VARCHAR
     );"
 }
 
@@ -871,7 +872,9 @@ const REFS_COLUMNS_SPEC: &str = "{ \
     caller: 'VARCHAR', \
     name: 'VARCHAR', \
     kind: 'VARCHAR', \
-    line: 'BIGINT' \
+    line: 'BIGINT', \
+    confidence: 'DOUBLE', \
+    callee_id: 'VARCHAR' \
 }";
 
 fn row_to_reference(row: &duckdb::Row<'_>) -> duckdb::Result<Reference> {
@@ -881,8 +884,8 @@ fn row_to_reference(row: &duckdb::Row<'_>) -> duckdb::Result<Reference> {
         name: row.get::<_, String>(2)?,
         ref_kind: row.get::<_, String>(3)?,
         line: row.get::<_, i64>(4)? as u32,
-        confidence: None,
-        callee_id: None,
+        confidence: row.get::<_, Option<f64>>(5)?,
+        callee_id: row.get::<_, Option<String>>(6)?,
     })
 }
 
@@ -966,13 +969,30 @@ fn path_for_sql(p: &Path) -> String {
 
 /// Fingerprint of the JSONL files the DB was built from. Captured at
 /// build time and compared on next open to decide whether to rebuild.
+///
+/// `schema_version` is bumped any time the on-disk DuckDB tables change
+/// shape (column add/remove/type-change). Old stamps with a missing
+/// or stale version deserialize via `serde(default)` to 0, which never
+/// matches CURRENT_SCHEMA_VERSION — forcing a rebuild on first open
+/// after upgrade so existing `.sigil/index.duckdb` files don't return
+/// rows missing the new columns.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 struct Stamp {
+    #[serde(default)]
+    schema_version: u32,
     entities_len: u64,
     entities_mtime_ms: u128,
     refs_len: u64,
     refs_mtime_ms: u128,
 }
+
+/// Bump on any DuckDB tables change (column add/remove/type/index).
+/// History:
+///   1 — initial schema
+///   2 — refs gained `confidence` (DOUBLE) + `callee_id` (VARCHAR)
+///       so the DuckDB backend reaches parity with in-memory Reference
+///       (issue #32).
+const CURRENT_SCHEMA_VERSION: u32 = 2;
 
 impl Stamp {
     fn load(path: &Path) -> Result<Self> {
@@ -1004,6 +1024,7 @@ fn fingerprint(sigil_dir: &Path) -> Stamp {
     let (entities_len, entities_mtime_ms) = meta_pair(&sigil_dir.join("entities.jsonl"));
     let (refs_len, refs_mtime_ms) = meta_pair(&sigil_dir.join("refs.jsonl"));
     Stamp {
+        schema_version: CURRENT_SCHEMA_VERSION,
         entities_len,
         entities_mtime_ms,
         refs_len,
@@ -1205,6 +1226,55 @@ mod tests {
         from_db.sort_by(|a, b| a.file.cmp(&b.file).then_with(|| a.line.cmp(&b.line)));
         from_idx.sort_by(|a, b| a.file.cmp(&b.file).then_with(|| a.line.cmp(&b.line)));
         assert_eq!(from_db, from_idx);
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn refs_confidence_and_callee_id_round_trip_through_duckdb() {
+        // Issue #32: DuckDB-backend `Reference` rows previously dropped
+        // both `confidence` and `callee_id` because they weren't in
+        // REFS_COLUMNS_SPEC and `row_to_reference` hardcoded them to
+        // None. In-memory backend preserves them, so the two backends
+        // returned different shapes — silently degrading any downstream
+        // feature that reads confidence (tier-based ranking, dead-code
+        // suppression) or callee_id (heritage, blast-radius jump-to-def).
+        let root = tmpdir("conf_callee_roundtrip");
+        let mut r1 = refr("a.rs", Some("caller"), "Foo", "call", 1);
+        r1.confidence = Some(0.95);
+        r1.callee_id = Some("a.rs::Foo".to_string());
+        let mut r2 = refr("b.rs", Some("caller"), "Foo", "call", 2);
+        r2.confidence = Some(0.8);
+        r2.callee_id = Some("a.rs::Foo".to_string());
+        // A ref with both fields unset — round-trip should preserve
+        // None, not silently turn into Some.
+        let r3 = refr("c.rs", Some("caller"), "Foo", "call", 3);
+        seed(
+            &root,
+            vec![ent("a.rs", "Foo", "struct")],
+            vec![r1.clone(), r2.clone(), r3.clone()],
+        );
+        let db = DuckDbBackend::open(&root).unwrap();
+        let mut from_db = db.get_callers("Foo", None, 0).unwrap();
+        from_db.sort_by(|a, b| a.line.cmp(&b.line));
+
+        assert_eq!(from_db[0].confidence, Some(0.95));
+        assert_eq!(from_db[0].callee_id.as_deref(), Some("a.rs::Foo"));
+        assert_eq!(from_db[1].confidence, Some(0.8));
+        assert_eq!(from_db[1].callee_id.as_deref(), Some("a.rs::Foo"));
+        assert_eq!(from_db[2].confidence, None);
+        assert_eq!(from_db[2].callee_id, None);
+
+        // Cross-check: in-memory backend produces the same shapes for
+        // the same JSONL inputs.
+        let idx = crate::query::index::Index::load(&root).unwrap();
+        let mut from_idx: Vec<Reference> = idx
+            .get_callers("Foo", None, 0)
+            .into_iter()
+            .cloned()
+            .collect();
+        from_idx.sort_by(|a, b| a.line.cmp(&b.line));
+        assert_eq!(from_db, from_idx, "DuckDB and in-memory backends must agree on Reference shape");
+
         std::fs::remove_dir_all(&root).ok();
     }
 
