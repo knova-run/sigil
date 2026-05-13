@@ -207,6 +207,277 @@ pub fn add(
     Ok(member)
 }
 
+/// Maximum cross-repo emissions per external sentinel. Prevents
+/// pathological blow-up on common names (`run`, `init`, `main`).
+const CROSS_REPO_CAP_PER_SENTINEL: usize = 10;
+
+/// Read the canonical package/module name a workspace member advertises
+/// via its top-level manifest. Used to detect direct `package-deps`
+/// edges (consumer → provider) for the 0.6 confidence tier.
+///
+/// Returns the values across multiple manifests if a repo publishes more
+/// than one (e.g. a multi-module Go repo). Order is unspecified.
+fn member_canonical_names(member_path: &Path) -> Vec<String> {
+    let mut out = Vec::new();
+
+    // npm package.json
+    let pkg = member_path.join("package.json");
+    if let Ok(text) = std::fs::read_to_string(&pkg)
+        && let Ok(v) = serde_json::from_str::<serde_json::Value>(&text)
+        && let Some(name) = v.get("name").and_then(|n| n.as_str())
+        && !name.is_empty()
+    {
+        out.push(name.to_string());
+    }
+
+    // go.mod (top-level only — multi-module repos are out of MVP scope)
+    let gomod = member_path.join("go.mod");
+    if let Ok(text) = std::fs::read_to_string(&gomod) {
+        for line in text.lines() {
+            if let Some(rest) = line.trim().strip_prefix("module ")
+                && let Some(m) = rest.split_whitespace().next()
+            {
+                out.push(m.to_string());
+                break;
+            }
+        }
+    }
+
+    // Cargo.toml — [package] name (workspace roots without [package] yield none)
+    let cargo = member_path.join("Cargo.toml");
+    if let Ok(text) = std::fs::read_to_string(&cargo)
+        && let Ok(doc) = toml::from_str::<toml::Value>(&text)
+        && let Some(name) = doc
+            .get("package")
+            .and_then(|p| p.get("name"))
+            .and_then(|n| n.as_str())
+    {
+        out.push(name.to_string());
+    }
+
+    out
+}
+
+/// Read the set of dependency names this member declares in its
+/// top-level manifests. Used by the 0.6 evidence check on the consumer
+/// side of a cross-repo binding.
+fn member_declared_deps(member_path: &Path) -> std::collections::HashSet<String> {
+    let mut out = std::collections::HashSet::new();
+
+    // package.json — dependencies + devDependencies + peerDependencies
+    let pkg = member_path.join("package.json");
+    if let Ok(text) = std::fs::read_to_string(&pkg)
+        && let Ok(v) = serde_json::from_str::<serde_json::Value>(&text)
+    {
+        for section in &["dependencies", "devDependencies", "peerDependencies"] {
+            if let Some(map) = v.get(*section).and_then(|x| x.as_object()) {
+                for key in map.keys() {
+                    out.insert(key.clone());
+                }
+            }
+        }
+    }
+
+    // go.mod — every `require <dep> <ver>` line
+    let gomod = member_path.join("go.mod");
+    if let Ok(text) = std::fs::read_to_string(&gomod) {
+        for edge in crate::package_deps::parse_go_mod("", "go.mod", &text) {
+            out.insert(edge.dependency);
+        }
+    }
+
+    // Cargo.toml — [dependencies] keys
+    let cargo = member_path.join("Cargo.toml");
+    if let Ok(text) = std::fs::read_to_string(&cargo)
+        && let Ok(doc) = toml::from_str::<toml::Value>(&text)
+        && let Some(deps) = doc.get("dependencies").and_then(|d| d.as_table())
+    {
+        for key in deps.keys() {
+            out.insert(key.clone());
+        }
+    }
+
+    out
+}
+
+/// Phase 3 cross-repo resolver. Walks every enabled member's
+/// `external:<modpath>` sentinels and matches them against callable
+/// definitions in other members. Writes Reference rows to
+/// `<root>/.sigil-workspace/cross_repo_refs.jsonl` per the permissive
+/// emission policy:
+///
+/// - Single match (one provider, one file): 0.6 if direct
+///   `package-deps` edge consumer→provider, else 0.4
+/// - Multiple matches: 0.3 each (one tier below the corresponding
+///   single-match confidence)
+/// - Cap: `CROSS_REPO_CAP_PER_SENTINEL` per sentinel; excess dropped
+///   deterministically by `(provider_repo, provider_file)`
+///
+/// The emitted Reference rows already carry the workspace `<member>/`
+/// prefix on `file` and `callee_id` so the Phase 2 union-load can
+/// stitch them in without an extra rewrite pass.
+pub fn resolve_workspace_cross_repo(workspace_root: &Path) -> Result<usize> {
+    use serde_json::Value;
+
+    let members: Vec<WorkspaceMember> = list(workspace_root)?
+        .into_iter()
+        .filter(|m| !m.disabled)
+        .collect();
+
+    if members.len() < 2 {
+        // Nothing to cross-resolve. Always (re)write an empty file so
+        // downstream consumers see a consistent placeholder and any
+        // pre-existing rows from a larger membership get cleared.
+        let cross = cross_repo_refs_path(workspace_root);
+        if let Some(parent) = cross.parent() {
+            std::fs::create_dir_all(parent).ok();
+        }
+        std::fs::write(&cross, "")
+            .with_context(|| format!("writing {}", cross.display()))?;
+        return Ok(0);
+    }
+
+    // Provider index: leaf-name → Vec<(member_name, file, full_name)>.
+    // Built once across every enabled member's entities.
+    let mut providers: std::collections::HashMap<
+        String,
+        Vec<(String, String, String)>,
+    > = std::collections::HashMap::new();
+
+    // Per-member: canonical names this member advertises (npm package
+    // name, Go module path, Cargo crate name). Used downstream to map a
+    // consumer's declared deps back to provider members.
+    let mut member_canonical: std::collections::HashMap<String, Vec<String>> =
+        std::collections::HashMap::new();
+    // Per-member: package names this member declares as dependencies.
+    let mut member_deps: std::collections::HashMap<String, std::collections::HashSet<String>> =
+        std::collections::HashMap::new();
+
+    for m in &members {
+        let mp = std::path::Path::new(&m.path);
+        member_canonical.insert(m.name.clone(), member_canonical_names(mp));
+        member_deps.insert(m.name.clone(), member_declared_deps(mp));
+
+        let p = mp.join(".sigil/entities.jsonl");
+        let Ok(text) = std::fs::read_to_string(&p) else { continue };
+        for line in text.lines() {
+            let Ok(v): Result<Value, _> = serde_json::from_str(line) else { continue };
+            let kind = v.get("kind").and_then(Value::as_str).unwrap_or("");
+            // Only callables can satisfy a cross-repo binding
+            if !matches!(kind, "function" | "method" | "class" | "struct" | "interface" | "trait" | "fn") {
+                continue;
+            }
+            let name = v.get("name").and_then(Value::as_str).unwrap_or("").to_string();
+            let file = v.get("file").and_then(Value::as_str).unwrap_or("").to_string();
+            if name.is_empty() || file.is_empty() || file == "<external>" {
+                continue;
+            }
+            let leaf = leaf_segment(&name).to_string();
+            providers
+                .entry(leaf)
+                .or_default()
+                .push((m.name.clone(), file, name));
+        }
+    }
+
+    let mut out_lines: Vec<String> = Vec::new();
+    let mut emitted_count = 0usize;
+
+    for consumer in &members {
+        let consumer_ent_path = std::path::Path::new(&consumer.path).join(".sigil/entities.jsonl");
+        let Ok(text) = std::fs::read_to_string(&consumer_ent_path) else { continue };
+        for line in text.lines() {
+            let Ok(v): Result<Value, _> = serde_json::from_str(line) else { continue };
+            if v.get("kind").and_then(Value::as_str) != Some("external") {
+                continue;
+            }
+            let raw_name = v.get("name").and_then(Value::as_str).unwrap_or("");
+            let Some(modpath) = raw_name.strip_prefix("external:") else { continue };
+            let leaf = leaf_segment(modpath);
+            if leaf.is_empty() {
+                continue;
+            }
+
+            // Candidates: providers other than the consumer itself
+            let candidates: Vec<&(String, String, String)> = providers
+                .get(leaf)
+                .map(|v| v.iter().filter(|(member, _, _)| member != &consumer.name).collect())
+                .unwrap_or_default();
+            if candidates.is_empty() {
+                continue;
+            }
+
+            // Stable order for deterministic cap behaviour
+            let mut candidates = candidates;
+            candidates.sort_by(|a, b| (a.0.as_str(), a.1.as_str()).cmp(&(b.0.as_str(), b.1.as_str())));
+
+            let cap = CROSS_REPO_CAP_PER_SENTINEL.min(candidates.len());
+            let is_single = candidates.len() == 1;
+
+            for (provider_name, provider_file, provider_symbol) in candidates.iter().take(cap) {
+                // Direct package-deps edge: consumer declares any of the
+                // provider's canonical names as a dependency.
+                let direct_dep_edge = member_canonical
+                    .get(provider_name)
+                    .map(|names| {
+                        let deps = member_deps.get(&consumer.name);
+                        match deps {
+                            Some(s) => names.iter().any(|n| s.contains(n)),
+                            None => false,
+                        }
+                    })
+                    .unwrap_or(false);
+
+                let confidence: f64 = if is_single {
+                    if direct_dep_edge { 0.6 } else { 0.4 }
+                } else {
+                    // Ambiguous match: one tier below. Direct dep edge
+                    // doesn't apply since the binding itself isn't unique.
+                    0.3
+                };
+
+                let prefixed_provider_file = format!("{}/{}", provider_name, provider_file);
+                let consumer_synthetic_file = format!("{}/<external>", consumer.name);
+                let callee_id = format!("{}::{}", prefixed_provider_file, provider_symbol);
+
+                let row = serde_json::json!({
+                    "file": consumer_synthetic_file,
+                    "caller": format!("external:{}", modpath),
+                    "name": leaf,
+                    "kind": "cross_repo_call",
+                    "line": 0,
+                    "confidence": confidence,
+                    "callee_id": callee_id,
+                });
+                out_lines.push(row.to_string());
+                emitted_count += 1;
+            }
+        }
+    }
+
+    let cross = cross_repo_refs_path(workspace_root);
+    if let Some(parent) = cross.parent() {
+        std::fs::create_dir_all(parent).ok();
+    }
+    let body = if out_lines.is_empty() {
+        String::new()
+    } else {
+        let mut s = out_lines.join("\n");
+        s.push('\n');
+        s
+    };
+    std::fs::write(&cross, body)
+        .with_context(|| format!("writing {}", cross.display()))?;
+
+    Ok(emitted_count)
+}
+
+fn leaf_segment(s: &str) -> &str {
+    s.rsplit(|c: char| c == '.' || c == '/' || c == ':')
+        .next()
+        .unwrap_or(s)
+}
+
 /// Drop a member from `members.json`. Lookup is by `name` first, then
 /// by canonical path. If no member matches, a warning is printed to
 /// stderr and the call succeeds (idempotent — see plan §1).
@@ -371,17 +642,16 @@ pub fn workspace_index(workspace_root: &Path) -> Result<()> {
     std::fs::write(&stamp_path, json + "\n")
         .with_context(|| format!("writing {}", stamp_path.display()))?;
 
-    // Phase 1: empty cross-repo refs placeholder (Phase 3 fills it)
-    let cross = cross_repo_refs_path(workspace_root);
-    if !cross.exists() {
-        std::fs::write(&cross, "")
-            .with_context(|| format!("writing {}", cross.display()))?;
-    }
+    // Phase 3: walk external sentinels in every enabled member and write
+    // resolved cross-repo bindings to `cross_repo_refs.jsonl`. Phase 2's
+    // `Index::load_workspace` already appends this file on every query.
+    let cross_emitted = resolve_workspace_cross_repo(workspace_root)?;
 
     eprintln!(
-        "workspace index: stamped {} member(s){}",
+        "workspace index: stamped {} member(s){}, {} cross-repo ref(s)",
         stamps.members.len(),
-        if warnings > 0 { format!(" ({} skipped)", warnings) } else { String::new() }
+        if warnings > 0 { format!(" ({} skipped)", warnings) } else { String::new() },
+        cross_emitted
     );
     Ok(())
 }

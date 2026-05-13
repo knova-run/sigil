@@ -824,3 +824,235 @@ fn workspace_load_includes_cross_repo_refs() {
     assert_eq!(refs.len(), 1, "expected the hand-written cross-repo ref; got {refs:?}");
     assert_eq!(refs[0]["confidence"].as_f64(), Some(0.4));
 }
+
+// ---------------------------------------------------------------------------
+// Phase 3 — cross-repo resolution at index time. `workspace index` walks
+// each member's external sentinels and writes resolved bindings into
+// `.sigil-workspace/cross_repo_refs.jsonl`. Confidence policy:
+//   * Single match, direct package-deps edge: 0.6
+//   * Single match, no dep evidence:           0.4
+//   * Multiple matches (one provider or many): 0.3 each
+//   * Cap: 10 emissions per sentinel
+// ---------------------------------------------------------------------------
+
+#[test]
+fn workspace_index_writes_cross_repo_refs_at_0_4_without_deps() {
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let consumer = tmp.path().join("consumer");
+    let provider = tmp.path().join("provider");
+    fs::create_dir_all(&ws).unwrap();
+    init_repo(&consumer);
+    init_repo(&provider);
+
+    // consumer has an unresolved import sentinel for `external:Greet`
+    let consumer_ents = "{\"file\":\"<external>\",\"name\":\"external:Greet\",\
+        \"kind\":\"external\",\"line_start\":0,\"line_end\":0,\"struct_hash\":\"e\"}\n";
+    write_fake_sigil(&consumer, consumer_ents, "");
+
+    // provider defines `Greet` exactly once
+    let provider_ents = "{\"file\":\"src/lib.rs\",\"name\":\"Greet\",\
+        \"kind\":\"function\",\"line_start\":1,\"line_end\":3,\"struct_hash\":\"g\"}\n";
+    write_fake_sigil(&provider, provider_ents, "");
+
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", consumer.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", provider.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    let out = sigil(&["workspace", "index", "--root", ws.to_str().unwrap()]);
+    assert!(out.status.success(), "index: {}", String::from_utf8_lossy(&out.stderr));
+
+    let cross_path = ws.join(".sigil-workspace/cross_repo_refs.jsonl");
+    let text = fs::read_to_string(&cross_path).unwrap();
+    let rows: Vec<serde_json::Value> = text
+        .lines()
+        .filter(|l| !l.is_empty())
+        .map(|l| serde_json::from_str(l).expect("each line must be JSON"))
+        .collect();
+    assert_eq!(rows.len(), 1, "expected one cross-repo ref; got {rows:?}");
+    let r = &rows[0];
+    assert_eq!(r["name"].as_str(), Some("Greet"));
+    assert_eq!(r["kind"].as_str(), Some("cross_repo_call"));
+    assert_eq!(r["confidence"].as_f64(), Some(0.4),
+        "no package-deps evidence → 0.4 tier; got {r:?}");
+    // callee_id points at the provider's resolved file::symbol
+    assert_eq!(
+        r["callee_id"].as_str(),
+        Some("provider/src/lib.rs::Greet"),
+        "callee_id should pin the provider file + symbol; got {r:?}"
+    );
+}
+
+#[test]
+fn workspace_index_emits_ambiguous_match_at_0_3() {
+    // Two providers both define `run`. Per the permissive emission policy,
+    // each candidate is emitted at 0.3 (one tier below the 0.4 unambiguous
+    // single-match tier).
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let consumer = tmp.path().join("consumer");
+    let p1 = tmp.path().join("p1");
+    let p2 = tmp.path().join("p2");
+    fs::create_dir_all(&ws).unwrap();
+    init_repo(&consumer);
+    init_repo(&p1);
+    init_repo(&p2);
+
+    write_fake_sigil(&consumer,
+        "{\"file\":\"<external>\",\"name\":\"external:utils.run\",\"kind\":\"external\",\
+        \"line_start\":0,\"line_end\":0,\"struct_hash\":\"e\"}\n",
+        "");
+    let provider_ent = |file: &str| format!(
+        "{{\"file\":\"{file}\",\"name\":\"run\",\"kind\":\"function\",\
+        \"line_start\":1,\"line_end\":2,\"struct_hash\":\"r\"}}\n"
+    );
+    write_fake_sigil(&p1, &provider_ent("lib.py"), "");
+    write_fake_sigil(&p2, &provider_ent("utils.py"), "");
+
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", consumer.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", p1.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", p2.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "index", "--root", ws.to_str().unwrap()]);
+
+    let text = fs::read_to_string(ws.join(".sigil-workspace/cross_repo_refs.jsonl")).unwrap();
+    let rows: Vec<serde_json::Value> = text
+        .lines().filter(|l| !l.is_empty())
+        .map(|l| serde_json::from_str(l).unwrap()).collect();
+    assert_eq!(rows.len(), 2, "both providers should be emitted; got {rows:?}");
+    for r in &rows {
+        assert_eq!(r["confidence"].as_f64(), Some(0.3),
+            "ambiguous match must demote to 0.3; got {r:?}");
+    }
+    let callee_ids: Vec<&str> = rows.iter().map(|r| r["callee_id"].as_str().unwrap()).collect();
+    assert!(callee_ids.contains(&"p1/lib.py::run"));
+    assert!(callee_ids.contains(&"p2/utils.py::run"));
+}
+
+#[test]
+fn workspace_index_caps_cross_repo_emissions_at_10() {
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let consumer = tmp.path().join("consumer");
+    fs::create_dir_all(&ws).unwrap();
+    init_repo(&consumer);
+    write_fake_sigil(&consumer,
+        "{\"file\":\"<external>\",\"name\":\"external:init\",\"kind\":\"external\",\
+        \"line_start\":0,\"line_end\":0,\"struct_hash\":\"e\"}\n",
+        "");
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", consumer.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+
+    // 11 providers all defining `init`
+    for i in 0..11 {
+        let p = tmp.path().join(format!("p{i:02}"));
+        init_repo(&p);
+        write_fake_sigil(&p,
+            "{\"file\":\"src/x.py\",\"name\":\"init\",\"kind\":\"function\",\
+            \"line_start\":1,\"line_end\":2,\"struct_hash\":\"i\"}\n",
+            "");
+        sigil(&["workspace", "add", p.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    }
+    sigil(&["workspace", "index", "--root", ws.to_str().unwrap()]);
+
+    let text = fs::read_to_string(ws.join(".sigil-workspace/cross_repo_refs.jsonl")).unwrap();
+    let rows: Vec<&str> = text.lines().filter(|l| !l.is_empty()).collect();
+    assert_eq!(rows.len(), 10, "cap is 10 per sentinel; got {} rows", rows.len());
+}
+
+#[test]
+fn workspace_index_skips_cross_repo_when_only_one_member() {
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let solo = tmp.path().join("solo");
+    fs::create_dir_all(&ws).unwrap();
+    init_repo(&solo);
+    write_fake_sigil(&solo,
+        "{\"file\":\"<external>\",\"name\":\"external:foo\",\"kind\":\"external\",\
+        \"line_start\":0,\"line_end\":0,\"struct_hash\":\"e\"}\n",
+        "");
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", solo.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "index", "--root", ws.to_str().unwrap()]);
+
+    let text = fs::read_to_string(ws.join(".sigil-workspace/cross_repo_refs.jsonl")).unwrap();
+    assert_eq!(text, "", "single-member workspace has nothing to resolve");
+}
+
+#[test]
+fn workspace_index_truncates_stale_cross_repo_refs_when_external_removed() {
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let consumer = tmp.path().join("consumer");
+    let provider = tmp.path().join("provider");
+    fs::create_dir_all(&ws).unwrap();
+    init_repo(&consumer);
+    init_repo(&provider);
+
+    let ext_ent = "{\"file\":\"<external>\",\"name\":\"external:Greet\",\"kind\":\"external\",\
+        \"line_start\":0,\"line_end\":0,\"struct_hash\":\"e\"}\n";
+    write_fake_sigil(&consumer, ext_ent, "");
+    write_fake_sigil(&provider,
+        "{\"file\":\"src/lib.rs\",\"name\":\"Greet\",\"kind\":\"function\",\
+        \"line_start\":1,\"line_end\":3,\"struct_hash\":\"g\"}\n",
+        "");
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", consumer.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", provider.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "index", "--root", ws.to_str().unwrap()]);
+    let first = fs::read_to_string(ws.join(".sigil-workspace/cross_repo_refs.jsonl")).unwrap();
+    assert!(!first.is_empty(), "should have one ref after first index");
+
+    // Consumer no longer imports the external — re-index. The stale row
+    // must be evicted (resolver overwrites the file).
+    write_fake_sigil(&consumer, "", "");
+    sigil(&["workspace", "index", "--root", ws.to_str().unwrap()]);
+    let after = fs::read_to_string(ws.join(".sigil-workspace/cross_repo_refs.jsonl")).unwrap();
+    assert_eq!(after, "", "stale cross-repo refs must be cleared on re-index");
+}
+
+#[test]
+fn workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge() {
+    // consumer's package.json declares provider as a direct dependency by
+    // its canonical npm name (`@org/shared`). Per the locked design, that
+    // direct edge bumps single-match cross-repo confidence from 0.4 → 0.6.
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let consumer = tmp.path().join("consumer");
+    let provider = tmp.path().join("provider");
+    fs::create_dir_all(&ws).unwrap();
+    init_repo(&consumer);
+    init_repo(&provider);
+
+    // Provider canonical name = "@org/shared"
+    fs::write(
+        provider.join("package.json"),
+        r#"{"name": "@org/shared", "version": "1.0.0"}"#,
+    ).unwrap();
+    write_fake_sigil(&provider,
+        "{\"file\":\"index.js\",\"name\":\"helper\",\"kind\":\"function\",\
+        \"line_start\":1,\"line_end\":2,\"struct_hash\":\"h\"}\n",
+        "");
+
+    // Consumer depends on @org/shared directly
+    fs::write(
+        consumer.join("package.json"),
+        r#"{"name": "@org/consumer", "dependencies": {"@org/shared": "^1.0.0"}}"#,
+    ).unwrap();
+    write_fake_sigil(&consumer,
+        "{\"file\":\"<external>\",\"name\":\"external:helper\",\"kind\":\"external\",\
+        \"line_start\":0,\"line_end\":0,\"struct_hash\":\"e\"}\n",
+        "");
+
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", consumer.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", provider.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "index", "--root", ws.to_str().unwrap()]);
+
+    let text = fs::read_to_string(ws.join(".sigil-workspace/cross_repo_refs.jsonl")).unwrap();
+    let rows: Vec<serde_json::Value> = text
+        .lines().filter(|l| !l.is_empty())
+        .map(|l| serde_json::from_str(l).unwrap()).collect();
+    assert_eq!(rows.len(), 1, "expected one cross-repo ref; got {rows:?}");
+    assert_eq!(rows[0]["confidence"].as_f64(), Some(0.6),
+        "direct npm dep edge should bump to 0.6; got {:?}", rows[0]);
+}

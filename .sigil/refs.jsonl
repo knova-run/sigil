@@ -22511,190 +22511,341 @@
 {"file":"src/workspace.rs","caller":"add","name":"manifest.members.push","kind":"call","line":205}
 {"file":"src/workspace.rs","caller":"add","name":"member.clone","kind":"call","line":205}
 {"file":"src/workspace.rs","caller":"add","name":"write_manifest","kind":"call","line":206,"confidence":0.95}
-{"file":"src/workspace.rs","caller":"remove","name":"Path","kind":"type_annotation","line":216}
-{"file":"src/workspace.rs","caller":"remove","name":"Result","kind":"type_annotation","line":216}
-{"file":"src/workspace.rs","caller":"remove","name":"read_manifest","kind":"call","line":217,"confidence":0.95}
-{"file":"src/workspace.rs","caller":"remove","name":"canonicalize_input(Path::new(name_or_path)).ok","kind":"call","line":219}
-{"file":"src/workspace.rs","caller":"remove","name":"canonicalize_input","kind":"call","line":219,"confidence":0.95}
-{"file":"src/workspace.rs","caller":"remove","name":"Path::new","kind":"call","line":219}
-{"file":"src/workspace.rs","caller":"remove","name":"canonical_input.as_ref().map","kind":"call","line":220}
-{"file":"src/workspace.rs","caller":"remove","name":"canonical_input.as_ref","kind":"call","line":220}
-{"file":"src/workspace.rs","caller":"remove","name":"p.to_string_lossy().to_string","kind":"call","line":220}
-{"file":"src/workspace.rs","caller":"remove","name":"p.to_string_lossy","kind":"call","line":220}
-{"file":"src/workspace.rs","caller":"remove","name":"manifest.members.len","kind":"call","line":222}
-{"file":"src/workspace.rs","caller":"remove","name":"manifest.members.retain","kind":"call","line":223}
-{"file":"src/workspace.rs","caller":"remove","name":"canonical_str.as_deref().is_some_and","kind":"call","line":225}
-{"file":"src/workspace.rs","caller":"remove","name":"canonical_str.as_deref","kind":"call","line":225}
-{"file":"src/workspace.rs","caller":"remove","name":"manifest.members.len","kind":"call","line":228}
-{"file":"src/workspace.rs","caller":"remove","name":"write_manifest","kind":"call","line":239,"confidence":0.95}
-{"file":"src/workspace.rs","caller":"StampManifest","name":"std::collections::BTreeMap","kind":"type_annotation","line":259}
-{"file":"src/workspace.rs","caller":"StampManifest","name":"MemberStamp","kind":"type_annotation","line":259}
-{"file":"src/workspace.rs","caller":"StampManifest","name":"String","kind":"type_annotation","line":259}
-{"file":"src/workspace.rs","caller":"stamp_manifest_path","name":"Path","kind":"type_annotation","line":262}
-{"file":"src/workspace.rs","caller":"stamp_manifest_path","name":"PathBuf","kind":"type_annotation","line":262}
-{"file":"src/workspace.rs","caller":"stamp_manifest_path","name":"workspace_root.join(\".sigil-workspace\").join","kind":"call","line":263}
-{"file":"src/workspace.rs","caller":"stamp_manifest_path","name":"workspace_root.join","kind":"call","line":263}
-{"file":"src/workspace.rs","caller":"cross_repo_refs_path","name":"Path","kind":"type_annotation","line":266}
-{"file":"src/workspace.rs","caller":"cross_repo_refs_path","name":"PathBuf","kind":"type_annotation","line":266}
-{"file":"src/workspace.rs","caller":"cross_repo_refs_path","name":"workspace_root.join(\".sigil-workspace\").join","kind":"call","line":267}
-{"file":"src/workspace.rs","caller":"cross_repo_refs_path","name":"workspace_root.join","kind":"call","line":267}
-{"file":"src/workspace.rs","caller":"stamp_file","name":"Path","kind":"type_annotation","line":270}
-{"file":"src/workspace.rs","caller":"stamp_file","name":"Result","kind":"type_annotation","line":270}
-{"file":"src/workspace.rs","caller":"stamp_file","name":"std::fs::metadata(p)\n        .with_context","kind":"call","line":271}
-{"file":"src/workspace.rs","caller":"stamp_file","name":"std::fs::metadata","kind":"call","line":271}
-{"file":"src/workspace.rs","caller":"stamp_file","name":"meta.len","kind":"call","line":273}
-{"file":"src/workspace.rs","caller":"stamp_file","name":"meta\n        .modified()\n        .ok()\n        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())\n        .map(|d| d.as_millis() as i128)\n        .unwrap_or","kind":"call","line":274}
-{"file":"src/workspace.rs","caller":"stamp_file","name":"meta\n        .modified()\n        .ok()\n        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())\n        .map","kind":"call","line":274}
-{"file":"src/workspace.rs","caller":"stamp_file","name":"meta\n        .modified()\n        .ok()\n        .and_then","kind":"call","line":274}
-{"file":"src/workspace.rs","caller":"stamp_file","name":"meta\n        .modified()\n        .ok","kind":"call","line":274}
-{"file":"src/workspace.rs","caller":"stamp_file","name":"meta\n        .modified","kind":"call","line":274}
-{"file":"src/workspace.rs","caller":"stamp_file","name":"t.duration_since(std::time::UNIX_EPOCH).ok","kind":"call","line":277}
-{"file":"src/workspace.rs","caller":"stamp_file","name":"t.duration_since","kind":"call","line":277}
-{"file":"src/workspace.rs","caller":"stamp_file","name":"d.as_millis","kind":"call","line":278}
-{"file":"src/workspace.rs","caller":"workspace_index","name":"Path","kind":"type_annotation","line":295}
-{"file":"src/workspace.rs","caller":"workspace_index","name":"Result","kind":"type_annotation","line":295}
-{"file":"src/workspace.rs","caller":"workspace_index","name":"read_manifest","kind":"call","line":296,"confidence":0.95}
-{"file":"src/workspace.rs","caller":"workspace_index","name":"manifest.members.len","kind":"call","line":297}
-{"file":"src/workspace.rs","caller":"workspace_index","name":"Default::default","kind":"call","line":305}
-{"file":"src/workspace.rs","caller":"workspace_index","name":"std::path::PathBuf::from","kind":"call","line":315}
-{"file":"src/workspace.rs","caller":"workspace_index","name":"path.exists","kind":"call","line":316}
-{"file":"src/workspace.rs","caller":"workspace_index","name":"path.join","kind":"call","line":325}
-{"file":"src/workspace.rs","caller":"workspace_index","name":"sigil_dir.exists","kind":"call","line":326}
-{"file":"src/workspace.rs","caller":"workspace_index","name":"crate::index::build_index","kind":"call","line":334}
-{"file":"src/workspace.rs","caller":"workspace_index","name":"sigil_dir.join","kind":"call","line":337}
-{"file":"src/workspace.rs","caller":"workspace_index","name":"sigil_dir.join","kind":"call","line":338}
-{"file":"src/workspace.rs","caller":"workspace_index","name":"stamp_file(&entities).unwrap_or","kind":"call","line":340}
-{"file":"src/workspace.rs","caller":"workspace_index","name":"stamp_file","kind":"call","line":340,"confidence":0.95}
-{"file":"src/workspace.rs","caller":"workspace_index","name":"refs.exists","kind":"call","line":341}
-{"file":"src/workspace.rs","caller":"workspace_index","name":"stamp_file(&refs).unwrap_or","kind":"call","line":342}
-{"file":"src/workspace.rs","caller":"workspace_index","name":"stamp_file","kind":"call","line":342,"confidence":0.95}
-{"file":"src/workspace.rs","caller":"workspace_index","name":"stamps.members.insert","kind":"call","line":347}
-{"file":"src/workspace.rs","caller":"workspace_index","name":"member.name.clone","kind":"call","line":348}
-{"file":"src/workspace.rs","caller":"workspace_index","name":"stamp_manifest_path","kind":"call","line":366,"confidence":0.95}
-{"file":"src/workspace.rs","caller":"workspace_index","name":"stamp_path.parent","kind":"call","line":367}
-{"file":"src/workspace.rs","caller":"workspace_index","name":"std::fs::create_dir_all(parent).ok","kind":"call","line":368}
-{"file":"src/workspace.rs","caller":"workspace_index","name":"std::fs::create_dir_all","kind":"call","line":368}
-{"file":"src/workspace.rs","caller":"workspace_index","name":"serde_json::to_string_pretty","kind":"call","line":370}
-{"file":"src/workspace.rs","caller":"workspace_index","name":"std::fs::write(&stamp_path, json + \"\\n\")\n        .with_context","kind":"call","line":371}
-{"file":"src/workspace.rs","caller":"workspace_index","name":"cross_repo_refs_path","kind":"call","line":375,"confidence":0.95}
-{"file":"src/workspace.rs","caller":"workspace_index","name":"cross.exists","kind":"call","line":376}
-{"file":"src/workspace.rs","caller":"workspace_index","name":"std::fs::write(&cross, \"\")\n            .with_context","kind":"call","line":377}
-{"file":"src/workspace.rs","caller":"list","name":"Path","kind":"type_annotation","line":391}
-{"file":"src/workspace.rs","caller":"list","name":"Result","kind":"type_annotation","line":391}
-{"file":"src/workspace.rs","caller":"list","name":"Vec","kind":"type_annotation","line":391}
-{"file":"src/workspace.rs","caller":"list","name":"WorkspaceMember","kind":"type_annotation","line":391}
-{"file":"src/workspace.rs","caller":"list","name":"read_manifest","kind":"call","line":392,"confidence":0.95}
-{"file":"src/workspace.rs","caller":"set_disabled","name":"Path","kind":"type_annotation","line":397}
-{"file":"src/workspace.rs","caller":"set_disabled","name":"Result","kind":"type_annotation","line":397}
-{"file":"src/workspace.rs","caller":"set_disabled","name":"read_manifest","kind":"call","line":398,"confidence":0.95}
-{"file":"src/workspace.rs","caller":"set_disabled","name":"canonicalize_input(Path::new(name_or_path)).ok","kind":"call","line":400}
-{"file":"src/workspace.rs","caller":"set_disabled","name":"canonicalize_input","kind":"call","line":400,"confidence":0.95}
-{"file":"src/workspace.rs","caller":"set_disabled","name":"Path::new","kind":"call","line":400}
-{"file":"src/workspace.rs","caller":"set_disabled","name":"canonical_input.as_ref().map","kind":"call","line":401}
-{"file":"src/workspace.rs","caller":"set_disabled","name":"canonical_input.as_ref","kind":"call","line":401}
-{"file":"src/workspace.rs","caller":"set_disabled","name":"p.to_string_lossy().to_string","kind":"call","line":401}
-{"file":"src/workspace.rs","caller":"set_disabled","name":"p.to_string_lossy","kind":"call","line":401}
-{"file":"src/workspace.rs","caller":"set_disabled","name":"manifest.members.iter_mut().find","kind":"call","line":403}
-{"file":"src/workspace.rs","caller":"set_disabled","name":"manifest.members.iter_mut","kind":"call","line":403}
-{"file":"src/workspace.rs","caller":"set_disabled","name":"canonical_str.as_deref().is_some_and","kind":"call","line":404}
-{"file":"src/workspace.rs","caller":"set_disabled","name":"canonical_str.as_deref","kind":"call","line":404}
-{"file":"src/workspace.rs","caller":"set_disabled","name":"write_manifest","kind":"call","line":417,"confidence":0.95}
-{"file":"src/workspace.rs","caller":"now_rfc3339","name":"String","kind":"type_annotation","line":424}
-{"file":"src/workspace.rs","name":"std::time::{SystemTime, UNIX_EPOCH}","kind":"import","line":425}
-{"file":"src/workspace.rs","caller":"now_rfc3339","name":"SystemTime::now()\n        .duration_since(UNIX_EPOCH)\n        .map(|d| d.as_secs())\n        .unwrap_or","kind":"call","line":426}
-{"file":"src/workspace.rs","caller":"now_rfc3339","name":"SystemTime::now()\n        .duration_since(UNIX_EPOCH)\n        .map","kind":"call","line":426}
-{"file":"src/workspace.rs","caller":"now_rfc3339","name":"SystemTime::now()\n        .duration_since","kind":"call","line":426}
-{"file":"src/workspace.rs","caller":"now_rfc3339","name":"SystemTime::now","kind":"call","line":426}
-{"file":"src/workspace.rs","caller":"now_rfc3339","name":"d.as_secs","kind":"call","line":428}
-{"file":"src/workspace.rs","caller":"now_rfc3339","name":"civil_datetime","kind":"call","line":430,"confidence":0.95}
-{"file":"src/workspace.rs","caller":"civil_datetime","name":"String","kind":"type_annotation","line":435}
-{"file":"src/workspace.rs","caller":"civil_datetime","name":"epoch_secs.div_euclid","kind":"call","line":439}
-{"file":"src/workspace.rs","caller":"civil_datetime","name":"epoch_secs.rem_euclid","kind":"call","line":440}
-{"file":"src/workspace.rs","caller":"WorkspaceRepo","name":"String","kind":"type_annotation","line":462}
-{"file":"src/workspace.rs","caller":"WorkspaceRepo","name":"String","kind":"type_annotation","line":463}
-{"file":"src/workspace.rs","caller":"scan","name":"Path","kind":"type_annotation","line":468}
-{"file":"src/workspace.rs","caller":"scan","name":"Vec","kind":"type_annotation","line":468}
-{"file":"src/workspace.rs","caller":"scan","name":"WorkspaceRepo","kind":"type_annotation","line":468}
-{"file":"src/workspace.rs","caller":"scan","name":"Vec::new","kind":"call","line":469}
-{"file":"src/workspace.rs","caller":"scan","name":"std::fs::read_dir","kind":"call","line":470}
-{"file":"src/workspace.rs","caller":"scan","name":"entries.flatten","kind":"call","line":474}
-{"file":"src/workspace.rs","caller":"scan","name":"entry.path","kind":"call","line":475}
-{"file":"src/workspace.rs","caller":"scan","name":"path.is_dir","kind":"call","line":476}
-{"file":"src/workspace.rs","caller":"scan","name":"path.join","kind":"call","line":479}
-{"file":"src/workspace.rs","caller":"scan","name":"git_meta.exists","kind":"call","line":480}
-{"file":"src/workspace.rs","caller":"scan","name":"path\n            .file_name()\n            .map(|n| n.to_string_lossy().to_string())\n            .unwrap_or_else","kind":"call","line":483}
-{"file":"src/workspace.rs","caller":"scan","name":"path\n            .file_name()\n            .map","kind":"call","line":483}
-{"file":"src/workspace.rs","caller":"scan","name":"path\n            .file_name","kind":"call","line":483}
-{"file":"src/workspace.rs","caller":"scan","name":"n.to_string_lossy().to_string","kind":"call","line":485}
-{"file":"src/workspace.rs","caller":"scan","name":"n.to_string_lossy","kind":"call","line":485}
-{"file":"src/workspace.rs","caller":"scan","name":"path.display().to_string","kind":"call","line":486}
-{"file":"src/workspace.rs","caller":"scan","name":"path.display","kind":"call","line":486}
-{"file":"src/workspace.rs","caller":"scan","name":"out.push","kind":"call","line":487}
-{"file":"src/workspace.rs","caller":"scan","name":"path.display().to_string","kind":"call","line":489}
-{"file":"src/workspace.rs","caller":"scan","name":"path.display","kind":"call","line":489}
-{"file":"src/workspace.rs","caller":"scan","name":"out.sort_by","kind":"call","line":492}
-{"file":"src/workspace.rs","caller":"scan","name":"a.repo.cmp","kind":"call","line":492}
-{"file":"src/workspace.rs","caller":"WorkspaceResolution","name":"String","kind":"type_annotation","line":505}
-{"file":"src/workspace.rs","caller":"WorkspaceResolution","name":"String","kind":"type_annotation","line":507}
-{"file":"src/workspace.rs","caller":"WorkspaceResolution","name":"String","kind":"type_annotation","line":509}
-{"file":"src/workspace.rs","caller":"WorkspaceResolution","name":"String","kind":"type_annotation","line":511}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"Path","kind":"type_annotation","line":535}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"Path","kind":"type_annotation","line":536}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"Vec","kind":"type_annotation","line":537}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"WorkspaceResolution","kind":"type_annotation","line":537}
-{"file":"src/workspace.rs","name":"serde_json::Value","kind":"import","line":538}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"Vec::new","kind":"call","line":539}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"focus_repo.join","kind":"call","line":541}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"std::fs::read_to_string","kind":"call","line":542}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"Vec::new","kind":"call","line":547}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"focus_text.lines","kind":"call","line":548}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"serde_json::from_str","kind":"call","line":549}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get(\"kind\").and_then","kind":"call","line":550}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get","kind":"call","line":550}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get(\"name\").and_then","kind":"call","line":553}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get","kind":"call","line":553}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"name.strip_prefix","kind":"call","line":554}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"wanted.push","kind":"call","line":555}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"modpath.to_string","kind":"call","line":555}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"wanted.is_empty","kind":"call","line":558}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"std::fs::canonicalize(focus_repo)\n        .unwrap_or_else","kind":"call","line":564}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"std::fs::canonicalize","kind":"call","line":564}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"focus_repo.to_path_buf","kind":"call","line":565}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"scan","kind":"call","line":567,"confidence":0.95}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"std::path::PathBuf::from","kind":"call","line":568}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"std::fs::canonicalize(&sibling_path)\n            .unwrap_or_else","kind":"call","line":569}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"std::fs::canonicalize","kind":"call","line":569}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"sibling_path.clone","kind":"call","line":570}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"sibling_path.join","kind":"call","line":574}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"std::fs::read_to_string","kind":"call","line":575}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"text.lines","kind":"call","line":578}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"serde_json::from_str","kind":"call","line":579}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get(\"kind\").and_then","kind":"call","line":580}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get","kind":"call","line":580}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get(\"name\").and_then(Value::as_str).unwrap_or","kind":"call","line":583}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get(\"name\").and_then","kind":"call","line":583}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get","kind":"call","line":583}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get(\"file\").and_then(Value::as_str).unwrap_or","kind":"call","line":584}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get(\"file\").and_then","kind":"call","line":584}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get","kind":"call","line":584}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get(\"qualified_name\").and_then","kind":"call","line":585}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get","kind":"call","line":585}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"w.rsplit(|c: char| c == '.' || c == '/').next().unwrap_or","kind":"call","line":590}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"w.rsplit(|c: char| c == '.' || c == '/').next","kind":"call","line":590}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"w.rsplit","kind":"call","line":590}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"out.push","kind":"call","line":592}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"w.clone","kind":"call","line":593}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"sibling.repo.clone","kind":"call","line":594}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"file.to_string","kind":"call","line":595}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"name.to_string","kind":"call","line":596}
-{"file":"src/workspace.rs","caller":"paths","name":"Path","kind":"type_annotation","line":608}
-{"file":"src/workspace.rs","caller":"paths","name":"Vec","kind":"type_annotation","line":608}
-{"file":"src/workspace.rs","caller":"paths","name":"PathBuf","kind":"type_annotation","line":608}
-{"file":"src/workspace.rs","caller":"paths","name":"scan(parent)\n        .into_iter()\n        .map(|r| PathBuf::from(r.path))\n        .collect","kind":"call","line":609}
-{"file":"src/workspace.rs","caller":"paths","name":"scan(parent)\n        .into_iter()\n        .map","kind":"call","line":609}
-{"file":"src/workspace.rs","caller":"paths","name":"scan(parent)\n        .into_iter","kind":"call","line":609}
-{"file":"src/workspace.rs","caller":"paths","name":"scan","kind":"call","line":609,"confidence":0.95}
-{"file":"src/workspace.rs","caller":"paths","name":"PathBuf::from","kind":"call","line":611}
+{"file":"src/workspace.rs","caller":"member_canonical_names","name":"Path","kind":"type_annotation","line":220}
+{"file":"src/workspace.rs","caller":"member_canonical_names","name":"Vec","kind":"type_annotation","line":220}
+{"file":"src/workspace.rs","caller":"member_canonical_names","name":"String","kind":"type_annotation","line":220}
+{"file":"src/workspace.rs","caller":"member_canonical_names","name":"Vec::new","kind":"call","line":221}
+{"file":"src/workspace.rs","caller":"member_canonical_names","name":"member_path.join","kind":"call","line":224}
+{"file":"src/workspace.rs","caller":"member_canonical_names","name":"std::fs::read_to_string","kind":"call","line":225}
+{"file":"src/workspace.rs","caller":"member_canonical_names","name":"v.get(\"name\").and_then","kind":"call","line":227}
+{"file":"src/workspace.rs","caller":"member_canonical_names","name":"v.get","kind":"call","line":227}
+{"file":"src/workspace.rs","caller":"member_canonical_names","name":"n.as_str","kind":"call","line":227}
+{"file":"src/workspace.rs","caller":"member_canonical_names","name":"name.is_empty","kind":"call","line":228}
+{"file":"src/workspace.rs","caller":"member_canonical_names","name":"out.push","kind":"call","line":230}
+{"file":"src/workspace.rs","caller":"member_canonical_names","name":"name.to_string","kind":"call","line":230}
+{"file":"src/workspace.rs","caller":"member_canonical_names","name":"member_path.join","kind":"call","line":234}
+{"file":"src/workspace.rs","caller":"member_canonical_names","name":"std::fs::read_to_string","kind":"call","line":235}
+{"file":"src/workspace.rs","caller":"member_canonical_names","name":"text.lines","kind":"call","line":236}
+{"file":"src/workspace.rs","caller":"member_canonical_names","name":"line.trim().strip_prefix","kind":"call","line":237}
+{"file":"src/workspace.rs","caller":"member_canonical_names","name":"line.trim","kind":"call","line":237}
+{"file":"src/workspace.rs","caller":"member_canonical_names","name":"rest.split_whitespace().next","kind":"call","line":238}
+{"file":"src/workspace.rs","caller":"member_canonical_names","name":"rest.split_whitespace","kind":"call","line":238}
+{"file":"src/workspace.rs","caller":"member_canonical_names","name":"out.push","kind":"call","line":240}
+{"file":"src/workspace.rs","caller":"member_canonical_names","name":"m.to_string","kind":"call","line":240}
+{"file":"src/workspace.rs","caller":"member_canonical_names","name":"member_path.join","kind":"call","line":247}
+{"file":"src/workspace.rs","caller":"member_canonical_names","name":"std::fs::read_to_string","kind":"call","line":248}
+{"file":"src/workspace.rs","caller":"member_canonical_names","name":"doc\n            .get(\"package\")\n            .and_then(|p| p.get(\"name\"))\n            .and_then","kind":"call","line":250}
+{"file":"src/workspace.rs","caller":"member_canonical_names","name":"doc\n            .get(\"package\")\n            .and_then","kind":"call","line":250}
+{"file":"src/workspace.rs","caller":"member_canonical_names","name":"doc\n            .get","kind":"call","line":250}
+{"file":"src/workspace.rs","caller":"member_canonical_names","name":"p.get","kind":"call","line":252}
+{"file":"src/workspace.rs","caller":"member_canonical_names","name":"n.as_str","kind":"call","line":253}
+{"file":"src/workspace.rs","caller":"member_canonical_names","name":"out.push","kind":"call","line":255}
+{"file":"src/workspace.rs","caller":"member_canonical_names","name":"name.to_string","kind":"call","line":255}
+{"file":"src/workspace.rs","caller":"member_declared_deps","name":"Path","kind":"type_annotation","line":264}
+{"file":"src/workspace.rs","caller":"member_declared_deps","name":"std::collections::HashSet","kind":"type_annotation","line":264}
+{"file":"src/workspace.rs","caller":"member_declared_deps","name":"String","kind":"type_annotation","line":264}
+{"file":"src/workspace.rs","caller":"member_declared_deps","name":"std::collections::HashSet::new","kind":"call","line":265}
+{"file":"src/workspace.rs","caller":"member_declared_deps","name":"member_path.join","kind":"call","line":268}
+{"file":"src/workspace.rs","caller":"member_declared_deps","name":"std::fs::read_to_string","kind":"call","line":269}
+{"file":"src/workspace.rs","caller":"member_declared_deps","name":"v.get(*section).and_then","kind":"call","line":273}
+{"file":"src/workspace.rs","caller":"member_declared_deps","name":"v.get","kind":"call","line":273}
+{"file":"src/workspace.rs","caller":"member_declared_deps","name":"x.as_object","kind":"call","line":273}
+{"file":"src/workspace.rs","caller":"member_declared_deps","name":"map.keys","kind":"call","line":274}
+{"file":"src/workspace.rs","caller":"member_declared_deps","name":"out.insert","kind":"call","line":275}
+{"file":"src/workspace.rs","caller":"member_declared_deps","name":"key.clone","kind":"call","line":275}
+{"file":"src/workspace.rs","caller":"member_declared_deps","name":"member_path.join","kind":"call","line":282}
+{"file":"src/workspace.rs","caller":"member_declared_deps","name":"std::fs::read_to_string","kind":"call","line":283}
+{"file":"src/workspace.rs","caller":"member_declared_deps","name":"crate::package_deps::parse_go_mod","kind":"call","line":284}
+{"file":"src/workspace.rs","caller":"member_declared_deps","name":"out.insert","kind":"call","line":285}
+{"file":"src/workspace.rs","caller":"member_declared_deps","name":"member_path.join","kind":"call","line":290}
+{"file":"src/workspace.rs","caller":"member_declared_deps","name":"std::fs::read_to_string","kind":"call","line":291}
+{"file":"src/workspace.rs","caller":"member_declared_deps","name":"doc.get(\"dependencies\").and_then","kind":"call","line":293}
+{"file":"src/workspace.rs","caller":"member_declared_deps","name":"doc.get","kind":"call","line":293}
+{"file":"src/workspace.rs","caller":"member_declared_deps","name":"d.as_table","kind":"call","line":293}
+{"file":"src/workspace.rs","caller":"member_declared_deps","name":"deps.keys","kind":"call","line":295}
+{"file":"src/workspace.rs","caller":"member_declared_deps","name":"out.insert","kind":"call","line":296}
+{"file":"src/workspace.rs","caller":"member_declared_deps","name":"key.clone","kind":"call","line":296}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"Path","kind":"type_annotation","line":319}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"Result","kind":"type_annotation","line":319}
+{"file":"src/workspace.rs","name":"serde_json::Value","kind":"import","line":320}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"list(workspace_root)?\n        .into_iter()\n        .filter(|m| !m.disabled)\n        .collect","kind":"call","line":322}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"list(workspace_root)?\n        .into_iter()\n        .filter","kind":"call","line":322}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"list(workspace_root)?\n        .into_iter","kind":"call","line":322}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"list","kind":"call","line":322,"confidence":0.95}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"members.len","kind":"call","line":327}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"cross_repo_refs_path","kind":"call","line":331,"confidence":0.95}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"cross.parent","kind":"call","line":332}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"std::fs::create_dir_all(parent).ok","kind":"call","line":333}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"std::fs::create_dir_all","kind":"call","line":333}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"std::fs::write(&cross, \"\")\n            .with_context","kind":"call","line":335}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"std::collections::HashMap::new","kind":"call","line":345}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"std::collections::HashMap::new","kind":"call","line":351}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"std::collections::HashMap::new","kind":"call","line":354}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"std::path::Path::new","kind":"call","line":357}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"member_canonical.insert","kind":"call","line":358}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"m.name.clone","kind":"call","line":358}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"member_canonical_names","kind":"call","line":358,"confidence":0.95}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"member_deps.insert","kind":"call","line":359}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"m.name.clone","kind":"call","line":359}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"member_declared_deps","kind":"call","line":359,"confidence":0.95}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"mp.join","kind":"call","line":361}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"std::fs::read_to_string","kind":"call","line":362}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"text.lines","kind":"call","line":363}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"serde_json::from_str","kind":"call","line":364}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"v.get(\"kind\").and_then(Value::as_str).unwrap_or","kind":"call","line":365}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"v.get(\"kind\").and_then","kind":"call","line":365}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"v.get","kind":"call","line":365}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"v.get(\"name\").and_then(Value::as_str).unwrap_or(\"\").to_string","kind":"call","line":370}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"v.get(\"name\").and_then(Value::as_str).unwrap_or","kind":"call","line":370}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"v.get(\"name\").and_then","kind":"call","line":370}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"v.get","kind":"call","line":370}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"v.get(\"file\").and_then(Value::as_str).unwrap_or(\"\").to_string","kind":"call","line":371}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"v.get(\"file\").and_then(Value::as_str).unwrap_or","kind":"call","line":371}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"v.get(\"file\").and_then","kind":"call","line":371}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"v.get","kind":"call","line":371}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"name.is_empty","kind":"call","line":372}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"file.is_empty","kind":"call","line":372}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"leaf_segment(&name).to_string","kind":"call","line":375}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"leaf_segment","kind":"call","line":375,"confidence":0.95}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"providers\n                .entry(leaf)\n                .or_default()\n                .push","kind":"call","line":376}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"providers\n                .entry(leaf)\n                .or_default","kind":"call","line":376}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"providers\n                .entry","kind":"call","line":376}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"m.name.clone","kind":"call","line":379}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"Vec::new","kind":"call","line":383}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"std::path::Path::new(&consumer.path).join","kind":"call","line":387}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"std::path::Path::new","kind":"call","line":387}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"std::fs::read_to_string","kind":"call","line":388}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"text.lines","kind":"call","line":389}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"serde_json::from_str","kind":"call","line":390}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"v.get(\"kind\").and_then","kind":"call","line":391}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"v.get","kind":"call","line":391}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"v.get(\"name\").and_then(Value::as_str).unwrap_or","kind":"call","line":394}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"v.get(\"name\").and_then","kind":"call","line":394}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"v.get","kind":"call","line":394}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"raw_name.strip_prefix","kind":"call","line":395}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"leaf_segment","kind":"call","line":396,"confidence":0.95}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"leaf.is_empty","kind":"call","line":397}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"providers\n                .get(leaf)\n                .map(|v| v.iter().filter(|(member, _, _)| member != &consumer.name).collect())\n                .unwrap_or_default","kind":"call","line":402}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"providers\n                .get(leaf)\n                .map","kind":"call","line":402}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"providers\n                .get","kind":"call","line":402}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"v.iter().filter(|(member, _, _)| member != &consumer.name).collect","kind":"call","line":404}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"v.iter().filter","kind":"call","line":404}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"v.iter","kind":"call","line":404}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"candidates.is_empty","kind":"call","line":406}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"candidates.sort_by","kind":"call","line":412}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"(a.0.as_str(), a.1.as_str()).cmp","kind":"call","line":412}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"a.0.as_str","kind":"call","line":412}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"a.1.as_str","kind":"call","line":412}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"b.0.as_str","kind":"call","line":412}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"b.1.as_str","kind":"call","line":412}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"CROSS_REPO_CAP_PER_SENTINEL.min","kind":"call","line":414}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"candidates.len","kind":"call","line":414}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"candidates.len","kind":"call","line":415}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"candidates.iter().take","kind":"call","line":417}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"candidates.iter","kind":"call","line":417}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"member_canonical\n                    .get(provider_name)\n                    .map(|names| {\n                        let deps = member_deps.get(&consumer.name);\n                        match deps {\n                            Some(s) => names.iter().any(|n| s.contains(n)),\n                            None => false,\n                        }\n                    })\n                    .unwrap_or","kind":"call","line":420}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"member_canonical\n                    .get(provider_name)\n                    .map","kind":"call","line":420}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"member_canonical\n                    .get","kind":"call","line":420}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"member_deps.get","kind":"call","line":423}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"names.iter().any","kind":"call","line":425}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"names.iter","kind":"call","line":425}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"s.contains","kind":"call","line":425}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"out_lines.push","kind":"call","line":452}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"row.to_string","kind":"call","line":452}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"cross_repo_refs_path","kind":"call","line":458,"confidence":0.95}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"cross.parent","kind":"call","line":459}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"std::fs::create_dir_all(parent).ok","kind":"call","line":460}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"std::fs::create_dir_all","kind":"call","line":460}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"out_lines.is_empty","kind":"call","line":462}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"String::new","kind":"call","line":463}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"out_lines.join","kind":"call","line":465}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"s.push","kind":"call","line":466}
+{"file":"src/workspace.rs","caller":"resolve_workspace_cross_repo","name":"std::fs::write(&cross, body)\n        .with_context","kind":"call","line":469}
+{"file":"src/workspace.rs","caller":"leaf_segment","name":"s.rsplit(|c: char| c == '.' || c == '/' || c == ':')\n        .next()\n        .unwrap_or","kind":"call","line":476}
+{"file":"src/workspace.rs","caller":"leaf_segment","name":"s.rsplit(|c: char| c == '.' || c == '/' || c == ':')\n        .next","kind":"call","line":476}
+{"file":"src/workspace.rs","caller":"leaf_segment","name":"s.rsplit","kind":"call","line":476}
+{"file":"src/workspace.rs","caller":"remove","name":"Path","kind":"type_annotation","line":487}
+{"file":"src/workspace.rs","caller":"remove","name":"Result","kind":"type_annotation","line":487}
+{"file":"src/workspace.rs","caller":"remove","name":"read_manifest","kind":"call","line":488,"confidence":0.95}
+{"file":"src/workspace.rs","caller":"remove","name":"canonicalize_input(Path::new(name_or_path)).ok","kind":"call","line":490}
+{"file":"src/workspace.rs","caller":"remove","name":"canonicalize_input","kind":"call","line":490,"confidence":0.95}
+{"file":"src/workspace.rs","caller":"remove","name":"Path::new","kind":"call","line":490}
+{"file":"src/workspace.rs","caller":"remove","name":"canonical_input.as_ref().map","kind":"call","line":491}
+{"file":"src/workspace.rs","caller":"remove","name":"canonical_input.as_ref","kind":"call","line":491}
+{"file":"src/workspace.rs","caller":"remove","name":"p.to_string_lossy().to_string","kind":"call","line":491}
+{"file":"src/workspace.rs","caller":"remove","name":"p.to_string_lossy","kind":"call","line":491}
+{"file":"src/workspace.rs","caller":"remove","name":"manifest.members.len","kind":"call","line":493}
+{"file":"src/workspace.rs","caller":"remove","name":"manifest.members.retain","kind":"call","line":494}
+{"file":"src/workspace.rs","caller":"remove","name":"canonical_str.as_deref().is_some_and","kind":"call","line":496}
+{"file":"src/workspace.rs","caller":"remove","name":"canonical_str.as_deref","kind":"call","line":496}
+{"file":"src/workspace.rs","caller":"remove","name":"manifest.members.len","kind":"call","line":499}
+{"file":"src/workspace.rs","caller":"remove","name":"write_manifest","kind":"call","line":510,"confidence":0.95}
+{"file":"src/workspace.rs","caller":"StampManifest","name":"std::collections::BTreeMap","kind":"type_annotation","line":530}
+{"file":"src/workspace.rs","caller":"StampManifest","name":"MemberStamp","kind":"type_annotation","line":530}
+{"file":"src/workspace.rs","caller":"StampManifest","name":"String","kind":"type_annotation","line":530}
+{"file":"src/workspace.rs","caller":"stamp_manifest_path","name":"Path","kind":"type_annotation","line":533}
+{"file":"src/workspace.rs","caller":"stamp_manifest_path","name":"PathBuf","kind":"type_annotation","line":533}
+{"file":"src/workspace.rs","caller":"stamp_manifest_path","name":"workspace_root.join(\".sigil-workspace\").join","kind":"call","line":534}
+{"file":"src/workspace.rs","caller":"stamp_manifest_path","name":"workspace_root.join","kind":"call","line":534}
+{"file":"src/workspace.rs","caller":"cross_repo_refs_path","name":"Path","kind":"type_annotation","line":537}
+{"file":"src/workspace.rs","caller":"cross_repo_refs_path","name":"PathBuf","kind":"type_annotation","line":537}
+{"file":"src/workspace.rs","caller":"cross_repo_refs_path","name":"workspace_root.join(\".sigil-workspace\").join","kind":"call","line":538}
+{"file":"src/workspace.rs","caller":"cross_repo_refs_path","name":"workspace_root.join","kind":"call","line":538}
+{"file":"src/workspace.rs","caller":"stamp_file","name":"Path","kind":"type_annotation","line":541}
+{"file":"src/workspace.rs","caller":"stamp_file","name":"Result","kind":"type_annotation","line":541}
+{"file":"src/workspace.rs","caller":"stamp_file","name":"std::fs::metadata(p)\n        .with_context","kind":"call","line":542}
+{"file":"src/workspace.rs","caller":"stamp_file","name":"std::fs::metadata","kind":"call","line":542}
+{"file":"src/workspace.rs","caller":"stamp_file","name":"meta.len","kind":"call","line":544}
+{"file":"src/workspace.rs","caller":"stamp_file","name":"meta\n        .modified()\n        .ok()\n        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())\n        .map(|d| d.as_millis() as i128)\n        .unwrap_or","kind":"call","line":545}
+{"file":"src/workspace.rs","caller":"stamp_file","name":"meta\n        .modified()\n        .ok()\n        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())\n        .map","kind":"call","line":545}
+{"file":"src/workspace.rs","caller":"stamp_file","name":"meta\n        .modified()\n        .ok()\n        .and_then","kind":"call","line":545}
+{"file":"src/workspace.rs","caller":"stamp_file","name":"meta\n        .modified()\n        .ok","kind":"call","line":545}
+{"file":"src/workspace.rs","caller":"stamp_file","name":"meta\n        .modified","kind":"call","line":545}
+{"file":"src/workspace.rs","caller":"stamp_file","name":"t.duration_since(std::time::UNIX_EPOCH).ok","kind":"call","line":548}
+{"file":"src/workspace.rs","caller":"stamp_file","name":"t.duration_since","kind":"call","line":548}
+{"file":"src/workspace.rs","caller":"stamp_file","name":"d.as_millis","kind":"call","line":549}
+{"file":"src/workspace.rs","caller":"workspace_index","name":"Path","kind":"type_annotation","line":566}
+{"file":"src/workspace.rs","caller":"workspace_index","name":"Result","kind":"type_annotation","line":566}
+{"file":"src/workspace.rs","caller":"workspace_index","name":"read_manifest","kind":"call","line":567,"confidence":0.95}
+{"file":"src/workspace.rs","caller":"workspace_index","name":"manifest.members.len","kind":"call","line":568}
+{"file":"src/workspace.rs","caller":"workspace_index","name":"Default::default","kind":"call","line":576}
+{"file":"src/workspace.rs","caller":"workspace_index","name":"std::path::PathBuf::from","kind":"call","line":586}
+{"file":"src/workspace.rs","caller":"workspace_index","name":"path.exists","kind":"call","line":587}
+{"file":"src/workspace.rs","caller":"workspace_index","name":"path.join","kind":"call","line":596}
+{"file":"src/workspace.rs","caller":"workspace_index","name":"sigil_dir.exists","kind":"call","line":597}
+{"file":"src/workspace.rs","caller":"workspace_index","name":"crate::index::build_index","kind":"call","line":605}
+{"file":"src/workspace.rs","caller":"workspace_index","name":"sigil_dir.join","kind":"call","line":608}
+{"file":"src/workspace.rs","caller":"workspace_index","name":"sigil_dir.join","kind":"call","line":609}
+{"file":"src/workspace.rs","caller":"workspace_index","name":"stamp_file(&entities).unwrap_or","kind":"call","line":611}
+{"file":"src/workspace.rs","caller":"workspace_index","name":"stamp_file","kind":"call","line":611,"confidence":0.95}
+{"file":"src/workspace.rs","caller":"workspace_index","name":"refs.exists","kind":"call","line":612}
+{"file":"src/workspace.rs","caller":"workspace_index","name":"stamp_file(&refs).unwrap_or","kind":"call","line":613}
+{"file":"src/workspace.rs","caller":"workspace_index","name":"stamp_file","kind":"call","line":613,"confidence":0.95}
+{"file":"src/workspace.rs","caller":"workspace_index","name":"stamps.members.insert","kind":"call","line":618}
+{"file":"src/workspace.rs","caller":"workspace_index","name":"member.name.clone","kind":"call","line":619}
+{"file":"src/workspace.rs","caller":"workspace_index","name":"stamp_manifest_path","kind":"call","line":637,"confidence":0.95}
+{"file":"src/workspace.rs","caller":"workspace_index","name":"stamp_path.parent","kind":"call","line":638}
+{"file":"src/workspace.rs","caller":"workspace_index","name":"std::fs::create_dir_all(parent).ok","kind":"call","line":639}
+{"file":"src/workspace.rs","caller":"workspace_index","name":"std::fs::create_dir_all","kind":"call","line":639}
+{"file":"src/workspace.rs","caller":"workspace_index","name":"serde_json::to_string_pretty","kind":"call","line":641}
+{"file":"src/workspace.rs","caller":"workspace_index","name":"std::fs::write(&stamp_path, json + \"\\n\")\n        .with_context","kind":"call","line":642}
+{"file":"src/workspace.rs","caller":"workspace_index","name":"resolve_workspace_cross_repo","kind":"call","line":648,"confidence":0.95}
+{"file":"src/workspace.rs","caller":"list","name":"Path","kind":"type_annotation","line":661}
+{"file":"src/workspace.rs","caller":"list","name":"Result","kind":"type_annotation","line":661}
+{"file":"src/workspace.rs","caller":"list","name":"Vec","kind":"type_annotation","line":661}
+{"file":"src/workspace.rs","caller":"list","name":"WorkspaceMember","kind":"type_annotation","line":661}
+{"file":"src/workspace.rs","caller":"list","name":"read_manifest","kind":"call","line":662,"confidence":0.95}
+{"file":"src/workspace.rs","caller":"set_disabled","name":"Path","kind":"type_annotation","line":667}
+{"file":"src/workspace.rs","caller":"set_disabled","name":"Result","kind":"type_annotation","line":667}
+{"file":"src/workspace.rs","caller":"set_disabled","name":"read_manifest","kind":"call","line":668,"confidence":0.95}
+{"file":"src/workspace.rs","caller":"set_disabled","name":"canonicalize_input(Path::new(name_or_path)).ok","kind":"call","line":670}
+{"file":"src/workspace.rs","caller":"set_disabled","name":"canonicalize_input","kind":"call","line":670,"confidence":0.95}
+{"file":"src/workspace.rs","caller":"set_disabled","name":"Path::new","kind":"call","line":670}
+{"file":"src/workspace.rs","caller":"set_disabled","name":"canonical_input.as_ref().map","kind":"call","line":671}
+{"file":"src/workspace.rs","caller":"set_disabled","name":"canonical_input.as_ref","kind":"call","line":671}
+{"file":"src/workspace.rs","caller":"set_disabled","name":"p.to_string_lossy().to_string","kind":"call","line":671}
+{"file":"src/workspace.rs","caller":"set_disabled","name":"p.to_string_lossy","kind":"call","line":671}
+{"file":"src/workspace.rs","caller":"set_disabled","name":"manifest.members.iter_mut().find","kind":"call","line":673}
+{"file":"src/workspace.rs","caller":"set_disabled","name":"manifest.members.iter_mut","kind":"call","line":673}
+{"file":"src/workspace.rs","caller":"set_disabled","name":"canonical_str.as_deref().is_some_and","kind":"call","line":674}
+{"file":"src/workspace.rs","caller":"set_disabled","name":"canonical_str.as_deref","kind":"call","line":674}
+{"file":"src/workspace.rs","caller":"set_disabled","name":"write_manifest","kind":"call","line":687,"confidence":0.95}
+{"file":"src/workspace.rs","caller":"now_rfc3339","name":"String","kind":"type_annotation","line":694}
+{"file":"src/workspace.rs","name":"std::time::{SystemTime, UNIX_EPOCH}","kind":"import","line":695}
+{"file":"src/workspace.rs","caller":"now_rfc3339","name":"SystemTime::now()\n        .duration_since(UNIX_EPOCH)\n        .map(|d| d.as_secs())\n        .unwrap_or","kind":"call","line":696}
+{"file":"src/workspace.rs","caller":"now_rfc3339","name":"SystemTime::now()\n        .duration_since(UNIX_EPOCH)\n        .map","kind":"call","line":696}
+{"file":"src/workspace.rs","caller":"now_rfc3339","name":"SystemTime::now()\n        .duration_since","kind":"call","line":696}
+{"file":"src/workspace.rs","caller":"now_rfc3339","name":"SystemTime::now","kind":"call","line":696}
+{"file":"src/workspace.rs","caller":"now_rfc3339","name":"d.as_secs","kind":"call","line":698}
+{"file":"src/workspace.rs","caller":"now_rfc3339","name":"civil_datetime","kind":"call","line":700,"confidence":0.95}
+{"file":"src/workspace.rs","caller":"civil_datetime","name":"String","kind":"type_annotation","line":705}
+{"file":"src/workspace.rs","caller":"civil_datetime","name":"epoch_secs.div_euclid","kind":"call","line":709}
+{"file":"src/workspace.rs","caller":"civil_datetime","name":"epoch_secs.rem_euclid","kind":"call","line":710}
+{"file":"src/workspace.rs","caller":"WorkspaceRepo","name":"String","kind":"type_annotation","line":732}
+{"file":"src/workspace.rs","caller":"WorkspaceRepo","name":"String","kind":"type_annotation","line":733}
+{"file":"src/workspace.rs","caller":"scan","name":"Path","kind":"type_annotation","line":738}
+{"file":"src/workspace.rs","caller":"scan","name":"Vec","kind":"type_annotation","line":738}
+{"file":"src/workspace.rs","caller":"scan","name":"WorkspaceRepo","kind":"type_annotation","line":738}
+{"file":"src/workspace.rs","caller":"scan","name":"Vec::new","kind":"call","line":739}
+{"file":"src/workspace.rs","caller":"scan","name":"std::fs::read_dir","kind":"call","line":740}
+{"file":"src/workspace.rs","caller":"scan","name":"entries.flatten","kind":"call","line":744}
+{"file":"src/workspace.rs","caller":"scan","name":"entry.path","kind":"call","line":745}
+{"file":"src/workspace.rs","caller":"scan","name":"path.is_dir","kind":"call","line":746}
+{"file":"src/workspace.rs","caller":"scan","name":"path.join","kind":"call","line":749}
+{"file":"src/workspace.rs","caller":"scan","name":"git_meta.exists","kind":"call","line":750}
+{"file":"src/workspace.rs","caller":"scan","name":"path\n            .file_name()\n            .map(|n| n.to_string_lossy().to_string())\n            .unwrap_or_else","kind":"call","line":753}
+{"file":"src/workspace.rs","caller":"scan","name":"path\n            .file_name()\n            .map","kind":"call","line":753}
+{"file":"src/workspace.rs","caller":"scan","name":"path\n            .file_name","kind":"call","line":753}
+{"file":"src/workspace.rs","caller":"scan","name":"n.to_string_lossy().to_string","kind":"call","line":755}
+{"file":"src/workspace.rs","caller":"scan","name":"n.to_string_lossy","kind":"call","line":755}
+{"file":"src/workspace.rs","caller":"scan","name":"path.display().to_string","kind":"call","line":756}
+{"file":"src/workspace.rs","caller":"scan","name":"path.display","kind":"call","line":756}
+{"file":"src/workspace.rs","caller":"scan","name":"out.push","kind":"call","line":757}
+{"file":"src/workspace.rs","caller":"scan","name":"path.display().to_string","kind":"call","line":759}
+{"file":"src/workspace.rs","caller":"scan","name":"path.display","kind":"call","line":759}
+{"file":"src/workspace.rs","caller":"scan","name":"out.sort_by","kind":"call","line":762}
+{"file":"src/workspace.rs","caller":"scan","name":"a.repo.cmp","kind":"call","line":762}
+{"file":"src/workspace.rs","caller":"WorkspaceResolution","name":"String","kind":"type_annotation","line":775}
+{"file":"src/workspace.rs","caller":"WorkspaceResolution","name":"String","kind":"type_annotation","line":777}
+{"file":"src/workspace.rs","caller":"WorkspaceResolution","name":"String","kind":"type_annotation","line":779}
+{"file":"src/workspace.rs","caller":"WorkspaceResolution","name":"String","kind":"type_annotation","line":781}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"Path","kind":"type_annotation","line":805}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"Path","kind":"type_annotation","line":806}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"Vec","kind":"type_annotation","line":807}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"WorkspaceResolution","kind":"type_annotation","line":807}
+{"file":"src/workspace.rs","name":"serde_json::Value","kind":"import","line":808}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"Vec::new","kind":"call","line":809}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"focus_repo.join","kind":"call","line":811}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"std::fs::read_to_string","kind":"call","line":812}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"Vec::new","kind":"call","line":817}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"focus_text.lines","kind":"call","line":818}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"serde_json::from_str","kind":"call","line":819}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get(\"kind\").and_then","kind":"call","line":820}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get","kind":"call","line":820}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get(\"name\").and_then","kind":"call","line":823}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get","kind":"call","line":823}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"name.strip_prefix","kind":"call","line":824}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"wanted.push","kind":"call","line":825}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"modpath.to_string","kind":"call","line":825}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"wanted.is_empty","kind":"call","line":828}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"std::fs::canonicalize(focus_repo)\n        .unwrap_or_else","kind":"call","line":834}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"std::fs::canonicalize","kind":"call","line":834}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"focus_repo.to_path_buf","kind":"call","line":835}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"scan","kind":"call","line":837,"confidence":0.95}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"std::path::PathBuf::from","kind":"call","line":838}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"std::fs::canonicalize(&sibling_path)\n            .unwrap_or_else","kind":"call","line":839}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"std::fs::canonicalize","kind":"call","line":839}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"sibling_path.clone","kind":"call","line":840}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"sibling_path.join","kind":"call","line":844}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"std::fs::read_to_string","kind":"call","line":845}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"text.lines","kind":"call","line":848}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"serde_json::from_str","kind":"call","line":849}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get(\"kind\").and_then","kind":"call","line":850}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get","kind":"call","line":850}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get(\"name\").and_then(Value::as_str).unwrap_or","kind":"call","line":853}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get(\"name\").and_then","kind":"call","line":853}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get","kind":"call","line":853}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get(\"file\").and_then(Value::as_str).unwrap_or","kind":"call","line":854}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get(\"file\").and_then","kind":"call","line":854}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get","kind":"call","line":854}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get(\"qualified_name\").and_then","kind":"call","line":855}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get","kind":"call","line":855}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"w.rsplit(|c: char| c == '.' || c == '/').next().unwrap_or","kind":"call","line":860}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"w.rsplit(|c: char| c == '.' || c == '/').next","kind":"call","line":860}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"w.rsplit","kind":"call","line":860}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"out.push","kind":"call","line":862}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"w.clone","kind":"call","line":863}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"sibling.repo.clone","kind":"call","line":864}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"file.to_string","kind":"call","line":865}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"name.to_string","kind":"call","line":866}
+{"file":"src/workspace.rs","caller":"paths","name":"Path","kind":"type_annotation","line":878}
+{"file":"src/workspace.rs","caller":"paths","name":"Vec","kind":"type_annotation","line":878}
+{"file":"src/workspace.rs","caller":"paths","name":"PathBuf","kind":"type_annotation","line":878}
+{"file":"src/workspace.rs","caller":"paths","name":"scan(parent)\n        .into_iter()\n        .map(|r| PathBuf::from(r.path))\n        .collect","kind":"call","line":879}
+{"file":"src/workspace.rs","caller":"paths","name":"scan(parent)\n        .into_iter()\n        .map","kind":"call","line":879}
+{"file":"src/workspace.rs","caller":"paths","name":"scan(parent)\n        .into_iter","kind":"call","line":879}
+{"file":"src/workspace.rs","caller":"paths","name":"scan","kind":"call","line":879,"confidence":0.95}
+{"file":"src/workspace.rs","caller":"paths","name":"PathBuf::from","kind":"call","line":881}
 {"file":"src/writer.rs","name":"std::io::Write","kind":"import","line":1}
 {"file":"src/writer.rs","name":"std::path::Path","kind":"import","line":2}
 {"file":"src/writer.rs","name":"crate::entity::{Entity, Reference}","kind":"import","line":3}
@@ -27644,3 +27795,284 @@
 {"file":"tests/workspace_integration.rs","caller":"workspace_load_includes_cross_repo_refs","name":"serde_json::from_slice","kind":"call","line":822}
 {"file":"tests/workspace_integration.rs","caller":"workspace_load_includes_cross_repo_refs","name":"parsed.as_array().unwrap","kind":"call","line":823}
 {"file":"tests/workspace_integration.rs","caller":"workspace_load_includes_cross_repo_refs","name":"parsed.as_array","kind":"call","line":823}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"TempDir::new().unwrap","kind":"call","line":840,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"TempDir::new","kind":"call","line":840,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"tempfile::TempDir/new().unwrap","kind":"call","line":840,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"tempfile::TempDir/new","kind":"call","line":840,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"tmp.path().join","kind":"call","line":841}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"tmp.path","kind":"call","line":841}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"tmp.path().join","kind":"call","line":842}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"tmp.path","kind":"call","line":842}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"tmp.path().join","kind":"call","line":843}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"tmp.path","kind":"call","line":843}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"fs::create_dir_all(&ws).unwrap","kind":"call","line":844,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"fs::create_dir_all","kind":"call","line":844,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"std::fs/create_dir_all(&ws).unwrap","kind":"call","line":844,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"std::fs/create_dir_all","kind":"call","line":844,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"init_repo","kind":"call","line":845,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"init_repo","kind":"call","line":846,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"write_fake_sigil","kind":"call","line":851,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"write_fake_sigil","kind":"call","line":856,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"sigil","kind":"call","line":858,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"ws.to_str().unwrap","kind":"call","line":858}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"ws.to_str","kind":"call","line":858}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"sigil","kind":"call","line":859,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"consumer.to_str().unwrap","kind":"call","line":859}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"consumer.to_str","kind":"call","line":859}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"ws.to_str().unwrap","kind":"call","line":859}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"ws.to_str","kind":"call","line":859}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"sigil","kind":"call","line":860,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"provider.to_str().unwrap","kind":"call","line":860}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"provider.to_str","kind":"call","line":860}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"ws.to_str().unwrap","kind":"call","line":860}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"ws.to_str","kind":"call","line":860}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"sigil","kind":"call","line":861,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"ws.to_str().unwrap","kind":"call","line":861}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"ws.to_str","kind":"call","line":861}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"ws.join","kind":"call","line":864}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"fs::read_to_string(&cross_path).unwrap","kind":"call","line":865,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"fs::read_to_string","kind":"call","line":865,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"std::fs/read_to_string(&cross_path).unwrap","kind":"call","line":865,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"std::fs/read_to_string","kind":"call","line":865,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"text\n        .lines()\n        .filter(|l| !l.is_empty())\n        .map(|l| serde_json::from_str(l).expect(\"each line must be JSON\"))\n        .collect","kind":"call","line":866}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"text\n        .lines()\n        .filter(|l| !l.is_empty())\n        .map","kind":"call","line":866}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"text\n        .lines()\n        .filter","kind":"call","line":866}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"text\n        .lines","kind":"call","line":866}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"l.is_empty","kind":"call","line":868}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"serde_json::from_str(l).expect","kind":"call","line":869}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_writes_cross_repo_refs_at_0_4_without_deps","name":"serde_json::from_str","kind":"call","line":869}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"TempDir::new().unwrap","kind":"call","line":890,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"TempDir::new","kind":"call","line":890,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"tempfile::TempDir/new().unwrap","kind":"call","line":890,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"tempfile::TempDir/new","kind":"call","line":890,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"tmp.path().join","kind":"call","line":891}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"tmp.path","kind":"call","line":891}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"tmp.path().join","kind":"call","line":892}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"tmp.path","kind":"call","line":892}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"tmp.path().join","kind":"call","line":893}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"tmp.path","kind":"call","line":893}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"tmp.path().join","kind":"call","line":894}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"tmp.path","kind":"call","line":894}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"fs::create_dir_all(&ws).unwrap","kind":"call","line":895,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"fs::create_dir_all","kind":"call","line":895,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"std::fs/create_dir_all(&ws).unwrap","kind":"call","line":895,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"std::fs/create_dir_all","kind":"call","line":895,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"init_repo","kind":"call","line":896,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"init_repo","kind":"call","line":897,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"init_repo","kind":"call","line":898,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"write_fake_sigil","kind":"call","line":900,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"write_fake_sigil","kind":"call","line":908,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"provider_ent","kind":"call","line":908}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"write_fake_sigil","kind":"call","line":909,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"provider_ent","kind":"call","line":909}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"sigil","kind":"call","line":911,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"ws.to_str().unwrap","kind":"call","line":911}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"ws.to_str","kind":"call","line":911}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"sigil","kind":"call","line":912,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"consumer.to_str().unwrap","kind":"call","line":912}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"consumer.to_str","kind":"call","line":912}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"ws.to_str().unwrap","kind":"call","line":912}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"ws.to_str","kind":"call","line":912}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"sigil","kind":"call","line":913,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"p1.to_str().unwrap","kind":"call","line":913}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"p1.to_str","kind":"call","line":913}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"ws.to_str().unwrap","kind":"call","line":913}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"ws.to_str","kind":"call","line":913}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"sigil","kind":"call","line":914,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"p2.to_str().unwrap","kind":"call","line":914}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"p2.to_str","kind":"call","line":914}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"ws.to_str().unwrap","kind":"call","line":914}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"ws.to_str","kind":"call","line":914}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"sigil","kind":"call","line":915,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"ws.to_str().unwrap","kind":"call","line":915}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"ws.to_str","kind":"call","line":915}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"fs::read_to_string(ws.join(\".sigil-workspace/cross_repo_refs.jsonl\")).unwrap","kind":"call","line":917,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"fs::read_to_string","kind":"call","line":917,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"ws.join","kind":"call","line":917}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"std::fs/read_to_string(ws.join(\".sigil-workspace/cross_repo_refs.jsonl\")).unwrap","kind":"call","line":917,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"std::fs/read_to_string","kind":"call","line":917,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"text\n        .lines().filter(|l| !l.is_empty())\n        .map(|l| serde_json::from_str(l).unwrap()).collect","kind":"call","line":918}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"text\n        .lines().filter(|l| !l.is_empty())\n        .map","kind":"call","line":918}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"text\n        .lines().filter","kind":"call","line":918}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"text\n        .lines","kind":"call","line":918}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"l.is_empty","kind":"call","line":919}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"serde_json::from_str(l).unwrap","kind":"call","line":920}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"serde_json::from_str","kind":"call","line":920}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"rows.iter().map(|r| r[\"callee_id\"].as_str().unwrap()).collect","kind":"call","line":926}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"rows.iter().map","kind":"call","line":926}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"rows.iter","kind":"call","line":926}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"r[\"callee_id\"].as_str().unwrap","kind":"call","line":926}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_emits_ambiguous_match_at_0_3","name":"r[\"callee_id\"].as_str","kind":"call","line":926}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"TempDir::new().unwrap","kind":"call","line":933,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"TempDir::new","kind":"call","line":933,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"tempfile::TempDir/new().unwrap","kind":"call","line":933,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"tempfile::TempDir/new","kind":"call","line":933,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"tmp.path().join","kind":"call","line":934}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"tmp.path","kind":"call","line":934}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"tmp.path().join","kind":"call","line":935}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"tmp.path","kind":"call","line":935}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"fs::create_dir_all(&ws).unwrap","kind":"call","line":936,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"fs::create_dir_all","kind":"call","line":936,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"std::fs/create_dir_all(&ws).unwrap","kind":"call","line":936,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"std::fs/create_dir_all","kind":"call","line":936,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"init_repo","kind":"call","line":937,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"write_fake_sigil","kind":"call","line":938,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"sigil","kind":"call","line":942,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"ws.to_str().unwrap","kind":"call","line":942}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"ws.to_str","kind":"call","line":942}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"sigil","kind":"call","line":943,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"consumer.to_str().unwrap","kind":"call","line":943}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"consumer.to_str","kind":"call","line":943}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"ws.to_str().unwrap","kind":"call","line":943}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"ws.to_str","kind":"call","line":943}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"tmp.path().join","kind":"call","line":947}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"tmp.path","kind":"call","line":947}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"init_repo","kind":"call","line":948,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"write_fake_sigil","kind":"call","line":949,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"sigil","kind":"call","line":953,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"p.to_str().unwrap","kind":"call","line":953}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"p.to_str","kind":"call","line":953}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"ws.to_str().unwrap","kind":"call","line":953}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"ws.to_str","kind":"call","line":953}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"sigil","kind":"call","line":955,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"ws.to_str().unwrap","kind":"call","line":955}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"ws.to_str","kind":"call","line":955}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"fs::read_to_string(ws.join(\".sigil-workspace/cross_repo_refs.jsonl\")).unwrap","kind":"call","line":957,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"fs::read_to_string","kind":"call","line":957,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"ws.join","kind":"call","line":957}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"std::fs/read_to_string(ws.join(\".sigil-workspace/cross_repo_refs.jsonl\")).unwrap","kind":"call","line":957,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"std::fs/read_to_string","kind":"call","line":957,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"text.lines().filter(|l| !l.is_empty()).collect","kind":"call","line":958}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"text.lines().filter","kind":"call","line":958}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"text.lines","kind":"call","line":958}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_caps_cross_repo_emissions_at_10","name":"l.is_empty","kind":"call","line":958}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_skips_cross_repo_when_only_one_member","name":"TempDir::new().unwrap","kind":"call","line":964,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_skips_cross_repo_when_only_one_member","name":"TempDir::new","kind":"call","line":964,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_skips_cross_repo_when_only_one_member","name":"tempfile::TempDir/new().unwrap","kind":"call","line":964,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_skips_cross_repo_when_only_one_member","name":"tempfile::TempDir/new","kind":"call","line":964,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_skips_cross_repo_when_only_one_member","name":"tmp.path().join","kind":"call","line":965}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_skips_cross_repo_when_only_one_member","name":"tmp.path","kind":"call","line":965}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_skips_cross_repo_when_only_one_member","name":"tmp.path().join","kind":"call","line":966}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_skips_cross_repo_when_only_one_member","name":"tmp.path","kind":"call","line":966}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_skips_cross_repo_when_only_one_member","name":"fs::create_dir_all(&ws).unwrap","kind":"call","line":967,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_skips_cross_repo_when_only_one_member","name":"fs::create_dir_all","kind":"call","line":967,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_skips_cross_repo_when_only_one_member","name":"std::fs/create_dir_all(&ws).unwrap","kind":"call","line":967,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_skips_cross_repo_when_only_one_member","name":"std::fs/create_dir_all","kind":"call","line":967,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_skips_cross_repo_when_only_one_member","name":"init_repo","kind":"call","line":968,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_skips_cross_repo_when_only_one_member","name":"write_fake_sigil","kind":"call","line":969,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_skips_cross_repo_when_only_one_member","name":"sigil","kind":"call","line":973,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_skips_cross_repo_when_only_one_member","name":"ws.to_str().unwrap","kind":"call","line":973}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_skips_cross_repo_when_only_one_member","name":"ws.to_str","kind":"call","line":973}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_skips_cross_repo_when_only_one_member","name":"sigil","kind":"call","line":974,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_skips_cross_repo_when_only_one_member","name":"solo.to_str().unwrap","kind":"call","line":974}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_skips_cross_repo_when_only_one_member","name":"solo.to_str","kind":"call","line":974}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_skips_cross_repo_when_only_one_member","name":"ws.to_str().unwrap","kind":"call","line":974}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_skips_cross_repo_when_only_one_member","name":"ws.to_str","kind":"call","line":974}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_skips_cross_repo_when_only_one_member","name":"sigil","kind":"call","line":975,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_skips_cross_repo_when_only_one_member","name":"ws.to_str().unwrap","kind":"call","line":975}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_skips_cross_repo_when_only_one_member","name":"ws.to_str","kind":"call","line":975}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_skips_cross_repo_when_only_one_member","name":"fs::read_to_string(ws.join(\".sigil-workspace/cross_repo_refs.jsonl\")).unwrap","kind":"call","line":977,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_skips_cross_repo_when_only_one_member","name":"fs::read_to_string","kind":"call","line":977,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_skips_cross_repo_when_only_one_member","name":"ws.join","kind":"call","line":977}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_skips_cross_repo_when_only_one_member","name":"std::fs/read_to_string(ws.join(\".sigil-workspace/cross_repo_refs.jsonl\")).unwrap","kind":"call","line":977,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_skips_cross_repo_when_only_one_member","name":"std::fs/read_to_string","kind":"call","line":977,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"TempDir::new().unwrap","kind":"call","line":983,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"TempDir::new","kind":"call","line":983,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"tempfile::TempDir/new().unwrap","kind":"call","line":983,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"tempfile::TempDir/new","kind":"call","line":983,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"tmp.path().join","kind":"call","line":984}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"tmp.path","kind":"call","line":984}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"tmp.path().join","kind":"call","line":985}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"tmp.path","kind":"call","line":985}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"tmp.path().join","kind":"call","line":986}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"tmp.path","kind":"call","line":986}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"fs::create_dir_all(&ws).unwrap","kind":"call","line":987,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"fs::create_dir_all","kind":"call","line":987,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"std::fs/create_dir_all(&ws).unwrap","kind":"call","line":987,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"std::fs/create_dir_all","kind":"call","line":987,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"init_repo","kind":"call","line":988,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"init_repo","kind":"call","line":989,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"write_fake_sigil","kind":"call","line":993,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"write_fake_sigil","kind":"call","line":994,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"sigil","kind":"call","line":998,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"ws.to_str().unwrap","kind":"call","line":998}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"ws.to_str","kind":"call","line":998}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"sigil","kind":"call","line":999,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"consumer.to_str().unwrap","kind":"call","line":999}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"consumer.to_str","kind":"call","line":999}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"ws.to_str().unwrap","kind":"call","line":999}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"ws.to_str","kind":"call","line":999}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"sigil","kind":"call","line":1000,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"provider.to_str().unwrap","kind":"call","line":1000}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"provider.to_str","kind":"call","line":1000}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"ws.to_str().unwrap","kind":"call","line":1000}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"ws.to_str","kind":"call","line":1000}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"sigil","kind":"call","line":1001,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"ws.to_str().unwrap","kind":"call","line":1001}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"ws.to_str","kind":"call","line":1001}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"fs::read_to_string(ws.join(\".sigil-workspace/cross_repo_refs.jsonl\")).unwrap","kind":"call","line":1002,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"fs::read_to_string","kind":"call","line":1002,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"ws.join","kind":"call","line":1002}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"std::fs/read_to_string(ws.join(\".sigil-workspace/cross_repo_refs.jsonl\")).unwrap","kind":"call","line":1002,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"std::fs/read_to_string","kind":"call","line":1002,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"write_fake_sigil","kind":"call","line":1007,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"sigil","kind":"call","line":1008,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"ws.to_str().unwrap","kind":"call","line":1008}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"ws.to_str","kind":"call","line":1008}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"fs::read_to_string(ws.join(\".sigil-workspace/cross_repo_refs.jsonl\")).unwrap","kind":"call","line":1009,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"fs::read_to_string","kind":"call","line":1009,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"ws.join","kind":"call","line":1009}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"std::fs/read_to_string(ws.join(\".sigil-workspace/cross_repo_refs.jsonl\")).unwrap","kind":"call","line":1009,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_truncates_stale_cross_repo_refs_when_external_removed","name":"std::fs/read_to_string","kind":"call","line":1009,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"TempDir::new().unwrap","kind":"call","line":1018,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"TempDir::new","kind":"call","line":1018,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"tempfile::TempDir/new().unwrap","kind":"call","line":1018,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"tempfile::TempDir/new","kind":"call","line":1018,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"tmp.path().join","kind":"call","line":1019}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"tmp.path","kind":"call","line":1019}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"tmp.path().join","kind":"call","line":1020}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"tmp.path","kind":"call","line":1020}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"tmp.path().join","kind":"call","line":1021}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"tmp.path","kind":"call","line":1021}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"fs::create_dir_all(&ws).unwrap","kind":"call","line":1022,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"fs::create_dir_all","kind":"call","line":1022,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"std::fs/create_dir_all(&ws).unwrap","kind":"call","line":1022,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"std::fs/create_dir_all","kind":"call","line":1022,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"init_repo","kind":"call","line":1023,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"init_repo","kind":"call","line":1024,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"fs::write(\n        provider.join(\"package.json\"),\n        r#\"{\"name\": \"@org/shared\", \"version\": \"1.0.0\"}\"#,\n    ).unwrap","kind":"call","line":1027,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"std::fs/write(\n        provider.join(\"package.json\"),\n        r#\"{\"name\": \"@org/shared\", \"version\": \"1.0.0\"}\"#,\n    ).unwrap","kind":"call","line":1027,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"provider.join","kind":"call","line":1028}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"write_fake_sigil","kind":"call","line":1031,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"fs::write(\n        consumer.join(\"package.json\"),\n        r#\"{\"name\": \"@org/consumer\", \"dependencies\": {\"@org/shared\": \"^1.0.0\"}}\"#,\n    ).unwrap","kind":"call","line":1037,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"std::fs/write(\n        consumer.join(\"package.json\"),\n        r#\"{\"name\": \"@org/consumer\", \"dependencies\": {\"@org/shared\": \"^1.0.0\"}}\"#,\n    ).unwrap","kind":"call","line":1037,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"consumer.join","kind":"call","line":1038}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"write_fake_sigil","kind":"call","line":1041,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"sigil","kind":"call","line":1046,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"ws.to_str().unwrap","kind":"call","line":1046}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"ws.to_str","kind":"call","line":1046}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"sigil","kind":"call","line":1047,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"consumer.to_str().unwrap","kind":"call","line":1047}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"consumer.to_str","kind":"call","line":1047}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"ws.to_str().unwrap","kind":"call","line":1047}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"ws.to_str","kind":"call","line":1047}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"sigil","kind":"call","line":1048,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"provider.to_str().unwrap","kind":"call","line":1048}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"provider.to_str","kind":"call","line":1048}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"ws.to_str().unwrap","kind":"call","line":1048}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"ws.to_str","kind":"call","line":1048}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"sigil","kind":"call","line":1049,"confidence":0.95}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"ws.to_str().unwrap","kind":"call","line":1049}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"ws.to_str","kind":"call","line":1049}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"fs::read_to_string(ws.join(\".sigil-workspace/cross_repo_refs.jsonl\")).unwrap","kind":"call","line":1051,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"fs::read_to_string","kind":"call","line":1051,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"ws.join","kind":"call","line":1051}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"std::fs/read_to_string(ws.join(\".sigil-workspace/cross_repo_refs.jsonl\")).unwrap","kind":"call","line":1051,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"std::fs/read_to_string","kind":"call","line":1051,"confidence":0.8}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"text\n        .lines().filter(|l| !l.is_empty())\n        .map(|l| serde_json::from_str(l).unwrap()).collect","kind":"call","line":1052}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"text\n        .lines().filter(|l| !l.is_empty())\n        .map","kind":"call","line":1052}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"text\n        .lines().filter","kind":"call","line":1052}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"text\n        .lines","kind":"call","line":1052}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"l.is_empty","kind":"call","line":1053}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"serde_json::from_str(l).unwrap","kind":"call","line":1054}
+{"file":"tests/workspace_integration.rs","caller":"workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge","name":"serde_json::from_str","kind":"call","line":1054}
