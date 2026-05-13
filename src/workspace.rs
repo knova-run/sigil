@@ -1237,14 +1237,54 @@ pub fn resolve_workspace_contract_links(workspace_root: &Path) -> Result<usize> 
 
     let mut out_lines: Vec<String> = Vec::new();
     let mut seen: std::collections::HashSet<(String, String, String)> = std::collections::HashSet::new();
-    for (id, prov_sites) in &providers {
-        let Some(cons_sites) = consumers.get(id) else { continue };
-        for (p_member, p_row) in prov_sites {
+
+    // Helper: a provider's `http::*::/path` should match every consumer
+    // verb at `/path`. Many frameworks (Django, Rails, gRPC `Handle`)
+    // don't bind a method at the URL declaration site — the dispatch
+    // happens inside the view. Without this fan-out, a Django backend
+    // exposing `/users/login` (method=`*`) would never link to the
+    // RealWorld frontend's `POST /users/login`.
+    fn join_keys(id: &str) -> Vec<String> {
+        // contract_id shape: `<kind>::<method>::<path>` (or `grpc::<svc>`
+        // / `topic::<name>` which we don't fan out).
+        let parts: Vec<&str> = id.splitn(3, "::").collect();
+        if parts.len() != 3 || parts[0] != "http" {
+            return vec![id.to_string()];
+        }
+        if parts[1] != "*" {
+            return vec![id.to_string()];
+        }
+        // Provider is method-agnostic — emit a key for every HTTP verb so
+        // the matcher catches any consumer that calls this path.
+        ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"]
+            .iter()
+            .map(|m| format!("{}::{m}::{}", parts[0], parts[2]))
+            .collect()
+    }
+
+    // Pre-expand the providers map: for `http::*::/p` keys, also
+    // register every verb-specific key pointing at the same site list.
+    // This lets the inner consumer lookup find them with one HashMap
+    // hit per contract_id.
+    let mut expanded_providers: std::collections::HashMap<String, Vec<&Site>> =
+        std::collections::HashMap::new();
+    for (id, sites) in &providers {
+        for join_id in join_keys(id) {
+            expanded_providers
+                .entry(join_id)
+                .or_default()
+                .extend(sites.iter());
+        }
+    }
+
+    for (id, cons_sites) in &consumers {
+        let Some(prov_sites) = expanded_providers.get(id) else { continue };
+        for p in prov_sites.iter() {
+            let (p_member, p_row) = (&p.0, &p.1);
             for (c_member, c_row) in cons_sites {
                 if p_member == c_member {
                     continue;
                 }
-                // Dedupe to one link per (contract, provider_repo, consumer_repo)
                 let key = (id.clone(), p_member.clone(), c_member.clone());
                 if !seen.insert(key) {
                     continue;

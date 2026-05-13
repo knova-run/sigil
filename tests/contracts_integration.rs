@@ -452,6 +452,197 @@ class ProjectViewSet(viewsets.ModelViewSet):
 }
 
 #[test]
+fn detects_rails_route_providers() {
+    let tmp = TempDir::new().unwrap();
+    let cfg = tmp.path().join("config");
+    fs::create_dir(&cfg).unwrap();
+    fs::write(
+        cfg.join("routes.rb"),
+        r#"Rails.application.routes.draw do
+  get '/api/articles', to: 'articles#index'
+  post '/api/articles', to: 'articles#create'
+  delete '/api/articles/:id', to: 'articles#destroy'
+  resources :users
+  resources :comments, only: [:index, :create]
+end
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let ids: Vec<&str> = rows.iter().map(|r| r["contract_id"].as_str().unwrap()).collect();
+    assert!(ids.contains(&"http::GET::/api/articles"), "GET /api/articles; got {ids:?}");
+    assert!(ids.contains(&"http::POST::/api/articles"), "POST; got {ids:?}");
+    assert!(ids.contains(&"http::DELETE::/api/articles/{param}"), "DELETE w/ :id; got {ids:?}");
+    assert!(ids.contains(&"http::*::/users"), "resources :users → base /users; got {ids:?}");
+    let rails_rows: Vec<_> = rows.iter().filter(|r| r["framework"] == "rails").collect();
+    assert!(!rails_rows.is_empty(), "expected at least one row tagged framework=rails");
+}
+
+#[test]
+fn detects_rust_axum_route_providers() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("main.rs"),
+        r#"use axum::{Router, routing::{get, post, delete}};
+
+fn app() -> Router {
+    Router::new()
+        .route("/users", get(list_users))
+        .route("/users", post(create_user))
+        .route("/users/:id", delete(delete_user))
+}
+
+async fn list_users() {}
+async fn create_user() {}
+async fn delete_user() {}
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let ids: Vec<&str> = rows.iter().map(|r| r["contract_id"].as_str().unwrap()).collect();
+    assert!(ids.contains(&"http::GET::/users"), "axum GET; got {ids:?}");
+    assert!(ids.contains(&"http::POST::/users"), "axum POST; got {ids:?}");
+    assert!(ids.contains(&"http::DELETE::/users/{param}"), "axum DELETE w/ :id; got {ids:?}");
+}
+
+#[test]
+fn detects_rust_rocket_route_macros() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("rocket_app.rs"),
+        r#"use rocket::*;
+
+#[get("/hello")]
+fn hello() -> &'static str { "Hello, world!" }
+
+#[post("/items", data = "<item>")]
+fn create_item(item: String) -> &'static str { "ok" }
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let ids: Vec<&str> = rows.iter().map(|r| r["contract_id"].as_str().unwrap()).collect();
+    assert!(ids.contains(&"http::GET::/hello"), "rocket #[get(...)]; got {ids:?}");
+    assert!(ids.contains(&"http::POST::/items"), "rocket #[post(..., data=...)]; got {ids:?}");
+}
+
+#[test]
+fn detects_php_laravel_route_providers() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("api.php"),
+        r#"<?php
+
+use App\Http\Controllers\UserController;
+
+Route::get('/users', [UserController::class, 'index']);
+Route::post('/users', [UserController::class, 'store']);
+Route::put('/users/{id}', [UserController::class, 'update']);
+Route::delete('/users/{id}', 'UserController@destroy');
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let ids: Vec<&str> = rows.iter().map(|r| r["contract_id"].as_str().unwrap()).collect();
+    assert!(ids.contains(&"http::GET::/users"), "Laravel GET; got {ids:?}");
+    assert!(ids.contains(&"http::POST::/users"), "Laravel POST; got {ids:?}");
+    assert!(ids.contains(&"http::PUT::/users/{param}"), "Laravel PUT w/ {{id}}; got {ids:?}");
+    assert!(ids.contains(&"http::DELETE::/users/{param}"), "Laravel DELETE; got {ids:?}");
+}
+
+#[test]
+fn detects_aspnet_http_attributes_and_minimal_api() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("UsersController.cs"),
+        r#"using Microsoft.AspNetCore.Mvc;
+
+[ApiController]
+[Route("api/users")]
+public class UsersController : ControllerBase
+{
+    [HttpGet("{id}")]
+    public IActionResult GetById(int id) => Ok();
+
+    [HttpPost]
+    public IActionResult Create() => Ok();
+}
+"#,
+    ).unwrap();
+    fs::write(
+        tmp.path().join("Program.cs"),
+        r#"var builder = WebApplication.CreateBuilder(args);
+var app = builder.Build();
+
+app.MapGet("/health", () => "ok");
+app.MapPost("/items", (Item i) => Results.Created());
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let ids: Vec<&str> = rows.iter().map(|r| r["contract_id"].as_str().unwrap()).collect();
+    assert!(ids.contains(&"http::GET::/{param}"), "[HttpGet(\"{{id}}\")]; got {ids:?}");
+    assert!(ids.contains(&"http::POST::*"), "bare [HttpPost]; got {ids:?}");
+    assert!(ids.contains(&"http::GET::/health"), "MapGet minimal API; got {ids:?}");
+    assert!(ids.contains(&"http::POST::/items"), "MapPost minimal API; got {ids:?}");
+}
+
+#[test]
+fn detects_csharp_httpclient_consumer() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("client.cs"),
+        r#"using System.Net.Http;
+
+public class ApiClient
+{
+    private readonly HttpClient _client;
+    public async Task FetchUsers() {
+        await _client.GetAsync("http://api.example.com/users");
+        await _client.PostAsync("/items", null);
+    }
+}
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let consumers: Vec<&serde_json::Value> = rows.iter().filter(|r| r["role"] == "consumer").collect();
+    let ids: Vec<&str> = consumers.iter().map(|r| r["contract_id"].as_str().unwrap()).collect();
+    assert!(ids.contains(&"http::GET::/users"), "GetAsync; got {ids:?}");
+    assert!(ids.contains(&"http::POST::/items"), "PostAsync; got {ids:?}");
+}
+
+#[test]
+fn detects_rust_reqwest_consumer() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("client.rs"),
+        r#"use reqwest::Client;
+
+async fn fetch() -> anyhow::Result<()> {
+    let client = Client::new();
+    client.get("/api/users").send().await?;
+    client.post("/api/items").json(&body).send().await?;
+    Ok(())
+}
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let consumers: Vec<&serde_json::Value> = rows.iter().filter(|r| r["role"] == "consumer").collect();
+    let ids: Vec<&str> = consumers.iter().map(|r| r["contract_id"].as_str().unwrap()).collect();
+    assert!(ids.contains(&"http::GET::/api/users"), "reqwest get; got {ids:?}");
+    assert!(ids.contains(&"http::POST::/api/items"), "reqwest post; got {ids:?}");
+}
+
+#[test]
 fn contracts_works_on_workspace_root() {
     use std::process::Command;
     let tmp = TempDir::new().unwrap();

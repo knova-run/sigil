@@ -78,22 +78,67 @@ pub fn normalize_http_path(path: &str) -> String {
     } else {
         lower
     };
-    // Collapse all three param styles to {param} via a single regex pass.
+    // Collapse all four param styles to {param} via a single regex pass:
+    //   * `:slug`            — Rails / Express / DRF (`:id`)
+    //   * `{slug}`           — FastAPI / Spring / OpenAPI
+    //   * `[slug]`           — Next.js dynamic segments
+    //   * `${slug}` / `$slug` — JS template-literal interpolation
+    //                          (e.g. `requests.get(`/articles/${slug}`)`).
+    // The template-literal form is what cross-repo frontend↔backend
+    // matching needed to land: a Conduit/RealWorld frontend writes
+    // `/articles/${slug}` and the Django/DRF backend's `<slug>` converter
+    // resolves to `{slug}` — both must collapse to `{param}` to join.
     static PARAM_RE: OnceLock<Regex> = OnceLock::new();
     let re = PARAM_RE.get_or_init(|| {
-        Regex::new(r":[A-Za-z_][A-Za-z0-9_]*|\{[^}]+\}|\[[^\]]+\]").unwrap()
+        Regex::new(r"\$\{[^}]+\}|:[A-Za-z_][A-Za-z0-9_]*|\{[^}]+\}|\[[^\]]+\]").unwrap()
     });
     re.replace_all(&trimmed, "{param}").into_owned()
 }
 
-/// Translate Django path-converters (`<int:pk>`, `<str:slug>`,
-/// `<uuid:id>`, `<path:rest>`, etc.) into the curly-brace form that
-/// `normalize_http_path`'s `{param}` collapsing already understands.
+/// Translate Django route patterns into a canonical form that joins
+/// with consumer paths. Handles three input shapes:
+///
+///   * Django 2.0+ `path('foo/<int:pk>/', view)` — converters like
+///     `<int:pk>`, `<str:slug>`, `<uuid:id>`, `<path:rest>`.
+///   * Django 1.x `url(r'^foo/(?P<pk>\d+)/$', view)` — Python regex
+///     with `^`/`$` anchors, character classes, and `(?P<name>…)`
+///     named-capture groups.
+///   * Mixed (the legacy `url(r'^foo/<int:pk>/$', view)` form).
+///
+/// The output is suitable for `normalize_http_path` to collapse to
+/// `{param}` consistently.
 fn django_path_to_braces(p: &str) -> String {
-    // Replace `<converter:name>` and bare `<name>` with `{name}`.
-    static RE: OnceLock<Regex> = OnceLock::new();
-    let re = RE.get_or_init(|| Regex::new(r"<(?:[A-Za-z_]+:)?([A-Za-z_][A-Za-z0-9_]*)>").unwrap());
-    re.replace_all(p, "{$1}").into_owned()
+    // 1. Strip regex anchors and trailing whitespace markers.
+    let mut s = p.to_string();
+    if let Some(rest) = s.strip_prefix('^') {
+        s = rest.to_string();
+    }
+    if let Some(rest) = s.strip_suffix('$') {
+        s = rest.to_string();
+    }
+    // 2. Named-capture groups `(?P<pk>\d+)` / `(?P<slug>[-\w]+)` → `{pk}`.
+    static NAMED_RE: OnceLock<Regex> = OnceLock::new();
+    let named = NAMED_RE.get_or_init(|| {
+        Regex::new(r"\(\?P<([A-Za-z_][A-Za-z0-9_]*)>[^)]*\)").unwrap()
+    });
+    s = named.replace_all(&s, "{$1}").into_owned();
+    // 3. Unnamed capture groups `(\d+)` / `([^/]+)` → `{param}`.
+    static UNNAMED_RE: OnceLock<Regex> = OnceLock::new();
+    let unnamed = UNNAMED_RE.get_or_init(|| Regex::new(r"\([^)]*\)").unwrap());
+    s = unnamed.replace_all(&s, "{param}").into_owned();
+    // 4. Django converter syntax `<int:pk>` / `<slug>` → `{pk}` / `{slug}`.
+    static CONV_RE: OnceLock<Regex> = OnceLock::new();
+    let conv = CONV_RE.get_or_init(|| {
+        Regex::new(r"<(?:[A-Za-z_]+:)?([A-Za-z_][A-Za-z0-9_]*)>").unwrap()
+    });
+    s = conv.replace_all(&s, "{$1}").into_owned();
+    // 5. Strip trailing `?` (optional-trailing-slash regex idiom: `/?$`
+    //    becomes `/?` after step 2; collapse to no trailing slash).
+    if s.ends_with("/?") {
+        s.truncate(s.len() - 2);
+        s.push('/');
+    }
+    s
 }
 
 /// Walk `root` and return all contract rows discovered.
@@ -176,7 +221,11 @@ fn walk(root: &Path, dir: &Path, out: &mut Vec<ContractRow>) {
                 out.extend(scan_js_ts(&rel, &text, ext))
             }
             "go" => out.extend(scan_go(&rel, &text)),
-            "java" => out.extend(scan_java(&rel, &text)),
+            "java" | "kt" | "kts" => out.extend(scan_java(&rel, &text)),
+            "rb" => out.extend(scan_ruby(&rel, &text)),
+            "rs" => out.extend(scan_rust(&rel, &text)),
+            "php" => out.extend(scan_php(&rel, &text)),
+            "cs" => out.extend(scan_csharp(&rel, &text)),
             "proto" => out.extend(scan_proto(&rel, &text)),
             _ => {}
         }
@@ -252,31 +301,46 @@ fn fastapi_re() -> &'static Regex {
 fn express_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| {
-        // Match `app.get('/path', ...)` / `router.get(...)` / `r.get(...)`
-        // and variants. Two narrowing rules vs the pre-PostHog version
-        // (which matched `<any-ident>.<verb>('...')` and produced
-        // ~93% false positives like `params.get('foo')`, `cache.get(...)`,
-        // `redis.get(...)` etc.):
+        // Match `<receiver>.<verb>('/path', …)`. Receiver is captured so
+        // the scanner can decide PROVIDER (Express-style `router.get`)
+        // vs CONSUMER (api-wrapper `api.get`).
         //
-        //   1. Receiver must be a recognised Express-style router/app
-        //      identifier (incl. common suffixes like `Router`).
-        //   2. Path must start with `/` — HTTP routes always do, but
-        //      data-structure `.get('key')` calls don't.
+        // Path-must-start-with-`/` guard eliminates the data-structure
+        // false positives that the pre-PostHog regex produced
+        // (`params.get('ordering')`, `cache.get(...)`, `Map.get(...)`).
         Regex::new(
-            r#"\b(?:app|router|api|app_router|server|expressApp|router\d*|[A-Za-z_][A-Za-z0-9_]*Router)\.(get|post|put|delete|patch|options|head|all)\(\s*['"`](/[^'"`]*)['"`]"#,
+            r#"\b([A-Za-z_][A-Za-z0-9_]*)\.(get|post|put|delete|patch|options|head|all)\(\s*['"`](/[^'"`]*)['"`]"#,
         )
         .unwrap()
     })
 }
 
+/// True when `receiver` looks like a server-side HTTP router/app.
+/// Server-side receivers map `.<verb>('/path')` to a route DEFINITION;
+/// every other receiver is treated as a CONSUMER call against an HTTP
+/// API wrapper (`api.get`, `requests.get`, `apiClient.post`, etc.).
+fn is_server_side_receiver(receiver: &str) -> bool {
+    matches!(
+        receiver,
+        "app" | "router" | "server" | "expressApp" | "r"
+    ) || receiver.ends_with("Router")
+        || receiver.ends_with("App")
+        || receiver.ends_with("Server")
+        || (receiver.starts_with("router") && receiver[6..].chars().all(|c| c.is_ascii_digit()))
+}
+
 fn django_path_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| {
-        // Django `path('foo/<int:pk>/', view)` and
-        // `re_path(r'^foo/(?P<pk>\d+)/$', view)`. We capture the route
-        // literal; the method binding is `*` because Django routes
-        // don't carry a method (the view function decides).
-        Regex::new(r#"\b(?:re_path|path)\(\s*r?['"]([^'"]+)['"]"#).unwrap()
+        // Django route declarations:
+        //   * `path('foo/<int:pk>/', view)` (Django 2.0+)
+        //   * `re_path(r'^foo/(?P<pk>\d+)/$', view)` (regex form)
+        //   * `url(r'^foo/$', view)` (legacy pre-2.0 — still widespread
+        //     in older Django apps including the RealWorld backend).
+        // We capture the route literal; the method binding is `*`
+        // because Django routes don't carry a method (the view function
+        // / class-based view's allowed methods set decide).
+        Regex::new(r#"\b(?:re_path|path|url)\(\s*r?['"]([^'"]+)['"]"#).unwrap()
     })
 }
 
@@ -331,6 +395,34 @@ fn fetch_re() -> &'static Regex {
     })
 }
 
+fn superagent_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `superagent.get(url)` / `superagent.post(url)` / `superagent.del(url)`.
+        // Also matches the chained-style `superagent.get(`${ROOT}${url}`)`.
+        // `del` is superagent's alias for DELETE.
+        Regex::new(
+            r#"\bsuperagent\.(get|post|put|patch|del|delete|head|options)\(\s*[`'"]"#,
+        )
+        .unwrap()
+    })
+}
+
+fn superagent_url_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // Extract the URL from `superagent.<verb>(arg)`. We accept the
+        // template-literal form (`${API_ROOT}${url}`) and fall back to a
+        // plain string literal. Template literals can't be resolved
+        // statically, so we capture whatever follows `${API_ROOT}` or
+        // the literal-only form.
+        Regex::new(
+            r#"\bsuperagent\.(?:get|post|put|patch|del|delete|head|options)\(\s*[`'"](?:\$\{[^}]+\})?([^`'"]+)[`'"]"#,
+        )
+        .unwrap()
+    })
+}
+
 fn fetch_method_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| {
@@ -362,6 +454,33 @@ fn scan_js_ts(file: &str, text: &str, ext: &str) -> Vec<ContractRow> {
             });
             continue;
         }
+        // superagent consumer — Conduit / RealWorld React frontend uses
+        // this (instead of axios/fetch). Same verb-method shape, plus a
+        // `del` alias for DELETE.
+        if let Some(verb_caps) = superagent_re().captures(line)
+            && let Some(url_caps) = superagent_url_re().captures(line)
+        {
+            let raw_verb = verb_caps[1].to_string();
+            let method = if raw_verb == "del" {
+                "DELETE".to_string()
+            } else {
+                raw_verb.to_uppercase()
+            };
+            let normalized = normalize_http_path(&url_caps[1]);
+            out.push(ContractRow {
+                contract_id: format!("http::{method}::{normalized}"),
+                kind: "http".to_string(),
+                role: "consumer".to_string(),
+                method: Some(method),
+                path: Some(normalized),
+                topic: None,
+                file: file.to_string(),
+                line: (i + 1) as u32,
+                language: language.to_string(),
+                framework: "superagent".to_string(),
+            });
+            continue;
+        }
         // fetch consumer — defaults to GET unless an options object names
         // a different method. Probe fetch_method_re first to catch the
         // explicit method form, fall back to fetch_re for the bare form.
@@ -390,19 +509,28 @@ fn scan_js_ts(file: &str, text: &str, ext: &str) -> Vec<ContractRow> {
             continue;
         }
         if let Some(caps) = express_re().captures(line) {
-            let method = caps[1].to_uppercase();
-            let normalized = normalize_http_path(&caps[2]);
+            let receiver = caps[1].to_string();
+            let method = caps[2].to_uppercase();
+            let normalized = normalize_http_path(&caps[3]);
+            // Server-side receivers (`app.get`, `router.get`, `*Router.get`)
+            // → provider; everything else (`api.get`, `requests.get`,
+            // `apiClient.post`) → consumer of an HTTP API wrapper.
+            let (role, framework) = if is_server_side_receiver(&receiver) {
+                ("provider", "express")
+            } else {
+                ("consumer", "api-wrapper")
+            };
             out.push(ContractRow {
                 contract_id: format!("http::{method}::{normalized}"),
                 kind: "http".to_string(),
-                role: "provider".to_string(),
+                role: role.to_string(),
                 method: Some(method),
                 path: Some(normalized),
                 topic: None,
                 file: file.to_string(),
                 line: (i + 1) as u32,
                 language: language.to_string(),
-                framework: "express".to_string(),
+                framework: framework.to_string(),
             });
         }
     }
@@ -609,6 +737,394 @@ fn scan_proto(file: &str, text: &str) -> Vec<ContractRow> {
                 current_service = None;
                 depth = 0;
             }
+        }
+    }
+    out
+}
+
+// ─── Ruby / Rails ────────────────────────────────────────────────────────────
+
+fn rails_route_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `get '/users'` / `post '/users', to: 'users#create'` etc. Matches
+        // `match` too (Rails' explicit multi-verb form). Lowercase verb
+        // followed by a string literal (single or double quoted).
+        Regex::new(
+            r#"(?m)^\s*(get|post|put|patch|delete|match|head|options)\s+['"]([^'"]+)['"]"#,
+        )
+        .unwrap()
+    })
+}
+
+fn rails_resources_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `resources :users` / `resource :session` — RESTful expansion. We
+        // emit one base contract per declaration; downstream consumers
+        // join on the path prefix.
+        Regex::new(r#"^\s*(?:resources|resource)\s+:([A-Za-z_][A-Za-z0-9_]*)"#).unwrap()
+    })
+}
+
+fn scan_ruby(file: &str, text: &str) -> Vec<ContractRow> {
+    let mut out = Vec::new();
+    // Quick filter: this file has to plausibly be a Rails routes file
+    // or a controller — skip pure model / lib / spec files to avoid
+    // matching `get :latest, on: :collection` in non-router contexts.
+    // Routes typically live under `config/routes`, but Engine-style
+    // routes can be anywhere. Use a content sniff: `Rails.application
+    // .routes.draw` or `routes.draw` opens a routes block; or any line
+    // beginning with a verb + literal path.
+    let looks_like_routes = file.contains("config/routes")
+        || file.ends_with("routes.rb")
+        || text.contains("routes.draw")
+        || text.contains("Rails.application.routes");
+    if !looks_like_routes {
+        return out;
+    }
+    for line in text.lines() {
+        // Skip comments.
+        let trimmed = line.trim_start();
+        if trimmed.starts_with('#') {
+            continue;
+        }
+    }
+    // Regex passes — use the line index from enumerate.
+    for (i, line) in text.lines().enumerate() {
+        if line.trim_start().starts_with('#') {
+            continue;
+        }
+        if let Some(caps) = rails_route_re().captures(line) {
+            let method = caps[1].to_uppercase();
+            let normalized = normalize_http_path(&caps[2]);
+            out.push(ContractRow {
+                contract_id: format!("http::{method}::{normalized}"),
+                kind: "http".to_string(),
+                role: "provider".to_string(),
+                method: Some(method),
+                path: Some(normalized),
+                topic: None,
+                file: file.to_string(),
+                line: (i + 1) as u32,
+                language: "ruby".to_string(),
+                framework: "rails".to_string(),
+            });
+            continue;
+        }
+        if let Some(caps) = rails_resources_re().captures(line) {
+            let name = caps[1].to_string();
+            let normalized = normalize_http_path(&format!("/{name}"));
+            out.push(ContractRow {
+                contract_id: format!("http::*::{normalized}"),
+                kind: "http".to_string(),
+                role: "provider".to_string(),
+                method: Some("*".to_string()),
+                path: Some(normalized),
+                topic: None,
+                file: file.to_string(),
+                line: (i + 1) as u32,
+                language: "ruby".to_string(),
+                framework: "rails".to_string(),
+            });
+        }
+    }
+    out
+}
+
+// ─── Rust web frameworks ─────────────────────────────────────────────────────
+
+fn rust_axum_route_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // axum: `.route("/users", get(handler))` — verb is the inner
+        // function name (`get`/`post`/`put`/`delete`/`patch`/`head`/
+        // `options`). Captures path then verb.
+        Regex::new(
+            r#"\.route\(\s*"([^"]+)"\s*,\s*(get|post|put|delete|patch|head|options)\s*\("#,
+        )
+        .unwrap()
+    })
+}
+
+fn rust_rocket_macro_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // Rocket: `#[get("/path")]` / `#[post("/path", data = "<body>")]`.
+        Regex::new(
+            r#"#\[(get|post|put|delete|patch|head|options)\(\s*"([^"]+)""#,
+        )
+        .unwrap()
+    })
+}
+
+fn rust_actix_route_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // actix-web: `web::get().to(handler)` chained off a resource, e.g.
+        // `.service(web::resource("/users").route(web::get().to(list_users)))`.
+        // Captures path from the resource, verb from web::<verb>().
+        Regex::new(
+            r#"web::resource\(\s*"([^"]+)"\s*\)[^;]*?web::(get|post|put|delete|patch|head|options)\s*\("#,
+        )
+        .unwrap()
+    })
+}
+
+fn rust_reqwest_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // reqwest: `client.get("/url")` / `client.post(...)` etc.
+        // (Receiver is `client`-shaped; require start with `/` or http://.)
+        Regex::new(
+            r#"\bclient\.(get|post|put|delete|patch|head)\s*\(\s*"((?:https?://[^"]+)|/[^"]*)""#,
+        )
+        .unwrap()
+    })
+}
+
+fn scan_rust(file: &str, text: &str) -> Vec<ContractRow> {
+    let mut out = Vec::new();
+    for (i, line) in text.lines().enumerate() {
+        // axum .route("/p", get(...))
+        if let Some(caps) = rust_axum_route_re().captures(line) {
+            let path = caps[1].to_string();
+            let method = caps[2].to_uppercase();
+            let normalized = normalize_http_path(&path);
+            out.push(ContractRow {
+                contract_id: format!("http::{method}::{normalized}"),
+                kind: "http".to_string(),
+                role: "provider".to_string(),
+                method: Some(method),
+                path: Some(normalized),
+                topic: None,
+                file: file.to_string(),
+                line: (i + 1) as u32,
+                language: "rust".to_string(),
+                framework: "axum".to_string(),
+            });
+            continue;
+        }
+        // Rocket #[get("/p")]
+        if let Some(caps) = rust_rocket_macro_re().captures(line) {
+            let method = caps[1].to_uppercase();
+            let normalized = normalize_http_path(&caps[2]);
+            out.push(ContractRow {
+                contract_id: format!("http::{method}::{normalized}"),
+                kind: "http".to_string(),
+                role: "provider".to_string(),
+                method: Some(method),
+                path: Some(normalized),
+                topic: None,
+                file: file.to_string(),
+                line: (i + 1) as u32,
+                language: "rust".to_string(),
+                framework: "rocket".to_string(),
+            });
+            continue;
+        }
+        // actix-web resource + web::<verb>()
+        if let Some(caps) = rust_actix_route_re().captures(line) {
+            let path = caps[1].to_string();
+            let method = caps[2].to_uppercase();
+            let normalized = normalize_http_path(&path);
+            out.push(ContractRow {
+                contract_id: format!("http::{method}::{normalized}"),
+                kind: "http".to_string(),
+                role: "provider".to_string(),
+                method: Some(method),
+                path: Some(normalized),
+                topic: None,
+                file: file.to_string(),
+                line: (i + 1) as u32,
+                language: "rust".to_string(),
+                framework: "actix".to_string(),
+            });
+            continue;
+        }
+        // reqwest consumer
+        if let Some(caps) = rust_reqwest_re().captures(line) {
+            let method = caps[1].to_uppercase();
+            let normalized = normalize_http_path(&caps[2]);
+            out.push(ContractRow {
+                contract_id: format!("http::{method}::{normalized}"),
+                kind: "http".to_string(),
+                role: "consumer".to_string(),
+                method: Some(method),
+                path: Some(normalized),
+                topic: None,
+                file: file.to_string(),
+                line: (i + 1) as u32,
+                language: "rust".to_string(),
+                framework: "reqwest".to_string(),
+            });
+        }
+    }
+    out
+}
+
+// ─── PHP / Laravel ───────────────────────────────────────────────────────────
+
+fn laravel_route_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `Route::get('/users', ...)` etc. Match the verb in the static
+        // call. `any` and `match` are also valid Laravel verbs — emit
+        // `*` for those.
+        Regex::new(
+            r#"\bRoute::(get|post|put|patch|delete|options|head|any|match)\(\s*['"]([^'"]+)['"]"#,
+        )
+        .unwrap()
+    })
+}
+
+fn laravel_resource_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `Route::resource('users', UserController::class)` — RESTful.
+        Regex::new(r#"\bRoute::(?:resource|apiResource)\(\s*['"]([^'"]+)['"]"#).unwrap()
+    })
+}
+
+fn scan_php(file: &str, text: &str) -> Vec<ContractRow> {
+    let mut out = Vec::new();
+    for (i, line) in text.lines().enumerate() {
+        if let Some(caps) = laravel_route_re().captures(line) {
+            let raw_verb = caps[1].to_string();
+            let method = if raw_verb == "any" || raw_verb == "match" {
+                "*".to_string()
+            } else {
+                raw_verb.to_uppercase()
+            };
+            let normalized = normalize_http_path(&caps[2]);
+            out.push(ContractRow {
+                contract_id: format!("http::{method}::{normalized}"),
+                kind: "http".to_string(),
+                role: "provider".to_string(),
+                method: Some(method),
+                path: Some(normalized),
+                topic: None,
+                file: file.to_string(),
+                line: (i + 1) as u32,
+                language: "php".to_string(),
+                framework: "laravel".to_string(),
+            });
+            continue;
+        }
+        if let Some(caps) = laravel_resource_re().captures(line) {
+            let raw = caps[1].to_string();
+            let with_slash = if raw.starts_with('/') { raw } else { format!("/{raw}") };
+            let normalized = normalize_http_path(&with_slash);
+            out.push(ContractRow {
+                contract_id: format!("http::*::{normalized}"),
+                kind: "http".to_string(),
+                role: "provider".to_string(),
+                method: Some("*".to_string()),
+                path: Some(normalized),
+                topic: None,
+                file: file.to_string(),
+                line: (i + 1) as u32,
+                language: "php".to_string(),
+                framework: "laravel".to_string(),
+            });
+        }
+    }
+    out
+}
+
+// ─── C# / ASP.NET ────────────────────────────────────────────────────────────
+
+fn aspnet_attribute_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `[HttpGet("/path")]` / `[HttpPost("path")]` etc. The path is
+        // optional; bare `[HttpPost]` matches with no path captured (we
+        // emit `*`).
+        Regex::new(r#"\[Http(Get|Post|Put|Delete|Patch|Options|Head)(?:\s*\(\s*"([^"]+)")?"#).unwrap()
+    })
+}
+
+fn aspnet_minimal_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // Minimal API: `app.MapGet("/health", ...)`.
+        Regex::new(r#"\.Map(Get|Post|Put|Delete|Patch|Options|Head)\(\s*"([^"]+)""#).unwrap()
+    })
+}
+
+fn aspnet_httpclient_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `client.GetAsync("/users")` / `PostAsync` / etc. URL must
+        // start with `/` or `http(s)://` (the latter gets scheme+host
+        // stripped by `normalize_http_path`).
+        Regex::new(
+            r#"\.\s*(Get|Post|Put|Delete|Patch)Async\s*\(\s*"((?:https?://[^"]+)|/[^"]*)""#,
+        )
+        .unwrap()
+    })
+}
+
+fn scan_csharp(file: &str, text: &str) -> Vec<ContractRow> {
+    let mut out = Vec::new();
+    for (i, line) in text.lines().enumerate() {
+        if let Some(caps) = aspnet_attribute_re().captures(line) {
+            let method = caps[1].to_uppercase();
+            let raw_path = caps.get(2).map(|m| m.as_str().to_string());
+            let (normalized, contract_id) = match raw_path {
+                Some(p) => {
+                    let with_slash = if p.starts_with('/') { p } else { format!("/{p}") };
+                    let n = normalize_http_path(&with_slash);
+                    (n.clone(), format!("http::{method}::{n}"))
+                }
+                None => ("*".to_string(), format!("http::{method}::*")),
+            };
+            out.push(ContractRow {
+                contract_id,
+                kind: "http".to_string(),
+                role: "provider".to_string(),
+                method: Some(method),
+                path: Some(normalized),
+                topic: None,
+                file: file.to_string(),
+                line: (i + 1) as u32,
+                language: "csharp".to_string(),
+                framework: "aspnet".to_string(),
+            });
+            continue;
+        }
+        if let Some(caps) = aspnet_minimal_re().captures(line) {
+            let method = caps[1].to_uppercase();
+            let normalized = normalize_http_path(&caps[2]);
+            out.push(ContractRow {
+                contract_id: format!("http::{method}::{normalized}"),
+                kind: "http".to_string(),
+                role: "provider".to_string(),
+                method: Some(method),
+                path: Some(normalized),
+                topic: None,
+                file: file.to_string(),
+                line: (i + 1) as u32,
+                language: "csharp".to_string(),
+                framework: "aspnet-minimal".to_string(),
+            });
+            continue;
+        }
+        if let Some(caps) = aspnet_httpclient_re().captures(line) {
+            let method = caps[1].to_uppercase();
+            let normalized = normalize_http_path(&caps[2]);
+            out.push(ContractRow {
+                contract_id: format!("http::{method}::{normalized}"),
+                kind: "http".to_string(),
+                role: "consumer".to_string(),
+                method: Some(method),
+                path: Some(normalized),
+                topic: None,
+                file: file.to_string(),
+                line: (i + 1) as u32,
+                language: "csharp".to_string(),
+                framework: "httpclient".to_string(),
+            });
         }
     }
     out
