@@ -1093,6 +1093,7 @@ fn populate_workspace(conn: &Connection, ws_root: &Path) -> Result<()> {
                 "SELECT '{prefix}/' || file AS file, \
                         caller, name, kind, line, confidence, \
                         CASE WHEN callee_id IS NULL THEN NULL \
+                             WHEN callee_id LIKE '<external>%' THEN callee_id \
                              ELSE '{prefix}/' || callee_id END AS callee_id \
                  FROM read_json('{path}', columns = {cols})",
                 path = path_for_sql(&ref_path),

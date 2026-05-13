@@ -1,19 +1,43 @@
-//! Contract extraction: HTTP routes, gRPC services, queue topics.
+//! Contract extraction: HTTP / WebSocket / gRPC / messaging / RPC /
+//! GraphQL / database contracts across 9 source languages.
 //!
 //! Scans source files for two kinds of artifacts:
-//!   - Providers: HTTP route handlers, gRPC service implementations,
-//!     queue subscribers / topic consumers.
-//!   - Consumers: HTTP client calls, gRPC client stubs, queue
-//!     publishers.
+//!   - Providers: HTTP route handlers, gRPC service impls, WebSocket
+//!     route registrations, topic subscribers, task workers, GraphQL
+//!     schema fields, RPC procedure definitions, ORM table declarations.
+//!   - Consumers: HTTP client calls, gRPC client stubs, topic publishers,
+//!     task enqueuers, GraphQL queries, RPC client calls.
 //!
-//! When run in workspace mode, the runner can match providers in one
-//! repo against consumers in another to surface cross-repo contract
-//! relationships without an LLM call.
+//! When run in workspace mode, the matcher joins providers in one repo
+//! against consumers in another by normalized `contract_id` to surface
+//! cross-repo contract relationships without an LLM call.
 //!
-//! MVP coverage:
-//!   - HTTP provider patterns: FastAPI (`@app.<verb>("...")`).
-//!   - More patterns (Express, Spring, Laravel, Go, axios, fetch,
-//!     requests, gRPC, Kafka/NATS/SQS) land incrementally.
+//! Coverage (current). Across Python, JS/TS, Go, Rust, Java/Kotlin,
+//! Ruby, PHP, C#, and `.proto`/`.graphql`/`.sql`/`.yaml`/`.json`:
+//!   - HTTP server: FastAPI, Django (path/url/re_path), DRF (router/
+//!     @action), Flask, Express, NestJS, Spring (@*Mapping), Laravel,
+//!     ASP.NET attributes + minimal API, Go net/http + gin/echo/chi,
+//!     Rails routes, Rust axum/actix/rocket.
+//!   - HTTP client: axios, fetch, superagent, requests, httpx,
+//!     reqwest, HttpClient, generic `<wrapper>.<verb>('/path')`.
+//!   - WebSocket: FastAPI `@app.websocket`, Express-ws, Spring STOMP,
+//!     Go gorilla, browser `new WebSocket(...)`, ActionCable; socket.io
+//!     `socket.on` / `socket.emit` events.
+//!   - gRPC: `.proto` service+rpc, Go + Python + Java + C# + Rust tonic
+//!     + Node `@grpc/grpc-js` provider+consumer stubs.
+//!   - Topics / queues: Kafka, Redis pub/sub + Streams, NATS, AWS
+//!     SQS/SNS/EventBridge, GCP Pub/Sub, RabbitMQ/AMQP.
+//!   - Task queues: Celery, Sidekiq, bullmq, RQ, asynq.
+//!   - RPC: tRPC, JSON-RPC.
+//!   - GraphQL: SDL providers + Apollo/urql/Relay gql`` consumers.
+//!   - Database: SQLAlchemy / Django / Alembic / raw `CREATE TABLE` /
+//!     Mongo collections (owner + reader).
+//!   - Spec ingestion: OpenAPI 2.0/3.x and AsyncAPI YAML/JSON.
+//!
+//! Env-var-aware: when a topic arg is `os.environ['X']` /
+//! `process.env.X` / `ENV['X']` etc., the contract_id is encoded as
+//! `topic::$ENV.<NAME>`. Workspace-level `.env` / docker-compose
+//! resolution lifts this to literal values for confidence tiering.
 
 use regex::Regex;
 use serde::Serialize;
@@ -22,16 +46,29 @@ use std::sync::OnceLock;
 
 #[derive(Debug, Serialize, PartialEq)]
 pub struct ContractRow {
-    /// Composite join key matching repowise's contract_id form:
-    ///   - HTTP:  `http::<METHOD>::<NORMALIZED_PATH>`
-    ///   - gRPC:  `grpc::<Service>/<Method>`
-    ///   - Topic: `topic::<topic-name>`
-    /// Path-style params (`:id`, `{userId}`, `[id]`) are normalized to
-    /// `{param}` so the same contract from different framework conventions
-    /// produces an identical id — required for cross-repo matching.
+    /// Composite join key. Per-kind shapes:
+    ///   - http      `http::<METHOD>::<NORMALIZED_PATH>` (method=`*` when
+    ///               the framework binds at dispatch time, e.g. Django)
+    ///   - websocket `ws::<NORMALIZED_PATH>`
+    ///   - event     `event::<NAME>` (socket.io)
+    ///   - grpc      `grpc::<Service>[/<Method>]`
+    ///   - topic     `topic::<topic-name>` or `topic::$ENV.<VARNAME>`
+    ///   - task      `task::<task-name>`
+    ///   - rpc       `rpc::<procedure-name>` (tRPC / JSON-RPC)
+    ///   - graphql   `graphql::<Type>.<field>`
+    ///   - db        `db::<table-or-collection>`
+    /// Path-style params (`:id`, `{userId}`, `[id]`, `${slug}`) are
+    /// normalized to `{param}` so the same contract from different
+    /// framework conventions produces an identical id.
     pub contract_id: String,
-    pub kind: String,         // "http" | "grpc" | "topic"
-    pub role: String,         // "provider" | "consumer" | "publisher" | "subscriber"
+    /// `http` | `websocket` | `event` | `grpc` | `topic` | `task` |
+    /// `rpc` | `graphql` | `db`.
+    pub kind: String,
+    /// `provider` | `consumer` | `publisher` | `subscriber` | `owner`
+    /// | `reader` | `writer`. The owner/reader/writer triad applies to
+    /// db contracts; everything else uses provider/consumer or the
+    /// queue-flavored publisher/subscriber.
+    pub role: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub method: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -88,9 +125,11 @@ pub fn normalize_http_path(path: &str) -> String {
     // matching needed to land: a Conduit/RealWorld frontend writes
     // `/articles/${slug}` and the Django/DRF backend's `<slug>` converter
     // resolves to `{slug}` — both must collapse to `{param}` to join.
+    // The bare-`$slug` arm is ordered AFTER `${…}` so the braced form
+    // wins on greedy alternation.
     static PARAM_RE: OnceLock<Regex> = OnceLock::new();
     let re = PARAM_RE.get_or_init(|| {
-        Regex::new(r"\$\{[^}]+\}|:[A-Za-z_][A-Za-z0-9_]*|\{[^}]+\}|\[[^\]]+\]").unwrap()
+        Regex::new(r"\$\{[^}]+\}|\$[A-Za-z_][A-Za-z0-9_]*|:[A-Za-z_][A-Za-z0-9_]*|\{[^}]+\}|\[[^\]]+\]").unwrap()
     });
     re.replace_all(&trimmed, "{param}").into_owned()
 }
@@ -132,11 +171,12 @@ fn django_path_to_braces(p: &str) -> String {
         Regex::new(r"<(?:[A-Za-z_]+:)?([A-Za-z_][A-Za-z0-9_]*)>").unwrap()
     });
     s = conv.replace_all(&s, "{$1}").into_owned();
-    // 5. Strip trailing `?` (optional-trailing-slash regex idiom: `/?$`
-    //    becomes `/?` after step 2; collapse to no trailing slash).
+    // 5. Strip trailing `/?` (optional-trailing-slash regex idiom:
+    //    `/?$` becomes `/?` after step 1 + 2; collapse to no trailing
+    //    slash so `normalize_http_path`'s downstream comparison joins
+    //    cleanly with the same path written without an optional slash).
     if s.ends_with("/?") {
         s.truncate(s.len() - 2);
-        s.push('/');
     }
     s
 }
@@ -243,7 +283,14 @@ fn is_skipped_dir(path: &Path) -> bool {
     matches!(
         name.as_ref(),
         ".git" | "node_modules" | "vendor" | "target" | "dist" | "build"
-            | ".venv" | "venv" | "__pycache__" | ".sigil" | ".repowise-workspace"
+            | ".venv" | "venv" | "__pycache__"
+            // Workspace data dirs. `.sigil-workspace` is sigil's own
+            // workspace dir — running `sigil contracts --root <ws>`
+            // against a workspace root must not recurse into the
+            // generated `contracts.jsonl` / `cross_repo_refs.jsonl` /
+            // `members.json` files. Mirrors `is_indexer_skipped_dir`
+            // in src/index.rs.
+            | ".sigil" | ".sigil-workspace" | ".repowise-workspace"
             // QA pass surfaced contracts indexing `.yarn/releases/yarn-*.cjs`
             // on slate (TypeScript) — a 2.7 MB minified vendored binary
             // that hits Express-style route patterns by accident. Add the
@@ -752,10 +799,11 @@ fn scan_go(file: &str, text: &str) -> Vec<ContractRow> {
                 continue;
             }
         }
-        if line.contains(".Subscribe(") && !line.matches('"').count() > 0 {
-            // Fall through if a literal is present.
-        }
         // Go env-var fallback for Subscribe (handles single env-var arg).
+        // The literal-topic case is already handled by the
+        // `redis_go_subscribe_re()` block higher up, but the env-var
+        // regex below requires `os.Getenv(...)` specifically so it
+        // can't double-fire on a line that has only a literal.
         if line.contains(".Subscribe(") {
             static GO_ENV_SUB_RE: OnceLock<Regex> = OnceLock::new();
             let go_sub = GO_ENV_SUB_RE.get_or_init(|| {

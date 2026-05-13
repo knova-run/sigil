@@ -687,6 +687,12 @@ pub fn resolve_workspace_cross_repo(workspace_root: &Path) -> Result<usize> {
     if let Some(parent) = cross.parent() {
         std::fs::create_dir_all(parent).ok();
     }
+    // Deterministic output ordering (mirrors CLAUDE.md's "Entity output
+    // is sorted deterministically by (file, line_start)" rule applied to
+    // the cross-repo-refs JSONL artifact). Lexicographic sort over the
+    // serialised JSON is stable and reproducible across runs regardless
+    // of HashMap iteration order.
+    out_lines.sort();
     let body = if out_lines.is_empty() {
         String::new()
     } else {
@@ -1363,15 +1369,23 @@ pub struct ContractLink {
     pub consumer_file: String,
     pub consumer_line: u32,
     pub consumer_framework: String,
-    /// 1.0 = literal == literal in both repos.
-    /// 0.9 = both use `$ENV.X` AND both `.env` files agree on the value.
-    /// 0.8 = one side literal, other resolves to that literal via .env.
-    /// 0.6 = both use `$ENV.X` but no `.env` files found (name-only match).
-    /// 0.3 = dynamic / fuzzy fallback.
-    /// Demoted to ≤ 0.6 when .env values DIFFER on the two sides.
+    /// Tiers (exact values; consumers can filter on `confidence >= X`):
+    ///   1.0  literal == literal in both repos.
+    ///   0.9  both use `$ENV.X` AND both `.env` files agree on the value.
+    ///   0.8  one side literal, other side `$ENV.X` resolves to that
+    ///        literal via `.env` (mixed strategy).
+    ///   0.6  both use `$ENV.X` but no `.env` file resolved the variable
+    ///        on at least one side — name-only match.
+    ///   0.4  both use `$ENV.X` and `.env` files resolved the variable
+    ///        on BOTH sides but to DIFFERENT values — `notes` carries
+    ///        the diff for the reviewer.
     pub confidence: f64,
-    /// Which join strategy produced this link.
-    /// One of: `literal` | `env_value` | `env_name` | `mixed` | `dynamic`.
+    /// Which join strategy produced this link. One of:
+    ///   `literal`    — both sides string-literal topics matched verbatim.
+    ///   `env_value`  — both sides `$ENV.X`, env tables agree on value.
+    ///   `env_name`   — both sides `$ENV.X`, env tables disagree or one
+    ///                  is unresolved (see `notes`).
+    ///   `mixed`      — one side literal, other side env-resolved.
     pub match_strategy: String,
     /// Optional human-readable note explaining a low-confidence link
     /// (e.g. "env values differ" / "no .env file found").
@@ -1500,8 +1514,10 @@ pub fn resolve_workspace_contract_links(workspace_root: &Path) -> Result<usize> 
     }
 
     // Write the full contracts dump (overwrite every run so removals
-    // surface as deletions rather than stale rows).
+    // surface as deletions rather than stale rows). Sort for
+    // deterministic row order across runs.
     let contracts_jsonl = contracts_path(workspace_root);
+    all_contracts.sort();
     let body = if all_contracts.is_empty() {
         String::new()
     } else {
@@ -1662,6 +1678,12 @@ pub fn resolve_workspace_contract_links(workspace_root: &Path) -> Result<usize> 
 
         if combined.is_empty() { continue; }
 
+        // Highest confidence first, so when the same (provider, consumer)
+        // pair is reachable via multiple lookup strategies (e.g. literal
+        // match AND env-resolved mixed match), the literal-tier row wins
+        // the `seen` dedup race rather than being silently demoted.
+        combined.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
         for (p, base_conf, strategy) in &combined {
             let (p_member, p_row) = (&p.0, &p.1);
             for (c_member, c_row) in cons_sites {
@@ -1722,6 +1744,10 @@ pub fn resolve_workspace_contract_links(workspace_root: &Path) -> Result<usize> 
         }
     }
 
+    // Deterministic output ordering for contract_links.jsonl —
+    // consumer iteration is HashMap-keyed, so without an explicit
+    // sort the row order varies per run.
+    out_lines.sort();
     let body = if out_lines.is_empty() {
         String::new()
     } else {
