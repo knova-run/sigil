@@ -643,6 +643,241 @@ async fn fetch() -> anyhow::Result<()> {
 }
 
 #[test]
+fn detects_python_grpc_servicer_and_stub() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("server.py"),
+        r#"import grpc
+from . import users_pb2_grpc
+
+class UserServicer(users_pb2_grpc.UserServiceServicer):
+    pass
+
+def serve():
+    server = grpc.server(...)
+    users_pb2_grpc.add_UserServiceServicer_to_server(UserServicer(), server)
+"#,
+    ).unwrap();
+    fs::write(
+        tmp.path().join("client.py"),
+        r#"import grpc
+from . import users_pb2_grpc
+
+channel = grpc.insecure_channel('localhost:50051')
+stub = users_pb2_grpc.UserServiceStub(channel)
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let providers: Vec<_> = rows.iter()
+        .filter(|r| r["kind"] == "grpc" && r["role"] == "provider").collect();
+    let consumers: Vec<_> = rows.iter()
+        .filter(|r| r["kind"] == "grpc" && r["role"] == "consumer").collect();
+    assert!(
+        providers.iter().any(|r| r["contract_id"] == "grpc::UserService"),
+        "expected grpc::UserService provider from add_*Servicer_to_server; got {providers:?}"
+    );
+    assert!(
+        consumers.iter().any(|r| r["contract_id"] == "grpc::UserService"),
+        "expected grpc::UserService consumer from *Stub(channel); got {consumers:?}"
+    );
+}
+
+#[test]
+fn detects_java_grpc_impl_base_and_blocking_stub() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("UserServiceImpl.java"),
+        r#"package com.example;
+import io.grpc.stub.StreamObserver;
+
+public class UserServiceImpl extends UserServiceGrpc.UserServiceImplBase {
+    @Override
+    public void getUser(Request req, StreamObserver<Response> resp) {}
+}
+"#,
+    ).unwrap();
+    fs::write(
+        tmp.path().join("Client.java"),
+        r#"package com.example;
+import io.grpc.ManagedChannel;
+
+public class Client {
+    void call() {
+        UserServiceGrpc.UserServiceBlockingStub stub = UserServiceGrpc.newBlockingStub(channel);
+    }
+}
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let ids: Vec<&str> = rows.iter().filter(|r| r["kind"] == "grpc")
+        .map(|r| r["contract_id"].as_str().unwrap()).collect();
+    assert!(ids.iter().any(|id| *id == "grpc::UserService"),
+        "expected grpc::UserService from Java provider+consumer; got {ids:?}");
+}
+
+#[test]
+fn detects_csharp_grpc_server_and_client() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("Program.cs"),
+        r#"var builder = WebApplication.CreateBuilder(args);
+var app = builder.Build();
+app.MapGrpcService<UserServiceImpl>();
+"#,
+    ).unwrap();
+    fs::write(
+        tmp.path().join("UserClient.cs"),
+        r#"using Grpc.Net.Client;
+
+public class UserClient {
+    public void Call() {
+        var channel = GrpcChannel.ForAddress("https://localhost:5001");
+        var client = new UserServiceClient(channel);
+    }
+}
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let grpc: Vec<&serde_json::Value> = rows.iter().filter(|r| r["kind"] == "grpc").collect();
+    let provider = grpc.iter().find(|r| r["role"] == "provider")
+        .unwrap_or_else(|| panic!("no C# grpc provider in {grpc:?}"));
+    let consumer = grpc.iter().find(|r| r["role"] == "consumer")
+        .unwrap_or_else(|| panic!("no C# grpc consumer in {grpc:?}"));
+    assert_eq!(provider["contract_id"], "grpc::UserService");
+    assert_eq!(consumer["contract_id"], "grpc::UserService");
+}
+
+#[test]
+fn detects_redis_pubsub_python() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("worker.py"),
+        r#"import redis
+
+r = redis.Redis()
+r.publish('user-events', 'created')
+
+pubsub = r.pubsub()
+pubsub.subscribe('user-events', 'order-events')
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let ids: Vec<(&str, &str, &str)> = rows.iter()
+        .map(|r| (r["contract_id"].as_str().unwrap(),
+                  r["role"].as_str().unwrap(),
+                  r["framework"].as_str().unwrap())).collect();
+    assert!(ids.iter().any(|t| t.0 == "topic::user-events" && t.1 == "publisher" && t.2 == "redis"),
+        "expected publisher to user-events; got {ids:?}");
+    assert!(ids.iter().any(|t| t.0 == "topic::user-events" && t.1 == "subscriber"),
+        "expected subscriber for user-events; got {ids:?}");
+    assert!(ids.iter().any(|t| t.0 == "topic::order-events" && t.1 == "subscriber"),
+        "expected subscriber for order-events (multi-arg subscribe); got {ids:?}");
+}
+
+#[test]
+fn detects_redis_pubsub_js_node() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("worker.js"),
+        r#"const Redis = require('ioredis');
+const pub = new Redis();
+const sub = new Redis();
+
+pub.publish('jobs', JSON.stringify(job));
+sub.subscribe('jobs', (err, count) => {});
+sub.subscribe('emails');
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let ids: Vec<&str> = rows.iter()
+        .filter(|r| r["framework"] == "redis")
+        .map(|r| r["contract_id"].as_str().unwrap()).collect();
+    assert!(ids.contains(&"topic::jobs"), "jobs topic; got {ids:?}");
+    assert!(ids.contains(&"topic::emails"), "emails topic; got {ids:?}");
+}
+
+#[test]
+fn detects_redis_pubsub_go() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("worker.go"),
+        r#"package main
+
+import "github.com/redis/go-redis/v9"
+
+func main() {
+    rdb := redis.NewClient(...)
+    rdb.Publish(ctx, "jobs", payload)
+    pubsub := rdb.Subscribe(ctx, "jobs", "alerts")
+}
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let ids: Vec<(&str, &str)> = rows.iter()
+        .filter(|r| r["framework"] == "redis")
+        .map(|r| (r["contract_id"].as_str().unwrap(),
+                  r["role"].as_str().unwrap())).collect();
+    assert!(ids.iter().any(|t| t == &("topic::jobs", "publisher")),
+        "Go publish; got {ids:?}");
+    assert!(ids.iter().any(|t| t == &("topic::jobs", "subscriber")),
+        "Go subscribe (first arg); got {ids:?}");
+    assert!(ids.iter().any(|t| t == &("topic::alerts", "subscriber")),
+        "Go subscribe (multi-arg); got {ids:?}");
+}
+
+#[test]
+fn detects_nats_pubsub() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("nats_worker.py"),
+        r#"import nats
+
+async def run():
+    nc = await nats.connect("nats://localhost:4222")
+    await nc.publish("events.user.created", payload)
+    await nc.subscribe("events.user.>", cb=handle_user)
+"#,
+    ).unwrap();
+    fs::write(
+        tmp.path().join("nats_worker.go"),
+        r#"package main
+import "github.com/nats-io/nats.go"
+
+func main() {
+    nc, _ := nats.Connect("nats://localhost:4222")
+    nc.Publish("events.order.placed", payload)
+    nc.Subscribe("events.order.>", handleOrder)
+}
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let nats: Vec<&serde_json::Value> = rows.iter().filter(|r| r["framework"] == "nats").collect();
+    let pubs: Vec<&str> = nats.iter().filter(|r| r["role"] == "publisher")
+        .map(|r| r["contract_id"].as_str().unwrap()).collect();
+    let subs: Vec<&str> = nats.iter().filter(|r| r["role"] == "subscriber")
+        .map(|r| r["contract_id"].as_str().unwrap()).collect();
+    assert!(pubs.iter().any(|s| s == &"topic::events.user.created"),
+        "Python NATS publish; got pubs={pubs:?}");
+    assert!(pubs.iter().any(|s| s == &"topic::events.order.placed"),
+        "Go NATS publish; got pubs={pubs:?}");
+    assert!(!subs.is_empty(), "expected NATS subscribers; got {nats:?}");
+}
+
+#[test]
 fn contracts_works_on_workspace_root() {
     use std::process::Command;
     let tmp = TempDir::new().unwrap();

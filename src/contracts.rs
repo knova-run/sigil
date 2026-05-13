@@ -534,6 +534,8 @@ fn scan_js_ts(file: &str, text: &str, ext: &str) -> Vec<ContractRow> {
             });
         }
     }
+    // Redis / NATS pub-sub for JS/TS files.
+    emit_pubsub_rows(file, text, language, &mut out);
     out
 }
 
@@ -571,14 +573,92 @@ fn go_grpc_client_re() -> &'static Regex {
     })
 }
 
+/// Gate Go gRPC client/server detection on the file importing a gRPC
+/// package. Without this, `.New<X>Client(` matches non-gRPC factories
+/// like `redis.NewFailoverClient(...)`, `redis.NewClusterClient(...)`,
+/// `kafka.NewClient(...)`, etc. — emitting tens of false `grpc::Foo`
+/// rows per Go library that has a polymorphic constructor.
+fn go_file_uses_grpc(text: &str) -> bool {
+    text.contains("google.golang.org/grpc")
+        || text.contains("\"grpc\"")
+        || text.contains("grpc.Dial")
+        || text.contains("grpc.NewServer")
+        || text.contains("grpc.RegisterService")
+}
+
+fn redis_streams_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // Redis Streams ops (BullMQ, Sidekiq Pro, custom event buses):
+        //   * `client.xadd("stream-key", ...)` — publisher
+        //   * `client.xread(...)`, `client.xreadgroup(...)` — subscriber
+        //   * `client.XAdd(ctx, ...)`, `client.XRead(...)` — Go variants
+        // Capture the first quoted argument that looks like a stream key.
+        Regex::new(
+            r#"\b[A-Za-z_][A-Za-z0-9_]*\.(?:xadd|xreadgroup|xread|XAdd|XReadGroup|XRead)\s*\([^)"]*?['"]([A-Za-z0-9_][\w./:\-]*)['"]"#,
+        )
+        .unwrap()
+    })
+}
+
 fn scan_go(file: &str, text: &str) -> Vec<ContractRow> {
     let mut out = Vec::new();
+    // Go pub-sub (go-redis Publish/Subscribe + nats.go Publish/Subscribe).
+    for (i, line) in text.lines().enumerate() {
+        if let Some(caps) = redis_go_publish_re().captures(line) {
+            let topic = caps[1].to_string();
+            let framework = if topic.contains('.') { "nats" } else { "redis" };
+            out.push(ContractRow {
+                contract_id: format!("topic::{topic}"),
+                kind: "topic".to_string(),
+                role: "publisher".to_string(),
+                method: None,
+                path: None,
+                topic: Some(topic),
+                file: file.to_string(),
+                line: (i + 1) as u32,
+                language: "go".to_string(),
+                framework: framework.to_string(),
+            });
+            continue;
+        }
+        if redis_go_subscribe_re().is_match(line) {
+            // Capture every quoted topic after the ctx argument.
+            let args_start = line.find(".Subscribe(").map(|p| p + ".Subscribe(".len()).unwrap_or(0);
+            let after = &line[args_start..];
+            for cap in quoted_topic_args_re().captures_iter(after) {
+                let topic = cap[1].to_string();
+                let framework = if topic.contains('.') { "nats" } else { "redis" };
+                out.push(ContractRow {
+                    contract_id: format!("topic::{topic}"),
+                    kind: "topic".to_string(),
+                    role: "subscriber".to_string(),
+                    method: None,
+                    path: None,
+                    topic: Some(topic),
+                    file: file.to_string(),
+                    line: (i + 1) as u32,
+                    language: "go".to_string(),
+                    framework: framework.to_string(),
+                });
+            }
+            continue;
+        }
+    }
     for (i, line) in text.lines().enumerate() {
         // gRPC server registration: `pb.RegisterFooServer(...)` →
         // provider of every method on `FooService`. We emit a single
         // service-level contract (no method) so it joins with a `.proto`
-        // service if one exists in another repo.
-        if let Some(caps) = go_grpc_server_re().captures(line) {
+        // service if one exists in another repo. Gated on a file-level
+        // gRPC import probe — without it, `redis.NewFailoverClient(...)`
+        // and `kafka.NewProducerClient(...)` patterns get tagged as
+        // gRPC bindings (real bug seen on the go-redis library, 58
+        // false `grpc::Failover|Cluster|Universal|...` rows).
+        if !go_file_uses_grpc(text) {
+            // Skip the gRPC branch but still attempt the HTTP route
+            // branch below — Go files that don't use gRPC may still
+            // define HTTP routes.
+        } else if let Some(caps) = go_grpc_server_re().captures(line) {
             let svc = caps[1].to_string();
             out.push(ContractRow {
                 contract_id: format!("grpc::{svc}"),
@@ -595,8 +675,10 @@ fn scan_go(file: &str, text: &str) -> Vec<ContractRow> {
             continue;
         }
         // gRPC client stub: `pb.NewFooClient(conn)` → consumer of every
-        // method on `FooService`.
-        if let Some(caps) = go_grpc_client_re().captures(line) {
+        // method on `FooService`. Same gate as the server branch.
+        if go_file_uses_grpc(text)
+            && let Some(caps) = go_grpc_client_re().captures(line)
+        {
             let svc = caps[1].to_string();
             out.push(ContractRow {
                 contract_id: format!("grpc::{svc}"),
@@ -653,9 +735,60 @@ fn spring_method_re() -> &'static Regex {
     })
 }
 
+fn java_grpc_impl_base_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `extends FooServiceGrpc.FooServiceImplBase` — gRPC provider.
+        Regex::new(r#"extends\s+([A-Za-z_][A-Za-z0-9_]*)Grpc\."#).unwrap()
+    })
+}
+
+fn java_grpc_stub_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `FooServiceGrpc.newBlockingStub(channel)` / `newFutureStub` /
+        // `newStub`. Consumer side.
+        Regex::new(r#"\b([A-Za-z_][A-Za-z0-9_]*)Grpc\.new(?:Blocking|Future)?Stub\s*\("#).unwrap()
+    })
+}
+
 fn scan_java(file: &str, text: &str) -> Vec<ContractRow> {
     let mut out = Vec::new();
     for (i, line) in text.lines().enumerate() {
+        // Java gRPC server: `class X extends FooGrpc.FooImplBase`
+        if let Some(caps) = java_grpc_impl_base_re().captures(line) {
+            let svc = caps[1].to_string();
+            out.push(ContractRow {
+                contract_id: format!("grpc::{svc}"),
+                kind: "grpc".to_string(),
+                role: "provider".to_string(),
+                method: None,
+                path: Some(svc),
+                topic: None,
+                file: file.to_string(),
+                line: (i + 1) as u32,
+                language: "java".to_string(),
+                framework: "grpc".to_string(),
+            });
+            continue;
+        }
+        // Java gRPC client: `FooGrpc.newBlockingStub(channel)`
+        if let Some(caps) = java_grpc_stub_re().captures(line) {
+            let svc = caps[1].to_string();
+            out.push(ContractRow {
+                contract_id: format!("grpc::{svc}"),
+                kind: "grpc".to_string(),
+                role: "consumer".to_string(),
+                method: None,
+                path: Some(svc),
+                topic: None,
+                file: file.to_string(),
+                line: (i + 1) as u32,
+                language: "java".to_string(),
+                framework: "grpc".to_string(),
+            });
+            continue;
+        }
         if let Some(caps) = spring_method_re().captures(line) {
             let method = caps[1].to_uppercase();
             let normalized = normalize_http_path(&caps[2]);
@@ -1065,9 +1198,76 @@ fn aspnet_httpclient_re() -> &'static Regex {
     })
 }
 
+fn csharp_grpc_map_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // ASP.NET Core gRPC server: `app.MapGrpcService<UserServiceImpl>()`.
+        // Captures the service-class name; gRPC convention strips the
+        // `Impl`/`Service` suffix to recover the proto service name.
+        Regex::new(r#"\.\s*MapGrpcService\s*<\s*([A-Za-z_][A-Za-z0-9_]*)\s*>"#).unwrap()
+    })
+}
+
+fn csharp_grpc_client_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `new UserServiceClient(channel)` — generated gRPC stub.
+        // Generated class always ends in `Client`. Skip common HTTP
+        // collisions (`HttpClient`, `WebClient`, `RestClient`).
+        Regex::new(r#"\bnew\s+([A-Za-z_][A-Za-z0-9_]*?)Client\s*\("#).unwrap()
+    })
+}
+
+/// Strip the trailing `Impl` / `Service` suffix from a C# class name
+/// to recover the proto service name. `UserServiceImpl` → `UserService`;
+/// already-canonical `UserService` stays as is.
+fn csharp_strip_impl_suffix(name: &str) -> String {
+    if let Some(prefix) = name.strip_suffix("Impl") {
+        return prefix.to_string();
+    }
+    name.to_string()
+}
+
 fn scan_csharp(file: &str, text: &str) -> Vec<ContractRow> {
     let mut out = Vec::new();
     for (i, line) in text.lines().enumerate() {
+        // C# gRPC server: `app.MapGrpcService<FooImpl>()`
+        if let Some(caps) = csharp_grpc_map_re().captures(line) {
+            let svc = csharp_strip_impl_suffix(&caps[1]);
+            out.push(ContractRow {
+                contract_id: format!("grpc::{svc}"),
+                kind: "grpc".to_string(),
+                role: "provider".to_string(),
+                method: None,
+                path: Some(svc),
+                topic: None,
+                file: file.to_string(),
+                line: (i + 1) as u32,
+                language: "csharp".to_string(),
+                framework: "grpc".to_string(),
+            });
+            continue;
+        }
+        // C# gRPC client: `new FooClient(channel)`. Skip well-known
+        // non-gRPC client class names — HttpClient, WebClient, etc.
+        if let Some(caps) = csharp_grpc_client_re().captures(line) {
+            let svc = caps[1].to_string();
+            if !matches!(svc.as_str(), "Http" | "Web" | "Rest" | "Soap" | "Service") {
+                out.push(ContractRow {
+                    contract_id: format!("grpc::{svc}"),
+                    kind: "grpc".to_string(),
+                    role: "consumer".to_string(),
+                    method: None,
+                    path: Some(svc),
+                    topic: None,
+                    file: file.to_string(),
+                    line: (i + 1) as u32,
+                    language: "csharp".to_string(),
+                    framework: "grpc".to_string(),
+                });
+                continue;
+            }
+        }
         if let Some(caps) = aspnet_attribute_re().captures(line) {
             let method = caps[1].to_uppercase();
             let raw_path = caps.get(2).map(|m| m.as_str().to_string());
@@ -1141,6 +1341,197 @@ fn kafka_send_re() -> &'static Regex {
         )
         .unwrap()
     })
+}
+
+// ─── Python gRPC ─────────────────────────────────────────────────────────────
+
+fn py_grpc_servicer_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `add_AuthServiceServicer_to_server(servicer, server)` — provider.
+        Regex::new(r#"\badd_(\w+?)Servicer_to_server\s*\("#).unwrap()
+    })
+}
+
+fn py_grpc_stub_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `AuthServiceStub(channel)` — consumer. Gate on PascalCase since
+        // `Stub` is also a generic suffix.
+        Regex::new(r#"\b([A-Z][A-Za-z0-9_]*)Stub\s*\("#).unwrap()
+    })
+}
+
+// ─── Redis / NATS pub-sub ────────────────────────────────────────────────────
+
+fn redis_publish_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `<client>.publish('channel', ...)` (Python redis-py, Node
+        // ioredis/node-redis). Channel must start with letter / digit /
+        // `_` / `.` so we don't match `<X>.publish(this, ...)`.
+        Regex::new(r#"\b[A-Za-z_][A-Za-z0-9_]*\.publish\s*\(\s*['"]([A-Za-z0-9_][\w./:\-]*)['"]"#).unwrap()
+    })
+}
+
+fn redis_subscribe_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `<client>.subscribe('a', 'b', ...)`. We pre-match the call shape
+        // then a follow-up pass extracts every quoted topic argument.
+        Regex::new(r#"\b[A-Za-z_][A-Za-z0-9_]*\.subscribe\s*\("#).unwrap()
+    })
+}
+
+fn redis_go_publish_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // Two Go publisher shapes:
+        //   * go-redis: `rdb.Publish(ctx, "channel", payload)` — ctx
+        //     arg first, then topic.
+        //   * NATS: `nc.Publish("subject", data)` — topic is first arg.
+        // The first quoted argument is always the topic, so we look
+        // for `.Publish(... "topic" ...)` and pluck the first string.
+        Regex::new(r#"\b[A-Za-z_][A-Za-z0-9_]*\.Publish\s*\([^)"]*?"([A-Za-z0-9_][\w./:\-]*)""#).unwrap()
+    })
+}
+
+fn redis_go_subscribe_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // Two Go subscriber shapes:
+        //   * go-redis: `rdb.Subscribe(ctx, "a", "b", ...)` — ctx arg
+        //     then one or more topic args.
+        //   * NATS: `nc.Subscribe("subject", handler)` — topic first.
+        // Match the call shape; the topic-args pass picks up every
+        // quoted argument in the parenthesised list.
+        Regex::new(r#"\b[A-Za-z_][A-Za-z0-9_]*\.Subscribe\s*\("#).unwrap()
+    })
+}
+
+fn quoted_topic_args_re() -> &'static Regex {
+    // Inside an argument list, capture every single- or double-quoted
+    // identifier-shaped string. Used to fan out multi-topic subscribe()
+    // calls (Redis: `subscribe('a', 'b', 'c')`).
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(r#"['"]([A-Za-z0-9_][\w./:\->]*)['"]"#).unwrap())
+}
+
+/// Determine whether a Redis-style `<client>.subscribe(...)` line is
+/// truly a pub/sub subscribe vs something HTTP/JS-shaped (e.g. RxJS
+/// `observable.subscribe(...)`). Gate: at least one argument must be
+/// a string literal that looks like a topic name.
+fn extract_subscribe_topics(line: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    // Find the `(...)` argument list of the matching subscribe call.
+    let Some(start) = line.find(".subscribe(") else { return out };
+    let after = &line[start + ".subscribe(".len()..];
+    // Bound the scan to the first closing `)` at depth 0.
+    let mut depth = 1usize;
+    let mut end = after.len();
+    for (i, c) in after.char_indices() {
+        match c {
+            '(' => depth += 1,
+            ')' => {
+                depth -= 1;
+                if depth == 0 {
+                    end = i;
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+    let args = &after[..end];
+    for caps in quoted_topic_args_re().captures_iter(args) {
+        out.push(caps[1].to_string());
+    }
+    out
+}
+
+/// Emit publish/subscribe contract rows for a Python or JS/TS file.
+/// Both share the same `<client>.publish('topic', ...)` / `.subscribe(...)`
+/// shape; `language` and the receiver heuristic differ.
+///
+/// Also detects Redis Streams (XADD / XREAD / XREADGROUP) — the
+/// queueing primitive that bullmq, Sidekiq Pro, and most modern Redis-
+/// backed event buses use instead of plain pub/sub.
+fn emit_pubsub_rows(file: &str, text: &str, language: &str, out: &mut Vec<ContractRow>) {
+    for (i, line) in text.lines().enumerate() {
+        if let Some(caps) = redis_publish_re().captures(line) {
+            let topic = caps[1].to_string();
+            // Distinguish Redis from NATS by surrounding context. NATS
+            // subjects conventionally use dotted hierarchy (`events.x.y`)
+            // — if the topic contains a `.`, prefer NATS framework tag.
+            let framework = if topic.contains('.') { "nats" } else { "redis" };
+            out.push(ContractRow {
+                contract_id: format!("topic::{topic}"),
+                kind: "topic".to_string(),
+                role: "publisher".to_string(),
+                method: None,
+                path: None,
+                topic: Some(topic),
+                file: file.to_string(),
+                line: (i + 1) as u32,
+                language: language.to_string(),
+                framework: framework.to_string(),
+            });
+        }
+        if redis_subscribe_re().is_match(line) {
+            for topic in extract_subscribe_topics(line) {
+                let framework = if topic.contains('.') { "nats" } else { "redis" };
+                out.push(ContractRow {
+                    contract_id: format!("topic::{topic}"),
+                    kind: "topic".to_string(),
+                    role: "subscriber".to_string(),
+                    method: None,
+                    path: None,
+                    topic: Some(topic),
+                    file: file.to_string(),
+                    line: (i + 1) as u32,
+                    language: language.to_string(),
+                    framework: framework.to_string(),
+                });
+            }
+        }
+        // Redis Streams. XADD = publisher, XREAD/XREADGROUP = subscriber.
+        if let Some(caps) = redis_streams_re().captures(line) {
+            let topic = caps[1].to_string();
+            // Redis Streams command flags (`BLOCK`, `STREAMS`, `MAXLEN`,
+            // `GROUP`, `COUNT`, `NOACK`, etc.) appear before the actual
+            // stream key in XREAD/XREADGROUP. When the topic capture
+            // lands on one of these, the real stream key is a runtime
+            // variable we can't resolve — drop the row rather than
+            // emit a bogus `topic::BLOCK`. Seen on BullMQ where every
+            // stream key is `KEYS[2]` or `eventStreamKey`.
+            if matches!(
+                topic.as_str(),
+                "BLOCK" | "STREAMS" | "MAXLEN" | "MINID" | "GROUP" | "COUNT"
+                    | "NOACK" | "NOMKSTREAM" | "LIMIT" | "ID" | "MKSTREAM" | "*"
+            ) {
+                continue;
+            }
+            // Determine role from the lowercase method name in the line.
+            let lower = line.to_ascii_lowercase();
+            let role = if lower.contains(".xadd(") {
+                "publisher"
+            } else {
+                "subscriber"
+            };
+            out.push(ContractRow {
+                contract_id: format!("topic::{topic}"),
+                kind: "topic".to_string(),
+                role: role.to_string(),
+                method: None,
+                path: None,
+                topic: Some(topic),
+                file: file.to_string(),
+                line: (i + 1) as u32,
+                language: language.to_string(),
+                framework: "redis-streams".to_string(),
+            });
+        }
+    }
 }
 
 fn requests_re() -> &'static Regex {
@@ -1294,6 +1685,45 @@ fn scan_python(file: &str, text: &str) -> Vec<ContractRow> {
             });
             continue;
         }
+        // Python gRPC provider: `add_FooServicer_to_server(...)`
+        if let Some(caps) = py_grpc_servicer_re().captures(line) {
+            let svc = caps[1].to_string();
+            out.push(ContractRow {
+                contract_id: format!("grpc::{svc}"),
+                kind: "grpc".to_string(),
+                role: "provider".to_string(),
+                method: None,
+                path: Some(svc.clone()),
+                topic: None,
+                file: file.to_string(),
+                line: (i + 1) as u32,
+                language: "python".to_string(),
+                framework: "grpc".to_string(),
+            });
+            continue;
+        }
+        // Python gRPC consumer: `FooServiceStub(channel)`. Gate on
+        // PascalCase to avoid false matches like `Stub(...)` alone or
+        // `MyStub` test classes — at least one letter before `Stub`.
+        if let Some(caps) = py_grpc_stub_re().captures(line) {
+            let svc = caps[1].to_string();
+            // Skip very generic single-letter prefixes.
+            if svc.len() >= 2 {
+                out.push(ContractRow {
+                    contract_id: format!("grpc::{svc}"),
+                    kind: "grpc".to_string(),
+                    role: "consumer".to_string(),
+                    method: None,
+                    path: Some(svc),
+                    topic: None,
+                    file: file.to_string(),
+                    line: (i + 1) as u32,
+                    language: "python".to_string(),
+                    framework: "grpc".to_string(),
+                });
+                continue;
+            }
+        }
         if let Some(caps) = kafka_send_re().captures(line) {
             let topic = caps[1].to_string();
             out.push(ContractRow {
@@ -1310,5 +1740,7 @@ fn scan_python(file: &str, text: &str) -> Vec<ContractRow> {
             });
         }
     }
+    // Redis / NATS pub-sub for Python files.
+    emit_pubsub_rows(file, text, "python", &mut out);
     out
 }
