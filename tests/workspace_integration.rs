@@ -1038,8 +1038,13 @@ fn workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge() {
         consumer.join("package.json"),
         r#"{"name": "@org/consumer", "dependencies": {"@org/shared": "^1.0.0"}}"#,
     ).unwrap();
+    // External modpath must align with the provider's canonical name —
+    // real CommonJS/ESM imports look like `external:@org/shared.helper`
+    // after sigil's tier-2 alias rewrite turns `lib.helper()` into
+    // `<pkg-canonical>.helper`. A bare `external:helper` is not a
+    // realistic shape for an npm-resolved binding.
     write_fake_sigil(&consumer,
-        "{\"file\":\"<external>\",\"name\":\"external:helper\",\"kind\":\"external\",\
+        "{\"file\":\"<external>\",\"name\":\"external:@org/shared.helper\",\"kind\":\"external\",\
         \"line_start\":0,\"line_end\":0,\"struct_hash\":\"e\"}\n",
         "");
 
@@ -1052,9 +1057,18 @@ fn workspace_index_upgrades_to_0_6_with_direct_npm_dep_edge() {
     let rows: Vec<serde_json::Value> = text
         .lines().filter(|l| !l.is_empty())
         .map(|l| serde_json::from_str(l).unwrap()).collect();
-    assert_eq!(rows.len(), 1, "expected one cross-repo ref; got {rows:?}");
-    assert_eq!(rows[0]["confidence"].as_f64(), Some(0.6),
-        "direct npm dep edge should bump to 0.6; got {:?}", rows[0]);
+    // Two emissions: (1) module-level dep edge at 0.6, (2) the specific
+    // `helper` symbol binding at 0.6. Both correctly carry the direct
+    // npm dep boost.
+    assert!(!rows.is_empty(), "expected cross-repo refs; got nothing");
+    for r in &rows {
+        assert_eq!(r["confidence"].as_f64(), Some(0.6),
+            "direct npm dep edge should bump every binding to 0.6; got {r:?}");
+    }
+    let call_row = rows.iter().find(|r| r["kind"].as_str() == Some("cross_repo_call"))
+        .expect("expected one cross_repo_call binding");
+    assert_eq!(call_row["name"].as_str(), Some("helper"));
+    assert_eq!(call_row["callee_id"].as_str(), Some("provider/index.js::helper"));
 }
 
 // ---------------------------------------------------------------------------

@@ -363,13 +363,23 @@ pub fn resolve_workspace_cross_repo(workspace_root: &Path) -> Result<usize> {
         for line in text.lines() {
             let Ok(v): Result<Value, _> = serde_json::from_str(line) else { continue };
             let kind = v.get("kind").and_then(Value::as_str).unwrap_or("");
-            // Only callables can satisfy a cross-repo binding
-            if !matches!(kind, "function" | "method" | "class" | "struct" | "interface" | "trait" | "fn") {
+            // Only callables can satisfy a cross-repo binding. Mirrors
+            // `is_callable_kind` in src/index.rs — `class`/`struct`/
+            // `interface`/`trait` are data shapes, not call targets, so
+            // a `external:foo/bar.fake()` shouldn't bind to a `struct
+            // Fake {}` somewhere else.
+            if !matches!(kind, "function" | "fn" | "method" | "constructor") {
                 continue;
             }
             let name = v.get("name").and_then(Value::as_str).unwrap_or("").to_string();
             let file = v.get("file").and_then(Value::as_str).unwrap_or("").to_string();
             if name.is_empty() || file.is_empty() || file == "<external>" {
+                continue;
+            }
+            // Skip vendored / build-output paths — they slipped past
+            // `.gitignore` and into the index but they're not first-
+            // party code, so they shouldn't satisfy cross-repo bindings.
+            if file.starts_with("vendor/") || file.contains("/vendor/") || file.starts_with("node_modules/") {
                 continue;
             }
             let leaf = leaf_segment(&name).to_string();
@@ -393,15 +403,96 @@ pub fn resolve_workspace_cross_repo(workspace_root: &Path) -> Result<usize> {
             }
             let raw_name = v.get("name").and_then(Value::as_str).unwrap_or("");
             let Some(modpath) = raw_name.strip_prefix("external:") else { continue };
+
+            // Module-level cross-repo edge — when the modpath aligns
+            // with another member's canonical name, emit a dep edge
+            // even if no specific symbol resolves. Captures the common
+            // Go pattern (`external:knative.dev/pkg/configmap`) and the
+            // JS module-import pattern (`external:body-parser`) where
+            // the external represents a package, not a function call.
+            for m in &members {
+                if m.name == consumer.name {
+                    continue;
+                }
+                let Some(canonicals) = member_canonical.get(&m.name) else { continue };
+                if canonicals.iter().any(|c| modpath_aligns_with_canonical(modpath, c)) {
+                    let row = serde_json::json!({
+                        "file": format!("{}/<external>", consumer.name),
+                        "caller": format!("external:{}", modpath),
+                        "name": modpath,
+                        "kind": "cross_repo_module_dep",
+                        "line": 0,
+                        "confidence": 0.6,
+                        "callee_id": format!("{}/", m.name),
+                    });
+                    out_lines.push(row.to_string());
+                    emitted_count += 1;
+                }
+            }
+
             let leaf = leaf_segment(modpath);
             if leaf.is_empty() {
                 continue;
             }
 
-            // Candidates: providers other than the consumer itself
+            // Candidates: providers other than the consumer itself.
+            //
+            // The external modpath itself has to align with the
+            // provider — otherwise leaf-name match alone produces
+            // wild false positives (e.g. `external:k8s.io/foo/fake`
+            // binding to a `fake` test helper in knative/pkg just
+            // because both have a `fake` leaf). We require the
+            // modpath to either equal a provider's canonical name
+            // (npm package, Go module path, Cargo crate name) OR
+            // start with one of those names followed by `/` or `.`.
+            // Bare relative imports (`./util`) are workspace-local
+            // and never bind cross-repo.
             let candidates: Vec<&(String, String, String)> = providers
                 .get(leaf)
-                .map(|v| v.iter().filter(|(member, _, _)| member != &consumer.name).collect())
+                .map(|v| {
+                    v.iter()
+                        .filter(|(member, file, _)| {
+                            if member == &consumer.name {
+                                return false;
+                            }
+                            // Modpath has to match the provider's
+                            // canonical identity. Otherwise this is
+                            // most likely a third-party dep that
+                            // happens to share a leaf name with a
+                            // workspace symbol.
+                            let canonical = member_canonical.get(member);
+                            let aligned = match canonical {
+                                Some(names) if !names.is_empty() => {
+                                    names.iter().any(|n| modpath_aligns_with_canonical(modpath, n))
+                                }
+                                _ => {
+                                    // No canonical name declared — accept
+                                    // the candidate (legacy single/multi
+                                    // match behaviour) so polyglot setups
+                                    // that lack a manifest still get
+                                    // partial coverage.
+                                    true
+                                }
+                            };
+                            if !aligned {
+                                return false;
+                            }
+                            // Production code shouldn't bind to test
+                            // fixtures. Cheap heuristic: the provider's
+                            // file looks like a test file.
+                            if file.ends_with("_test.go")
+                                || file.contains("/test/") || file.starts_with("test/")
+                                || file.contains("/tests/") || file.starts_with("tests/")
+                                || file.contains("/__tests__/")
+                                || file.ends_with(".test.js") || file.ends_with(".test.ts")
+                                || file.ends_with(".spec.js") || file.ends_with(".spec.ts")
+                            {
+                                return false;
+                            }
+                            true
+                        })
+                        .collect()
+                })
                 .unwrap_or_default();
             if candidates.is_empty() {
                 continue;
@@ -792,6 +883,27 @@ fn strip_managed_block(text: &str) -> String {
         out.push('\n');
     }
     out
+}
+
+/// True when an external sentinel's modpath plausibly points at a
+/// provider with `canonical_name`. Covers three patterns:
+///
+///   * `modpath == canonical`           — e.g. `external:body-parser`
+///     against an npm package named `body-parser`.
+///   * `modpath starts with canonical + '/'` — e.g.
+///     `external:knative.dev/pkg/logging` against a Go module whose
+///     `go.mod` declares `module knative.dev/pkg`.
+///   * `modpath starts with canonical + '.'` or `canonical::` — e.g.
+///     `external:pydantic_core.PydanticUndefined` against a Python
+///     package named `pydantic_core`.
+fn modpath_aligns_with_canonical(modpath: &str, canonical: &str) -> bool {
+    if modpath == canonical {
+        return true;
+    }
+    if let Some(rest) = modpath.strip_prefix(canonical) {
+        return rest.starts_with('/') || rest.starts_with('.') || rest.starts_with("::");
+    }
+    false
 }
 
 fn leaf_segment(s: &str) -> &str {

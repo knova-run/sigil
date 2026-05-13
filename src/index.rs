@@ -391,11 +391,43 @@ fn normalize_kind(kind: &str) -> String {
     }
 }
 
+/// Directories the indexer skips wholesale — vendored deps, build
+/// outputs, package caches. Most are honored by `.gitignore` already,
+/// but Go's `vendor/`, Python's site-packages, and Java's `target/`
+/// frequently get committed alongside source and would otherwise
+/// quintuple-index the world (knative/serving carries 250k+ entities
+/// of vendored stdlib alone).
+fn is_indexer_skipped_dir(name: &str) -> bool {
+    matches!(
+        name,
+        "vendor"
+            | "node_modules"
+            | "target"
+            | "build"
+            | "dist"
+            | "out"
+            | ".venv" | "venv" | ".tox" | "__pycache__"
+            | ".gradle" | ".idea" | ".vs" | ".vscode"
+            | "bin" | "obj"
+            | "site-packages"
+            | ".sigil" | ".sigil-workspace"
+    )
+}
+
 fn discover_source_files(root: &Path) -> Vec<PathBuf> {
     ignore::WalkBuilder::new(root)
         .hidden(true)
         .git_ignore(true)
         .git_global(true)
+        .filter_entry(|entry| {
+            if entry.file_type().is_some_and(|ft| ft.is_dir()) {
+                let name = entry.file_name().to_string_lossy();
+                if is_indexer_skipped_dir(&name) {
+                    return false;
+                }
+            }
+            true
+        })
         .build()
         .filter_map(|entry| entry.ok())
         .filter(|entry| entry.file_type().is_some_and(|ft| ft.is_file()))
