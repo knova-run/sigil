@@ -151,6 +151,13 @@ pub struct Context {
     pub callers: Vec<Edge>,
     pub callees: Vec<Edge>,
     pub related_types: Vec<Edge>,
+    /// When `chosen` is a class with heritage edges (extend / implement /
+    /// trait_impl), the resolved parent class entities. Lets an agent
+    /// see `class Flask(App):` → `App` lives at `src/flask/sansio/app.py`
+    /// without a separate `sigil heritage` call. Empty for entities
+    /// with no resolvable heritage edges.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub parents: Vec<SymbolRef>,
     /// When `chosen` is a method (has a parent class), other classes in
     /// the codebase that define a method with the same tail segment —
     /// the inheritance / polymorphism delta. Empty for non-method
@@ -163,6 +170,16 @@ pub struct Context {
     pub skipped_types: usize,
     #[serde(default, skip_serializing_if = "is_zero_usize")]
     pub skipped_overrides: usize,
+    /// When the chosen entity was found by walking the parent class's
+    /// heritage chain (e.g. `Flask::testing` → `App::testing`), this
+    /// is `Some("heritage")`. Standard direct resolutions leave it None.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resolved_via: Option<String>,
+    /// Bare name of the ancestor class on which the chosen entity was
+    /// found, when `resolved_via = "heritage"`. Lets the agent see
+    /// where the inherited member actually lives without a second call.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ancestor: Option<String>,
     pub estimated_tokens: usize,
 }
 
@@ -442,9 +459,28 @@ pub fn build_context(idx: &Index, query: &str, opts: &ContextOptions) -> Option<
     } else {
         resolved
     };
-    let chosen_entity = resolved.first()?;
+
+    // Heritage-aware fallback: when a `Parent::name` query fails direct
+    // resolution, try walking the parent class's `extend`/`implement`/
+    // `trait_impl` chain looking for a class that defines `name`. This
+    // lets `Flask::testing` succeed even when `testing` lives on `App`
+    // (Flask's superclass) — the issue #38 Option-2 path.
+    let mut resolved_via_heritage: Option<String> = None;
+    let resolved_vec: Vec<&Entity> = if resolved.is_empty() {
+        match resolve_via_heritage(idx, query, opts) {
+            Some((entity, ancestor)) => {
+                resolved_via_heritage = Some(ancestor);
+                vec![entity]
+            }
+            None => return None,
+        }
+    } else {
+        resolved
+    };
+
+    let chosen_entity = resolved_vec.first()?;
     let chosen = SymbolRef::from_entity(chosen_entity);
-    let alternatives: Vec<SymbolRef> = resolved
+    let alternatives: Vec<SymbolRef> = resolved_vec
         .iter()
         .skip(1)
         .take(4) // cap alt list — more than 4 is rarely helpful, often noise
@@ -495,6 +531,11 @@ pub fn build_context(idx: &Index, query: &str, opts: &ContextOptions) -> Option<
         .collect();
     let skipped_types = type_refs.len().saturating_sub(related_types.len());
 
+    // Heritage parents: resolve each `extend`/`implement`/`trait_impl`
+    // edge on the chosen entity to a defining class entity. Lets an
+    // agent see `class Flask(App):` → App without a second tool call.
+    let parents = resolve_parents(idx, chosen_entity);
+
     // Inheritance delta: when the chosen symbol is a method (has a
     // parent class), find other classes that define a method with the
     // same tail segment. Cap at 5 so we don't blow the budget.
@@ -506,6 +547,10 @@ pub fn build_context(idx: &Index, query: &str, opts: &ContextOptions) -> Option<
         None
     };
 
+    let (resolved_via, ancestor) = match resolved_via_heritage {
+        Some(a) => (Some("heritage".to_string()), Some(a)),
+        None => (None, None),
+    };
     let mut ctx = Context {
         query: query.to_string(),
         chosen,
@@ -514,11 +559,14 @@ pub fn build_context(idx: &Index, query: &str, opts: &ContextOptions) -> Option<
         callers,
         callees,
         related_types,
+        parents,
         overrides,
         skipped_callers,
         skipped_callees,
         skipped_types,
         skipped_overrides,
+        resolved_via,
+        ancestor,
         estimated_tokens: 0,
     };
 
@@ -531,6 +579,151 @@ pub fn build_context(idx: &Index, query: &str, opts: &ContextOptions) -> Option<
 /// Tail segment of a qualified name — last `::`- or `.`-separated piece.
 fn tail_segment(name: &str) -> &str {
     name.rsplit(|c| c == ':' || c == '.').next().unwrap_or(name)
+}
+
+/// Look up the class entity for a bare or qualified class name.
+/// Prefers class-shaped kinds over imports, mirroring `resolve_parents`.
+fn lookup_class<'a>(idx: &'a Index, name: &str) -> Option<&'a Entity> {
+    let tail = tail_segment(name);
+    let needles = if tail == name {
+        vec![name.to_string()]
+    } else {
+        vec![name.to_string(), tail.to_string()]
+    };
+    for needle in needles {
+        if let Some(e) = idx
+            .entities_by_name(&needle)
+            .filter(|e| e.kind != "import")
+            .find(|e| {
+                matches!(
+                    e.kind.as_str(),
+                    "class" | "struct" | "interface" | "trait" | "enum"
+                )
+            })
+        {
+            return Some(e);
+        }
+    }
+    None
+}
+
+/// Heritage-aware fallback for `Parent::name` queries that didn't
+/// resolve directly. Walks the parent class's `extend`/`implement`/
+/// `trait_impl`/`embed` edges (BFS, depth-bounded) looking for an
+/// ancestor that defines `name` as a child. Returns the matched entity
+/// plus the ancestor's bare name where it was found.
+///
+/// Only fires when `query` parses as `Parent::name` (or its file-
+/// qualified forms `file::Parent::name`). Other query shapes return
+/// None — heritage walking doesn't apply to bare-name or
+/// file-only queries.
+fn resolve_via_heritage<'a>(
+    idx: &'a Index,
+    query: &str,
+    opts: &ContextOptions,
+) -> Option<(&'a Entity, String)> {
+    let (file_hint, parent_hint, name) = split_query(query);
+    let parent_name = parent_hint?;
+
+    let start = lookup_class(idx, parent_name)?;
+    let mut visited: HashSet<String> = HashSet::new();
+    visited.insert(start.name.clone());
+    let mut frontier: Vec<&Entity> = vec![start];
+
+    // Bound the walk — pathological inheritance chains are rare, but a
+    // shallow cap keeps the worst case predictable.
+    for _depth in 0..16 {
+        let mut next_frontier: Vec<&Entity> = Vec::new();
+        for cls in &frontier {
+            for edge in &cls.heritage {
+                if !matches!(
+                    edge.kind.as_str(),
+                    "extend" | "implement" | "trait_impl" | "embed"
+                ) {
+                    continue;
+                }
+                let Some(parent_cls) = lookup_class(idx, &edge.target) else {
+                    continue;
+                };
+                if !visited.insert(parent_cls.name.clone()) {
+                    continue;
+                }
+                // Look for `name` as a child of this ancestor.
+                let needle = parent_cls.name.as_str();
+                let hit = idx
+                    .entities_by_name(name)
+                    .filter(|e| e.kind != "import")
+                    .filter(|e| match file_hint {
+                        Some(f) => e.file == f || e.file.ends_with(f),
+                        None => true,
+                    })
+                    .filter(|e| {
+                        e.parent.as_deref() == Some(needle)
+                            && (!opts.exclude_tests || !crate::entity::is_test_path(&e.file))
+                    })
+                    .next();
+                if let Some(e) = hit {
+                    // Use the file-qualified form
+                    // `<file>::<ClassName>` per issue #38 spec — gives
+                    // the agent a click-to-query handle on the
+                    // ancestor.
+                    let qualified =
+                        format!("{}::{}", parent_cls.file, parent_cls.name);
+                    return Some((e, qualified));
+                }
+                next_frontier.push(parent_cls);
+            }
+        }
+        if next_frontier.is_empty() {
+            break;
+        }
+        frontier = next_frontier;
+    }
+    None
+}
+
+/// Resolve `chosen`'s heritage edges (extend / implement / trait_impl /
+/// embed) to defining entities in the index. Each edge's `target` is
+/// looked up via `entities_by_name` — which indexes by both the
+/// qualified name and the bare leaf — so `target = "App"` and
+/// `target = "flask.sansio.app.App"` both reach the same definition.
+/// Duplicates by (file, name) are filtered (a class may extend
+/// multiple targets that resolve to overlapping definitions); class
+/// definitions are preferred over imports.
+fn resolve_parents(idx: &Index, chosen: &Entity) -> Vec<SymbolRef> {
+    let mut seen: HashSet<(String, String)> = HashSet::new();
+    let mut out: Vec<SymbolRef> = Vec::new();
+    for edge in &chosen.heritage {
+        // Try qualified target first, then fall back to its tail segment.
+        let needles = {
+            let tail = tail_segment(&edge.target);
+            if tail == edge.target.as_str() {
+                vec![edge.target.clone()]
+            } else {
+                vec![edge.target.clone(), tail.to_string()]
+            }
+        };
+        for needle in needles {
+            // Prefer class-shaped definitions; skip imports so
+            // `class Flask(App):` doesn't resolve to a `from … import App`.
+            let candidate = idx
+                .entities_by_name(&needle)
+                .filter(|e| e.kind != "import")
+                .find(|e| {
+                    matches!(
+                        e.kind.as_str(),
+                        "class" | "struct" | "interface" | "trait" | "enum"
+                    )
+                });
+            if let Some(e) = candidate
+                && seen.insert((e.file.clone(), e.name.clone()))
+            {
+                out.push(SymbolRef::from_entity(e));
+                break;
+            }
+        }
+    }
+    out
 }
 
 /// Find other classes in the index that define a method with the same
@@ -875,8 +1068,35 @@ struct AgentView<'a> {
     cr: Vec<AgentEdge<'a>>, // callers
     ce: Vec<AgentEdge<'a>>, // callees
     rt: Vec<AgentEdge<'a>>, // related types
+    /// Heritage block. Surfaces resolved parent classes so an agent
+    /// doesn't have to issue a separate `sigil heritage` call to find
+    /// where an inherited member lives. Elided when `parents` is empty.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    h: Option<AgentHeritage<'a>>,
+    /// `"heritage"` when the chosen entity was found by walking the
+    /// parent class's inheritance chain. Elided for direct matches.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    resolved_via: Option<&'a str>,
+    /// File-qualified handle for the ancestor where the inherited
+    /// member lives (e.g. `src/flask/sansio/app.py::App`). Set only
+    /// alongside `resolved_via = "heritage"`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ancestor: Option<&'a str>,
     #[serde(skip_serializing_if = "is_zero_skip")]
     sk: [usize; 3], // [callers, callees, types]
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct AgentHeritage<'a> {
+    parents: Vec<AgentSymbolRef<'a>>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct AgentSymbolRef<'a> {
+    f: &'a str,
+    n: &'a str,
+    k: &'a str,
+    l: [u32; 2],
 }
 
 fn is_zero_skip(s: &[usize; 3]) -> bool {
@@ -905,6 +1125,22 @@ pub fn render_agent_json(ctx: &Context) -> String {
         .blast_radius
         .as_ref()
         .map(|b| [b.direct_callers, b.direct_files, b.transitive_callers]);
+    let h = if ctx.parents.is_empty() {
+        None
+    } else {
+        Some(AgentHeritage {
+            parents: ctx
+                .parents
+                .iter()
+                .map(|p| AgentSymbolRef {
+                    f: &p.file,
+                    n: &p.name,
+                    k: &p.kind,
+                    l: [p.line_start, p.line_end],
+                })
+                .collect(),
+        })
+    };
     let view = AgentView {
         q: &ctx.query,
         f: &ctx.chosen.file,
@@ -920,6 +1156,9 @@ pub fn render_agent_json(ctx: &Context) -> String {
         cr: ctx.callers.iter().map(edge).collect(),
         ce: ctx.callees.iter().map(edge).collect(),
         rt: ctx.related_types.iter().map(edge).collect(),
+        h,
+        resolved_via: ctx.resolved_via.as_deref(),
+        ancestor: ctx.ancestor.as_deref(),
         sk: [ctx.skipped_callers, ctx.skipped_callees, ctx.skipped_types],
     };
     serde_json::to_string(&view).expect("AgentView serializes infallibly")
@@ -1499,6 +1738,182 @@ mod tests {
         assert_eq!(file_hits[0].f, "src/auth_helpers.rs");
         assert_eq!(file_hits[0].n, "auth_helpers.rs", "n is the basename");
         assert_eq!(file_hits[0].l, 0);
+    }
+
+    #[test]
+    fn render_agent_json_surfaces_parents_under_h_key() {
+        let mut subclass = ent_full(
+            "src/sub.rs",
+            "Subclass",
+            "class",
+            None,
+            None,
+            None,
+            0,
+        );
+        subclass.heritage = vec![crate::entity::HeritageEdge {
+            kind: "extend".to_string(),
+            target: "Superclass".to_string(),
+        }];
+        let superclass = ent_full(
+            "src/super.rs",
+            "Superclass",
+            "class",
+            None,
+            None,
+            None,
+            0,
+        );
+        let idx = Index::build(vec![subclass, superclass], vec![]);
+        let ctx = build_context(&idx, "Subclass", &ContextOptions::default()).expect("resolves");
+        let agent = render_agent_json(&ctx);
+        let v: serde_json::Value = serde_json::from_str(&agent).expect("valid JSON");
+        let parents = v["h"]["parents"].as_array().expect("h.parents present");
+        assert_eq!(parents.len(), 1);
+        assert_eq!(parents[0]["n"], "Superclass");
+        assert_eq!(parents[0]["f"], "src/super.rs");
+        assert_eq!(parents[0]["k"], "class");
+        // Issue #38 spec: l is a [start, end] tuple.
+        assert_eq!(parents[0]["l"][0], 10);
+        assert_eq!(parents[0]["l"][1], 20);
+    }
+
+    #[test]
+    fn render_agent_json_omits_h_for_entity_without_parents() {
+        let idx = Index::build(
+            vec![ent_full("a.rs", "Foo", "class", None, None, None, 0)],
+            vec![],
+        );
+        let ctx = build_context(&idx, "Foo", &ContextOptions::default()).expect("resolves");
+        let agent = render_agent_json(&ctx);
+        let v: serde_json::Value = serde_json::from_str(&agent).expect("valid JSON");
+        assert!(v.get("h").is_none(), "h should be omitted when no parents");
+    }
+
+    #[test]
+    fn render_agent_json_surfaces_resolved_via_heritage() {
+        let mut subclass = ent_full(
+            "src/sub.rs",
+            "Subclass",
+            "class",
+            None,
+            None,
+            None,
+            0,
+        );
+        subclass.heritage = vec![crate::entity::HeritageEdge {
+            kind: "extend".to_string(),
+            target: "Superclass".to_string(),
+        }];
+        let superclass = ent_full(
+            "src/super.rs",
+            "Superclass",
+            "class",
+            None,
+            None,
+            None,
+            0,
+        );
+        let testing = ent_full(
+            "src/super.rs",
+            "testing",
+            "variable",
+            Some("Superclass"),
+            None,
+            None,
+            0,
+        );
+        let idx = Index::build(vec![subclass, superclass, testing], vec![]);
+        let ctx = build_context(&idx, "Subclass::testing", &ContextOptions::default())
+            .expect("heritage resolution");
+        let agent = render_agent_json(&ctx);
+        let v: serde_json::Value = serde_json::from_str(&agent).expect("valid JSON");
+        assert_eq!(v["resolved_via"], "heritage");
+        assert_eq!(v["ancestor"], "src/super.rs::Superclass");
+    }
+
+    #[test]
+    fn build_context_resolves_subclass_member_via_heritage() {
+        // Superclass defines `testing`. Subclass extends Superclass but
+        // does NOT define `testing` itself. Querying
+        // `Subclass::testing` should walk the heritage edge to
+        // Superclass and return its `testing` member with the marker
+        // `resolved_via = "heritage"` and `ancestor = "Superclass"`.
+        let mut subclass = ent_full(
+            "src/sub.rs",
+            "Subclass",
+            "class",
+            None,
+            None,
+            None,
+            0,
+        );
+        subclass.heritage = vec![crate::entity::HeritageEdge {
+            kind: "extend".to_string(),
+            target: "Superclass".to_string(),
+        }];
+        let superclass = ent_full(
+            "src/super.rs",
+            "Superclass",
+            "class",
+            None,
+            None,
+            None,
+            0,
+        );
+        let testing = ent_full(
+            "src/super.rs",
+            "testing",
+            "variable",
+            Some("Superclass"),
+            None,
+            None,
+            0,
+        );
+        let idx = Index::build(vec![subclass, superclass, testing], vec![]);
+
+        let ctx = build_context(&idx, "Subclass::testing", &ContextOptions::default())
+            .expect("heritage-aware resolution must succeed");
+        assert_eq!(ctx.chosen.name, "testing");
+        assert_eq!(ctx.chosen.file, "src/super.rs");
+        assert_eq!(ctx.resolved_via.as_deref(), Some("heritage"));
+        assert_eq!(ctx.ancestor.as_deref(), Some("src/super.rs::Superclass"));
+    }
+
+    #[test]
+    fn build_context_populates_parents_from_heritage_edges() {
+        // Subclass extends Superclass. The bundle for Subclass should
+        // surface Superclass under `parents` so an agent doesn't have
+        // to issue a separate `sigil heritage` call to discover it.
+        let mut subclass = ent_full(
+            "src/sub.rs",
+            "Subclass",
+            "class",
+            None,
+            None,
+            None,
+            0,
+        );
+        subclass.heritage = vec![crate::entity::HeritageEdge {
+            kind: "extend".to_string(),
+            target: "Superclass".to_string(),
+        }];
+        let superclass = ent_full(
+            "src/super.rs",
+            "Superclass",
+            "class",
+            None,
+            None,
+            None,
+            0,
+        );
+        let idx = Index::build(vec![subclass, superclass], vec![]);
+        let ctx = build_context(&idx, "Subclass", &ContextOptions::default()).expect("resolves");
+        assert_eq!(ctx.parents.len(), 1, "expected one parent");
+        let p = &ctx.parents[0];
+        assert_eq!(p.name, "Superclass");
+        assert_eq!(p.file, "src/super.rs");
+        assert_eq!(p.kind, "class");
     }
 
     #[test]
