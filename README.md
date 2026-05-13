@@ -35,10 +35,12 @@ Manifest-aware resolvers turn cross-file edges into file-resolved edges by readi
 
 **2. Heritage graph across 12 languages.** `sigil heritage <symbol>` answers "find all impls/subclasses of X" without an LSP:
 
-- Go — struct embedding
-- Java / TypeScript / JavaScript / Python / Kotlin / Scala / C# / Swift / C++ / PHP — class `extends` & `implements` (where the language distinguishes)
-- Rust — `impl Trait for Type` and trait super-bounds (`trait Sub: Super`)
-- Python — class inheritance including `ABC` subclassing and `metaclass=` keyword args
+- Java / TypeScript / JavaScript / Kotlin / Scala / C# / Swift / C++ / PHP — class `extends` & `implements`
+- Python — `extends` (including `ABC` subclassing and `metaclass=` keyword args)
+- Rust — `trait_impl` (`impl Trait for Type` and `trait Sub: Super` super-bounds)
+- Go — `embed` (anonymous struct fields)
+
+**Caller/callee queries fan out across naming conventions.** `callers Session` reaches `requests.Session(...)` member calls; `callers Regex` reaches `Regex::new()` constructor calls; `callees Base` reaches refs whose caller is `Rack::Protection::Base.<method>` even when the parser normalises `::` to `.`. Single-segment lowercase heads (`std`, `crate`, `parser`) are skipped to avoid module-namespace pollution.
 
 **3. Structural diff & PR review.** Three BLAKE3 hashes per entity (`struct_hash`, `body_hash`, `sig_hash`) classify every change as breaking / logic / formatting. Renames matched across the commit via `body_hash` equality so "deleted foo + added bar with same body" becomes one row, not two. JSON/YAML/TOML/Markdown also get structural diff (key-level for data formats, heading-level for Markdown).
 
