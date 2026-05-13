@@ -105,8 +105,10 @@ pub fn extract(
 
 /// Check if a function name is a TypeScript/JavaScript builtin.
 fn is_ts_builtin_call(name: &str) -> bool {
-    // Check for builtin object method calls (e.g., console.log, Math.floor)
-    if let Some(obj) = name.split('.').next()
+    // 1. Member calls on a KNOWN builtin object (e.g. `console.log`,
+    //    `Math.floor`, `JSON.parse`). These are unambiguously stdlib —
+    //    safe to filter regardless of the property name.
+    if let Some((obj, _)) = name.split_once('.')
         && matches!(
             obj,
             "console"
@@ -125,28 +127,22 @@ fn is_ts_builtin_call(name: &str) -> bool {
     {
         return true;
     }
+    // 2. Bare-name truly-global builtins. Instance-method names
+    //    (`match`, `map`, `filter`, `then`, …) MUST NOT live here —
+    //    they collide with user-defined functions of the same name
+    //    (ts-pattern's `match`, RxJS-style `map`, etc.). Member-call
+    //    receivers can't be type-resolved at parse time anyway, so
+    //    `s.match(/x/)` is intentionally not filtered.
+    !name.contains('.') && is_ts_bare_global_call(name)
+}
 
+/// Truly-global names that are valid as bare-identifier calls. These
+/// have no overlap with idiomatic user-symbol names.
+fn is_ts_bare_global_call(name: &str) -> bool {
     matches!(
         name,
-        // Console methods (note: "log" also used by Math.log so listed once under Math)
-        "console"
-        | "error"
-        | "warn"
-        | "info"
-        | "debug"
-        | "trace"
-        | "dir"
-        | "table"
-        | "time"
-        | "timeEnd"
-        | "clear"
-        | "count"
-        | "countReset"
-        | "group"
-        | "groupEnd"
-        | "assert"
-        // Global functions
-        | "parseInt"
+        // Global utility functions
+        "parseInt"
         | "parseFloat"
         | "isNaN"
         | "isFinite"
@@ -161,7 +157,7 @@ fn is_ts_builtin_call(name: &str) -> bool {
         | "clearInterval"
         | "fetch"
         | "require"
-        // Object/Array methods
+        // Built-in constructors called bare for coercion (`String(x)`, `Number(x)`)
         | "Object"
         | "Array"
         | "String"
@@ -181,103 +177,7 @@ fn is_ts_builtin_call(name: &str) -> bool {
         | "Reflect"
         | "JSON"
         | "Math"
-        // Common array/object methods
-        | "push"
-        | "pop"
-        | "shift"
-        | "unshift"
-        | "slice"
-        | "splice"
-        | "concat"
-        | "join"
-        | "reverse"
-        | "sort"
-        | "filter"
-        | "map"
-        | "reduce"
-        | "reduceRight"
-        | "forEach"
-        | "find"
-        | "findIndex"
-        | "indexOf"
-        | "includes"
-        | "every"
-        | "some"
-        | "flat"
-        | "flatMap"
-        | "keys"
-        | "values"
-        | "entries"
-        | "from"
-        | "of"
-        | "isArray"
-        // String methods
-        | "charAt"
-        | "charCodeAt"
-        | "substring"
-        | "substr"
-        | "replace"
-        | "replaceAll"
-        | "split"
-        | "toLowerCase"
-        | "toUpperCase"
-        | "trim"
-        | "trimStart"
-        | "trimEnd"
-        | "padStart"
-        | "padEnd"
-        | "repeat"
-        | "startsWith"
-        | "endsWith"
-        | "match"
-        | "matchAll"
-        | "search"
-        | "localeCompare"
-        // Object methods
-        | "hasOwnProperty"
-        | "toString"
-        | "valueOf"
-        | "toLocaleString"
-        | "assign"
-        | "create"
-        | "defineProperty"
-        | "defineProperties"
-        | "freeze"
-        | "seal"
-        | "getPrototypeOf"
-        | "setPrototypeOf"
-        | "getOwnPropertyNames"
-        | "getOwnPropertySymbols"
-        | "getOwnPropertyDescriptor"
-        // Promise methods
-        | "then"
-        | "catch"
-        | "finally"
-        | "resolve"
-        | "reject"
-        | "all"
-        | "race"
-        | "allSettled"
-        | "any"
-        // Math methods
-        | "abs"
-        | "ceil"
-        | "floor"
-        | "round"
-        | "max"
-        | "min"
-        | "pow"
-        | "sqrt"
-        | "random"
-        | "sin"
-        | "cos"
-        | "tan"
-        | "log"
-        | "exp"
-        // JSON methods
-        | "parse"
-        | "stringify"
-        // Test assertions (common test frameworks)
+        // Test framework globals (Jest/Mocha/Vitest) — called bare in test files
         | "describe"
         | "it"
         | "test"
@@ -287,14 +187,7 @@ fn is_ts_builtin_call(name: &str) -> bool {
         | "beforeAll"
         | "afterAll"
         | "jest"
-        | "mock"
         | "spyOn"
-        | "toBe"
-        | "toEqual"
-        | "toContain"
-        | "toThrow"
-        | "toHaveBeenCalled"
-        | "toHaveBeenCalledWith"
     )
 }
 
@@ -386,6 +279,14 @@ fn walk_node(
         }
         "lexical_declaration" | "variable_declaration" => {
             extract_variable_decl(node, source, file_path, parent_ctx, symbols);
+            // For declarators whose value is a function-shape, walk
+            // body with parent_ctx=name so `callees dayjs` resolves
+            // when `const dayjs = function(...) { ... }`. Mirrors the
+            // JS parser fix.
+            walk_ts_variable_decl_children(
+                node, source, file_path, parent_ctx, symbols, texts, references, depth,
+            );
+            return;
         }
         "import_statement" => {
             extract_import(node, source, file_path, symbols, references);
@@ -492,6 +393,60 @@ fn walk_node(
             references,
             depth + 1,
         );
+    }
+}
+
+/// Mirror of `walk_variable_decl_children` in src/parser/javascript.rs:
+/// thread `parent_ctx = <var name>` into the function-shape value's
+/// body so `callees dayjs` resolves when `dayjs` is declared as
+/// `const dayjs = function(...) { ... }`.
+#[allow(clippy::too_many_arguments)]
+fn walk_ts_variable_decl_children(
+    node: Node,
+    source: &[u8],
+    file_path: &str,
+    parent_ctx: Option<&str>,
+    symbols: &mut Vec<SymbolEntry>,
+    texts: &mut Vec<TextEntry>,
+    references: &mut Vec<ReferenceEntry>,
+    depth: usize,
+) {
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if child.kind() != "variable_declarator" {
+            walk_node(
+                child, source, file_path, parent_ctx,
+                symbols, texts, references, depth + 1,
+            );
+            continue;
+        }
+        let value_opt = find_child_by_field(child, "value");
+        let name_opt = find_child_by_field(child, "name");
+        let new_ctx = name_opt
+            .filter(|n| n.kind() == "identifier")
+            .and_then(|n| value_opt.map(|v| (n, v)))
+            .filter(|(_, v)| matches!(
+                v.kind(),
+                "arrow_function" | "function" | "function_expression" | "generator_function"
+            ))
+            .map(|(n, _)| match parent_ctx {
+                Some(p) => format!("{p}.{}", node_text(n, source)),
+                None => node_text(n, source),
+            });
+        let mut decl_cursor = child.walk();
+        for decl_child in child.children(&mut decl_cursor) {
+            let is_func_value = value_opt.map(|v| v.id() == decl_child.id()).unwrap_or(false)
+                && new_ctx.is_some();
+            let ctx_for_walk = if is_func_value {
+                new_ctx.as_deref()
+            } else {
+                parent_ctx
+            };
+            walk_node(
+                decl_child, source, file_path, ctx_for_walk,
+                symbols, texts, references, depth + 1,
+            );
+        }
     }
 }
 
@@ -1883,6 +1838,58 @@ import type { User } from './types';";
         // Should NOT find console.log (builtin)
         let console_ref = refs.iter().find(|r| r.name == "console.log");
         assert!(console_ref.is_none());
+    }
+
+    #[test]
+    fn test_ts_function_expression_assigned_to_const_sets_caller_ctx() {
+        // Same fix as JS: `const dayjs = function() { inner() }` must
+        // attribute inner refs to caller=dayjs. Regression surfaced
+        // by the dayjs audit (the central function is declared this
+        // way, and `callees dayjs` returned 0).
+        let source = b"const dayjs = function (date: any) {
+    inner_call();
+    other_call();
+};
+const arrow = (x: number) => { do_arrow_thing(x); };";
+        let (_symbols, _texts, refs) = parse_file(source, "typescript", "test.ts").unwrap();
+        let dayjs_callees: Vec<_> = refs.iter().filter(|r| r.caller.as_deref() == Some("dayjs")).collect();
+        assert_eq!(dayjs_callees.len(), 2, "function-expression body should attribute to caller=dayjs; got {:?}",
+            refs.iter().map(|r| (&r.name, &r.caller)).collect::<Vec<_>>());
+        let arrow_callees: Vec<_> = refs.iter().filter(|r| r.caller.as_deref() == Some("arrow")).collect();
+        assert_eq!(arrow_callees.len(), 1, "arrow body should attribute to caller=arrow");
+    }
+
+    #[test]
+    fn test_ts_bare_match_call_not_filtered_as_string_method() {
+        // Regression: ts-pattern audit on the bug-fixes branch.
+        // `match` is in the `is_ts_builtin_call` filter because of
+        // `String.prototype.match`, but a bare-name call `match(value)`
+        // is a user function, not a string method. The filter should
+        // only kick in for member calls (e.g. `s.match(/x/)`).
+        let source = b"function match(v: any) { return v; }
+function caller() {
+    const r = match(42);
+    const s = \"hi\".match(/h/);
+    const m = [1, 2, 3].map(x => x);
+}";
+        let (_symbols, _texts, refs) = parse_file(source, "typescript", "test.ts").unwrap();
+
+        // Bare `match` call: must surface.
+        assert!(
+            refs.iter().any(|r| r.name == "match" && r.kind == "call"),
+            "bare `match(42)` should be a call ref; got {:?}",
+            refs.iter().map(|r| (&r.name, &r.kind)).collect::<Vec<_>>(),
+        );
+        // String method `.match(...)`: still filtered.
+        assert!(
+            !refs.iter().any(|r| r.name.ends_with(".match")),
+            "member `\"hi\".match(/h/)` should remain filtered"
+        );
+        // Same logic for `.map`: filtered on receiver.
+        assert!(
+            !refs.iter().any(|r| r.name.ends_with(".map")),
+            "member `[1,2,3].map(...)` should remain filtered"
+        );
     }
 
     #[test]

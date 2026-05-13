@@ -137,27 +137,41 @@ pub(crate) fn resolve_js_imports_tier2(
 
 /// Check if a function name is a JavaScript builtin.
 fn is_js_builtin_call(name: &str) -> bool {
+    // 1. Member calls on a KNOWN builtin object (`console.log`, `Math.floor`,
+    //    `JSON.parse`, `Object.assign`, …) — unambiguously stdlib.
+    if let Some((obj, _)) = name.split_once('.')
+        && matches!(
+            obj,
+            "console"
+                | "Math"
+                | "JSON"
+                | "Object"
+                | "Array"
+                | "String"
+                | "Number"
+                | "Date"
+                | "RegExp"
+                | "Promise"
+                | "Reflect"
+                | "Proxy"
+        )
+    {
+        return true;
+    }
+    // 2. Bare-name truly-global builtins. Instance-method names
+    //    (`match`, `map`, `filter`, `then`, `push`, …) MUST NOT live
+    //    here — they collide with user-defined functions (dayjs's
+    //    `map`, lodash's `filter`, ts-pattern's `match`). Member-call
+    //    receivers can't be type-resolved at parse time, so
+    //    `s.match(/x/)` is intentionally not filtered.
+    !name.contains('.') && is_js_bare_global_call(name)
+}
+
+fn is_js_bare_global_call(name: &str) -> bool {
     matches!(
         name,
-        // Console methods
-        "console"
-        | "log"
-        | "error"
-        | "warn"
-        | "info"
-        | "debug"
-        | "trace"
-        | "dir"
-        | "table"
-        | "time"
-        | "timeEnd"
-        | "clear"
-        | "count"
-        | "group"
-        | "groupEnd"
-        | "assert"
-        // Global functions
-        | "parseInt"
+        // Global utility functions
+        "parseInt"
         | "parseFloat"
         | "isNaN"
         | "isFinite"
@@ -175,7 +189,7 @@ fn is_js_builtin_call(name: &str) -> bool {
         | "alert"
         | "confirm"
         | "prompt"
-        // Object/Array constructors
+        // Built-in constructors called bare for coercion
         | "Object"
         | "Array"
         | "String"
@@ -196,93 +210,7 @@ fn is_js_builtin_call(name: &str) -> bool {
         | "JSON"
         | "Math"
         | "Function"
-        // Common array/object methods
-        | "push"
-        | "pop"
-        | "shift"
-        | "unshift"
-        | "slice"
-        | "splice"
-        | "concat"
-        | "join"
-        | "reverse"
-        | "sort"
-        | "filter"
-        | "map"
-        | "reduce"
-        | "reduceRight"
-        | "forEach"
-        | "find"
-        | "findIndex"
-        | "indexOf"
-        | "includes"
-        | "every"
-        | "some"
-        | "flat"
-        | "flatMap"
-        | "keys"
-        | "values"
-        | "entries"
-        | "from"
-        | "of"
-        | "isArray"
-        // String methods
-        | "charAt"
-        | "charCodeAt"
-        | "substring"
-        | "substr"
-        | "replace"
-        | "replaceAll"
-        | "split"
-        | "toLowerCase"
-        | "toUpperCase"
-        | "trim"
-        | "trimStart"
-        | "trimEnd"
-        | "padStart"
-        | "padEnd"
-        | "repeat"
-        | "startsWith"
-        | "endsWith"
-        | "match"
-        | "search"
-        // Object methods
-        | "hasOwnProperty"
-        | "toString"
-        | "valueOf"
-        | "assign"
-        | "create"
-        | "defineProperty"
-        | "freeze"
-        | "seal"
-        | "getPrototypeOf"
-        | "setPrototypeOf"
-        // Promise methods
-        | "then"
-        | "catch"
-        | "finally"
-        | "resolve"
-        | "reject"
-        | "all"
-        | "race"
-        | "allSettled"
-        | "any"
-        // Math methods
-        | "abs"
-        | "ceil"
-        | "floor"
-        | "round"
-        | "max"
-        | "min"
-        | "pow"
-        | "sqrt"
-        | "random"
-        | "sin"
-        | "cos"
-        // JSON methods
-        | "parse"
-        | "stringify"
-        // Test assertions
+        // Test framework globals (Jest/Mocha/Vitest)
         | "describe"
         | "it"
         | "test"
@@ -292,10 +220,7 @@ fn is_js_builtin_call(name: &str) -> bool {
         | "beforeAll"
         | "afterAll"
         | "jest"
-        | "mock"
         | "spyOn"
-        | "toBe"
-        | "toEqual"
     )
 }
 
@@ -318,11 +243,28 @@ fn walk_node(
     let kind = node.kind();
 
     match kind {
-        "function_declaration" => {
+        "function_declaration" | "generator_function_declaration" => {
             extract_function_decl(node, source, file_path, parent_ctx, symbols);
-        }
-        "generator_function_declaration" => {
-            extract_function_decl(node, source, file_path, parent_ctx, symbols);
+            // Walk the body with parent_ctx=function name so inner
+            // calls attribute to caller=foo (not caller=None). Without
+            // this, `callees foo` returns 0.
+            if let Some(name_node) = find_child_by_field(node, "name") {
+                let fn_name = node_text(name_node, source);
+                let new_ctx = match parent_ctx {
+                    Some(p) => format!("{p}.{fn_name}"),
+                    None => fn_name,
+                };
+                if let Some(body) = find_child_by_field(node, "body") {
+                    let mut cursor = body.walk();
+                    for child in body.children(&mut cursor) {
+                        walk_node(
+                            child, source, file_path, Some(&new_ctx),
+                            symbols, texts, references, depth + 1,
+                        );
+                    }
+                }
+            }
+            return;
         }
         "class_declaration" => {
             extract_class(
@@ -335,6 +277,14 @@ fn walk_node(
         }
         "lexical_declaration" | "variable_declaration" => {
             extract_variable_decl(node, source, file_path, parent_ctx, symbols);
+            // Walk children with caller-context aware of
+            // function-shaped values: `const dayjs = function() { ... }`
+            // must attribute inner refs to caller=dayjs. Without this,
+            // `sigil callees dayjs` returns 0.
+            walk_variable_decl_children(
+                node, source, file_path, parent_ctx, symbols, texts, references, depth,
+            );
+            return;
         }
         "import_statement" => {
             extract_import(node, source, file_path, symbols, references);
@@ -580,6 +530,68 @@ fn get_call_name(node: Node, source: &[u8]) -> String {
             }
         }
         _ => String::new(),
+    }
+}
+
+/// Walk children of a `lexical_declaration`/`variable_declaration`
+/// node, threading caller context. For declarators of form
+/// `const NAME = function(...) {...}` / `const NAME = (x) => {...}`,
+/// the function-shape value's BODY is walked with parent_ctx=NAME so
+/// `callees NAME` resolves correctly. Other declarator values (call
+/// expressions on the RHS, etc.) are walked with the OUTER parent_ctx
+/// so they don't inherit a misleading caller.
+#[allow(clippy::too_many_arguments)]
+fn walk_variable_decl_children(
+    node: Node,
+    source: &[u8],
+    file_path: &str,
+    parent_ctx: Option<&str>,
+    symbols: &mut Vec<SymbolEntry>,
+    texts: &mut Vec<TextEntry>,
+    references: &mut Vec<ReferenceEntry>,
+    depth: usize,
+) {
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if child.kind() != "variable_declarator" {
+            // Keywords, separators — walk them under the outer ctx.
+            walk_node(
+                child, source, file_path, parent_ctx,
+                symbols, texts, references, depth + 1,
+            );
+            continue;
+        }
+        // For each declarator, look at the value to decide if we need
+        // a fresh caller context.
+        let value_opt = find_child_by_field(child, "value");
+        let name_opt = find_child_by_field(child, "name");
+        let new_ctx = name_opt
+            .filter(|n| n.kind() == "identifier")
+            .and_then(|n| value_opt.map(|v| (n, v)))
+            .filter(|(_, v)| matches!(
+                v.kind(),
+                "arrow_function" | "function" | "function_expression" | "generator_function"
+            ))
+            .map(|(n, _)| match parent_ctx {
+                Some(p) => format!("{p}.{}", node_text(n, source)),
+                None => node_text(n, source),
+            });
+        // Walk the declarator's children. For the function-shape VALUE
+        // (and only it) use new_ctx; for everything else, the outer ctx.
+        let mut decl_cursor = child.walk();
+        for decl_child in child.children(&mut decl_cursor) {
+            let is_func_value = value_opt.map(|v| v.id() == decl_child.id()).unwrap_or(false)
+                && new_ctx.is_some();
+            let ctx_for_walk = if is_func_value {
+                new_ctx.as_deref()
+            } else {
+                parent_ctx
+            };
+            walk_node(
+                decl_child, source, file_path, ctx_for_walk,
+                symbols, texts, references, depth + 1,
+            );
+        }
     }
 }
 
@@ -1511,6 +1523,57 @@ function bar() {
         let calls: Vec<_> = refs.iter().filter(|r| r.kind == "call").collect();
         assert!(calls.iter().any(|r| r.name == "foo"));
         assert!(calls.iter().any(|r| r.name == "myService.doSomething"));
+    }
+
+    #[test]
+    fn test_js_function_decl_body_sets_caller_ctx() {
+        // Regression: dayjs audit. JS parser was failing to attribute
+        // inner calls of `function foo() { bar() }` to caller=foo —
+        // ALL refs got caller=None, so `callees foo` returned 0.
+        let source = b"function foo() {
+    bar();
+    baz();
+}";
+        let (_symbols, _texts, refs) = parse_file(source, "javascript", "test.js").unwrap();
+        let foo_callees: Vec<_> = refs.iter().filter(|r| r.caller.as_deref() == Some("foo")).collect();
+        assert_eq!(foo_callees.len(), 2, "function decl body should attribute calls to caller=foo; got refs {:?}",
+            refs.iter().map(|r| (&r.name, &r.caller)).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn test_js_function_expression_assigned_to_const_sets_caller_ctx() {
+        // dayjs canonical form: `const dayjs = function (...) { inner() }`.
+        // Inner calls MUST attribute to caller=dayjs.
+        let source = b"const dayjs = function (date, c) {
+    inner_call_1();
+    inner_call_2();
+};
+const arrow = (x) => { do_arrow_thing(x); };";
+        let (_symbols, _texts, refs) = parse_file(source, "javascript", "test.js").unwrap();
+        let dayjs_callees: Vec<_> = refs.iter().filter(|r| r.caller.as_deref() == Some("dayjs")).collect();
+        assert_eq!(dayjs_callees.len(), 2, "function-expression body should attribute calls to caller=dayjs; got {:?}",
+            refs.iter().map(|r| (&r.name, &r.caller)).collect::<Vec<_>>());
+        let arrow_callees: Vec<_> = refs.iter().filter(|r| r.caller.as_deref() == Some("arrow")).collect();
+        assert_eq!(arrow_callees.len(), 1, "arrow-function body should attribute calls to caller=arrow");
+    }
+
+    #[test]
+    fn test_js_bare_match_call_not_filtered_as_string_method() {
+        // Same fix as TypeScript: bare-name calls like `match()`,
+        // `filter()`, `map()` should NOT be filtered out — they're
+        // common user-function names (dayjs uses `dayjs(...)` similarly).
+        let source = b"function match(v) { return v; }
+function caller() {
+    const r = match(42);
+    const s = 'hi'.match(/h/);
+    const m = [1, 2, 3].map(x => x);
+}";
+        let (_symbols, _texts, refs) = parse_file(source, "javascript", "test.js").unwrap();
+        assert!(
+            refs.iter().any(|r| r.name == "match" && r.kind == "call"),
+            "bare `match(42)` should be a call ref; got {:?}",
+            refs.iter().map(|r| (&r.name, &r.kind)).collect::<Vec<_>>(),
+        );
     }
 
     #[test]
