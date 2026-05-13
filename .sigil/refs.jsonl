@@ -12540,17 +12540,13 @@
 {"file":"src/parser/go.rs","caller":"extract_call","name":"func.kind","kind":"call","line":837}
 {"file":"src/parser/go.rs","caller":"extract_call","name":"node_text","kind":"call","line":838,"confidence":0.5}
 {"file":"src/parser/go.rs","caller":"extract_call","name":"node_text","kind":"call","line":839,"confidence":0.5}
-{"file":"src/parser/go.rs","caller":"extract_call","name":"is_go_builtin_call","kind":"call","line":844,"confidence":0.95}
-{"file":"src/parser/go.rs","caller":"extract_call","name":"name.split_once","kind":"call","line":850}
-{"file":"src/parser/go.rs","caller":"extract_call","name":"imports.get","kind":"call","line":851}
-{"file":"src/parser/go.rs","caller":"extract_call","name":"references.push","kind":"call","line":855}
-{"file":"src/parser/go.rs","caller":"extract_call","name":"file_path.to_string","kind":"call","line":856}
-{"file":"src/parser/go.rs","caller":"extract_call","name":"name.clone","kind":"call","line":857}
-{"file":"src/parser/go.rs","caller":"extract_call","name":"\"call\".to_string","kind":"call","line":858}
-{"file":"src/parser/go.rs","caller":"extract_call","name":"parent_ctx.map","kind":"call","line":860}
-{"file":"src/parser/go.rs","caller":"extract_call","name":"String::new","kind":"call","line":861}
+{"file":"src/parser/go.rs","caller":"extract_call","name":"emit_cast_type_refs","kind":"call","line":850,"confidence":0.95}
+{"file":"src/parser/go.rs","caller":"extract_call","name":"is_go_builtin_call","kind":"call","line":857,"confidence":0.95}
+{"file":"src/parser/go.rs","caller":"extract_call","name":"name.split_once","kind":"call","line":863}
+{"file":"src/parser/go.rs","caller":"extract_call","name":"imports.get","kind":"call","line":864}
 {"file":"src/parser/go.rs","caller":"extract_call","name":"references.push","kind":"call","line":868}
 {"file":"src/parser/go.rs","caller":"extract_call","name":"file_path.to_string","kind":"call","line":869}
+{"file":"src/parser/go.rs","caller":"extract_call","name":"name.clone","kind":"call","line":870}
 {"file":"src/parser/go.rs","caller":"extract_call","name":"\"call\".to_string","kind":"call","line":871}
 {"file":"src/parser/go.rs","caller":"extract_call","name":"parent_ctx.map","kind":"call","line":873}
 {"file":"src/parser/go.rs","caller":"extract_call","name":"String::new","kind":"call","line":874}
@@ -12564,138 +12560,174 @@
 {"file":"src/parser/go.rs","caller":"extract_call","name":"\"call\".to_string","kind":"call","line":897}
 {"file":"src/parser/go.rs","caller":"extract_call","name":"parent_ctx.map","kind":"call","line":899}
 {"file":"src/parser/go.rs","caller":"extract_call","name":"String::new","kind":"call","line":900}
-{"file":"src/parser/go.rs","caller":"is_go_builtin_call","name":"name.split('.').next_back().unwrap_or","kind":"call","line":907}
-{"file":"src/parser/go.rs","caller":"is_go_builtin_call","name":"name.split('.').next_back","kind":"call","line":907}
-{"file":"src/parser/go.rs","caller":"is_go_builtin_call","name":"name.split","kind":"call","line":907}
-{"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"Node","kind":"type_annotation","line":930}
-{"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"Option","kind":"type_annotation","line":933}
-{"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"Vec","kind":"type_annotation","line":934}
-{"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"ReferenceEntry","kind":"type_annotation","line":934}
-{"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"stack.pop","kind":"call","line":938}
-{"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"n.kind","kind":"call","line":939}
-{"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"node_text","kind":"call","line":941,"confidence":0.5}
-{"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"is_go_primitive_type","kind":"call","line":942,"confidence":0.95}
-{"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"references.push","kind":"call","line":943}
-{"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"file_path.to_string","kind":"call","line":944}
-{"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"\"type_annotation\".to_string","kind":"call","line":946}
-{"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"node_line_range","kind":"call","line":947,"confidence":0.5}
-{"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"parent_ctx.map","kind":"call","line":948}
-{"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"String::new","kind":"call","line":949}
-{"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"node_text","kind":"call","line":955,"confidence":0.5}
+{"file":"src/parser/go.rs","caller":"extract_call","name":"references.push","kind":"call","line":907}
+{"file":"src/parser/go.rs","caller":"extract_call","name":"file_path.to_string","kind":"call","line":908}
+{"file":"src/parser/go.rs","caller":"extract_call","name":"\"call\".to_string","kind":"call","line":910}
+{"file":"src/parser/go.rs","caller":"extract_call","name":"parent_ctx.map","kind":"call","line":912}
+{"file":"src/parser/go.rs","caller":"extract_call","name":"String::new","kind":"call","line":913}
+{"file":"src/parser/go.rs","caller":"is_go_builtin_call","name":"name.split('.').next_back().unwrap_or","kind":"call","line":920}
+{"file":"src/parser/go.rs","caller":"is_go_builtin_call","name":"name.split('.').next_back","kind":"call","line":920}
+{"file":"src/parser/go.rs","caller":"is_go_builtin_call","name":"name.split","kind":"call","line":920}
+{"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"Node","kind":"type_annotation","line":943}
+{"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"Option","kind":"type_annotation","line":946}
+{"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"Vec","kind":"type_annotation","line":947}
+{"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"ReferenceEntry","kind":"type_annotation","line":947}
+{"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"stack.pop","kind":"call","line":951}
+{"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"n.kind","kind":"call","line":952}
+{"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"node_text","kind":"call","line":954,"confidence":0.5}
+{"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"is_go_primitive_type","kind":"call","line":955,"confidence":0.95}
 {"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"references.push","kind":"call","line":956}
 {"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"file_path.to_string","kind":"call","line":957}
 {"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"\"type_annotation\".to_string","kind":"call","line":959}
 {"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"node_line_range","kind":"call","line":960,"confidence":0.5}
 {"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"parent_ctx.map","kind":"call","line":961}
 {"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"String::new","kind":"call","line":962}
-{"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"n.walk","kind":"call","line":971}
-{"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"n.children","kind":"call","line":972}
-{"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"stack.push","kind":"call","line":973}
-{"file":"src/parser/go.rs","caller":"extract_go_comment","name":"Node","kind":"type_annotation","line":1006}
-{"file":"src/parser/go.rs","caller":"extract_go_comment","name":"Option","kind":"type_annotation","line":1009}
-{"file":"src/parser/go.rs","caller":"extract_go_comment","name":"Vec","kind":"type_annotation","line":1010}
-{"file":"src/parser/go.rs","caller":"extract_go_comment","name":"TextEntry","kind":"type_annotation","line":1010}
-{"file":"src/parser/go.rs","caller":"extract_go_comment","name":"extract_comment","kind":"call","line":1012,"confidence":0.5}
-{"file":"src/parser/go.rs","caller":"go_visibility","name":"String","kind":"type_annotation","line":1015}
-{"file":"src/parser/go.rs","caller":"go_visibility","name":"name.starts_with","kind":"call","line":1016}
-{"file":"src/parser/go.rs","caller":"go_visibility","name":"c.is_uppercase","kind":"call","line":1016}
-{"file":"src/parser/go.rs","caller":"go_visibility","name":"\"public\".to_string","kind":"call","line":1017}
-{"file":"src/parser/go.rs","caller":"go_visibility","name":"\"private\".to_string","kind":"call","line":1019}
-{"file":"src/parser/go.rs","caller":"filter_go_tokens","name":"String","kind":"type_annotation","line":1066}
-{"file":"src/parser/go.rs","caller":"filter_go_tokens","name":"tokens\n        .split_whitespace()\n        .filter(|t| !GO_STOPWORDS.contains(t))\n        .collect::<Vec<_>>()\n        .join","kind":"call","line":1067}
-{"file":"src/parser/go.rs","caller":"filter_go_tokens","name":"tokens\n        .split_whitespace()\n        .filter","kind":"call","line":1067}
-{"file":"src/parser/go.rs","caller":"filter_go_tokens","name":"tokens\n        .split_whitespace","kind":"call","line":1067}
-{"file":"src/parser/go.rs","caller":"filter_go_tokens","name":"GO_STOPWORDS.contains","kind":"call","line":1069}
-{"file":"src/parser/go.rs","name":"super::*","kind":"import","line":1076}
-{"file":"src/parser/go.rs","name":"crate::parser::treesitter::parse_file","kind":"import","line":1077}
-{"file":"src/parser/go.rs","caller":"find_sym","name":"SymbolEntry","kind":"type_annotation","line":1079}
-{"file":"src/parser/go.rs","caller":"find_sym","name":"SymbolEntry","kind":"type_annotation","line":1079}
-{"file":"src/parser/go.rs","caller":"find_sym","name":"symbols\n            .iter()\n            .find(|s| s.name == name)\n            .unwrap_or_else","kind":"call","line":1080}
-{"file":"src/parser/go.rs","caller":"find_sym","name":"symbols\n            .iter()\n            .find","kind":"call","line":1080}
-{"file":"src/parser/go.rs","caller":"find_sym","name":"symbols\n            .iter","kind":"call","line":1080}
-{"file":"src/parser/go.rs","caller":"test_go_functions","name":"parse_file(source, \"go\", \"test.go\").unwrap","kind":"call","line":1097}
-{"file":"src/parser/go.rs","caller":"test_go_functions","name":"parse_file","kind":"call","line":1097,"confidence":0.8}
-{"file":"src/parser/go.rs","caller":"test_go_functions","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1097,"confidence":0.8}
-{"file":"src/parser/go.rs","caller":"test_go_functions","name":"find_sym","kind":"call","line":1099,"confidence":0.95}
-{"file":"src/parser/go.rs","caller":"test_go_functions","name":"find_sym","kind":"call","line":1105,"confidence":0.95}
-{"file":"src/parser/go.rs","caller":"test_go_methods","name":"parse_file(source, \"go\", \"test.go\").unwrap","kind":"call","line":1122}
-{"file":"src/parser/go.rs","caller":"test_go_methods","name":"parse_file","kind":"call","line":1122,"confidence":0.8}
-{"file":"src/parser/go.rs","caller":"test_go_methods","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1122,"confidence":0.8}
-{"file":"src/parser/go.rs","caller":"test_go_methods","name":"find_sym","kind":"call","line":1124,"confidence":0.95}
-{"file":"src/parser/go.rs","caller":"test_go_methods","name":"find_sym","kind":"call","line":1127,"confidence":0.95}
-{"file":"src/parser/go.rs","caller":"test_go_methods","name":"find_sym","kind":"call","line":1132,"confidence":0.95}
-{"file":"src/parser/go.rs","caller":"test_go_structs","name":"parse_file(source, \"go\", \"test.go\").unwrap","kind":"call","line":1145}
-{"file":"src/parser/go.rs","caller":"test_go_structs","name":"parse_file","kind":"call","line":1145,"confidence":0.8}
-{"file":"src/parser/go.rs","caller":"test_go_structs","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1145,"confidence":0.8}
-{"file":"src/parser/go.rs","caller":"test_go_structs","name":"find_sym","kind":"call","line":1147,"confidence":0.95}
-{"file":"src/parser/go.rs","caller":"test_go_structs","name":"find_sym","kind":"call","line":1150,"confidence":0.95}
-{"file":"src/parser/go.rs","caller":"test_go_structs","name":"find_sym","kind":"call","line":1154,"confidence":0.95}
-{"file":"src/parser/go.rs","caller":"test_go_interfaces","name":"parse_file(source, \"go\", \"test.go\").unwrap","kind":"call","line":1166}
-{"file":"src/parser/go.rs","caller":"test_go_interfaces","name":"parse_file","kind":"call","line":1166,"confidence":0.8}
-{"file":"src/parser/go.rs","caller":"test_go_interfaces","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1166,"confidence":0.8}
-{"file":"src/parser/go.rs","caller":"test_go_interfaces","name":"find_sym","kind":"call","line":1168,"confidence":0.95}
-{"file":"src/parser/go.rs","caller":"test_go_variables","name":"parse_file(source, \"go\", \"test.go\").unwrap","kind":"call","line":1186}
-{"file":"src/parser/go.rs","caller":"test_go_variables","name":"parse_file","kind":"call","line":1186,"confidence":0.8}
-{"file":"src/parser/go.rs","caller":"test_go_variables","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1186,"confidence":0.8}
-{"file":"src/parser/go.rs","caller":"test_go_variables","name":"find_sym","kind":"call","line":1188,"confidence":0.95}
-{"file":"src/parser/go.rs","caller":"test_go_variables","name":"find_sym","kind":"call","line":1192,"confidence":0.95}
-{"file":"src/parser/go.rs","caller":"test_go_variables","name":"find_sym","kind":"call","line":1196,"confidence":0.95}
-{"file":"src/parser/go.rs","caller":"test_go_imports","name":"parse_file(source, \"go\", \"test.go\").unwrap","kind":"call","line":1209}
-{"file":"src/parser/go.rs","caller":"test_go_imports","name":"parse_file","kind":"call","line":1209,"confidence":0.8}
-{"file":"src/parser/go.rs","caller":"test_go_imports","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1209,"confidence":0.8}
-{"file":"src/parser/go.rs","caller":"test_go_imports","name":"symbols.iter().find(|s| s.name == \"fmt\").unwrap","kind":"call","line":1211}
-{"file":"src/parser/go.rs","caller":"test_go_imports","name":"symbols.iter().find","kind":"call","line":1211}
-{"file":"src/parser/go.rs","caller":"test_go_imports","name":"symbols.iter","kind":"call","line":1211}
-{"file":"src/parser/go.rs","caller":"test_go_imports","name":"symbols.iter().find(|s| s.name == \"os\").unwrap","kind":"call","line":1214}
-{"file":"src/parser/go.rs","caller":"test_go_imports","name":"symbols.iter().find","kind":"call","line":1214}
-{"file":"src/parser/go.rs","caller":"test_go_imports","name":"symbols.iter","kind":"call","line":1214}
-{"file":"src/parser/go.rs","caller":"test_go_imports","name":"symbols.iter().find(|s| s.name == \"io/ioutil\").unwrap","kind":"call","line":1217}
-{"file":"src/parser/go.rs","caller":"test_go_imports","name":"symbols.iter().find","kind":"call","line":1217}
-{"file":"src/parser/go.rs","caller":"test_go_imports","name":"symbols.iter","kind":"call","line":1217}
-{"file":"src/parser/go.rs","caller":"test_go_type_alias","name":"parse_file(source, \"go\", \"test.go\").unwrap","kind":"call","line":1227}
-{"file":"src/parser/go.rs","caller":"test_go_type_alias","name":"parse_file","kind":"call","line":1227,"confidence":0.8}
-{"file":"src/parser/go.rs","caller":"test_go_type_alias","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1227,"confidence":0.8}
-{"file":"src/parser/go.rs","caller":"test_go_type_alias","name":"find_sym","kind":"call","line":1229,"confidence":0.95}
-{"file":"src/parser/go.rs","caller":"test_go_type_alias","name":"find_sym","kind":"call","line":1232,"confidence":0.95}
-{"file":"src/parser/go.rs","caller":"test_go_package","name":"parse_file(source, \"go\", \"test.go\").unwrap","kind":"call","line":1241}
-{"file":"src/parser/go.rs","caller":"test_go_package","name":"parse_file","kind":"call","line":1241,"confidence":0.8}
-{"file":"src/parser/go.rs","caller":"test_go_package","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1241,"confidence":0.8}
-{"file":"src/parser/go.rs","caller":"test_go_package","name":"symbols.iter().find(|s| s.kind == \"module\").unwrap","kind":"call","line":1243}
-{"file":"src/parser/go.rs","caller":"test_go_package","name":"symbols.iter().find","kind":"call","line":1243}
-{"file":"src/parser/go.rs","caller":"test_go_package","name":"symbols.iter","kind":"call","line":1243}
-{"file":"src/parser/go.rs","caller":"test_go_comments","name":"parse_file(source, \"go\", \"test.go\").unwrap","kind":"call","line":1255}
-{"file":"src/parser/go.rs","caller":"test_go_comments","name":"parse_file","kind":"call","line":1255,"confidence":0.8}
-{"file":"src/parser/go.rs","caller":"test_go_comments","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1255,"confidence":0.8}
-{"file":"src/parser/go.rs","caller":"test_go_call_references","name":"parse_file(source, \"go\", \"test.go\").unwrap","kind":"call","line":1269}
-{"file":"src/parser/go.rs","caller":"test_go_call_references","name":"parse_file","kind":"call","line":1269,"confidence":0.8}
-{"file":"src/parser/go.rs","caller":"test_go_call_references","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1269,"confidence":0.8}
-{"file":"src/parser/go.rs","caller":"test_go_call_references","name":"refs.iter().filter(|r| r.kind == \"call\").collect","kind":"call","line":1271}
-{"file":"src/parser/go.rs","caller":"test_go_call_references","name":"refs.iter().filter","kind":"call","line":1271}
-{"file":"src/parser/go.rs","caller":"test_go_call_references","name":"refs.iter","kind":"call","line":1271}
-{"file":"src/parser/go.rs","caller":"test_go_import_references","name":"parse_file(source, \"go\", \"test.go\").unwrap","kind":"call","line":1290}
-{"file":"src/parser/go.rs","caller":"test_go_import_references","name":"parse_file","kind":"call","line":1290,"confidence":0.8}
-{"file":"src/parser/go.rs","caller":"test_go_import_references","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1290,"confidence":0.8}
-{"file":"src/parser/go.rs","caller":"test_go_import_references","name":"refs.iter().filter(|r| r.kind == \"import\").collect","kind":"call","line":1292}
-{"file":"src/parser/go.rs","caller":"test_go_import_references","name":"refs.iter().filter","kind":"call","line":1292}
-{"file":"src/parser/go.rs","caller":"test_go_import_references","name":"refs.iter","kind":"call","line":1292}
-{"file":"src/parser/go.rs","caller":"test_go_method_receiver_type_ref","name":"parse_file(source, \"go\", \"test.go\").unwrap","kind":"call","line":1318}
-{"file":"src/parser/go.rs","caller":"test_go_method_receiver_type_ref","name":"parse_file","kind":"call","line":1318,"confidence":0.8}
-{"file":"src/parser/go.rs","caller":"test_go_method_receiver_type_ref","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1318,"confidence":0.8}
-{"file":"src/parser/go.rs","caller":"test_go_method_receiver_type_ref","name":"refs\n            .iter()\n            .filter(|r| r.kind == \"type_annotation\" && r.name == \"Engine\")\n            .collect","kind":"call","line":1319}
-{"file":"src/parser/go.rs","caller":"test_go_method_receiver_type_ref","name":"refs\n            .iter()\n            .filter","kind":"call","line":1319}
-{"file":"src/parser/go.rs","caller":"test_go_method_receiver_type_ref","name":"refs\n            .iter","kind":"call","line":1319}
-{"file":"src/parser/go.rs","caller":"test_go_composite_literal_type_ref","name":"parse_file(source, \"go\", \"test.go\").unwrap","kind":"call","line":1348}
-{"file":"src/parser/go.rs","caller":"test_go_composite_literal_type_ref","name":"parse_file","kind":"call","line":1348,"confidence":0.8}
-{"file":"src/parser/go.rs","caller":"test_go_composite_literal_type_ref","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1348,"confidence":0.8}
-{"file":"src/parser/go.rs","caller":"test_go_composite_literal_type_ref","name":"refs\n            .iter()\n            .filter(|r| r.kind == \"type_annotation\" && r.name == \"Engine\")\n            .collect","kind":"call","line":1349}
-{"file":"src/parser/go.rs","caller":"test_go_composite_literal_type_ref","name":"refs\n            .iter()\n            .filter","kind":"call","line":1349}
-{"file":"src/parser/go.rs","caller":"test_go_composite_literal_type_ref","name":"refs\n            .iter","kind":"call","line":1349}
-{"file":"src/parser/go.rs","caller":"test_go_type_references","name":"parse_file(source, \"go\", \"test.go\").unwrap","kind":"call","line":1373}
-{"file":"src/parser/go.rs","caller":"test_go_type_references","name":"parse_file","kind":"call","line":1373,"confidence":0.8}
-{"file":"src/parser/go.rs","caller":"test_go_type_references","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1373,"confidence":0.8}
-{"file":"src/parser/go.rs","caller":"test_go_type_references","name":"refs\n            .iter()\n            .filter(|r| r.kind == \"type_annotation\")\n            .collect","kind":"call","line":1375}
-{"file":"src/parser/go.rs","caller":"test_go_type_references","name":"refs\n            .iter()\n            .filter","kind":"call","line":1375}
-{"file":"src/parser/go.rs","caller":"test_go_type_references","name":"refs\n            .iter","kind":"call","line":1375}
+{"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"node_text","kind":"call","line":968,"confidence":0.5}
+{"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"references.push","kind":"call","line":969}
+{"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"file_path.to_string","kind":"call","line":970}
+{"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"\"type_annotation\".to_string","kind":"call","line":972}
+{"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"node_line_range","kind":"call","line":973,"confidence":0.5}
+{"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"parent_ctx.map","kind":"call","line":974}
+{"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"String::new","kind":"call","line":975}
+{"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"n.walk","kind":"call","line":984}
+{"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"n.children","kind":"call","line":985}
+{"file":"src/parser/go.rs","caller":"extract_type_refs_from_node","name":"stack.push","kind":"call","line":986}
+{"file":"src/parser/go.rs","caller":"emit_cast_type_refs","name":"Node","kind":"type_annotation","line":998}
+{"file":"src/parser/go.rs","caller":"emit_cast_type_refs","name":"Option","kind":"type_annotation","line":1001}
+{"file":"src/parser/go.rs","caller":"emit_cast_type_refs","name":"Vec","kind":"type_annotation","line":1002}
+{"file":"src/parser/go.rs","caller":"emit_cast_type_refs","name":"ReferenceEntry","kind":"type_annotation","line":1002}
+{"file":"src/parser/go.rs","caller":"emit_cast_type_refs","name":"stack.pop","kind":"call","line":1005}
+{"file":"src/parser/go.rs","caller":"emit_cast_type_refs","name":"n.kind","kind":"call","line":1006}
+{"file":"src/parser/go.rs","caller":"emit_cast_type_refs","name":"node_text","kind":"call","line":1008,"confidence":0.5}
+{"file":"src/parser/go.rs","caller":"emit_cast_type_refs","name":"is_go_primitive_type","kind":"call","line":1009,"confidence":0.95}
+{"file":"src/parser/go.rs","caller":"emit_cast_type_refs","name":"is_go_builtin_call","kind":"call","line":1009,"confidence":0.95}
+{"file":"src/parser/go.rs","caller":"emit_cast_type_refs","name":"references.push","kind":"call","line":1010}
+{"file":"src/parser/go.rs","caller":"emit_cast_type_refs","name":"file_path.to_string","kind":"call","line":1011}
+{"file":"src/parser/go.rs","caller":"emit_cast_type_refs","name":"\"type_annotation\".to_string","kind":"call","line":1013}
+{"file":"src/parser/go.rs","caller":"emit_cast_type_refs","name":"node_line_range","kind":"call","line":1014,"confidence":0.5}
+{"file":"src/parser/go.rs","caller":"emit_cast_type_refs","name":"parent_ctx.map","kind":"call","line":1015}
+{"file":"src/parser/go.rs","caller":"emit_cast_type_refs","name":"String::new","kind":"call","line":1016}
+{"file":"src/parser/go.rs","caller":"emit_cast_type_refs","name":"references.push","kind":"call","line":1023}
+{"file":"src/parser/go.rs","caller":"emit_cast_type_refs","name":"file_path.to_string","kind":"call","line":1024}
+{"file":"src/parser/go.rs","caller":"emit_cast_type_refs","name":"node_text","kind":"call","line":1025,"confidence":0.5}
+{"file":"src/parser/go.rs","caller":"emit_cast_type_refs","name":"\"type_annotation\".to_string","kind":"call","line":1026}
+{"file":"src/parser/go.rs","caller":"emit_cast_type_refs","name":"node_line_range","kind":"call","line":1027,"confidence":0.5}
+{"file":"src/parser/go.rs","caller":"emit_cast_type_refs","name":"parent_ctx.map","kind":"call","line":1028}
+{"file":"src/parser/go.rs","caller":"emit_cast_type_refs","name":"String::new","kind":"call","line":1029}
+{"file":"src/parser/go.rs","caller":"emit_cast_type_refs","name":"n.walk","kind":"call","line":1036}
+{"file":"src/parser/go.rs","caller":"emit_cast_type_refs","name":"n.children","kind":"call","line":1037}
+{"file":"src/parser/go.rs","caller":"emit_cast_type_refs","name":"stack.push","kind":"call","line":1038}
+{"file":"src/parser/go.rs","caller":"extract_go_comment","name":"Node","kind":"type_annotation","line":1071}
+{"file":"src/parser/go.rs","caller":"extract_go_comment","name":"Option","kind":"type_annotation","line":1074}
+{"file":"src/parser/go.rs","caller":"extract_go_comment","name":"Vec","kind":"type_annotation","line":1075}
+{"file":"src/parser/go.rs","caller":"extract_go_comment","name":"TextEntry","kind":"type_annotation","line":1075}
+{"file":"src/parser/go.rs","caller":"extract_go_comment","name":"extract_comment","kind":"call","line":1077,"confidence":0.5}
+{"file":"src/parser/go.rs","caller":"go_visibility","name":"String","kind":"type_annotation","line":1080}
+{"file":"src/parser/go.rs","caller":"go_visibility","name":"name.starts_with","kind":"call","line":1081}
+{"file":"src/parser/go.rs","caller":"go_visibility","name":"c.is_uppercase","kind":"call","line":1081}
+{"file":"src/parser/go.rs","caller":"go_visibility","name":"\"public\".to_string","kind":"call","line":1082}
+{"file":"src/parser/go.rs","caller":"go_visibility","name":"\"private\".to_string","kind":"call","line":1084}
+{"file":"src/parser/go.rs","caller":"filter_go_tokens","name":"String","kind":"type_annotation","line":1131}
+{"file":"src/parser/go.rs","caller":"filter_go_tokens","name":"tokens\n        .split_whitespace()\n        .filter(|t| !GO_STOPWORDS.contains(t))\n        .collect::<Vec<_>>()\n        .join","kind":"call","line":1132}
+{"file":"src/parser/go.rs","caller":"filter_go_tokens","name":"tokens\n        .split_whitespace()\n        .filter","kind":"call","line":1132}
+{"file":"src/parser/go.rs","caller":"filter_go_tokens","name":"tokens\n        .split_whitespace","kind":"call","line":1132}
+{"file":"src/parser/go.rs","caller":"filter_go_tokens","name":"GO_STOPWORDS.contains","kind":"call","line":1134}
+{"file":"src/parser/go.rs","name":"super::*","kind":"import","line":1141}
+{"file":"src/parser/go.rs","name":"crate::parser::treesitter::parse_file","kind":"import","line":1142}
+{"file":"src/parser/go.rs","caller":"find_sym","name":"SymbolEntry","kind":"type_annotation","line":1144}
+{"file":"src/parser/go.rs","caller":"find_sym","name":"SymbolEntry","kind":"type_annotation","line":1144}
+{"file":"src/parser/go.rs","caller":"find_sym","name":"symbols\n            .iter()\n            .find(|s| s.name == name)\n            .unwrap_or_else","kind":"call","line":1145}
+{"file":"src/parser/go.rs","caller":"find_sym","name":"symbols\n            .iter()\n            .find","kind":"call","line":1145}
+{"file":"src/parser/go.rs","caller":"find_sym","name":"symbols\n            .iter","kind":"call","line":1145}
+{"file":"src/parser/go.rs","caller":"test_go_functions","name":"parse_file(source, \"go\", \"test.go\").unwrap","kind":"call","line":1162}
+{"file":"src/parser/go.rs","caller":"test_go_functions","name":"parse_file","kind":"call","line":1162,"confidence":0.8}
+{"file":"src/parser/go.rs","caller":"test_go_functions","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1162,"confidence":0.8}
+{"file":"src/parser/go.rs","caller":"test_go_functions","name":"find_sym","kind":"call","line":1164,"confidence":0.95}
+{"file":"src/parser/go.rs","caller":"test_go_functions","name":"find_sym","kind":"call","line":1170,"confidence":0.95}
+{"file":"src/parser/go.rs","caller":"test_go_methods","name":"parse_file(source, \"go\", \"test.go\").unwrap","kind":"call","line":1187}
+{"file":"src/parser/go.rs","caller":"test_go_methods","name":"parse_file","kind":"call","line":1187,"confidence":0.8}
+{"file":"src/parser/go.rs","caller":"test_go_methods","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1187,"confidence":0.8}
+{"file":"src/parser/go.rs","caller":"test_go_methods","name":"find_sym","kind":"call","line":1189,"confidence":0.95}
+{"file":"src/parser/go.rs","caller":"test_go_methods","name":"find_sym","kind":"call","line":1192,"confidence":0.95}
+{"file":"src/parser/go.rs","caller":"test_go_methods","name":"find_sym","kind":"call","line":1197,"confidence":0.95}
+{"file":"src/parser/go.rs","caller":"test_go_structs","name":"parse_file(source, \"go\", \"test.go\").unwrap","kind":"call","line":1210}
+{"file":"src/parser/go.rs","caller":"test_go_structs","name":"parse_file","kind":"call","line":1210,"confidence":0.8}
+{"file":"src/parser/go.rs","caller":"test_go_structs","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1210,"confidence":0.8}
+{"file":"src/parser/go.rs","caller":"test_go_structs","name":"find_sym","kind":"call","line":1212,"confidence":0.95}
+{"file":"src/parser/go.rs","caller":"test_go_structs","name":"find_sym","kind":"call","line":1215,"confidence":0.95}
+{"file":"src/parser/go.rs","caller":"test_go_structs","name":"find_sym","kind":"call","line":1219,"confidence":0.95}
+{"file":"src/parser/go.rs","caller":"test_go_interfaces","name":"parse_file(source, \"go\", \"test.go\").unwrap","kind":"call","line":1231}
+{"file":"src/parser/go.rs","caller":"test_go_interfaces","name":"parse_file","kind":"call","line":1231,"confidence":0.8}
+{"file":"src/parser/go.rs","caller":"test_go_interfaces","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1231,"confidence":0.8}
+{"file":"src/parser/go.rs","caller":"test_go_interfaces","name":"find_sym","kind":"call","line":1233,"confidence":0.95}
+{"file":"src/parser/go.rs","caller":"test_go_variables","name":"parse_file(source, \"go\", \"test.go\").unwrap","kind":"call","line":1251}
+{"file":"src/parser/go.rs","caller":"test_go_variables","name":"parse_file","kind":"call","line":1251,"confidence":0.8}
+{"file":"src/parser/go.rs","caller":"test_go_variables","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1251,"confidence":0.8}
+{"file":"src/parser/go.rs","caller":"test_go_variables","name":"find_sym","kind":"call","line":1253,"confidence":0.95}
+{"file":"src/parser/go.rs","caller":"test_go_variables","name":"find_sym","kind":"call","line":1257,"confidence":0.95}
+{"file":"src/parser/go.rs","caller":"test_go_variables","name":"find_sym","kind":"call","line":1261,"confidence":0.95}
+{"file":"src/parser/go.rs","caller":"test_go_imports","name":"parse_file(source, \"go\", \"test.go\").unwrap","kind":"call","line":1274}
+{"file":"src/parser/go.rs","caller":"test_go_imports","name":"parse_file","kind":"call","line":1274,"confidence":0.8}
+{"file":"src/parser/go.rs","caller":"test_go_imports","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1274,"confidence":0.8}
+{"file":"src/parser/go.rs","caller":"test_go_imports","name":"symbols.iter().find(|s| s.name == \"fmt\").unwrap","kind":"call","line":1276}
+{"file":"src/parser/go.rs","caller":"test_go_imports","name":"symbols.iter().find","kind":"call","line":1276}
+{"file":"src/parser/go.rs","caller":"test_go_imports","name":"symbols.iter","kind":"call","line":1276}
+{"file":"src/parser/go.rs","caller":"test_go_imports","name":"symbols.iter().find(|s| s.name == \"os\").unwrap","kind":"call","line":1279}
+{"file":"src/parser/go.rs","caller":"test_go_imports","name":"symbols.iter().find","kind":"call","line":1279}
+{"file":"src/parser/go.rs","caller":"test_go_imports","name":"symbols.iter","kind":"call","line":1279}
+{"file":"src/parser/go.rs","caller":"test_go_imports","name":"symbols.iter().find(|s| s.name == \"io/ioutil\").unwrap","kind":"call","line":1282}
+{"file":"src/parser/go.rs","caller":"test_go_imports","name":"symbols.iter().find","kind":"call","line":1282}
+{"file":"src/parser/go.rs","caller":"test_go_imports","name":"symbols.iter","kind":"call","line":1282}
+{"file":"src/parser/go.rs","caller":"test_go_type_alias","name":"parse_file(source, \"go\", \"test.go\").unwrap","kind":"call","line":1292}
+{"file":"src/parser/go.rs","caller":"test_go_type_alias","name":"parse_file","kind":"call","line":1292,"confidence":0.8}
+{"file":"src/parser/go.rs","caller":"test_go_type_alias","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1292,"confidence":0.8}
+{"file":"src/parser/go.rs","caller":"test_go_type_alias","name":"find_sym","kind":"call","line":1294,"confidence":0.95}
+{"file":"src/parser/go.rs","caller":"test_go_type_alias","name":"find_sym","kind":"call","line":1297,"confidence":0.95}
+{"file":"src/parser/go.rs","caller":"test_go_package","name":"parse_file(source, \"go\", \"test.go\").unwrap","kind":"call","line":1306}
+{"file":"src/parser/go.rs","caller":"test_go_package","name":"parse_file","kind":"call","line":1306,"confidence":0.8}
+{"file":"src/parser/go.rs","caller":"test_go_package","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1306,"confidence":0.8}
+{"file":"src/parser/go.rs","caller":"test_go_package","name":"symbols.iter().find(|s| s.kind == \"module\").unwrap","kind":"call","line":1308}
+{"file":"src/parser/go.rs","caller":"test_go_package","name":"symbols.iter().find","kind":"call","line":1308}
+{"file":"src/parser/go.rs","caller":"test_go_package","name":"symbols.iter","kind":"call","line":1308}
+{"file":"src/parser/go.rs","caller":"test_go_comments","name":"parse_file(source, \"go\", \"test.go\").unwrap","kind":"call","line":1320}
+{"file":"src/parser/go.rs","caller":"test_go_comments","name":"parse_file","kind":"call","line":1320,"confidence":0.8}
+{"file":"src/parser/go.rs","caller":"test_go_comments","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1320,"confidence":0.8}
+{"file":"src/parser/go.rs","caller":"test_go_call_references","name":"parse_file(source, \"go\", \"test.go\").unwrap","kind":"call","line":1334}
+{"file":"src/parser/go.rs","caller":"test_go_call_references","name":"parse_file","kind":"call","line":1334,"confidence":0.8}
+{"file":"src/parser/go.rs","caller":"test_go_call_references","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1334,"confidence":0.8}
+{"file":"src/parser/go.rs","caller":"test_go_call_references","name":"refs.iter().filter(|r| r.kind == \"call\").collect","kind":"call","line":1336}
+{"file":"src/parser/go.rs","caller":"test_go_call_references","name":"refs.iter().filter","kind":"call","line":1336}
+{"file":"src/parser/go.rs","caller":"test_go_call_references","name":"refs.iter","kind":"call","line":1336}
+{"file":"src/parser/go.rs","caller":"test_go_import_references","name":"parse_file(source, \"go\", \"test.go\").unwrap","kind":"call","line":1355}
+{"file":"src/parser/go.rs","caller":"test_go_import_references","name":"parse_file","kind":"call","line":1355,"confidence":0.8}
+{"file":"src/parser/go.rs","caller":"test_go_import_references","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1355,"confidence":0.8}
+{"file":"src/parser/go.rs","caller":"test_go_import_references","name":"refs.iter().filter(|r| r.kind == \"import\").collect","kind":"call","line":1357}
+{"file":"src/parser/go.rs","caller":"test_go_import_references","name":"refs.iter().filter","kind":"call","line":1357}
+{"file":"src/parser/go.rs","caller":"test_go_import_references","name":"refs.iter","kind":"call","line":1357}
+{"file":"src/parser/go.rs","caller":"test_go_method_receiver_type_ref","name":"parse_file(source, \"go\", \"test.go\").unwrap","kind":"call","line":1383}
+{"file":"src/parser/go.rs","caller":"test_go_method_receiver_type_ref","name":"parse_file","kind":"call","line":1383,"confidence":0.8}
+{"file":"src/parser/go.rs","caller":"test_go_method_receiver_type_ref","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1383,"confidence":0.8}
+{"file":"src/parser/go.rs","caller":"test_go_method_receiver_type_ref","name":"refs\n            .iter()\n            .filter(|r| r.kind == \"type_annotation\" && r.name == \"Engine\")\n            .collect","kind":"call","line":1384}
+{"file":"src/parser/go.rs","caller":"test_go_method_receiver_type_ref","name":"refs\n            .iter()\n            .filter","kind":"call","line":1384}
+{"file":"src/parser/go.rs","caller":"test_go_method_receiver_type_ref","name":"refs\n            .iter","kind":"call","line":1384}
+{"file":"src/parser/go.rs","caller":"test_go_composite_literal_type_ref","name":"parse_file(source, \"go\", \"test.go\").unwrap","kind":"call","line":1413}
+{"file":"src/parser/go.rs","caller":"test_go_composite_literal_type_ref","name":"parse_file","kind":"call","line":1413,"confidence":0.8}
+{"file":"src/parser/go.rs","caller":"test_go_composite_literal_type_ref","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1413,"confidence":0.8}
+{"file":"src/parser/go.rs","caller":"test_go_composite_literal_type_ref","name":"refs\n            .iter()\n            .filter(|r| r.kind == \"type_annotation\" && r.name == \"Engine\")\n            .collect","kind":"call","line":1414}
+{"file":"src/parser/go.rs","caller":"test_go_composite_literal_type_ref","name":"refs\n            .iter()\n            .filter","kind":"call","line":1414}
+{"file":"src/parser/go.rs","caller":"test_go_composite_literal_type_ref","name":"refs\n            .iter","kind":"call","line":1414}
+{"file":"src/parser/go.rs","caller":"test_go_parenthesized_type_cast_ref","name":"parse_file(source, \"go\", \"test.go\").unwrap","kind":"call","line":1441}
+{"file":"src/parser/go.rs","caller":"test_go_parenthesized_type_cast_ref","name":"parse_file","kind":"call","line":1441,"confidence":0.8}
+{"file":"src/parser/go.rs","caller":"test_go_parenthesized_type_cast_ref","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1441,"confidence":0.8}
+{"file":"src/parser/go.rs","caller":"test_go_parenthesized_type_cast_ref","name":"refs\n            .iter()\n            .filter(|r| r.kind == \"type_annotation\" && r.name == \"Engine\")\n            .collect","kind":"call","line":1442}
+{"file":"src/parser/go.rs","caller":"test_go_parenthesized_type_cast_ref","name":"refs\n            .iter()\n            .filter","kind":"call","line":1442}
+{"file":"src/parser/go.rs","caller":"test_go_parenthesized_type_cast_ref","name":"refs\n            .iter","kind":"call","line":1442}
+{"file":"src/parser/go.rs","caller":"test_go_type_references","name":"parse_file(source, \"go\", \"test.go\").unwrap","kind":"call","line":1464}
+{"file":"src/parser/go.rs","caller":"test_go_type_references","name":"parse_file","kind":"call","line":1464,"confidence":0.8}
+{"file":"src/parser/go.rs","caller":"test_go_type_references","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1464,"confidence":0.8}
+{"file":"src/parser/go.rs","caller":"test_go_type_references","name":"refs\n            .iter()\n            .filter(|r| r.kind == \"type_annotation\")\n            .collect","kind":"call","line":1466}
+{"file":"src/parser/go.rs","caller":"test_go_type_references","name":"refs\n            .iter()\n            .filter","kind":"call","line":1466}
+{"file":"src/parser/go.rs","caller":"test_go_type_references","name":"refs\n            .iter","kind":"call","line":1466}
 {"file":"src/parser/helpers.rs","name":"std::collections::HashSet","kind":"import","line":3}
 {"file":"src/parser/helpers.rs","name":"tree_sitter::Node","kind":"import","line":4}
 {"file":"src/parser/helpers.rs","name":"crate::parser::format::{SymbolEntry, TextEntry}","kind":"import","line":6}

@@ -837,6 +837,19 @@ fn extract_call(
     let (name, is_selector) = match func.kind() {
         "identifier" => (node_text(func, source), false),
         "selector_expression" => (node_text(func, source), true),
+        // `(*Engine)(nil)` or `(Engine)(x)` — parenthesized type used as
+        // a cast/conversion. Tree-sitter parses these ambiguously
+        // because at parse-time `Engine` is just an identifier (no
+        // type/value distinction): `*Engine` shows up as
+        // `unary_expression` over `identifier`, not `pointer_type` over
+        // `type_identifier`. So we walk inside the parens looking for
+        // any identifier and emit it as a type_annotation ref — the
+        // surrounding call context disambiguates it as a type cast.
+        // We skip builtin/primitive Go type names to avoid noise.
+        "parenthesized_expression" => {
+            emit_cast_type_refs(func, source, file_path, parent_ctx, references);
+            return;
+        }
         _ => return,
     };
 
@@ -968,6 +981,58 @@ fn extract_type_refs_from_node(
         }
 
         // Recurse into children
+        let mut cursor = n.walk();
+        for child in n.children(&mut cursor) {
+            stack.push(child);
+        }
+    }
+}
+
+/// Emit type_annotation refs for the inner identifier of a parenthesized
+/// expression in cast position (`(*T)(x)` / `(T)(x)`). Tree-sitter-go
+/// parses these ambiguously — `*T` becomes `unary_expression` over
+/// `identifier`, not `pointer_type` over `type_identifier`. Walk for
+/// any plain identifier and emit it (filtering primitives + builtin
+/// function names like `len`/`make` to avoid noise).
+fn emit_cast_type_refs(
+    node: Node,
+    source: &[u8],
+    file_path: &str,
+    parent_ctx: Option<&str>,
+    references: &mut Vec<ReferenceEntry>,
+) {
+    let mut stack = vec![node];
+    while let Some(n) = stack.pop() {
+        match n.kind() {
+            "identifier" | "type_identifier" => {
+                let name = node_text(n, source);
+                if !is_go_primitive_type(&name) && !is_go_builtin_call(&name) {
+                    references.push(ReferenceEntry {
+                        file: file_path.to_string(),
+                        name,
+                        kind: "type_annotation".to_string(),
+                        line: node_line_range(n),
+                        caller: parent_ctx.map(String::from),
+                        project: String::new(),
+                        confidence: None,
+                    });
+                }
+            }
+            "qualified_type" | "selector_expression" => {
+                // `(*pkg.Engine)(nil)` — emit the qualified form.
+                references.push(ReferenceEntry {
+                    file: file_path.to_string(),
+                    name: node_text(n, source),
+                    kind: "type_annotation".to_string(),
+                    line: node_line_range(n),
+                    caller: parent_ctx.map(String::from),
+                    project: String::new(),
+                    confidence: None,
+                });
+                continue;
+            }
+            _ => {}
+        }
         let mut cursor = n.walk();
         for child in n.children(&mut cursor) {
             stack.push(child);
@@ -1356,6 +1421,32 @@ func makeValue() Engine {
             "expected ≥4 Engine type-annotation refs (2 returns + 2 literals); got {} -> {:?}",
             engine_lit.len(),
             refs.iter().map(|r| (&r.kind, &r.name, r.line)).collect::<Vec<_>>(),
+        );
+    }
+
+    #[test]
+    fn test_go_parenthesized_type_cast_ref() {
+        // `var _ IRouter = (*Engine)(nil)` is a type cast — the
+        // call expression's "function" is a parenthesized pointer_type.
+        // `Engine` should surface as a type_annotation ref so
+        // `sigil callers Engine` reaches the cast site. Gin's gin.go:191
+        // is the canonical example: `var _ IRouter = (*Engine)(nil)`.
+        let source = b"package main
+
+type Engine struct { v int }
+type IRouter interface { GET() }
+
+var _ IRouter = (*Engine)(nil)
+";
+        let (_symbols, _texts, refs) = parse_file(source, "go", "test.go").unwrap();
+        let engine_cast: Vec<_> = refs
+            .iter()
+            .filter(|r| r.kind == "type_annotation" && r.name == "Engine")
+            .collect();
+        assert!(
+            !engine_cast.is_empty(),
+            "expected ≥1 Engine type_annotation from the cast; got refs {:?}",
+            refs.iter().map(|r| (&r.kind, &r.name)).collect::<Vec<_>>(),
         );
     }
 
