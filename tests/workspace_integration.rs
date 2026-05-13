@@ -1324,9 +1324,17 @@ fn workspace_duckdb_auto_engages_above_threshold() {
     assert!(v.as_array().unwrap().iter().any(|e| e["name"] == "FooBar"),
         "DuckDB auto-engaged workspace must surface entities; got {v:?}");
 
-    // The materialised DuckDB lives under .sigil-workspace/, not .sigil/
+    // Phase 0 invariant: the workspace DuckDB backend never writes
+    // `.sigil-workspace/index.duckdb`. Queries succeed via an
+    // in-memory connection populated from per-member JSONL on every
+    // open. Same rule that holds for per-repo DuckDB mode.
     let db_path = ws.join(".sigil-workspace/index.duckdb");
-    assert!(db_path.exists(), "workspace DuckDB file should be created at {}", db_path.display());
+    assert!(!db_path.exists(),
+        "workspace DuckDB must NOT create on-disk file; got one at {}",
+        db_path.display());
+    let stamp_path = ws.join(".sigil-workspace/index.duckdb.stamp");
+    assert!(!stamp_path.exists(),
+        "workspace DuckDB must NOT create stamp file");
 }
 
 // ---------------------------------------------------------------------------

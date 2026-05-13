@@ -74,7 +74,6 @@ use std::collections::BTreeMap;
 
 use anyhow::{Context as _, Result};
 use duckdb::{Connection, params};
-use serde::{Deserialize, Serialize};
 
 use crate::entity::{Entity, Reference};
 use crate::query::index::{DirSummary, FileHit, Scope};
@@ -113,97 +112,39 @@ pub struct DuckDbBackend {
 }
 
 impl DuckDbBackend {
-    /// Workspace-mode open: materialise the union of every enabled
-    /// member's `.sigil/{entities,refs}.jsonl` (file paths prefixed with
-    /// `<member.name>/`) plus `.sigil-workspace/cross_repo_refs.jsonl`
-    /// into `<root>/.sigil-workspace/index.duckdb`. Schema is identical
-    /// to the per-repo DB so every query method reads through unchanged.
+    /// Workspace-mode open: in-memory DuckDB connection populated from
+    /// the union of every enabled member's
+    /// `.sigil/{entities,refs}.jsonl` (file paths prefixed with
+    /// `<member.name>/`) plus `.sigil-workspace/cross_repo_refs.jsonl`.
+    /// Same Phase 0 invariant as the per-repo `open` — no
+    /// `.sigil-workspace/index.duckdb` artifact is ever written; TEMP
+    /// tables live in connection RAM, rebuilt fresh every open.
     pub fn open_workspace(root: &Path) -> Result<Self> {
-        let ws_dir = root.join(".sigil-workspace");
-        std::fs::create_dir_all(&ws_dir)?;
-        let db_path = ws_dir.join("index.duckdb");
-        let stamp_path = ws_dir.join("index.duckdb.stamp");
-
-        let expected = workspace_fingerprint(root);
-        let actual = Stamp::load(&stamp_path).ok();
-
-        let needs_rebuild = actual.as_ref() != Some(&expected);
-        if needs_rebuild && db_path.exists() {
-            std::fs::remove_file(&db_path).ok();
-        }
-
-        let conn = Connection::open(&db_path)
-            .with_context(|| format!("open DuckDB at {}", db_path.display()))?;
-
-        if needs_rebuild {
-            populate_workspace(&conn, root)
-                .context("rebuild workspace DuckDB index from per-repo JSONL")?;
-            expected.save(&stamp_path)?;
-        }
-
+        let conn = Connection::open_in_memory()
+            .context("open in-memory DuckDB connection")?;
+        populate_workspace(&conn, root)
+            .context("populate workspace DuckDB TEMP tables from per-repo JSONL")?;
         Ok(Self {
             conn,
             root: root.to_path_buf(),
         })
     }
 
-    /// Open the backend at `root/.sigil/index.duckdb`, rebuilding from
-    /// JSONL if the stamp file is stale or missing.
+    /// Open an in-memory DuckDB connection populated from
+    /// `root/.sigil/entities.jsonl` + `refs.jsonl`. Per Phase 0 design:
+    /// no `.sigil/index.duckdb` artifact is ever written; tables live
+    /// in connection RAM as TEMP tables built fresh on every open.
+    /// Staleness is impossible — JSONL is the source of truth, every
+    /// query reads from tables that were just materialised from it.
     pub fn open(root: &Path) -> Result<Self> {
         let sigil_dir = root.join(".sigil");
-        std::fs::create_dir_all(&sigil_dir)?;
-        let db_path = sigil_dir.join("index.duckdb");
-        let stamp_path = sigil_dir.join("index.duckdb.stamp");
-
-        let expected = fingerprint(&sigil_dir);
-        let actual = Stamp::load(&stamp_path).ok();
-
-        // Rebuild when stamps diverge. Dropping the DB file entirely is
-        // cheaper than TRUNCATE + re-import because DuckDB lays the file
-        // out in its own format we don't control.
-        let needs_rebuild = actual.as_ref() != Some(&expected);
-        if needs_rebuild && db_path.exists() {
-            std::fs::remove_file(&db_path).ok();
-        }
-
-        let conn = Connection::open(&db_path)
-            .with_context(|| format!("open DuckDB at {}", db_path.display()))?;
-
-        if needs_rebuild {
-            populate(&conn, &sigil_dir)
-                .context("rebuild DuckDB index from JSONL")?;
-            expected.save(&stamp_path)?;
-        }
-
-        // Safety: a matching stamp doesn't guarantee populated tables —
-        // a previous `populate()` could have been interrupted mid-run,
-        // leaving an empty DB + a valid stamp. (Root cause of the silent
-        // E2 regression where sigil_callers returned 100 bytes on every
-        // treatment call.) When JSONL has content but both tables are
-        // empty, force one rebuild. Cheap — a no-op on healthy indexes.
-        let tables_empty = count_tables(&conn)
-            .map(|(e, r)| e == 0 && r == 0)
-            .unwrap_or(true);
-        let jsonl_has_content = std::fs::metadata(sigil_dir.join("entities.jsonl"))
-            .map(|m| m.len() > 0)
-            .unwrap_or(false);
-        if tables_empty && jsonl_has_content {
-            eprintln!(
-                "sigil: .sigil/index.duckdb has empty tables but JSONL is populated — rebuilding."
-            );
-            drop(conn);
-            std::fs::remove_file(&db_path).ok();
-            let conn = Connection::open(&db_path)
-                .with_context(|| format!("reopen DuckDB at {}", db_path.display()))?;
-            populate(&conn, &sigil_dir)
-                .context("recovery rebuild of DuckDB index")?;
-            fingerprint(&sigil_dir).save(&stamp_path)?;
-            return Ok(Self {
-                conn,
-                root: root.to_path_buf(),
-            });
-        }
-
+        // We don't create .sigil/ unless it already exists — opening
+        // against a missing index dir falls through to `populate`
+        // which handles the empty-JSONL case by creating empty tables.
+        let conn = Connection::open_in_memory()
+            .context("open in-memory DuckDB connection")?;
+        populate(&conn, &sigil_dir)
+            .context("populate DuckDB TEMP tables from JSONL")?;
         Ok(Self {
             conn,
             root: root.to_path_buf(),
@@ -1001,59 +942,6 @@ fn path_for_sql(p: &Path) -> String {
     p.display().to_string().replace('\'', "''")
 }
 
-/// Fingerprint of the JSONL files the DB was built from. Captured at
-/// build time and compared on next open to decide whether to rebuild.
-///
-/// `schema_version` is bumped any time the on-disk DuckDB tables change
-/// shape (column add/remove/type-change). Old stamps with a missing
-/// or stale version deserialize via `serde(default)` to 0, which never
-/// matches CURRENT_SCHEMA_VERSION — forcing a rebuild on first open
-/// after upgrade so existing `.sigil/index.duckdb` files don't return
-/// rows missing the new columns.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-struct Stamp {
-    #[serde(default)]
-    schema_version: u32,
-    entities_len: u64,
-    entities_mtime_ms: u128,
-    refs_len: u64,
-    refs_mtime_ms: u128,
-}
-
-/// Bump on any DuckDB tables change (column add/remove/type/index).
-/// History:
-///   1 — initial schema
-///   2 — refs gained `confidence` (DOUBLE) + `callee_id` (VARCHAR)
-///       so the DuckDB backend reaches parity with in-memory Reference
-///       (issue #32).
-const CURRENT_SCHEMA_VERSION: u32 = 2;
-
-impl Stamp {
-    fn load(path: &Path) -> Result<Self> {
-        let text = std::fs::read_to_string(path)
-            .with_context(|| format!("read {}", path.display()))?;
-        serde_json::from_str(&text).map_err(Into::into)
-    }
-
-    fn save(&self, path: &Path) -> Result<()> {
-        let text = serde_json::to_string(self)?;
-        std::fs::write(path, text).map_err(Into::into)
-    }
-}
-
-/// Count rows in the entities and refs tables. Used by `open()`'s
-/// empty-tables-but-valid-stamp recovery path. Returns None if either
-/// table is absent (fresh DB where populate hasn't run yet).
-fn count_tables(conn: &Connection) -> Option<(i64, i64)> {
-    let ents: i64 = conn
-        .query_row("SELECT COUNT(*) FROM entities", [], |r| r.get(0))
-        .ok()?;
-    let refs: i64 = conn
-        .query_row("SELECT COUNT(*) FROM refs", [], |r| r.get(0))
-        .ok()?;
-    Some((ents, refs))
-}
-
 /// Workspace-mode DuckDB populate. Builds the entities + refs tables as
 /// the UNION over each enabled member's `.sigil/` JSONL (with the
 /// `<member.name>/` file prefix applied at SELECT time), plus the
@@ -1138,42 +1026,12 @@ fn populate_workspace(conn: &Connection, ws_root: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Workspace fingerprint = sum of every enabled member's per-repo stamp
-/// + the workspace's own cross_repo_refs.jsonl stamp. Captures both
-/// per-repo content changes AND membership churn (disable / add /
-/// remove flip the member set's contribution).
-fn workspace_fingerprint(ws_root: &Path) -> Stamp {
-    let mut entities_len: u64 = 0;
-    let mut entities_mtime_ms: u128 = 0;
-    let mut refs_len: u64 = 0;
-    let mut refs_mtime_ms: u128 = 0;
-
-    let members = crate::workspace::list(ws_root).unwrap_or_default();
-    for m in members.iter().filter(|m| !m.disabled) {
-        let mp = std::path::Path::new(&m.path);
-        let (el, em) = meta_pair(&mp.join(".sigil/entities.jsonl"));
-        let (rl, rm) = meta_pair(&mp.join(".sigil/refs.jsonl"));
-        entities_len = entities_len.saturating_add(el);
-        refs_len = refs_len.saturating_add(rl);
-        entities_mtime_ms = entities_mtime_ms.max(em);
-        refs_mtime_ms = refs_mtime_ms.max(rm);
-    }
-
-    let (cross_len, cross_mtime) = meta_pair(&ws_root.join(".sigil-workspace/cross_repo_refs.jsonl"));
-    refs_len = refs_len.saturating_add(cross_len);
-    refs_mtime_ms = refs_mtime_ms.max(cross_mtime);
-
-    Stamp {
-        schema_version: CURRENT_SCHEMA_VERSION,
-        entities_len,
-        entities_mtime_ms,
-        refs_len,
-        refs_mtime_ms,
-    }
-}
-
 /// Auto-engage threshold check for workspace mode. Sums every enabled
 /// member's JSONL size. Mirrors `should_auto_engage` for per-repo.
+/// Per Phase 0 the engaged path is now `:memory:` + TEMP tables, so
+/// "auto-engage" really means "is this big enough that a DuckDB query
+/// scan-and-index beats an in-memory HashMap lookup loop"; the
+/// threshold semantics are unchanged for backwards compat.
 pub fn workspace_should_auto_engage(ws_root: &Path, threshold_bytes: u64) -> bool {
     let members = crate::workspace::list(ws_root).unwrap_or_default();
     let total: u64 = members
@@ -1191,32 +1049,6 @@ pub fn workspace_should_auto_engage(ws_root: &Path, threshold_bytes: u64) -> boo
         })
         .sum();
     total >= threshold_bytes
-}
-
-fn fingerprint(sigil_dir: &Path) -> Stamp {
-    let (entities_len, entities_mtime_ms) = meta_pair(&sigil_dir.join("entities.jsonl"));
-    let (refs_len, refs_mtime_ms) = meta_pair(&sigil_dir.join("refs.jsonl"));
-    Stamp {
-        schema_version: CURRENT_SCHEMA_VERSION,
-        entities_len,
-        entities_mtime_ms,
-        refs_len,
-        refs_mtime_ms,
-    }
-}
-
-fn meta_pair(p: &Path) -> (u64, u128) {
-    let Ok(m) = std::fs::metadata(p) else {
-        return (0, 0);
-    };
-    let len = m.len();
-    let mtime_ms = m
-        .modified()
-        .ok()
-        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-        .map(|d| d.as_millis())
-        .unwrap_or(0);
-    (len, mtime_ms)
 }
 
 #[cfg(test)]
@@ -1271,49 +1103,38 @@ mod tests {
     }
 
     #[test]
-    fn opens_and_populates_from_jsonl() {
-        let root = tmpdir("populate");
+    fn opens_in_memory_does_not_create_duckdb_artifact() {
+        // Phase 0 invariant: sigil never writes `.sigil/index.duckdb`.
+        // The backend is a pure in-memory DuckDB connection populated
+        // from JSONL via TEMP tables on every open. No on-disk DB,
+        // no stamp file, no staleness logic to manage.
+        let root = tmpdir("populate_no_artifact");
         seed(
             &root,
             vec![ent("a.rs", "Foo", "struct"), ent("b.rs", "bar", "function")],
             vec![refr("a.rs", Some("caller"), "bar", "call", 10)],
         );
         let db = DuckDbBackend::open(&root).expect("open");
-        assert_eq!(db.len().unwrap(), (2, 1));
-        assert!(root.join(".sigil/index.duckdb").exists());
-        assert!(root.join(".sigil/index.duckdb.stamp").exists());
-        std::fs::remove_dir_all(&root).ok();
-    }
-
-    #[test]
-    fn stamp_match_skips_rebuild() {
-        let root = tmpdir("cached");
-        seed(
-            &root,
-            vec![ent("a.rs", "Foo", "struct")],
-            vec![refr("b.rs", Some("c"), "Foo", "type_annotation", 5)],
+        assert_eq!(db.len().unwrap(), (2, 1), "row counts should match JSONL");
+        assert!(
+            !root.join(".sigil/index.duckdb").exists(),
+            "open must NOT create .sigil/index.duckdb",
         );
-        let _ = DuckDbBackend::open(&root).unwrap();
-        let db_mtime_first = std::fs::metadata(root.join(".sigil/index.duckdb"))
-            .unwrap()
-            .modified()
-            .unwrap();
-        // Small sleep to ensure the filesystem mtime could differ if we
-        // were to rewrite. A proper clock-skew-tolerant test would check
-        // a monotonic counter, but this is sufficient for local runs.
-        std::thread::sleep(std::time::Duration::from_millis(10));
-        let _ = DuckDbBackend::open(&root).unwrap();
-        let db_mtime_second = std::fs::metadata(root.join(".sigil/index.duckdb"))
-            .unwrap()
-            .modified()
-            .unwrap();
-        assert_eq!(db_mtime_first, db_mtime_second, "DB should not be rewritten");
+        assert!(
+            !root.join(".sigil/index.duckdb.stamp").exists(),
+            "open must NOT create .sigil/index.duckdb.stamp",
+        );
         std::fs::remove_dir_all(&root).ok();
     }
 
     #[test]
-    fn stamp_mismatch_triggers_rebuild() {
-        let root = tmpdir("stale");
+    fn each_open_reflects_current_jsonl() {
+        // User-visible behavior preserved from the deleted stamp tests:
+        // when JSONL changes between two opens, the queries reflect the
+        // new data. With Phase 0's :memory: + TEMP-table architecture
+        // this is automatic — every `open` reads JSONL fresh — so we
+        // assert the visible outcome without the stamp framing.
+        let root = tmpdir("fresh_on_each_open");
         seed(
             &root,
             vec![ent("a.rs", "Foo", "struct")],
@@ -1323,9 +1144,7 @@ mod tests {
         assert_eq!(first.len().unwrap(), (1, 1));
         drop(first);
 
-        // Re-seed with more data — stamp's (size, mtime) will differ and
-        // force a rebuild.
-        std::thread::sleep(std::time::Duration::from_millis(10));
+        // Re-seed with more data.
         seed(
             &root,
             vec![
@@ -1339,7 +1158,7 @@ mod tests {
             ],
         );
         let second = DuckDbBackend::open(&root).unwrap();
-        assert_eq!(second.len().unwrap(), (3, 2), "DB should reflect new JSONL");
+        assert_eq!(second.len().unwrap(), (3, 2), "second open reflects new JSONL");
         std::fs::remove_dir_all(&root).ok();
     }
 
