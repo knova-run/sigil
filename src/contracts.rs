@@ -227,6 +227,7 @@ fn walk(root: &Path, dir: &Path, out: &mut Vec<ContractRow>) {
             "php" => out.extend(scan_php(&rel, &text)),
             "cs" => out.extend(scan_csharp(&rel, &text)),
             "proto" => out.extend(scan_proto(&rel, &text)),
+            "graphql" | "gql" => out.extend(scan_graphql(&rel, &text)),
             _ => {}
         }
     }
@@ -579,6 +580,55 @@ fn scan_js_ts(file: &str, text: &str, ext: &str) -> Vec<ContractRow> {
         }
         if let Some(caps) = ws_browser_re().captures(line) {
             push_ws_consumer(&mut out, file, (i + 1) as u32, &caps[1], language, "websocket");
+        }
+    }
+    // tRPC routers (provider) + client procedure calls (consumer).
+    let uses_trpc = text.contains("@trpc/server") || text.contains("@trpc/client")
+        || text.contains("@trpc/react") || text.contains("t.procedure")
+        || text.contains("trpc.");
+    if uses_trpc {
+        for (i, line) in text.lines().enumerate() {
+            if let Some(caps) = trpc_procedure_re().captures(line) {
+                let name = caps[1].to_string();
+                out.push(ContractRow {
+                    contract_id: format!("rpc::{name}"),
+                    kind: "rpc".to_string(), role: "provider".to_string(),
+                    method: None, path: Some(name.clone()), topic: None,
+                    file: file.to_string(), line: (i + 1) as u32,
+                    language: language.to_string(), framework: "trpc".to_string(),
+                });
+                continue;
+            }
+            if let Some(caps) = trpc_call_re().captures(line) {
+                let name = caps[1].to_string();
+                out.push(ContractRow {
+                    contract_id: format!("rpc::{name}"),
+                    kind: "rpc".to_string(), role: "consumer".to_string(),
+                    method: None, path: Some(name.clone()), topic: None,
+                    file: file.to_string(), line: (i + 1) as u32,
+                    language: language.to_string(), framework: "trpc".to_string(),
+                });
+            }
+        }
+    }
+    // GraphQL client calls (Apollo / urql / Relay / graphql-request).
+    emit_graphql_client_rows(file, text, language, &mut out);
+    // JSON-RPC request bodies (method:"name" json keys).
+    if text.contains("jsonrpc") || text.contains("\"jsonrpc\"") {
+        for (i, line) in text.lines().enumerate() {
+            if let Some(caps) = jsonrpc_call_re().captures(line) {
+                let name = caps[1].to_string();
+                // Skip the literal `"jsonrpc"` constant
+                if name != "jsonrpc" {
+                    out.push(ContractRow {
+                        contract_id: format!("rpc::{name}"),
+                        kind: "rpc".to_string(), role: "consumer".to_string(),
+                        method: None, path: Some(name.clone()), topic: None,
+                        file: file.to_string(), line: (i + 1) as u32,
+                        language: language.to_string(), framework: "jsonrpc".to_string(),
+                    });
+                }
+            }
         }
     }
     // socket.io event-level (server `on` + client `emit`).
@@ -1728,6 +1778,160 @@ fn scan_csharp(file: &str, text: &str) -> Vec<ContractRow> {
     out
 }
 
+// ─── GraphQL / tRPC / JSON-RPC ───────────────────────────────────────────────
+//
+// Three RPC-like protocols. contract_ids:
+//   * GraphQL: `graphql::Query.<name>` / `graphql::Mutation.<name>` /
+//              `graphql::Subscription.<name>`
+//   * tRPC:    `rpc::<procedure-name>` (framework=`trpc`)
+//   * JSON-RPC: `rpc::<method-name>` (framework=`jsonrpc`)
+
+fn graphql_type_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // Match `type Query {` / `type Mutation {` / `type Subscription {`
+        // openings in a GraphQL SDL file. Captures the type name.
+        Regex::new(r#"^\s*(?:extend\s+)?type\s+(Query|Mutation|Subscription)\b"#).unwrap()
+    })
+}
+
+fn graphql_field_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // Field declarations inside Query/Mutation/Subscription:
+        //   `user(id: ID!): User`
+        //   `users(limit: Int): [User!]!`
+        // We capture the field name (the identifier before `(` or `:`).
+        Regex::new(r#"^\s*([a-z_][A-Za-z0-9_]*)\s*[(:]"#).unwrap()
+    })
+}
+
+fn scan_graphql(file: &str, text: &str) -> Vec<ContractRow> {
+    let mut out = Vec::new();
+    let mut current_type: Option<String> = None;
+    let mut depth: i32 = 0;
+    for (i, line) in text.lines().enumerate() {
+        // Track brace depth so we know when we leave the type body.
+        let opens = line.matches('{').count() as i32;
+        let closes = line.matches('}').count() as i32;
+        if let Some(caps) = graphql_type_re().captures(line) {
+            current_type = Some(caps[1].to_string());
+            depth = (depth + opens - closes).max(0);
+            continue;
+        }
+        if current_type.is_some() && depth > 0
+            && let Some(fcaps) = graphql_field_re().captures(line)
+        {
+            let field = fcaps[1].to_string();
+            let ty = current_type.as_ref().unwrap();
+            out.push(ContractRow {
+                contract_id: format!("graphql::{ty}.{field}"),
+                kind: "graphql".to_string(),
+                role: "provider".to_string(),
+                method: None,
+                path: Some(format!("{ty}.{field}")),
+                topic: None,
+                file: file.to_string(),
+                line: (i + 1) as u32,
+                language: "graphql".to_string(),
+                framework: "graphql".to_string(),
+            });
+        }
+        depth = (depth + opens - closes).max(0);
+        if depth == 0 {
+            current_type = None;
+        }
+    }
+    out
+}
+
+fn gql_client_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // gql`query GetUser(...) { user(id: …) {...} }` / `mutation Foo(...) { … }` /
+        // `subscription Bar { … }`. Capture both the op kind (query/mutation/
+        // subscription) and the root field name inside the braces.
+        // Two captures needed; we run two passes.
+        Regex::new(r#"\b(query|mutation|subscription)\s+[A-Za-z_][A-Za-z0-9_]*\s*(?:\([^)]*\))?\s*\{\s*([A-Za-z_][A-Za-z0-9_]*)"#).unwrap()
+    })
+}
+
+fn emit_graphql_client_rows(file: &str, text: &str, language: &str, out: &mut Vec<ContractRow>) {
+    // Apollo Client / urql / Relay / etc. all parse `gql` template
+    // literals or pass the same shape. The op kind + root field name
+    // determines the contract_id.
+    let uses_gql = text.contains("@apollo/client") || text.contains("urql")
+        || text.contains("react-relay") || text.contains("graphql-request")
+        || text.contains("gql`") || text.contains("graphql`");
+    if !uses_gql {
+        return;
+    }
+    // The gql template can span multiple lines; flatten the full text
+    // for the regex (each match retains the starting line via
+    // counting newlines up to the match index).
+    for caps in gql_client_re().captures_iter(text) {
+        let op_kind = &caps[1];
+        let field = &caps[2];
+        let type_name = match op_kind {
+            "query" => "Query",
+            "mutation" => "Mutation",
+            "subscription" => "Subscription",
+            _ => continue,
+        };
+        // Locate the line number of the match.
+        let pos = caps.get(0).map(|m| m.start()).unwrap_or(0);
+        let line_no = text[..pos].matches('\n').count() as u32 + 1;
+        out.push(ContractRow {
+            contract_id: format!("graphql::{type_name}.{field}"),
+            kind: "graphql".to_string(),
+            role: "consumer".to_string(),
+            method: None,
+            path: Some(format!("{type_name}.{field}")),
+            topic: None,
+            file: file.to_string(),
+            line: line_no,
+            language: language.to_string(),
+            framework: "graphql-client".to_string(),
+        });
+    }
+}
+
+fn trpc_procedure_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // tRPC router definitions: `userById: t.procedure.query(...)` /
+        // `createUser: t.procedure.mutation(...)`.
+        Regex::new(r#"\b([A-Za-z_][A-Za-z0-9_]*)\s*:\s*t\.procedure\.(?:query|mutation|subscription)"#).unwrap()
+    })
+}
+
+fn trpc_call_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // Client: `trpc.userById.useQuery(...)` / `.useMutation(...)`.
+        // Capture procedure name after `trpc.`.
+        Regex::new(r#"\btrpc\.([A-Za-z_][A-Za-z0-9_.]*)\.(?:useQuery|useMutation|useSubscription|query|mutate|subscribe)\s*\("#).unwrap()
+    })
+}
+
+fn jsonrpc_method_decl_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // jsonrpcserver (Python): `@method` (bare) or
+        // `@method(name="users.create")`.
+        Regex::new(r#"@method(?:\s*\(\s*name\s*=\s*['"]([^'"]+)['"]\s*\))?\s*$"#).unwrap()
+    })
+}
+
+fn jsonrpc_call_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // JSON-RPC request body has `"method": "name"`. We capture the
+        // method name as the contract.
+        Regex::new(r#"['"]method['"]\s*:\s*['"]([A-Za-z_][\w./:\-]*)['"]"#).unwrap()
+    })
+}
+
 // ─── Cloud queue contracts (SQS / SNS / GCP Pub/Sub / RabbitMQ / etc.) ──────
 //
 // These emit `kind=topic` rows. The topic identity is extracted from
@@ -2648,6 +2852,56 @@ fn scan_python(file: &str, text: &str) -> Vec<ContractRow> {
             });
         }
     }
+    // JSON-RPC providers (`@method` / `@method(name="…")`) — same
+    // multi-line lookup as Celery (decorator above `def name`).
+    let lines: Vec<&str> = text.lines().collect();
+    for i in 0..lines.len() {
+        if let Some(caps) = jsonrpc_method_decl_re().captures(lines[i]) {
+            let name = if let Some(m) = caps.get(1) {
+                m.as_str().to_string()
+            } else {
+                let mut j = i + 1;
+                let mut found = None;
+                while j < lines.len() && j < i + 6 {
+                    let l = lines[j].trim_start();
+                    if l.is_empty() || l.starts_with('#') || l.starts_with('@') {
+                        j += 1; continue;
+                    }
+                    static DEF_RE: OnceLock<Regex> = OnceLock::new();
+                    let def = DEF_RE.get_or_init(|| Regex::new(r"^def\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(").unwrap());
+                    if let Some(dc) = def.captures(l) { found = Some(dc[1].to_string()); }
+                    break;
+                }
+                match found { Some(n) => n, None => continue }
+            };
+            out.push(ContractRow {
+                contract_id: format!("rpc::{name}"),
+                kind: "rpc".to_string(), role: "provider".to_string(),
+                method: None, path: Some(name.clone()), topic: None,
+                file: file.to_string(), line: (i + 1) as u32,
+                language: "python".to_string(), framework: "jsonrpc".to_string(),
+            });
+        }
+    }
+    // JSON-RPC consumers — `"method": "name"` json keys.
+    if text.contains("jsonrpc") {
+        for (i, line) in text.lines().enumerate() {
+            if let Some(caps) = jsonrpc_call_re().captures(line) {
+                let name = caps[1].to_string();
+                if name != "jsonrpc" {
+                    out.push(ContractRow {
+                        contract_id: format!("rpc::{name}"),
+                        kind: "rpc".to_string(), role: "consumer".to_string(),
+                        method: None, path: Some(name.clone()), topic: None,
+                        file: file.to_string(), line: (i + 1) as u32,
+                        language: "python".to_string(), framework: "jsonrpc".to_string(),
+                    });
+                }
+            }
+        }
+    }
+    // GraphQL clients in Python (gql / graphql-core).
+    emit_graphql_client_rows(file, text, "python", &mut out);
     // Celery task providers (multi-line lookup for @app.task + def name)
     emit_celery_provider_rows(file, text, &mut out);
     // Celery / RQ enqueuers per-line

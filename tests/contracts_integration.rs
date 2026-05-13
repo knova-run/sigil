@@ -877,6 +877,125 @@ func main() {
     assert!(!subs.is_empty(), "expected NATS subscribers; got {nats:?}");
 }
 
+// ───── Batch 5: GraphQL + tRPC + JSON-RPC ─────
+
+#[test]
+fn detects_graphql_schema_and_apollo_queries() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("schema.graphql"),
+        r#"type Query {
+  user(id: ID!): User
+  users(limit: Int): [User!]!
+}
+
+type Mutation {
+  createUser(name: String!): User!
+}
+"#,
+    ).unwrap();
+    fs::write(
+        tmp.path().join("queries.ts"),
+        r#"import { gql } from '@apollo/client';
+const GET_USER = gql`
+  query GetUser($id: ID!) {
+    user(id: $id) { id name }
+  }
+`;
+const CREATE_USER = gql`
+  mutation CreateUser($name: String!) {
+    createUser(name: $name) { id }
+  }
+`;
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let gql: Vec<_> = rows.iter().filter(|r| r["kind"] == "graphql").collect();
+    let triples: Vec<(&str, &str)> = gql.iter()
+        .map(|r| (r["contract_id"].as_str().unwrap(),
+                  r["role"].as_str().unwrap())).collect();
+    assert!(triples.iter().any(|t| t == &("graphql::Query.user", "provider")),
+        "Query.user provider; got {triples:?}");
+    assert!(triples.iter().any(|t| t == &("graphql::Mutation.createUser", "provider")),
+        "Mutation.createUser provider; got {triples:?}");
+    assert!(triples.iter().any(|t| t == &("graphql::Query.user", "consumer")),
+        "Apollo query → consumer of Query.user; got {triples:?}");
+    assert!(triples.iter().any(|t| t == &("graphql::Mutation.createUser", "consumer")),
+        "Apollo mutation → consumer of Mutation.createUser; got {triples:?}");
+}
+
+#[test]
+fn detects_trpc_router_and_client() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("router.ts"),
+        r#"import { initTRPC } from '@trpc/server';
+const t = initTRPC.create();
+export const appRouter = t.router({
+  userById: t.procedure.query(({ input }) => ({})),
+  createUser: t.procedure.mutation(({ input }) => ({})),
+});
+"#,
+    ).unwrap();
+    fs::write(
+        tmp.path().join("client.ts"),
+        r#"import { trpc } from './trpc';
+const { data } = trpc.userById.useQuery({ id: 1 });
+const mut = trpc.createUser.useMutation();
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let tr: Vec<_> = rows.iter().filter(|r| r["framework"] == "trpc").collect();
+    let ids: Vec<(&str, &str)> = tr.iter()
+        .map(|r| (r["contract_id"].as_str().unwrap(),
+                  r["role"].as_str().unwrap())).collect();
+    assert!(ids.contains(&("rpc::userById", "provider")),
+        "tRPC procedure provider; got {ids:?}");
+    assert!(ids.contains(&("rpc::userById", "consumer")),
+        "tRPC client useQuery; got {ids:?}");
+    assert!(ids.contains(&("rpc::createUser", "consumer")),
+        "tRPC client useMutation; got {ids:?}");
+}
+
+#[test]
+fn detects_jsonrpc_method_names() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("server.py"),
+        r#"from jsonrpcserver import method
+
+@method
+def add(a, b):
+    return a + b
+
+@method(name="users.create")
+def create_user(name):
+    return {"id": 1}
+"#,
+    ).unwrap();
+    fs::write(
+        tmp.path().join("client.py"),
+        r#"import requests
+requests.post("http://api/rpc", json={"jsonrpc": "2.0", "method": "users.create", "params": {"name": "x"}, "id": 1})
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let rpc: Vec<_> = rows.iter().filter(|r| r["framework"] == "jsonrpc").collect();
+    let ids: Vec<(&str, &str)> = rpc.iter()
+        .map(|r| (r["contract_id"].as_str().unwrap(),
+                  r["role"].as_str().unwrap())).collect();
+    assert!(ids.contains(&("rpc::users.create", "provider")),
+        "@method(name='...') provider; got {ids:?}");
+    assert!(ids.contains(&("rpc::users.create", "consumer")),
+        "JSON-RPC method:'...' consumer; got {ids:?}");
+}
+
 // ───── Batch 4: Cloud queue contracts (SQS/SNS/PubSub/RabbitMQ) ─────
 
 #[test]
