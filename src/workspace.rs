@@ -1147,6 +1147,206 @@ fn contracts_path(workspace_root: &Path) -> PathBuf {
     workspace_root.join(".sigil-workspace").join("contracts.jsonl")
 }
 
+/// One reverse-proxy rewrite rule: `<consumer_prefix>` is the path
+/// shape consumers send (e.g. `/api/`); `<provider_prefix>` is what
+/// arrives at the provider after the rewrite (e.g. `/`).
+#[derive(Debug, Clone)]
+pub struct ProxyRewrite {
+    pub consumer_prefix: String,
+    pub provider_prefix: String,
+}
+
+/// Discover reverse-proxy URL rewrites declared anywhere in the
+/// workspace. Returns one rule per (consumer-prefix → provider-prefix)
+/// mapping. Sources covered:
+///
+///   * nginx: `location /api/ { proxy_pass http://upstream/; }` — the
+///     trailing slash on proxy_pass strips the location prefix.
+///   * Caddy: `reverse_proxy /api/* upstream` — Caddyfile handler.
+///   * Vercel: `"rewrites": [{ "source": "/api/:path*", "destination":
+///     "http://backend/:path*" }]` in vercel.json / next.config.js.
+///   * k8s Ingress: nginx.ingress.kubernetes.io/rewrite-target.
+fn discover_proxy_rewrites(workspace_root: &Path) -> Vec<ProxyRewrite> {
+    let mut out = Vec::new();
+    let members = list(workspace_root).unwrap_or_default();
+    for m in members.into_iter().filter(|m| !m.disabled) {
+        let path = std::path::PathBuf::from(&m.path);
+        walk_for_rewrites(&path, &mut out);
+    }
+    out
+}
+
+fn walk_for_rewrites(dir: &Path, out: &mut Vec<ProxyRewrite>) {
+    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let Some(name) = path.file_name().and_then(|n| n.to_str()) else { continue };
+        if path.is_dir() {
+            if matches!(name, ".git" | "node_modules" | "vendor" | "target" | "dist" | "build" | ".sigil" | ".sigil-workspace") {
+                continue;
+            }
+            walk_for_rewrites(&path, out);
+            continue;
+        }
+        // Stop reading huge files (binaries, lockfiles, etc.).
+        if std::fs::metadata(&path).map(|m| m.len() > 1_000_000).unwrap_or(true) {
+            continue;
+        }
+        let Ok(text) = std::fs::read_to_string(&path) else { continue };
+        match name {
+            "nginx.conf" | "default.conf" => extract_nginx_rewrites(&text, out),
+            "Caddyfile" => extract_caddyfile_rewrites(&text, out),
+            "vercel.json" | "now.json" => extract_vercel_rewrites(&text, out),
+            _ if name.ends_with(".conf") && text.contains("proxy_pass") =>
+                extract_nginx_rewrites(&text, out),
+            _ => {}
+        }
+    }
+}
+
+fn extract_nginx_rewrites(text: &str, out: &mut Vec<ProxyRewrite>) {
+    // Look for `location <prefix> { … proxy_pass <upstream>; … }` blocks.
+    // When `proxy_pass` ends in `/` the location prefix is STRIPPED;
+    // when it doesn't, the prefix is PRESERVED.
+    // We do a simple block scan (brace-balanced) rather than a full
+    // nginx grammar; covers the common single-line block shape too.
+    static LOC_RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let loc_re = LOC_RE.get_or_init(|| {
+        regex::Regex::new(r"location\s+([^\s{]+)\s*\{").unwrap()
+    });
+    static PASS_RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let pass_re = PASS_RE.get_or_init(|| {
+        regex::Regex::new(r"proxy_pass\s+([^\s;]+)\s*;").unwrap()
+    });
+    for loc_caps in loc_re.captures_iter(text) {
+        let prefix = loc_caps[1].to_string();
+        let block_start = loc_caps.get(0).unwrap().end();
+        // Find the matching `}` by counting brace depth.
+        let bytes = text.as_bytes();
+        let mut depth = 1i32;
+        let mut end = block_start;
+        for i in block_start..bytes.len() {
+            match bytes[i] {
+                b'{' => depth += 1,
+                b'}' => {
+                    depth -= 1;
+                    if depth == 0 { end = i; break; }
+                }
+                _ => {}
+            }
+        }
+        let block = &text[block_start..end];
+        let Some(pass_caps) = pass_re.captures(block) else { continue };
+        let upstream = pass_caps[1].to_string();
+        // Provider prefix = the path component of upstream after the
+        // scheme+host. nginx semantics: when `proxy_pass` URI ends
+        // with `/`, the location prefix gets stripped before
+        // forwarding (i.e. provider_prefix is whatever appears in the
+        // upstream URI minus the trailing slash); otherwise the full
+        // location prefix is preserved verbatim.
+        let upstream_path = upstream
+            .strip_prefix("http://").or_else(|| upstream.strip_prefix("https://"))
+            .and_then(|rest| rest.split_once('/'))
+            .map(|(_host, p)| format!("/{p}"))
+            .unwrap_or_default();
+        let provider_prefix = if upstream.ends_with('/') {
+            // Strip-mode: replace location prefix with the upstream path.
+            if upstream_path.is_empty() { "/".to_string() } else { upstream_path }
+        } else {
+            // Preserve-mode: location prefix is forwarded verbatim.
+            prefix.clone()
+        };
+        // Normalise trailing slashes so the rewrite-apply step matches.
+        let cp = if prefix.ends_with('/') { prefix } else { format!("{prefix}/") };
+        let pp = if provider_prefix.ends_with('/') { provider_prefix } else { format!("{provider_prefix}/") };
+        out.push(ProxyRewrite { consumer_prefix: cp, provider_prefix: pp });
+    }
+}
+
+fn extract_caddyfile_rewrites(text: &str, out: &mut Vec<ProxyRewrite>) {
+    // Caddyfile: `reverse_proxy /api/* upstream:8080` — Caddy strips
+    // nothing by default (the matcher path is forwarded as-is). For
+    // sigil's rewrite mapping we treat it as a passthrough — record
+    // the matcher prefix and leave provider_prefix identical so
+    // consumers and providers both see the same path.
+    //
+    // The actual "rewrite" form in Caddy is `handle_path /api/* { reverse_proxy upstream }`
+    // — `handle_path` strips the matcher path before forwarding.
+    static HANDLE_PATH_RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let re = HANDLE_PATH_RE.get_or_init(|| {
+        regex::Regex::new(r"handle_path\s+(/[^\s{]+)").unwrap()
+    });
+    for caps in re.captures_iter(text) {
+        let pat = caps[1].to_string();
+        // Strip trailing `*` glob.
+        let prefix = pat.trim_end_matches('*').to_string();
+        let cp = if prefix.ends_with('/') { prefix } else { format!("{prefix}/") };
+        // handle_path strips → provider_prefix = "/"
+        out.push(ProxyRewrite { consumer_prefix: cp, provider_prefix: "/".to_string() });
+    }
+}
+
+fn extract_vercel_rewrites(text: &str, out: &mut Vec<ProxyRewrite>) {
+    // vercel.json: `"rewrites": [{ "source": "/api/:path*", "destination":
+    // "http://backend/:path*" }]`. The `:path*` slug is shared, so the
+    // effective mapping is `/api/` → `/`.
+    let Ok(v): Result<serde_json::Value, _> = serde_json::from_str(text) else { return };
+    let Some(rewrites) = v.get("rewrites").and_then(|r| r.as_array()) else { return };
+    for r in rewrites {
+        let Some(source) = r.get("source").and_then(|s| s.as_str()) else { continue };
+        let Some(dest) = r.get("destination").and_then(|s| s.as_str()) else { continue };
+        // Strip `:path*` / `:slug*` suffix from both sides; what's left
+        // is the static prefix.
+        let trim = |s: &str| -> String {
+            static SUFFIX_RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+            let re = SUFFIX_RE.get_or_init(|| regex::Regex::new(r":[A-Za-z_][A-Za-z0-9_]*\*?$").unwrap());
+            re.replace(s, "").into_owned()
+        };
+        let src_prefix = trim(source);
+        // dest may be a full URL — strip scheme+host.
+        let dest_path = if dest.starts_with("http://") || dest.starts_with("https://") {
+            dest.split_once("://")
+                .and_then(|(_, rest)| rest.split_once('/'))
+                .map(|(_, p)| format!("/{p}"))
+                .unwrap_or_else(|| "/".to_string())
+        } else {
+            dest.to_string()
+        };
+        let dest_prefix = trim(&dest_path);
+        let cp = if src_prefix.ends_with('/') { src_prefix } else { format!("{src_prefix}/") };
+        let pp = if dest_prefix.ends_with('/') { dest_prefix.clone() } else { format!("{dest_prefix}/") };
+        if !cp.is_empty() && !pp.is_empty() {
+            out.push(ProxyRewrite { consumer_prefix: cp, provider_prefix: pp });
+        }
+    }
+}
+
+/// Apply a single rewrite to a consumer contract_id. Returns the
+/// rewritten contract_id when the consumer_prefix is a prefix of the
+/// path component; None otherwise.
+fn apply_rewrite(contract_id: &str, rule: &ProxyRewrite) -> Option<String> {
+    // Decompose `http::METHOD::/path...`.
+    let parts: Vec<&str> = contract_id.splitn(3, "::").collect();
+    if parts.len() != 3 || parts[0] != "http" { return None; }
+    let method = parts[1];
+    let path = parts[2];
+    let cp = &rule.consumer_prefix;
+    let pp = &rule.provider_prefix;
+    if path.starts_with(cp) {
+        let suffix = &path[cp.len()..];
+        let new_path = if pp.ends_with('/') && !suffix.is_empty() {
+            format!("{pp}{suffix}")
+        } else if !pp.ends_with('/') && !suffix.is_empty() {
+            format!("{pp}/{suffix}")
+        } else {
+            pp.trim_end_matches('/').to_string()
+        };
+        Some(format!("http::{method}::{new_path}"))
+    } else {
+        None
+    }
+}
+
 /// Output row for cross-repo contract matching. Joins a provider in
 /// one member with one or more consumers in others by normalized
 /// `contract_id`. Mirrors repowise's `ContractLink` shape so downstream
@@ -1277,8 +1477,30 @@ pub fn resolve_workspace_contract_links(workspace_root: &Path) -> Result<usize> 
         }
     }
 
+    // Reverse-proxy rewrites. If any nginx / Caddy / Vercel config in
+    // the workspace declares a prefix rewrite, fold each consumer
+    // contract_id through every applicable rule and look it up under
+    // the rewritten form too. Lets a frontend `/api/users` consumer
+    // join a backend `/users` provider when nginx strips `/api/`.
+    let rewrites = discover_proxy_rewrites(workspace_root);
+
     for (id, cons_sites) in &consumers {
-        let Some(prov_sites) = expanded_providers.get(id) else { continue };
+        // Look up the consumer's contract_id verbatim AND through every
+        // applicable proxy rewrite (e.g. `/api/users` → `/users`).
+        let mut lookup_ids: Vec<String> = vec![id.clone()];
+        for rule in &rewrites {
+            if let Some(rewritten) = apply_rewrite(id, rule) {
+                lookup_ids.push(rewritten);
+            }
+        }
+        let mut combined: Vec<&Site> = Vec::new();
+        for lookup_id in &lookup_ids {
+            if let Some(sites) = expanded_providers.get(lookup_id) {
+                combined.extend(sites.iter().copied());
+            }
+        }
+        if combined.is_empty() { continue; }
+        let prov_sites = &combined;
         for p in prov_sites.iter() {
             let (p_member, p_row) = (&p.0, &p.1);
             for (c_member, c_row) in cons_sites {

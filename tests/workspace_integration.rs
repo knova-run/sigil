@@ -1709,6 +1709,57 @@ fn workspace_index_captures_git_sha_per_member() {
 }
 
 #[test]
+fn workspace_contract_links_apply_nginx_rewrite_prefix() {
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let frontend = tmp.path().join("frontend");
+    let backend = tmp.path().join("backend");
+    let proxy = tmp.path().join("proxy");
+    fs::create_dir_all(&ws).unwrap();
+    init_repo(&frontend);
+    init_repo(&backend);
+    init_repo(&proxy);
+
+    // Frontend hits /api/users
+    fs::write(frontend.join("client.js"),
+        "fetch('/api/users');\n").unwrap();
+    // Backend exposes GET /users — no /api prefix
+    fs::write(backend.join("app.py"),
+        "@app.get('/users')\ndef list_users(): return []\n").unwrap();
+    // nginx rewrites /api/ → /
+    fs::write(proxy.join("nginx.conf"),
+        r#"server {
+    listen 80;
+    location /api/ {
+        proxy_pass http://backend/;
+    }
+}
+"#).unwrap();
+
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", frontend.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", backend.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", proxy.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+
+    let out = sigil(&["workspace", "index", "--root", ws.to_str().unwrap()]);
+    assert!(out.status.success(), "index: {}", String::from_utf8_lossy(&out.stderr));
+
+    let text = fs::read_to_string(ws.join(".sigil-workspace/contract_links.jsonl")).unwrap();
+    let rows: Vec<serde_json::Value> = text.lines().filter(|l| !l.is_empty())
+        .map(|l| serde_json::from_str(l).expect("JSON")).collect();
+
+    // Without the rewrite, frontend's /api/users and backend's /users
+    // wouldn't match. The presence of an nginx rewrite in the workspace
+    // should produce a contract_link from frontend → backend.
+    let found = rows.iter().any(|r| {
+        r["consumer_repo"].as_str() == Some("frontend")
+            && r["provider_repo"].as_str() == Some("backend")
+    });
+    assert!(found,
+        "nginx /api/ → / rewrite should produce a frontend → backend link; got {rows:?}");
+}
+
+#[test]
 fn workspace_install_writes_post_commit_hooks_into_each_member() {
     let tmp = TempDir::new().unwrap();
     let ws = tmp.path().join("ws");
