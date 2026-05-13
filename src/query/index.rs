@@ -127,6 +127,16 @@ impl Index {
         let mut entities_by_file: HashMap<String, Vec<usize>> = HashMap::new();
         for (i, e) in entities.iter().enumerate() {
             entities_by_name.entry(e.name.clone()).or_default().push(i);
+            // Also index entities under the trailing segment of their
+            // qualified name so a lookup like `context Base` matches an
+            // entity stored as `Sinatra.Base` (Ruby/Kotlin/Scala emit the
+            // qualified form). Mirrors `refs_by_name`'s qualified-tail
+            // indexing for callee lookups.
+            if let Some(tail) = qualified_tail(&e.name) {
+                if tail != e.name {
+                    entities_by_name.entry(tail.to_string()).or_default().push(i);
+                }
+            }
             entities_by_file.entry(e.file.clone()).or_default().push(i);
         }
 
@@ -144,6 +154,19 @@ impl Index {
             }
             if let Some(caller) = &r.caller {
                 refs_by_caller.entry(caller.clone()).or_default().push(i);
+                // Also index under the class prefix so `callees Moshi`
+                // returns refs whose caller is `Moshi.foo` / `Moshi::foo`.
+                // Mirrors `refs_by_name`'s qualified-tail indexing on the
+                // callee side — same symmetry for the caller side.
+                if let Some(head) = caller
+                    .rsplit_once("::")
+                    .or_else(|| caller.rsplit_once('.'))
+                    .map(|(h, _)| h)
+                {
+                    if !head.is_empty() && head != caller {
+                        refs_by_caller.entry(head.to_string()).or_default().push(i);
+                    }
+                }
             }
             refs_by_file.entry(r.file.clone()).or_default().push(i);
         }
@@ -610,6 +633,29 @@ mod tests {
         assert_eq!(from_main.len(), 2);
         let from_helper: Vec<_> = idx.refs_from("helper").collect();
         assert_eq!(from_helper.len(), 1);
+    }
+
+    #[test]
+    fn refs_from_matches_method_scoped_caller_via_class_prefix() {
+        // A class with a method that calls something — looking up
+        // callees of the class itself should find the method's calls.
+        // Mirrors what `sigil callees Moshi` should return for refs
+        // whose caller is "Moshi.foo" or "Moshi::foo".
+        let idx = Index::build(
+            vec![],
+            vec![
+                refr("a.kt", Some("Moshi.foo"), "println", "call"),
+                refr("a.kt", Some("Moshi.bar"), "log", "call"),
+                refr("a.kt", Some("Other.baz"), "noise", "call"),
+            ],
+        );
+        let from_class: Vec<_> = idx.refs_from("Moshi").collect();
+        assert_eq!(
+            from_class.len(),
+            2,
+            "callees of class `Moshi` should include refs from its methods; got {:?}",
+            from_class.iter().map(|r| (&r.caller, &r.name)).collect::<Vec<_>>(),
+        );
     }
 
     #[test]
