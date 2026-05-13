@@ -43,7 +43,7 @@ and feeds `resolve_module_path` / language-specific tier-3 passes):
 - **Rust** — `Cargo.toml [workspace] members` + crate roots
 - **Swift** — `Package.swift` `.target(path:)` declarations
 - **C/C++** — `compile_commands.json` `-I/-isystem` (loaded from index root or `build/`)
-- **Ruby** — Rails `config/application.rb` autoload + Zeitwerk conventions
+- **Ruby** — Rails CamelCase→snake_case file-path heuristic under `app/**` and `lib/**` (`resolve_rails_autoload`). Pure path-based — doesn't parse `config/application.rb` or run Zeitwerk — but covers the conventional layout most Rails repos use; `app/` paths win over `lib/` on ties.
 - **C#** — `.csproj` / `.sln` / `<GlobalUsings/>` / NuGet (`src/index.rs:1396+`)
 
 `external:<modpath>` sentinel entities for unresolved imports
