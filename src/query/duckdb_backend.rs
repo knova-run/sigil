@@ -274,26 +274,62 @@ impl DuckDbBackend {
         kind_filter: Option<&str>,
         limit: usize,
     ) -> Result<Vec<Reference>> {
+        // Parity with in-memory `caller_prefixes` fan-out — the in-memory
+        // backend indexes each ref under the literal caller plus every
+        // qualified prefix step (with uppercase leaf gating). So
+        // `callees Base` reaches refs whose caller is `Sinatra::Base.foo`
+        // (or `Rack.Protection.Base.call`). DuckDB needs the same
+        // coverage via LIKE patterns; same uppercase gate prevents
+        // `callees std` / `callees obj` pollution.
+        let is_uppercase = caller
+            .chars()
+            .next()
+            .map(|c| c.is_ascii_uppercase())
+            .unwrap_or(false);
+        let cc_head_start = format!("{}::%", caller);
+        let dot_head_start = format!("{}.%", caller);
+        let inner_dot_after_cc = format!("%::{}.%", caller);
+        let inner_cc_after_cc = format!("%::{}::%", caller);
+        let inner_dot_after_dot = format!("%.{}.%", caller);
+        let inner_cc_after_dot = format!("%.{}::%", caller);
+
         let mut sql = String::from(
-            "SELECT file, caller, name, kind, line \
+            "SELECT DISTINCT file, caller, name, kind, line \
              FROM refs \
-             WHERE caller = ?",
+             WHERE (caller = ?",
         );
-        if kind_filter.is_some() {
+        let mut bind: Vec<&dyn duckdb::ToSql> = vec![&caller];
+        if is_uppercase {
+            // The query is type-name-shaped — safe to expand under heads.
+            sql.push_str(" OR caller LIKE ?"); // dot-head start
+            bind.push(&dot_head_start);
+            sql.push_str(" OR caller LIKE ?"); // cc-head start
+            bind.push(&cc_head_start);
+            sql.push_str(" OR caller LIKE ?"); // inner dot after cc-prefix
+            bind.push(&inner_dot_after_cc);
+            sql.push_str(" OR caller LIKE ?"); // inner cc after cc-prefix
+            bind.push(&inner_cc_after_cc);
+            sql.push_str(" OR caller LIKE ?"); // inner dot after dot-prefix
+            bind.push(&inner_dot_after_dot);
+            sql.push_str(" OR caller LIKE ?"); // inner cc after dot-prefix
+            bind.push(&inner_cc_after_dot);
+        }
+        sql.push(')');
+
+        let kind_str: String;
+        if let Some(k) = kind_filter {
             sql.push_str(" AND kind = ?");
+            kind_str = k.to_string();
+            bind.push(&kind_str);
         }
         sql.push_str(" ORDER BY file, line");
         if limit > 0 {
             sql.push_str(&format!(" LIMIT {}", limit));
         }
         let mut stmt = self.conn.prepare(&sql)?;
-        let rows = if let Some(k) = kind_filter {
-            stmt.query_map(params![caller, k], row_to_reference)?
-                .collect::<std::result::Result<Vec<_>, _>>()?
-        } else {
-            stmt.query_map(params![caller], row_to_reference)?
-                .collect::<std::result::Result<Vec<_>, _>>()?
-        };
+        let rows = stmt
+            .query_map(bind.as_slice(), row_to_reference)?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
         Ok(rows)
     }
 
@@ -1286,6 +1322,48 @@ mod tests {
         assert_eq!(from_main.len(), 2);
         let from_helper = db.get_callees("helper", None, 0).unwrap();
         assert_eq!(from_helper.len(), 1);
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn get_callees_matches_caller_prefix_fan_out() {
+        // Parity with in-memory `caller_prefixes` in src/query/index.rs.
+        // For a ref with caller=`Sinatra::Base.foo`, the in-memory
+        // index emits aliases `Sinatra::Base` + `Base` + `Sinatra`, so
+        // `callees Base` reaches the ref. DuckDB backend was doing
+        // raw `WHERE caller = ?` — no fan-out, so `callees Base`
+        // returned 0 on Ruby/Kotlin/Scala mixed-separator callers.
+        let root = tmpdir("callees_fanout");
+        seed(
+            &root,
+            vec![],
+            vec![
+                refr("a.rb", Some("Sinatra::Base.foo"), "log", "call", 1),
+                refr("b.rb", Some("Sinatra::Base.bar"), "puts", "call", 2),
+                refr("c.rb", Some("Rack.Protection.Base.call"), "log", "call", 3),
+                refr("d.kt", Some("Moshi.parse"), "println", "call", 4),
+                // Pollution sentinels (lowercase prefix MUST NOT match):
+                refr("e.ts", Some("obj.helper"), "log", "call", 5),
+                refr("f.py", Some("requests.send"), "log", "call", 6),
+            ],
+        );
+        let db = DuckDbBackend::open(&root).unwrap();
+
+        let base = db.get_callees("Base", None, 0).unwrap();
+        assert_eq!(base.len(), 3, "callees Base reaches all 3 Base-prefixed callers");
+
+        let moshi = db.get_callees("Moshi", None, 0).unwrap();
+        assert_eq!(moshi.len(), 1, "callees Moshi reaches Moshi.parse");
+
+        let sinatra_base = db.get_callees("Sinatra::Base", None, 0).unwrap();
+        assert_eq!(sinatra_base.len(), 2, "qualified prefix `Sinatra::Base` reaches both methods");
+
+        // Uppercase pollution gates
+        let obj = db.get_callees("obj", None, 0).unwrap();
+        assert!(obj.is_empty(), "lowercase head `obj` MUST NOT surface callees");
+        let req = db.get_callees("requests", None, 0).unwrap();
+        assert!(req.is_empty(), "lowercase head `requests` MUST NOT surface callees");
+
         std::fs::remove_dir_all(&root).ok();
     }
 
