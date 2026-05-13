@@ -785,37 +785,49 @@ fn extract_call(
             }
         }
         _ => {
-            // Extract other method calls as references
-            if !is_ruby_builtin_call(&method) {
-                // Build the full call name including receiver. Bareword
-                // calls (no receiver, or `self.x` which the call graph
-                // treats as same-object) get tier-1 confidence (0.95).
-                // Calls with an external receiver are dispatch-resolved
-                // at runtime in Ruby and stay None.
-                let (call_name, confidence) = if let Some(receiver) =
-                    find_child_by_field(node, "receiver")
-                {
-                    let receiver_name = node_text(receiver, source);
-                    if receiver_name.is_empty() || receiver_name == "self" {
-                        (method.clone(), Some(0.95_f64))
-                    } else {
-                        (format!("{}.{}", receiver_name, method), None)
-                    }
+            // Build the full call name including receiver. Bareword
+            // calls (no receiver, or `self.x` which the call graph
+            // treats as same-object) get tier-1 confidence (0.95).
+            // Calls with an external receiver are dispatch-resolved
+            // at runtime in Ruby and stay None.
+            let receiver_opt = find_child_by_field(node, "receiver");
+            let has_named_receiver = receiver_opt
+                .map(|r| {
+                    let t = node_text(r, source);
+                    !t.is_empty() && t != "self"
+                })
+                .unwrap_or(false);
+            // The builtin filter is only safe for BARE (or self-receiver)
+            // calls — `each`, `to_s`, `new`, etc. are universally
+            // instance methods, so a call like `Bar.new(...)` is a real
+            // graph edge to the `new` class method of `Bar`, NOT an
+            // ignorable stdlib call. Without this, the Ruby parser
+            // silently drops every `.new` / `.tap` / `.each` / `.to_s`
+            // ref (faraday audit: callers Connection = 0).
+            if !has_named_receiver && is_ruby_builtin_call(&method) {
+                return;
+            }
+            let (call_name, confidence) = if let Some(receiver) = receiver_opt {
+                let receiver_name = node_text(receiver, source);
+                if receiver_name.is_empty() || receiver_name == "self" {
+                    (method.clone(), Some(0.95_f64))
                 } else {
-                    (method, Some(0.95_f64))
-                };
-
-                if !call_name.is_empty() {
-                    references.push(ReferenceEntry {
-                        file: file_path.to_string(),
-                        name: call_name,
-                        kind: "call".to_string(),
-                        line,
-                        caller: parent_ctx.map(String::from),
-                        project: String::new(),
-                        confidence,
-                    });
+                    (format!("{}.{}", receiver_name, method), None)
                 }
+            } else {
+                (method, Some(0.95_f64))
+            };
+
+            if !call_name.is_empty() {
+                references.push(ReferenceEntry {
+                    file: file_path.to_string(),
+                    name: call_name,
+                    kind: "call".to_string(),
+                    line,
+                    caller: parent_ctx.map(String::from),
+                    project: String::new(),
+                    confidence,
+                });
             }
         }
     }
@@ -849,6 +861,34 @@ mod tests {
             .iter()
             .find(|s| s.name == name)
             .unwrap_or_else(|| panic!("symbol not found: {name}"))
+    }
+
+    #[test]
+    fn ruby_class_dot_new_not_filtered() {
+        // Regression: faraday audit. `Faraday::Connection.new(...)` was
+        // dropped because `is_ruby_builtin_call(&method)` checked just
+        // `new` against the filter — which contains `new`. Class-method
+        // / instance-method calls on a NAMED receiver should be kept;
+        // the filter should only drop bare (or self-receiver) calls of
+        // those names. Constructor calls (`Class.new`) are vital for
+        // Ruby graphs.
+        let source = b"class Caller
+  def callit
+    Bar.new(1)
+    Faraday::Connection.new('http://x')
+  end
+end
+";
+        let (_, _, refs) = parse_file(source, "ruby", "t.rb").unwrap();
+        assert!(
+            refs.iter().any(|r| r.name == "Bar.new" && r.kind == "call"),
+            "Bar.new should be a call ref; got {:?}",
+            refs.iter().map(|r| (&r.name, &r.kind)).collect::<Vec<_>>()
+        );
+        assert!(
+            refs.iter().any(|r| r.name == "Faraday::Connection.new" && r.kind == "call"),
+            "Faraday::Connection.new should be a call ref"
+        );
     }
 
     #[test]

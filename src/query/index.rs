@@ -160,24 +160,29 @@ fn qualified_tail(name: &str) -> Option<&str> {
 /// `requests.Session` should NOT surface under `callers requests` —
 /// that's module-namespace bookkeeping, not a meaningful symbol use.
 fn cc_head_prefixes(name: &str) -> Vec<String> {
+    head_prefixes_with_sep(name, "::")
+}
+
+/// Generalised head-prefix emitter for either `::` or `.` separator.
+/// For `<head><sep><tail>` emits the immediate head plus its bare_leaf
+/// (gated on uppercase first-char). Multi-segment heads are always
+/// emitted; single-segment heads only when type-name-shaped. This is
+/// what lets `callers Regex` reach `Regex::new` AND `callers Connection`
+/// reach `Faraday::Connection.new` without surfacing module-namespace
+/// noise like `callers crate` / `callers obj`.
+fn head_prefixes_with_sep(name: &str, sep: &str) -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
-    let Some((head, _)) = name.rsplit_once("::") else {
+    let Some((head, _)) = name.rsplit_once(sep) else {
         return out;
     };
     if head.is_empty() {
         return out;
     }
-    // The head itself: emit when it's multi-segment (always specific
-    // enough to not collide with workspace names) OR when its single
-    // segment starts uppercase (looks like a type). Skip single
-    // lowercase heads like `crate`, `std`, `super`, `self`.
-    let head_has_cc = head.contains("::");
+    let head_has_multi = head.contains("::") || head.contains('.');
     let head_is_typey = head.starts_with(|c: char| c.is_ascii_uppercase());
-    if head_has_cc || head_is_typey {
+    if head_has_multi || head_is_typey {
         out.push(head.to_string());
     }
-    // Bare leaf of the head — emit only when uppercase. Skips lowercase
-    // module segments like `parser` from `crate::parser::Foo`.
     if let Some(leaf) = bare_leaf(head) {
         if leaf != head && leaf.starts_with(|c: char| c.is_ascii_uppercase()) {
             out.push(leaf.to_string());
@@ -260,15 +265,22 @@ impl Index {
             if let Some(leaf) = bare_leaf(&r.name) {
                 refs_by_name.entry(leaf.to_string()).or_default().push(i);
             }
-            // Also index `::`-qualified refs under each `::`-separated
-            // head segment so `callers Regex` reaches `Regex::new()`
-            // constructor calls. The leaf indexing above buys us
-            // `callers new`; this loop adds the type-side view. Only
-            // `::` segments are walked back (NOT `.`) — dot-qualified
-            // refs like `requests.Session` should not surface under
-            // `callers requests` (module-namespace pollution).
+            // Also index qualified refs under their immediate head prefix
+            // (with uppercase gating to avoid pollution). Two passes:
+            //  * `::` head — lets `callers Regex` reach `Regex::new`,
+            //    `callers Foo::Bar` reach `Foo::Bar::baz`.
+            //  * `.` head — lets `callers Connection` reach Ruby refs
+            //    of form `Faraday::Connection.new` (where bare_leaf is
+            //    `new` and the cc-head is just `Faraday`). Uppercase
+            //    gating means `requests.Session` does NOT surface under
+            //    `callers requests`.
             if r.name.contains("::") {
-                for head in cc_head_prefixes(&r.name) {
+                for head in head_prefixes_with_sep(&r.name, "::") {
+                    refs_by_name.entry(head).or_default().push(i);
+                }
+            }
+            if r.name.contains('.') {
+                for head in head_prefixes_with_sep(&r.name, ".") {
                     refs_by_name.entry(head).or_default().push(i);
                 }
             }
@@ -751,6 +763,49 @@ mod tests {
         assert_eq!(from_main.len(), 2);
         let from_helper: Vec<_> = idx.refs_from("helper").collect();
         assert_eq!(from_helper.len(), 1);
+    }
+
+    #[test]
+    fn refs_to_matches_dot_head_for_mixed_separator_names() {
+        // Ruby refs like `Faraday::Connection.new` are stored with
+        // mixed `::` + `.`. bare_leaf gives `new` (latest separator
+        // wins); cc_head_prefixes walks `::` and emits `Faraday`.
+        // But the meaningful symbol — `Connection` — is hidden inside
+        // the part before the latest `.`. Add a `.`-head pass that
+        // mirrors cc_head_prefixes: emit the head before the latest
+        // `.` (when multi-segment), plus its bare_leaf when uppercase.
+        // Regression: bug-fixes branch audit, faraday's `callers
+        // Connection` returned 0.
+        let idx = Index::build(
+            vec![],
+            vec![
+                refr("a.rb", Some("c1"), "Faraday::Connection.new", "call"),
+                refr("b.rb", Some("c2"), "Faraday::Connection.new", "call"),
+                // Lowercase-leaf dot-head should NOT match.
+                refr("c.rb", Some("c3"), "obj.helper", "call"),
+                refr("d.rb", Some("c4"), "Foo.bar.baz", "call"),
+            ],
+        );
+        assert_eq!(
+            idx.refs_to("Connection").count(),
+            2,
+            "callers of `Connection` should reach `Faraday::Connection.new` refs"
+        );
+        assert_eq!(
+            idx.refs_to("Foo.bar").count(),
+            1,
+            "multi-segment dot head emitted as-is"
+        );
+        assert_eq!(
+            idx.refs_to("bar").count(),
+            0,
+            "lowercase leaf of dot head not emitted"
+        );
+        assert_eq!(
+            idx.refs_to("obj").count(),
+            0,
+            "single-segment lowercase dot head not emitted"
+        );
     }
 
     #[test]
