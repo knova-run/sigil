@@ -18003,180 +18003,216 @@
 {"file":"src/parser/swift.rs","caller":"extract_function","name":"Option","kind":"type_annotation","line":612}
 {"file":"src/parser/swift.rs","caller":"extract_function","name":"Vec","kind":"type_annotation","line":613}
 {"file":"src/parser/swift.rs","caller":"extract_function","name":"SymbolEntry","kind":"type_annotation","line":613}
-{"file":"src/parser/swift.rs","caller":"extract_function","name":"function_name","kind":"call","line":615,"confidence":0.95}
-{"file":"src/parser/swift.rs","caller":"extract_function","name":"node_line_range","kind":"call","line":620,"confidence":0.5}
-{"file":"src/parser/swift.rs","caller":"extract_function","name":"extract_swift_visibility","kind":"call","line":621,"confidence":0.95}
-{"file":"src/parser/swift.rs","caller":"extract_function","name":"qualify","kind":"call","line":622,"confidence":0.95}
-{"file":"src/parser/swift.rs","caller":"extract_function","name":"parent_ctx.is_some","kind":"call","line":625}
-{"file":"src/parser/swift.rs","caller":"extract_function","name":"first_child_of_kind(node, \"function_body\")\n        .and_then","kind":"call","line":627}
-{"file":"src/parser/swift.rs","caller":"extract_function","name":"first_child_of_kind","kind":"call","line":627,"confidence":0.95}
-{"file":"src/parser/swift.rs","caller":"extract_function","name":"filter_swift_tokens","kind":"call","line":628,"confidence":0.95}
-{"file":"src/parser/swift.rs","caller":"extract_function","name":"extract_tokens","kind":"call","line":628,"confidence":0.5}
-{"file":"src/parser/swift.rs","caller":"extract_function","name":"push_symbol","kind":"call","line":630,"confidence":0.5}
-{"file":"src/parser/swift.rs","caller":"extract_init","name":"Node","kind":"type_annotation","line":645}
-{"file":"src/parser/swift.rs","caller":"extract_init","name":"Option","kind":"type_annotation","line":648}
-{"file":"src/parser/swift.rs","caller":"extract_init","name":"Vec","kind":"type_annotation","line":649}
-{"file":"src/parser/swift.rs","caller":"extract_init","name":"SymbolEntry","kind":"type_annotation","line":649}
-{"file":"src/parser/swift.rs","caller":"extract_init","name":"node_line_range","kind":"call","line":651,"confidence":0.5}
-{"file":"src/parser/swift.rs","caller":"extract_init","name":"extract_swift_visibility","kind":"call","line":652,"confidence":0.95}
-{"file":"src/parser/swift.rs","caller":"extract_init","name":"qualify","kind":"call","line":653,"confidence":0.95}
-{"file":"src/parser/swift.rs","caller":"extract_init","name":"first_child_of_kind(node, \"function_body\")\n        .and_then","kind":"call","line":655}
-{"file":"src/parser/swift.rs","caller":"extract_init","name":"first_child_of_kind","kind":"call","line":655,"confidence":0.95}
-{"file":"src/parser/swift.rs","caller":"extract_init","name":"filter_swift_tokens","kind":"call","line":656,"confidence":0.95}
-{"file":"src/parser/swift.rs","caller":"extract_init","name":"extract_tokens","kind":"call","line":656,"confidence":0.5}
-{"file":"src/parser/swift.rs","caller":"extract_init","name":"push_symbol","kind":"call","line":660,"confidence":0.5}
-{"file":"src/parser/swift.rs","caller":"extract_protocol_function","name":"Node","kind":"type_annotation","line":674}
-{"file":"src/parser/swift.rs","caller":"extract_protocol_function","name":"Option","kind":"type_annotation","line":677}
-{"file":"src/parser/swift.rs","caller":"extract_protocol_function","name":"Vec","kind":"type_annotation","line":678}
-{"file":"src/parser/swift.rs","caller":"extract_protocol_function","name":"SymbolEntry","kind":"type_annotation","line":678}
-{"file":"src/parser/swift.rs","caller":"extract_protocol_function","name":"function_name","kind":"call","line":680,"confidence":0.95}
-{"file":"src/parser/swift.rs","caller":"extract_protocol_function","name":"node_line_range","kind":"call","line":685,"confidence":0.5}
-{"file":"src/parser/swift.rs","caller":"extract_protocol_function","name":"extract_swift_visibility","kind":"call","line":686,"confidence":0.95}
-{"file":"src/parser/swift.rs","caller":"extract_protocol_function","name":"qualify","kind":"call","line":687,"confidence":0.95}
-{"file":"src/parser/swift.rs","caller":"extract_protocol_function","name":"push_symbol","kind":"call","line":689,"confidence":0.5}
-{"file":"src/parser/swift.rs","caller":"extract_protocol_property","name":"Node","kind":"type_annotation","line":705}
-{"file":"src/parser/swift.rs","caller":"extract_protocol_property","name":"Option","kind":"type_annotation","line":708}
-{"file":"src/parser/swift.rs","caller":"extract_protocol_property","name":"Vec","kind":"type_annotation","line":709}
-{"file":"src/parser/swift.rs","caller":"extract_protocol_property","name":"SymbolEntry","kind":"type_annotation","line":709}
-{"file":"src/parser/swift.rs","caller":"extract_protocol_property","name":"node_line_range","kind":"call","line":711,"confidence":0.5}
-{"file":"src/parser/swift.rs","caller":"extract_protocol_property","name":"extract_swift_visibility","kind":"call","line":712,"confidence":0.95}
-{"file":"src/parser/swift.rs","caller":"extract_protocol_property","name":"first_child_of_kind","kind":"call","line":714,"confidence":0.95}
-{"file":"src/parser/swift.rs","caller":"extract_protocol_property","name":"first_child_of_kind","kind":"call","line":717,"confidence":0.95}
-{"file":"src/parser/swift.rs","caller":"extract_protocol_property","name":"node_text","kind":"call","line":720,"confidence":0.5}
-{"file":"src/parser/swift.rs","caller":"extract_protocol_property","name":"qualify","kind":"call","line":721,"confidence":0.95}
-{"file":"src/parser/swift.rs","caller":"extract_protocol_property","name":"push_symbol","kind":"call","line":723,"confidence":0.5}
-{"file":"src/parser/swift.rs","caller":"extract_property","name":"Node","kind":"type_annotation","line":740}
-{"file":"src/parser/swift.rs","caller":"extract_property","name":"Option","kind":"type_annotation","line":743}
-{"file":"src/parser/swift.rs","caller":"extract_property","name":"Vec","kind":"type_annotation","line":744}
-{"file":"src/parser/swift.rs","caller":"extract_property","name":"SymbolEntry","kind":"type_annotation","line":744}
-{"file":"src/parser/swift.rs","caller":"extract_property","name":"node_line_range","kind":"call","line":746,"confidence":0.5}
-{"file":"src/parser/swift.rs","caller":"extract_property","name":"extract_swift_visibility","kind":"call","line":747,"confidence":0.95}
-{"file":"src/parser/swift.rs","caller":"extract_property","name":"first_child_of_kind(node, \"value_binding_pattern\")\n        .map(|b| node_text(b, source).trim() == \"let\")\n        .unwrap_or","kind":"call","line":750}
-{"file":"src/parser/swift.rs","caller":"extract_property","name":"first_child_of_kind(node, \"value_binding_pattern\")\n        .map","kind":"call","line":750}
-{"file":"src/parser/swift.rs","caller":"extract_property","name":"first_child_of_kind","kind":"call","line":750,"confidence":0.95}
-{"file":"src/parser/swift.rs","caller":"extract_property","name":"node_text(b, source).trim","kind":"call","line":751}
-{"file":"src/parser/swift.rs","caller":"extract_property","name":"node_text","kind":"call","line":751,"confidence":0.5}
-{"file":"src/parser/swift.rs","caller":"extract_property","name":"first_child_of_kind","kind":"call","line":754,"confidence":0.95}
-{"file":"src/parser/swift.rs","caller":"extract_property","name":"first_child_of_kind","kind":"call","line":755,"confidence":0.95}
-{"file":"src/parser/swift.rs","caller":"extract_property","name":"node_text","kind":"call","line":756,"confidence":0.5}
-{"file":"src/parser/swift.rs","caller":"extract_property","name":"parent_ctx.is_some","kind":"call","line":768}
-{"file":"src/parser/swift.rs","caller":"extract_property","name":"name.is_empty","kind":"call","line":771}
-{"file":"src/parser/swift.rs","caller":"extract_property","name":"name\n                .chars()\n                .all","kind":"call","line":772}
-{"file":"src/parser/swift.rs","caller":"extract_property","name":"name\n                .chars","kind":"call","line":772}
-{"file":"src/parser/swift.rs","caller":"extract_property","name":"c.is_ascii_uppercase","kind":"call","line":774}
-{"file":"src/parser/swift.rs","caller":"extract_property","name":"c.is_ascii_digit","kind":"call","line":774}
-{"file":"src/parser/swift.rs","caller":"extract_property","name":"qualify","kind":"call","line":787,"confidence":0.95}
-{"file":"src/parser/swift.rs","caller":"extract_property","name":"property_rhs_text(node, source).map","kind":"call","line":791}
-{"file":"src/parser/swift.rs","caller":"extract_property","name":"property_rhs_text","kind":"call","line":791,"confidence":0.95}
-{"file":"src/parser/swift.rs","caller":"extract_property","name":"truncate_sig","kind":"call","line":791,"confidence":0.5}
-{"file":"src/parser/swift.rs","caller":"extract_property","name":"symbols.push","kind":"call","line":796}
-{"file":"src/parser/swift.rs","caller":"extract_property","name":"file_path.to_string","kind":"call","line":797}
-{"file":"src/parser/swift.rs","caller":"extract_property","name":"kind.to_string","kind":"call","line":799}
-{"file":"src/parser/swift.rs","caller":"extract_property","name":"parent_ctx.map","kind":"call","line":801}
-{"file":"src/parser/swift.rs","caller":"extract_property","name":"String::new","kind":"call","line":806}
-{"file":"src/parser/swift.rs","caller":"extract_property","name":"Vec::new","kind":"call","line":807}
-{"file":"src/parser/swift.rs","caller":"property_rhs_text","name":"Node","kind":"type_annotation","line":814}
-{"file":"src/parser/swift.rs","caller":"property_rhs_text","name":"Option","kind":"type_annotation","line":814}
-{"file":"src/parser/swift.rs","caller":"property_rhs_text","name":"String","kind":"type_annotation","line":814}
-{"file":"src/parser/swift.rs","caller":"property_rhs_text","name":"node.walk","kind":"call","line":816}
-{"file":"src/parser/swift.rs","caller":"property_rhs_text","name":"node.children","kind":"call","line":817}
-{"file":"src/parser/swift.rs","caller":"property_rhs_text","name":"child.is_named","kind":"call","line":818}
-{"file":"src/parser/swift.rs","caller":"property_rhs_text","name":"node_text","kind":"call","line":819,"confidence":0.5}
-{"file":"src/parser/swift.rs","caller":"property_rhs_text","name":"node_text","kind":"call","line":826,"confidence":0.5}
-{"file":"src/parser/swift.rs","caller":"extract_enum_entry","name":"Node","kind":"type_annotation","line":835}
-{"file":"src/parser/swift.rs","caller":"extract_enum_entry","name":"Option","kind":"type_annotation","line":838}
-{"file":"src/parser/swift.rs","caller":"extract_enum_entry","name":"Vec","kind":"type_annotation","line":839}
-{"file":"src/parser/swift.rs","caller":"extract_enum_entry","name":"SymbolEntry","kind":"type_annotation","line":839}
-{"file":"src/parser/swift.rs","caller":"extract_enum_entry","name":"node_line_range","kind":"call","line":841,"confidence":0.5}
-{"file":"src/parser/swift.rs","caller":"extract_enum_entry","name":"first_child_of_kind","kind":"call","line":842,"confidence":0.95}
-{"file":"src/parser/swift.rs","caller":"extract_enum_entry","name":"node_text","kind":"call","line":845,"confidence":0.5}
-{"file":"src/parser/swift.rs","caller":"extract_enum_entry","name":"qualify","kind":"call","line":846,"confidence":0.95}
-{"file":"src/parser/swift.rs","caller":"extract_enum_entry","name":"push_symbol","kind":"call","line":848,"confidence":0.5}
-{"file":"src/parser/swift.rs","caller":"extract_enum_entry","name":"\"public\".to_string","kind":"call","line":857}
-{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"Node","kind":"type_annotation","line":866}
-{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"Option","kind":"type_annotation","line":869}
-{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"Vec","kind":"type_annotation","line":870}
-{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"ReferenceEntry","kind":"type_annotation","line":870}
-{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"node.walk","kind":"call","line":873}
-{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"node\n        .children(&mut cursor)\n        .find","kind":"call","line":874}
-{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"node\n        .children","kind":"call","line":874}
-{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"c.is_named","kind":"call","line":876}
-{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"c.kind","kind":"call","line":876}
-{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"callee.kind","kind":"call","line":880}
-{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"node_text","kind":"call","line":881,"confidence":0.5}
-{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"node_text","kind":"call","line":882,"confidence":0.5}
-{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"name.is_empty","kind":"call","line":885}
-{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"name.rsplit('.').next().unwrap_or","kind":"call","line":888}
-{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"name.rsplit('.').next","kind":"call","line":888}
-{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"name.rsplit","kind":"call","line":888}
-{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"is_swift_builtin","kind":"call","line":889,"confidence":0.95}
-{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"is_swift_primitive","kind":"call","line":889,"confidence":0.95}
-{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"references.push","kind":"call","line":893}
-{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"file_path.to_string","kind":"call","line":894}
-{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"\"call\".to_string","kind":"call","line":896}
-{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"node_line_range","kind":"call","line":897,"confidence":0.5}
-{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"parent_ctx.map","kind":"call","line":898}
-{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"String::new","kind":"call","line":899}
-{"file":"src/parser/swift.rs","name":"super::*","kind":"import","line":906}
-{"file":"src/parser/swift.rs","name":"crate::parser::treesitter::parse_file","kind":"import","line":907}
-{"file":"src/parser/swift.rs","caller":"find_sym","name":"SymbolEntry","kind":"type_annotation","line":909}
-{"file":"src/parser/swift.rs","caller":"find_sym","name":"SymbolEntry","kind":"type_annotation","line":909}
-{"file":"src/parser/swift.rs","caller":"find_sym","name":"symbols.iter().find(|s| s.name == name).unwrap_or_else","kind":"call","line":910}
-{"file":"src/parser/swift.rs","caller":"find_sym","name":"symbols.iter().find","kind":"call","line":910}
-{"file":"src/parser/swift.rs","caller":"find_sym","name":"symbols.iter","kind":"call","line":910}
-{"file":"src/parser/swift.rs","caller":"swift_bare_call_gets_tier1_confidence","name":"parse_file(source, \"swift\", \"t.swift\").unwrap","kind":"call","line":924}
-{"file":"src/parser/swift.rs","caller":"swift_bare_call_gets_tier1_confidence","name":"parse_file","kind":"call","line":924,"confidence":0.8}
-{"file":"src/parser/swift.rs","caller":"swift_bare_call_gets_tier1_confidence","name":"crate::parser::treesitter::parse_file/","kind":"call","line":924,"confidence":0.8}
-{"file":"src/parser/swift.rs","caller":"swift_bare_call_gets_tier1_confidence","name":"refs\n            .iter()\n            .find(|r| r.kind == \"call\" && r.name == \"helper\")\n            .expect","kind":"call","line":925}
-{"file":"src/parser/swift.rs","caller":"swift_bare_call_gets_tier1_confidence","name":"refs\n            .iter()\n            .find","kind":"call","line":925}
-{"file":"src/parser/swift.rs","caller":"swift_bare_call_gets_tier1_confidence","name":"refs\n            .iter","kind":"call","line":925}
-{"file":"src/parser/swift.rs","caller":"swift_bare_call_gets_tier1_confidence","name":"refs.iter().find","kind":"call","line":930}
-{"file":"src/parser/swift.rs","caller":"swift_bare_call_gets_tier1_confidence","name":"refs.iter","kind":"call","line":930}
-{"file":"src/parser/swift.rs","caller":"swift_top_level_function","name":"parse_file(source, \"swift\", \"t.swift\").unwrap","kind":"call","line":939}
-{"file":"src/parser/swift.rs","caller":"swift_top_level_function","name":"parse_file","kind":"call","line":939,"confidence":0.8}
-{"file":"src/parser/swift.rs","caller":"swift_top_level_function","name":"crate::parser::treesitter::parse_file/","kind":"call","line":939,"confidence":0.8}
-{"file":"src/parser/swift.rs","caller":"swift_top_level_function","name":"find_sym","kind":"call","line":940,"confidence":0.95}
-{"file":"src/parser/swift.rs","caller":"swift_struct_with_method_and_property","name":"parse_file(source, \"swift\", \"t.swift\").unwrap","kind":"call","line":949}
-{"file":"src/parser/swift.rs","caller":"swift_struct_with_method_and_property","name":"parse_file","kind":"call","line":949,"confidence":0.8}
-{"file":"src/parser/swift.rs","caller":"swift_struct_with_method_and_property","name":"crate::parser::treesitter::parse_file/","kind":"call","line":949,"confidence":0.8}
-{"file":"src/parser/swift.rs","caller":"swift_struct_with_method_and_property","name":"find_sym","kind":"call","line":950,"confidence":0.95}
-{"file":"src/parser/swift.rs","caller":"swift_struct_with_method_and_property","name":"find_sym","kind":"call","line":952,"confidence":0.95}
-{"file":"src/parser/swift.rs","caller":"swift_struct_with_method_and_property","name":"find_sym","kind":"call","line":954,"confidence":0.95}
-{"file":"src/parser/swift.rs","caller":"swift_class_with_method","name":"parse_file(source, \"swift\", \"t.swift\").unwrap","kind":"call","line":962}
-{"file":"src/parser/swift.rs","caller":"swift_class_with_method","name":"parse_file","kind":"call","line":962,"confidence":0.8}
-{"file":"src/parser/swift.rs","caller":"swift_class_with_method","name":"crate::parser::treesitter::parse_file/","kind":"call","line":962,"confidence":0.8}
-{"file":"src/parser/swift.rs","caller":"swift_class_with_method","name":"find_sym","kind":"call","line":963,"confidence":0.95}
-{"file":"src/parser/swift.rs","caller":"swift_class_with_method","name":"find_sym","kind":"call","line":965,"confidence":0.95}
-{"file":"src/parser/swift.rs","caller":"swift_protocol_surfaces_as_interface","name":"parse_file(source, \"swift\", \"t.swift\").unwrap","kind":"call","line":973}
-{"file":"src/parser/swift.rs","caller":"swift_protocol_surfaces_as_interface","name":"parse_file","kind":"call","line":973,"confidence":0.8}
-{"file":"src/parser/swift.rs","caller":"swift_protocol_surfaces_as_interface","name":"crate::parser::treesitter::parse_file/","kind":"call","line":973,"confidence":0.8}
-{"file":"src/parser/swift.rs","caller":"swift_protocol_surfaces_as_interface","name":"find_sym","kind":"call","line":974,"confidence":0.95}
-{"file":"src/parser/swift.rs","caller":"swift_extension_surfaces_as_class","name":"parse_file(source, \"swift\", \"t.swift\").unwrap","kind":"call","line":981}
-{"file":"src/parser/swift.rs","caller":"swift_extension_surfaces_as_class","name":"parse_file","kind":"call","line":981,"confidence":0.8}
-{"file":"src/parser/swift.rs","caller":"swift_extension_surfaces_as_class","name":"crate::parser::treesitter::parse_file/","kind":"call","line":981,"confidence":0.8}
-{"file":"src/parser/swift.rs","caller":"swift_extension_surfaces_as_class","name":"find_sym","kind":"call","line":982,"confidence":0.95}
-{"file":"src/parser/swift.rs","caller":"swift_extension_surfaces_as_class","name":"find_sym","kind":"call","line":984,"confidence":0.95}
-{"file":"src/parser/swift.rs","caller":"swift_top_level_const","name":"parse_file(source, \"swift\", \"t.swift\").unwrap","kind":"call","line":991}
-{"file":"src/parser/swift.rs","caller":"swift_top_level_const","name":"parse_file","kind":"call","line":991,"confidence":0.8}
-{"file":"src/parser/swift.rs","caller":"swift_top_level_const","name":"crate::parser::treesitter::parse_file/","kind":"call","line":991,"confidence":0.8}
-{"file":"src/parser/swift.rs","caller":"swift_top_level_const","name":"find_sym","kind":"call","line":992,"confidence":0.95}
-{"file":"src/parser/swift.rs","caller":"swift_visibility_mapping","name":"parse_file(source, \"swift\", \"t.swift\").unwrap","kind":"call","line":1000}
-{"file":"src/parser/swift.rs","caller":"swift_visibility_mapping","name":"parse_file","kind":"call","line":1000,"confidence":0.8}
-{"file":"src/parser/swift.rs","caller":"swift_visibility_mapping","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1000,"confidence":0.8}
-{"file":"src/parser/swift.rs","caller":"swift_imports","name":"parse_file(source, \"swift\", \"t.swift\").unwrap","kind":"call","line":1013}
-{"file":"src/parser/swift.rs","caller":"swift_imports","name":"parse_file","kind":"call","line":1013,"confidence":0.8}
-{"file":"src/parser/swift.rs","caller":"swift_imports","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1013,"confidence":0.8}
-{"file":"src/parser/swift.rs","caller":"swift_imports","name":"symbols.iter().filter(|s| s.kind == \"import\").collect","kind":"call","line":1014}
-{"file":"src/parser/swift.rs","caller":"swift_imports","name":"symbols.iter().filter","kind":"call","line":1014}
-{"file":"src/parser/swift.rs","caller":"swift_imports","name":"symbols.iter","kind":"call","line":1014}
-{"file":"src/parser/swift.rs","caller":"swift_imports","name":"refs.iter().filter(|r| r.kind == \"import\").collect","kind":"call","line":1018}
-{"file":"src/parser/swift.rs","caller":"swift_imports","name":"refs.iter().filter","kind":"call","line":1018}
-{"file":"src/parser/swift.rs","caller":"swift_imports","name":"refs.iter","kind":"call","line":1018}
-{"file":"src/parser/swift.rs","caller":"swift_enum_cases","name":"parse_file(source, \"swift\", \"t.swift\").unwrap","kind":"call","line":1025}
-{"file":"src/parser/swift.rs","caller":"swift_enum_cases","name":"parse_file","kind":"call","line":1025,"confidence":0.8}
-{"file":"src/parser/swift.rs","caller":"swift_enum_cases","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1025,"confidence":0.8}
-{"file":"src/parser/swift.rs","caller":"swift_enum_cases","name":"find_sym","kind":"call","line":1026,"confidence":0.95}
-{"file":"src/parser/swift.rs","caller":"swift_enum_cases","name":"find_sym","kind":"call","line":1028,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"extract_function","name":"Vec","kind":"type_annotation","line":614}
+{"file":"src/parser/swift.rs","caller":"extract_function","name":"ReferenceEntry","kind":"type_annotation","line":614}
+{"file":"src/parser/swift.rs","caller":"extract_function","name":"function_name","kind":"call","line":616,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"extract_function","name":"node_line_range","kind":"call","line":621,"confidence":0.5}
+{"file":"src/parser/swift.rs","caller":"extract_function","name":"extract_swift_visibility","kind":"call","line":622,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"extract_function","name":"qualify","kind":"call","line":623,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"extract_function","name":"parent_ctx.is_some","kind":"call","line":626}
+{"file":"src/parser/swift.rs","caller":"extract_function","name":"first_child_of_kind(node, \"function_body\")\n        .and_then","kind":"call","line":628}
+{"file":"src/parser/swift.rs","caller":"extract_function","name":"first_child_of_kind","kind":"call","line":628,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"extract_function","name":"filter_swift_tokens","kind":"call","line":629,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"extract_function","name":"extract_tokens","kind":"call","line":629,"confidence":0.5}
+{"file":"src/parser/swift.rs","caller":"extract_function","name":"push_symbol","kind":"call","line":631,"confidence":0.5}
+{"file":"src/parser/swift.rs","caller":"extract_function","name":"full_name.clone","kind":"call","line":634}
+{"file":"src/parser/swift.rs","caller":"extract_function","name":"node.walk","kind":"call","line":647}
+{"file":"src/parser/swift.rs","caller":"extract_function","name":"node.children","kind":"call","line":648}
+{"file":"src/parser/swift.rs","caller":"extract_function","name":"child.kind","kind":"call","line":649}
+{"file":"src/parser/swift.rs","caller":"extract_function","name":"emit_swift_type_refs","kind":"call","line":651,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"extract_function","name":"emit_swift_type_refs","kind":"call","line":658,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"emit_swift_type_refs","name":"Node","kind":"type_annotation","line":669}
+{"file":"src/parser/swift.rs","caller":"emit_swift_type_refs","name":"Option","kind":"type_annotation","line":672}
+{"file":"src/parser/swift.rs","caller":"emit_swift_type_refs","name":"Vec","kind":"type_annotation","line":673}
+{"file":"src/parser/swift.rs","caller":"emit_swift_type_refs","name":"ReferenceEntry","kind":"type_annotation","line":673}
+{"file":"src/parser/swift.rs","caller":"emit_swift_type_refs","name":"stack.pop","kind":"call","line":676}
+{"file":"src/parser/swift.rs","caller":"emit_swift_type_refs","name":"n.kind","kind":"call","line":677}
+{"file":"src/parser/swift.rs","caller":"emit_swift_type_refs","name":"node_text","kind":"call","line":678,"confidence":0.5}
+{"file":"src/parser/swift.rs","caller":"emit_swift_type_refs","name":"is_swift_primitive","kind":"call","line":679,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"emit_swift_type_refs","name":"references.push","kind":"call","line":680}
+{"file":"src/parser/swift.rs","caller":"emit_swift_type_refs","name":"file_path.to_string","kind":"call","line":681}
+{"file":"src/parser/swift.rs","caller":"emit_swift_type_refs","name":"\"type_annotation\".to_string","kind":"call","line":683}
+{"file":"src/parser/swift.rs","caller":"emit_swift_type_refs","name":"node_line_range","kind":"call","line":684,"confidence":0.5}
+{"file":"src/parser/swift.rs","caller":"emit_swift_type_refs","name":"parent_ctx.map","kind":"call","line":685}
+{"file":"src/parser/swift.rs","caller":"emit_swift_type_refs","name":"String::new","kind":"call","line":686}
+{"file":"src/parser/swift.rs","caller":"emit_swift_type_refs","name":"n.walk","kind":"call","line":692}
+{"file":"src/parser/swift.rs","caller":"emit_swift_type_refs","name":"n.children","kind":"call","line":693}
+{"file":"src/parser/swift.rs","caller":"emit_swift_type_refs","name":"stack.push","kind":"call","line":694}
+{"file":"src/parser/swift.rs","caller":"extract_init","name":"Node","kind":"type_annotation","line":701}
+{"file":"src/parser/swift.rs","caller":"extract_init","name":"Option","kind":"type_annotation","line":704}
+{"file":"src/parser/swift.rs","caller":"extract_init","name":"Vec","kind":"type_annotation","line":705}
+{"file":"src/parser/swift.rs","caller":"extract_init","name":"SymbolEntry","kind":"type_annotation","line":705}
+{"file":"src/parser/swift.rs","caller":"extract_init","name":"node_line_range","kind":"call","line":707,"confidence":0.5}
+{"file":"src/parser/swift.rs","caller":"extract_init","name":"extract_swift_visibility","kind":"call","line":708,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"extract_init","name":"qualify","kind":"call","line":709,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"extract_init","name":"first_child_of_kind(node, \"function_body\")\n        .and_then","kind":"call","line":711}
+{"file":"src/parser/swift.rs","caller":"extract_init","name":"first_child_of_kind","kind":"call","line":711,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"extract_init","name":"filter_swift_tokens","kind":"call","line":712,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"extract_init","name":"extract_tokens","kind":"call","line":712,"confidence":0.5}
+{"file":"src/parser/swift.rs","caller":"extract_init","name":"push_symbol","kind":"call","line":716,"confidence":0.5}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_function","name":"Node","kind":"type_annotation","line":730}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_function","name":"Option","kind":"type_annotation","line":733}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_function","name":"Vec","kind":"type_annotation","line":734}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_function","name":"SymbolEntry","kind":"type_annotation","line":734}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_function","name":"function_name","kind":"call","line":736,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_function","name":"node_line_range","kind":"call","line":741,"confidence":0.5}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_function","name":"extract_swift_visibility","kind":"call","line":742,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_function","name":"qualify","kind":"call","line":743,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_function","name":"push_symbol","kind":"call","line":745,"confidence":0.5}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_property","name":"Node","kind":"type_annotation","line":761}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_property","name":"Option","kind":"type_annotation","line":764}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_property","name":"Vec","kind":"type_annotation","line":765}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_property","name":"SymbolEntry","kind":"type_annotation","line":765}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_property","name":"node_line_range","kind":"call","line":767,"confidence":0.5}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_property","name":"extract_swift_visibility","kind":"call","line":768,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_property","name":"first_child_of_kind","kind":"call","line":770,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_property","name":"first_child_of_kind","kind":"call","line":773,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_property","name":"node_text","kind":"call","line":776,"confidence":0.5}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_property","name":"qualify","kind":"call","line":777,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"extract_protocol_property","name":"push_symbol","kind":"call","line":779,"confidence":0.5}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"Node","kind":"type_annotation","line":796}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"Option","kind":"type_annotation","line":799}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"Vec","kind":"type_annotation","line":800}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"SymbolEntry","kind":"type_annotation","line":800}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"Vec","kind":"type_annotation","line":801}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"ReferenceEntry","kind":"type_annotation","line":801}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"node_line_range","kind":"call","line":803,"confidence":0.5}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"extract_swift_visibility","kind":"call","line":804,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"first_child_of_kind(node, \"value_binding_pattern\")\n        .map(|b| node_text(b, source).trim() == \"let\")\n        .unwrap_or","kind":"call","line":807}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"first_child_of_kind(node, \"value_binding_pattern\")\n        .map","kind":"call","line":807}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"first_child_of_kind","kind":"call","line":807,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"node_text(b, source).trim","kind":"call","line":808}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"node_text","kind":"call","line":808,"confidence":0.5}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"first_child_of_kind","kind":"call","line":811,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"first_child_of_kind","kind":"call","line":812,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"node_text","kind":"call","line":813,"confidence":0.5}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"parent_ctx.is_some","kind":"call","line":825}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"name.is_empty","kind":"call","line":828}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"name\n                .chars()\n                .all","kind":"call","line":829}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"name\n                .chars","kind":"call","line":829}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"c.is_ascii_uppercase","kind":"call","line":831}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"c.is_ascii_digit","kind":"call","line":831}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"qualify","kind":"call","line":844,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"property_rhs_text(node, source).map","kind":"call","line":848}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"property_rhs_text","kind":"call","line":848,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"truncate_sig","kind":"call","line":848,"confidence":0.5}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"symbols.push","kind":"call","line":853}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"file_path.to_string","kind":"call","line":854}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"full_name.clone","kind":"call","line":855}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"kind.to_string","kind":"call","line":856}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"parent_ctx.map","kind":"call","line":858}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"String::new","kind":"call","line":863}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"Vec::new","kind":"call","line":864}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"first_child_of_kind","kind":"call","line":869,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"extract_property","name":"emit_swift_type_refs","kind":"call","line":870,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"property_rhs_text","name":"Node","kind":"type_annotation","line":877}
+{"file":"src/parser/swift.rs","caller":"property_rhs_text","name":"Option","kind":"type_annotation","line":877}
+{"file":"src/parser/swift.rs","caller":"property_rhs_text","name":"String","kind":"type_annotation","line":877}
+{"file":"src/parser/swift.rs","caller":"property_rhs_text","name":"node.walk","kind":"call","line":879}
+{"file":"src/parser/swift.rs","caller":"property_rhs_text","name":"node.children","kind":"call","line":880}
+{"file":"src/parser/swift.rs","caller":"property_rhs_text","name":"child.is_named","kind":"call","line":881}
+{"file":"src/parser/swift.rs","caller":"property_rhs_text","name":"node_text","kind":"call","line":882,"confidence":0.5}
+{"file":"src/parser/swift.rs","caller":"property_rhs_text","name":"node_text","kind":"call","line":889,"confidence":0.5}
+{"file":"src/parser/swift.rs","caller":"extract_enum_entry","name":"Node","kind":"type_annotation","line":898}
+{"file":"src/parser/swift.rs","caller":"extract_enum_entry","name":"Option","kind":"type_annotation","line":901}
+{"file":"src/parser/swift.rs","caller":"extract_enum_entry","name":"Vec","kind":"type_annotation","line":902}
+{"file":"src/parser/swift.rs","caller":"extract_enum_entry","name":"SymbolEntry","kind":"type_annotation","line":902}
+{"file":"src/parser/swift.rs","caller":"extract_enum_entry","name":"node_line_range","kind":"call","line":904,"confidence":0.5}
+{"file":"src/parser/swift.rs","caller":"extract_enum_entry","name":"first_child_of_kind","kind":"call","line":905,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"extract_enum_entry","name":"node_text","kind":"call","line":908,"confidence":0.5}
+{"file":"src/parser/swift.rs","caller":"extract_enum_entry","name":"qualify","kind":"call","line":909,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"extract_enum_entry","name":"push_symbol","kind":"call","line":911,"confidence":0.5}
+{"file":"src/parser/swift.rs","caller":"extract_enum_entry","name":"\"public\".to_string","kind":"call","line":920}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"Node","kind":"type_annotation","line":929}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"Option","kind":"type_annotation","line":932}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"Vec","kind":"type_annotation","line":933}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"ReferenceEntry","kind":"type_annotation","line":933}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"node.walk","kind":"call","line":936}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"node\n        .children(&mut cursor)\n        .find","kind":"call","line":937}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"node\n        .children","kind":"call","line":937}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"c.is_named","kind":"call","line":939}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"c.kind","kind":"call","line":939}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"callee.kind","kind":"call","line":943}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"node_text","kind":"call","line":944,"confidence":0.5}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"node_text","kind":"call","line":945,"confidence":0.5}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"name.is_empty","kind":"call","line":948}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"name.rsplit('.').next().unwrap_or","kind":"call","line":951}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"name.rsplit('.').next","kind":"call","line":951}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"name.rsplit","kind":"call","line":951}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"is_swift_builtin","kind":"call","line":952,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"is_swift_primitive","kind":"call","line":952,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"references.push","kind":"call","line":956}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"file_path.to_string","kind":"call","line":957}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"\"call\".to_string","kind":"call","line":959}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"node_line_range","kind":"call","line":960,"confidence":0.5}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"parent_ctx.map","kind":"call","line":961}
+{"file":"src/parser/swift.rs","caller":"extract_call_ref","name":"String::new","kind":"call","line":962}
+{"file":"src/parser/swift.rs","name":"super::*","kind":"import","line":969}
+{"file":"src/parser/swift.rs","name":"crate::parser::treesitter::parse_file","kind":"import","line":970}
+{"file":"src/parser/swift.rs","caller":"find_sym","name":"SymbolEntry","kind":"type_annotation","line":972}
+{"file":"src/parser/swift.rs","caller":"find_sym","name":"SymbolEntry","kind":"type_annotation","line":972}
+{"file":"src/parser/swift.rs","caller":"find_sym","name":"symbols.iter().find(|s| s.name == name).unwrap_or_else","kind":"call","line":973}
+{"file":"src/parser/swift.rs","caller":"find_sym","name":"symbols.iter().find","kind":"call","line":973}
+{"file":"src/parser/swift.rs","caller":"find_sym","name":"symbols.iter","kind":"call","line":973}
+{"file":"src/parser/swift.rs","caller":"swift_bare_call_gets_tier1_confidence","name":"parse_file(source, \"swift\", \"t.swift\").unwrap","kind":"call","line":987}
+{"file":"src/parser/swift.rs","caller":"swift_bare_call_gets_tier1_confidence","name":"parse_file","kind":"call","line":987,"confidence":0.8}
+{"file":"src/parser/swift.rs","caller":"swift_bare_call_gets_tier1_confidence","name":"crate::parser::treesitter::parse_file/","kind":"call","line":987,"confidence":0.8}
+{"file":"src/parser/swift.rs","caller":"swift_bare_call_gets_tier1_confidence","name":"refs\n            .iter()\n            .find(|r| r.kind == \"call\" && r.name == \"helper\")\n            .expect","kind":"call","line":988}
+{"file":"src/parser/swift.rs","caller":"swift_bare_call_gets_tier1_confidence","name":"refs\n            .iter()\n            .find","kind":"call","line":988}
+{"file":"src/parser/swift.rs","caller":"swift_bare_call_gets_tier1_confidence","name":"refs\n            .iter","kind":"call","line":988}
+{"file":"src/parser/swift.rs","caller":"swift_bare_call_gets_tier1_confidence","name":"refs.iter().find","kind":"call","line":993}
+{"file":"src/parser/swift.rs","caller":"swift_bare_call_gets_tier1_confidence","name":"refs.iter","kind":"call","line":993}
+{"file":"src/parser/swift.rs","caller":"swift_top_level_function","name":"parse_file(source, \"swift\", \"t.swift\").unwrap","kind":"call","line":1002}
+{"file":"src/parser/swift.rs","caller":"swift_top_level_function","name":"parse_file","kind":"call","line":1002,"confidence":0.8}
+{"file":"src/parser/swift.rs","caller":"swift_top_level_function","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1002,"confidence":0.8}
+{"file":"src/parser/swift.rs","caller":"swift_top_level_function","name":"find_sym","kind":"call","line":1003,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"swift_struct_with_method_and_property","name":"parse_file(source, \"swift\", \"t.swift\").unwrap","kind":"call","line":1012}
+{"file":"src/parser/swift.rs","caller":"swift_struct_with_method_and_property","name":"parse_file","kind":"call","line":1012,"confidence":0.8}
+{"file":"src/parser/swift.rs","caller":"swift_struct_with_method_and_property","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1012,"confidence":0.8}
+{"file":"src/parser/swift.rs","caller":"swift_struct_with_method_and_property","name":"find_sym","kind":"call","line":1013,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"swift_struct_with_method_and_property","name":"find_sym","kind":"call","line":1015,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"swift_struct_with_method_and_property","name":"find_sym","kind":"call","line":1017,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"swift_class_with_method","name":"parse_file(source, \"swift\", \"t.swift\").unwrap","kind":"call","line":1025}
+{"file":"src/parser/swift.rs","caller":"swift_class_with_method","name":"parse_file","kind":"call","line":1025,"confidence":0.8}
+{"file":"src/parser/swift.rs","caller":"swift_class_with_method","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1025,"confidence":0.8}
+{"file":"src/parser/swift.rs","caller":"swift_class_with_method","name":"find_sym","kind":"call","line":1026,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"swift_class_with_method","name":"find_sym","kind":"call","line":1028,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"swift_protocol_surfaces_as_interface","name":"parse_file(source, \"swift\", \"t.swift\").unwrap","kind":"call","line":1036}
+{"file":"src/parser/swift.rs","caller":"swift_protocol_surfaces_as_interface","name":"parse_file","kind":"call","line":1036,"confidence":0.8}
+{"file":"src/parser/swift.rs","caller":"swift_protocol_surfaces_as_interface","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1036,"confidence":0.8}
+{"file":"src/parser/swift.rs","caller":"swift_protocol_surfaces_as_interface","name":"find_sym","kind":"call","line":1037,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"swift_extension_surfaces_as_class","name":"parse_file(source, \"swift\", \"t.swift\").unwrap","kind":"call","line":1044}
+{"file":"src/parser/swift.rs","caller":"swift_extension_surfaces_as_class","name":"parse_file","kind":"call","line":1044,"confidence":0.8}
+{"file":"src/parser/swift.rs","caller":"swift_extension_surfaces_as_class","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1044,"confidence":0.8}
+{"file":"src/parser/swift.rs","caller":"swift_extension_surfaces_as_class","name":"find_sym","kind":"call","line":1045,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"swift_extension_surfaces_as_class","name":"find_sym","kind":"call","line":1047,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"swift_top_level_const","name":"parse_file(source, \"swift\", \"t.swift\").unwrap","kind":"call","line":1054}
+{"file":"src/parser/swift.rs","caller":"swift_top_level_const","name":"parse_file","kind":"call","line":1054,"confidence":0.8}
+{"file":"src/parser/swift.rs","caller":"swift_top_level_const","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1054,"confidence":0.8}
+{"file":"src/parser/swift.rs","caller":"swift_top_level_const","name":"find_sym","kind":"call","line":1055,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"swift_visibility_mapping","name":"parse_file(source, \"swift\", \"t.swift\").unwrap","kind":"call","line":1063}
+{"file":"src/parser/swift.rs","caller":"swift_visibility_mapping","name":"parse_file","kind":"call","line":1063,"confidence":0.8}
+{"file":"src/parser/swift.rs","caller":"swift_visibility_mapping","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1063,"confidence":0.8}
+{"file":"src/parser/swift.rs","caller":"swift_imports","name":"parse_file(source, \"swift\", \"t.swift\").unwrap","kind":"call","line":1076}
+{"file":"src/parser/swift.rs","caller":"swift_imports","name":"parse_file","kind":"call","line":1076,"confidence":0.8}
+{"file":"src/parser/swift.rs","caller":"swift_imports","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1076,"confidence":0.8}
+{"file":"src/parser/swift.rs","caller":"swift_imports","name":"symbols.iter().filter(|s| s.kind == \"import\").collect","kind":"call","line":1077}
+{"file":"src/parser/swift.rs","caller":"swift_imports","name":"symbols.iter().filter","kind":"call","line":1077}
+{"file":"src/parser/swift.rs","caller":"swift_imports","name":"symbols.iter","kind":"call","line":1077}
+{"file":"src/parser/swift.rs","caller":"swift_imports","name":"refs.iter().filter(|r| r.kind == \"import\").collect","kind":"call","line":1081}
+{"file":"src/parser/swift.rs","caller":"swift_imports","name":"refs.iter().filter","kind":"call","line":1081}
+{"file":"src/parser/swift.rs","caller":"swift_imports","name":"refs.iter","kind":"call","line":1081}
+{"file":"src/parser/swift.rs","caller":"swift_function_param_and_return_type_refs","name":"parse_file(source, \"swift\", \"t.swift\").unwrap","kind":"call","line":1095}
+{"file":"src/parser/swift.rs","caller":"swift_function_param_and_return_type_refs","name":"parse_file","kind":"call","line":1095,"confidence":0.8}
+{"file":"src/parser/swift.rs","caller":"swift_function_param_and_return_type_refs","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1095,"confidence":0.8}
+{"file":"src/parser/swift.rs","caller":"swift_function_param_and_return_type_refs","name":"refs\n            .iter()\n            .filter(|r| r.kind == \"type_annotation\" && r.name == \"Logger\")\n            .collect","kind":"call","line":1096}
+{"file":"src/parser/swift.rs","caller":"swift_function_param_and_return_type_refs","name":"refs\n            .iter()\n            .filter","kind":"call","line":1096}
+{"file":"src/parser/swift.rs","caller":"swift_function_param_and_return_type_refs","name":"refs\n            .iter","kind":"call","line":1096}
+{"file":"src/parser/swift.rs","caller":"swift_enum_cases","name":"parse_file(source, \"swift\", \"t.swift\").unwrap","kind":"call","line":1111}
+{"file":"src/parser/swift.rs","caller":"swift_enum_cases","name":"parse_file","kind":"call","line":1111,"confidence":0.8}
+{"file":"src/parser/swift.rs","caller":"swift_enum_cases","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1111,"confidence":0.8}
+{"file":"src/parser/swift.rs","caller":"swift_enum_cases","name":"find_sym","kind":"call","line":1112,"confidence":0.95}
+{"file":"src/parser/swift.rs","caller":"swift_enum_cases","name":"find_sym","kind":"call","line":1114,"confidence":0.95}
 {"file":"src/parser/treesitter.rs","name":"anyhow::Result","kind":"import","line":1}
 {"file":"src/parser/treesitter.rs","name":"tree_sitter::{Parser, Tree}","kind":"import","line":2}
 {"file":"src/parser/treesitter.rs","name":"crate::parser::format::{ReferenceEntry, SymbolEntry, TextEntry}","kind":"import","line":4}
