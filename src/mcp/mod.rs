@@ -12,4 +12,5 @@
 //!     into MCP `tools/call` requests. Stdio transport only for now;
 //!     SSE is a follow-up.
 
+pub mod server;
 pub mod tools;
