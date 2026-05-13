@@ -877,6 +877,68 @@ func main() {
     assert!(!subs.is_empty(), "expected NATS subscribers; got {nats:?}");
 }
 
+// ───── Batch 9: env-var-aware contracts + confidence tiers ─────
+
+#[test]
+fn detects_env_var_topic_arg_across_languages() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("py_worker.py"),
+        r#"import os
+import redis
+r = redis.Redis()
+r.publish(os.environ['ORDERS_TOPIC'], msg)
+r.subscribe(os.getenv('ORDERS_TOPIC'))
+"#,
+    ).unwrap();
+    fs::write(
+        tmp.path().join("js_worker.js"),
+        r#"const Redis = require('ioredis');
+const client = new Redis();
+client.publish(process.env.ORDERS_TOPIC, msg);
+client.subscribe(process.env['ORDERS_TOPIC']);
+"#,
+    ).unwrap();
+    fs::write(
+        tmp.path().join("rb_worker.rb"),
+        r#"require 'redis'
+redis = Redis.new
+redis.publish(ENV['ORDERS_TOPIC'], msg)
+redis.subscribe(ENV.fetch('ORDERS_TOPIC'))
+"#,
+    ).unwrap();
+    fs::write(
+        tmp.path().join("go_worker.go"),
+        r#"package main
+import (
+    "os"
+    "github.com/redis/go-redis/v9"
+)
+func main() {
+    rdb := redis.NewClient(...)
+    rdb.Publish(ctx, os.Getenv("ORDERS_TOPIC"), payload)
+    rdb.Subscribe(ctx, os.Getenv("ORDERS_TOPIC"))
+}
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let env_rows: Vec<_> = rows.iter()
+        .filter(|r| r["contract_id"] == "topic::$ENV.ORDERS_TOPIC").collect();
+    // Each language emits one publisher + one subscriber → 8 total.
+    let pubs: Vec<&str> = env_rows.iter()
+        .filter(|r| r["role"] == "publisher")
+        .map(|r| r["language"].as_str().unwrap()).collect();
+    let subs: Vec<&str> = env_rows.iter()
+        .filter(|r| r["role"] == "subscriber")
+        .map(|r| r["language"].as_str().unwrap()).collect();
+    for lang in ["python", "javascript", "ruby", "go"] {
+        assert!(pubs.contains(&lang), "missing {lang} publisher; got pubs={pubs:?}");
+        assert!(subs.contains(&lang), "missing {lang} subscriber; got subs={subs:?}");
+    }
+}
+
 // ───── Batch 7: OpenAPI / AsyncAPI ingestion ─────
 
 #[test]

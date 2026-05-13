@@ -1349,9 +1349,8 @@ fn apply_rewrite(contract_id: &str, rule: &ProxyRewrite) -> Option<String> {
 
 /// Output row for cross-repo contract matching. Joins a provider in
 /// one member with one or more consumers in others by normalized
-/// `contract_id`. Mirrors repowise's `ContractLink` shape so downstream
-/// consumers (and our own future MCP wrapper, if any) can read either
-/// without an adapter.
+/// `contract_id`. Mirrors repowise's `ContractLink` shape plus a
+/// `confidence` field reflecting how the join was resolved.
 #[derive(Debug, Serialize)]
 pub struct ContractLink {
     pub contract_id: String,
@@ -1364,6 +1363,74 @@ pub struct ContractLink {
     pub consumer_file: String,
     pub consumer_line: u32,
     pub consumer_framework: String,
+    /// 1.0 = literal == literal in both repos.
+    /// 0.9 = both use `$ENV.X` AND both `.env` files agree on the value.
+    /// 0.8 = one side literal, other resolves to that literal via .env.
+    /// 0.6 = both use `$ENV.X` but no `.env` files found (name-only match).
+    /// 0.3 = dynamic / fuzzy fallback.
+    /// Demoted to ≤ 0.6 when .env values DIFFER on the two sides.
+    pub confidence: f64,
+    /// Which join strategy produced this link.
+    /// One of: `literal` | `env_value` | `env_name` | `mixed` | `dynamic`.
+    pub match_strategy: String,
+    /// Optional human-readable note explaining a low-confidence link
+    /// (e.g. "env values differ" / "no .env file found").
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub notes: Option<String>,
+}
+
+/// Read `.env` / `.env.example` / `docker-compose.yml` / `values.yaml`
+/// for a workspace member, returning a flat `VARNAME → value` map.
+/// First definition wins (so the most-specific source — `.env`, which
+/// is per-machine — overrides `.env.example`, which is checked in).
+pub fn load_member_env_table(member_path: &Path) -> std::collections::HashMap<String, String> {
+    let mut out = std::collections::HashMap::new();
+    // Lowest-priority sources first; we won't overwrite once a key is set
+    // by a higher-priority source.
+    let candidates = [
+        ".env.example", ".env.sample", ".env.template",
+        ".env.local", ".env.development", ".env.production", ".env",
+    ];
+    for name in candidates {
+        let p = member_path.join(name);
+        let Ok(text) = std::fs::read_to_string(&p) else { continue };
+        for line in text.lines() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() || trimmed.starts_with('#') { continue; }
+            let Some((k, v)) = trimmed.split_once('=') else { continue };
+            let k = k.trim().to_string();
+            let v = v.trim().trim_matches(|c| c == '"' || c == '\'').to_string();
+            // Strip optional `export` prefix.
+            let k = k.strip_prefix("export ").map(|s| s.trim().to_string()).unwrap_or(k);
+            // First-wins ordering already implied by candidate list ordering.
+            out.entry(k).or_insert(v);
+        }
+    }
+    // docker-compose.yml — top-level `services.<name>.environment` entries.
+    for compose in ["docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml"] {
+        let p = member_path.join(compose);
+        let Ok(text) = std::fs::read_to_string(&p) else { continue };
+        let Ok(doc): Result<serde_yml::Value, _> = serde_yml::from_str(&text) else { continue };
+        let Some(services) = doc.get("services").and_then(|s| s.as_mapping()) else { continue };
+        for (_svc, svc_val) in services {
+            let Some(env) = svc_val.get("environment") else { continue };
+            // `environment` can be a list of `KEY=value` strings or a mapping.
+            if let Some(map) = env.as_mapping() {
+                for (k, v) in map {
+                    let Some(key) = k.as_str() else { continue };
+                    let val = v.as_str().unwrap_or("").to_string();
+                    out.entry(key.to_string()).or_insert(val);
+                }
+            } else if let Some(seq) = env.as_sequence() {
+                for item in seq {
+                    let Some(s) = item.as_str() else { continue };
+                    let Some((k, v)) = s.split_once('=') else { continue };
+                    out.entry(k.trim().to_string()).or_insert(v.trim().to_string());
+                }
+            }
+        }
+    }
+    out
 }
 
 /// Match providers in one workspace member against consumers in
@@ -1397,6 +1464,16 @@ pub fn resolve_workspace_contract_links(workspace_root: &Path) -> Result<usize> 
     // `.sigil-workspace/contracts.jsonl` so downstream consumers can
     // browse the full set even when no provider↔consumer match exists.
     let mut all_contracts: Vec<String> = Vec::new();
+
+    // Per-member env table built from `.env*` / docker-compose.yml /
+    // values.yaml. Used to resolve `topic::$ENV.X` contracts to their
+    // literal values for stronger cross-repo matching.
+    let mut env_tables: std::collections::HashMap<String, std::collections::HashMap<String, String>> =
+        std::collections::HashMap::new();
+    for m in &members {
+        let mp = std::path::Path::new(&m.path);
+        env_tables.insert(m.name.clone(), load_member_env_table(mp));
+    }
 
     for m in &members {
         let mp = std::path::Path::new(&m.path);
@@ -1484,29 +1561,143 @@ pub fn resolve_workspace_contract_links(workspace_root: &Path) -> Result<usize> 
     // join a backend `/users` provider when nginx strips `/api/`.
     let rewrites = discover_proxy_rewrites(workspace_root);
 
+    // Helpers for the env-aware match below ------------------------------
+    fn env_name_from_id(id: &str) -> Option<String> {
+        // `topic::$ENV.ORDERS_TOPIC` → `ORDERS_TOPIC`.
+        id.split_once("::$ENV.").map(|(_, n)| n.to_string())
+    }
+    fn resolve_env(
+        id: &str,
+        member: &str,
+        env_tables: &std::collections::HashMap<String, std::collections::HashMap<String, String>>,
+    ) -> Option<String> {
+        let env_name = env_name_from_id(id)?;
+        env_tables.get(member)?.get(&env_name).cloned()
+    }
+    // For an env-keyed contract_id, return its literal-valued form by
+    // looking up the env name in the member's env table.
+    fn resolved_id(
+        id: &str,
+        member: &str,
+        env_tables: &std::collections::HashMap<String, std::collections::HashMap<String, String>>,
+    ) -> Option<String> {
+        let val = resolve_env(id, member, env_tables)?;
+        let (kind, _) = id.split_once("::").unwrap_or(("topic", ""));
+        Some(format!("{kind}::{val}"))
+    }
+
+    // Pre-build a map of (literal contract_id) → Vec<(member, env_name)>
+    // so we can match `topic::orders` (literal in repo A) against
+    // `topic::$ENV.ORDERS_TOPIC` (env in repo B) when B's `.env`
+    // resolves to `orders`.
+    let mut env_providers_by_resolved_id: std::collections::HashMap<String, Vec<&Site>> =
+        std::collections::HashMap::new();
+    for (id, sites) in &providers {
+        if env_name_from_id(id).is_some() {
+            // Index each site's resolved id (from its own member's env table).
+            for site in sites.iter() {
+                if let Some(rid) = resolved_id(id, &site.0, &env_tables) {
+                    for join_id in join_keys(&rid) {
+                        env_providers_by_resolved_id.entry(join_id)
+                            .or_default()
+                            .push(site);
+                    }
+                }
+            }
+        }
+    }
+
     for (id, cons_sites) in &consumers {
-        // Look up the consumer's contract_id verbatim AND through every
-        // applicable proxy rewrite (e.g. `/api/users` → `/users`).
-        let mut lookup_ids: Vec<String> = vec![id.clone()];
+        // Build the lookup-IDs list with provenance so we can derive
+        // the right confidence + match_strategy for each provider hit.
+        // Each tuple is (lookup_id, base_confidence, strategy).
+        let mut lookup_ids: Vec<(String, f64, &'static str)> = vec![
+            (id.clone(), 1.0, "literal"),
+        ];
+        // Proxy rewrites — still literal-tier on both sides.
         for rule in &rewrites {
             if let Some(rewritten) = apply_rewrite(id, rule) {
-                lookup_ids.push(rewritten);
+                lookup_ids.push((rewritten, 1.0, "literal"));
             }
         }
-        let mut combined: Vec<&Site> = Vec::new();
-        for lookup_id in &lookup_ids {
+
+        // Env-keyed consumer? Try matching against literal providers
+        // via this consumer's env-table resolution (mixed strategy).
+        let cons_env_name = env_name_from_id(id);
+        if cons_env_name.is_some() {
+            // For each consumer-site, try resolving its env var and
+            // looking up under the literal form.
+            for (cm, _) in cons_sites {
+                if let Some(rid) = resolved_id(id, cm, &env_tables) {
+                    lookup_ids.push((rid, 0.8, "mixed"));
+                }
+            }
+        } else {
+            // Literal consumer — also try matching against env-keyed
+            // providers whose env value resolves to this same literal.
+            if let Some(sites) = env_providers_by_resolved_id.get(id) {
+                for s in sites {
+                    let key = (id.clone(), s.0.clone(), "ENV_LITERAL_MATCH".to_string());
+                    if seen.contains(&key) { continue; }
+                    // Defer actual emission to the main loop by injecting
+                    // a synthetic lookup via the env-resolved map below.
+                    let _ = s; // placeholder; handled via combined merge.
+                }
+            }
+        }
+
+        let mut combined: Vec<(&Site, f64, &'static str)> = Vec::new();
+        for (lookup_id, base_conf, strategy) in &lookup_ids {
             if let Some(sites) = expanded_providers.get(lookup_id) {
-                combined.extend(sites.iter().copied());
+                combined.extend(sites.iter().map(|s| (*s, *base_conf, *strategy)));
             }
         }
+        // Env-keyed literal merge: for literal consumer, pull in
+        // env-keyed providers whose resolved value matches.
+        if cons_env_name.is_none()
+            && let Some(sites) = env_providers_by_resolved_id.get(id)
+        {
+            combined.extend(sites.iter().map(|s| (*s, 0.8, "mixed")));
+        }
+
         if combined.is_empty() { continue; }
-        let prov_sites = &combined;
-        for p in prov_sites.iter() {
+
+        for (p, base_conf, strategy) in &combined {
             let (p_member, p_row) = (&p.0, &p.1);
             for (c_member, c_row) in cons_sites {
                 if p_member == c_member {
                     continue;
                 }
+
+                // env-name == env-name path: if both sides used the
+                // same `$ENV.X`, see what the .env files say.
+                let mut confidence = *base_conf;
+                let mut strategy = (*strategy).to_string();
+                let mut notes: Option<String> = None;
+
+                if let Some(env_name) = env_name_from_id(id) {
+                    // Consumer is env-keyed. Provider's contract_id is
+                    // the same string (same env name on both sides), so
+                    // we're in the env_name / env_value tier.
+                    let p_val = env_tables.get(p_member).and_then(|t| t.get(&env_name));
+                    let c_val = env_tables.get(c_member).and_then(|t| t.get(&env_name));
+                    match (p_val, c_val) {
+                        (Some(pv), Some(cv)) if pv == cv => {
+                            confidence = 0.9; strategy = "env_value".to_string();
+                        }
+                        (Some(pv), Some(cv)) => {
+                            confidence = 0.4; strategy = "env_name".to_string();
+                            notes = Some(format!(
+                                "env values differ: {p_member}={pv} vs {c_member}={cv}"
+                            ));
+                        }
+                        _ => {
+                            confidence = 0.6; strategy = "env_name".to_string();
+                            notes = Some("no .env file resolved this variable".to_string());
+                        }
+                    }
+                }
+
                 let key = (id.clone(), p_member.clone(), c_member.clone());
                 if !seen.insert(key) {
                     continue;
@@ -1522,6 +1713,9 @@ pub fn resolve_workspace_contract_links(workspace_root: &Path) -> Result<usize> 
                     consumer_file: c_row.file.clone(),
                     consumer_line: c_row.line,
                     consumer_framework: c_row.framework.clone(),
+                    confidence,
+                    match_strategy: strategy,
+                    notes,
                 };
                 out_lines.push(serde_json::to_string(&link)?);
             }

@@ -1709,6 +1709,75 @@ fn workspace_index_captures_git_sha_per_member() {
 }
 
 #[test]
+fn workspace_links_env_var_topics_via_dotenv_files() {
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let a = tmp.path().join("a");
+    let b = tmp.path().join("b");
+    fs::create_dir_all(&ws).unwrap();
+    init_repo(&a);
+    init_repo(&b);
+    fs::write(a.join("worker.py"),
+        "import os, redis\nr = redis.Redis()\nr.publish(os.environ['ORDERS_TOPIC'], msg)\n").unwrap();
+    fs::write(b.join("worker.py"),
+        "import os, redis\nr = redis.Redis()\nr.subscribe(os.environ['ORDERS_TOPIC'])\n").unwrap();
+    // Both repos resolve ORDERS_TOPIC=orders via .env.example
+    fs::write(a.join(".env.example"), "ORDERS_TOPIC=orders\n").unwrap();
+    fs::write(b.join(".env.example"), "ORDERS_TOPIC=orders\n").unwrap();
+
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", a.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", b.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "index", "--root", ws.to_str().unwrap()]);
+
+    let text = fs::read_to_string(ws.join(".sigil-workspace/contract_links.jsonl")).unwrap();
+    let rows: Vec<serde_json::Value> = text.lines().filter(|l| !l.is_empty())
+        .map(|l| serde_json::from_str(l).expect("JSON")).collect();
+    assert!(!rows.is_empty(),
+        "should produce at least one link via env-var resolution; got {rows:?}");
+    // Both same env-var name AND both resolve to same literal → highest tier
+    let link = rows.iter().find(|r| r["consumer_repo"] == "b").unwrap();
+    assert!(link["confidence"].as_f64().unwrap_or(0.0) >= 0.9,
+        "same env name + same .env value → confidence ≥ 0.9; got {link:?}");
+}
+
+#[test]
+fn workspace_demotes_link_when_env_value_differs() {
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let a = tmp.path().join("a");
+    let b = tmp.path().join("b");
+    fs::create_dir_all(&ws).unwrap();
+    init_repo(&a);
+    init_repo(&b);
+    fs::write(a.join("worker.py"),
+        "import os, redis\nr = redis.Redis()\nr.publish(os.environ['ORDERS_TOPIC'], msg)\n").unwrap();
+    fs::write(b.join("worker.py"),
+        "import os, redis\nr = redis.Redis()\nr.subscribe(os.environ['ORDERS_TOPIC'])\n").unwrap();
+    // .env values DIFFER — they're talking about different topics despite same env name
+    fs::write(a.join(".env.example"), "ORDERS_TOPIC=orders.created\n").unwrap();
+    fs::write(b.join(".env.example"), "ORDERS_TOPIC=invoices.placed\n").unwrap();
+
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", a.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", b.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "index", "--root", ws.to_str().unwrap()]);
+
+    let text = fs::read_to_string(ws.join(".sigil-workspace/contract_links.jsonl")).unwrap();
+    let rows: Vec<serde_json::Value> = text.lines().filter(|l| !l.is_empty())
+        .map(|l| serde_json::from_str(l).expect("JSON")).collect();
+    // Different env values → either no link emitted, or link emitted with low
+    // confidence and explicit notes. Either is acceptable.
+    for r in &rows {
+        if r["consumer_repo"] == "b" {
+            let c = r["confidence"].as_f64().unwrap_or(1.0);
+            assert!(c <= 0.6,
+                "different env values → confidence ≤ 0.6; got {r:?}");
+        }
+    }
+}
+
+#[test]
 fn workspace_contract_links_apply_nginx_rewrite_prefix() {
     let tmp = TempDir::new().unwrap();
     let ws = tmp.path().join("ws");

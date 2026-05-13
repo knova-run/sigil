@@ -728,9 +728,54 @@ fn scan_go(file: &str, text: &str) -> Vec<ContractRow> {
     let mut out = Vec::new();
     // Go pub-sub (go-redis Publish/Subscribe + nats.go Publish/Subscribe).
     for (i, line) in text.lines().enumerate() {
+        // Env-var fallback for Go publish/subscribe — go-redis's
+        // `rdb.Publish(ctx, os.Getenv("TOPIC"), payload)`. Skip the
+        // ctx arg (first positional) and parse the second.
+        if line.contains(".Publish(") && !line.contains("\".") {
+            // Heuristic: only attempt env-var fallback when no string
+            // literal precedes the `)`. Cheap pre-check: no quote chars
+            // between `.Publish(` and the matching `)`. Falls through
+            // when a literal IS present (handled by redis_go_publish_re).
+            static GO_ENV_PUB_RE: OnceLock<Regex> = OnceLock::new();
+            let go_pub = GO_ENV_PUB_RE.get_or_init(|| {
+                Regex::new(r#"\.Publish\s*\(\s*[A-Za-z_][A-Za-z0-9_]*\s*,\s*((?:os\.Getenv|os\.LookupEnv)\s*\(\s*"([A-Z][A-Z0-9_]*)"\s*\))"#).unwrap()
+            });
+            if let Some(caps) = go_pub.captures(line) {
+                let name = caps[2].to_string();
+                out.push(ContractRow {
+                    contract_id: format!("topic::$ENV.{name}"),
+                    kind: "topic".to_string(), role: "publisher".to_string(),
+                    method: None, path: None, topic: Some(format!("$ENV.{name}")),
+                    file: file.to_string(), line: (i + 1) as u32,
+                    language: "go".to_string(), framework: "redis".to_string(),
+                });
+                continue;
+            }
+        }
+        if line.contains(".Subscribe(") && !line.matches('"').count() > 0 {
+            // Fall through if a literal is present.
+        }
+        // Go env-var fallback for Subscribe (handles single env-var arg).
+        if line.contains(".Subscribe(") {
+            static GO_ENV_SUB_RE: OnceLock<Regex> = OnceLock::new();
+            let go_sub = GO_ENV_SUB_RE.get_or_init(|| {
+                Regex::new(r#"\.Subscribe\s*\(\s*[A-Za-z_][A-Za-z0-9_]*\s*,\s*(?:os\.Getenv|os\.LookupEnv)\s*\(\s*"([A-Z][A-Z0-9_]*)"\s*\)"#).unwrap()
+            });
+            if let Some(caps) = go_sub.captures(line) {
+                let name = caps[1].to_string();
+                out.push(ContractRow {
+                    contract_id: format!("topic::$ENV.{name}"),
+                    kind: "topic".to_string(), role: "subscriber".to_string(),
+                    method: None, path: None, topic: Some(format!("$ENV.{name}")),
+                    file: file.to_string(), line: (i + 1) as u32,
+                    language: "go".to_string(), framework: "redis".to_string(),
+                });
+                continue;
+            }
+        }
         if let Some(caps) = redis_go_publish_re().captures(line) {
             let topic = caps[1].to_string();
-            let framework = if topic.contains('.') { "nats" } else { "redis" };
+            let framework = if topic.starts_with("$ENV.") || !topic.contains('.') { "redis" } else { "nats" };
             out.push(ContractRow {
                 contract_id: format!("topic::{topic}"),
                 kind: "topic".to_string(),
@@ -751,7 +796,7 @@ fn scan_go(file: &str, text: &str) -> Vec<ContractRow> {
             let after = &line[args_start..];
             for cap in quoted_topic_args_re().captures_iter(after) {
                 let topic = cap[1].to_string();
-                let framework = if topic.contains('.') { "nats" } else { "redis" };
+                let framework = if topic.starts_with("$ENV.") || !topic.contains('.') { "redis" } else { "nats" };
                 out.push(ContractRow {
                     contract_id: format!("topic::{topic}"),
                     kind: "topic".to_string(),
@@ -977,7 +1022,7 @@ fn scan_java(file: &str, text: &str) -> Vec<ContractRow> {
     for (i, line) in text.lines().enumerate() {
         if let Some(caps) = redis_publish_re().captures(line) {
             let topic = caps[1].to_string();
-            let framework = if topic.contains('.') { "nats" } else { "redis" };
+            let framework = if topic.starts_with("$ENV.") || !topic.contains('.') { "redis" } else { "nats" };
             out.push(ContractRow {
                 contract_id: format!("topic::{topic}"),
                 kind: "topic".to_string(), role: "publisher".to_string(),
@@ -989,7 +1034,7 @@ fn scan_java(file: &str, text: &str) -> Vec<ContractRow> {
         }
         if redis_subscribe_re().is_match(line) {
             for topic in extract_subscribe_topics(line) {
-                let framework = if topic.contains('.') { "nats" } else { "redis" };
+                let framework = if topic.starts_with("$ENV.") || !topic.contains('.') { "redis" } else { "nats" };
                 out.push(ContractRow {
                     contract_id: format!("topic::{topic}"),
                     kind: "topic".to_string(), role: "subscriber".to_string(),
@@ -1418,7 +1463,7 @@ fn scan_rust(file: &str, text: &str) -> Vec<ContractRow> {
         // Rust redis-rs publish
         if let Some(caps) = rust_redis_publish_re().captures(line) {
             let topic = caps[1].to_string();
-            let framework = if topic.contains('.') { "nats" } else { "redis" };
+            let framework = if topic.starts_with("$ENV.") || !topic.contains('.') { "redis" } else { "nats" };
             out.push(ContractRow {
                 contract_id: format!("topic::{topic}"),
                 kind: "topic".to_string(), role: "publisher".to_string(),
@@ -1430,7 +1475,7 @@ fn scan_rust(file: &str, text: &str) -> Vec<ContractRow> {
         }
         if rust_redis_subscribe_re().is_match(line) {
             for topic in extract_subscribe_topics(line) {
-                let framework = if topic.contains('.') { "nats" } else { "redis" };
+                let framework = if topic.starts_with("$ENV.") || !topic.contains('.') { "redis" } else { "nats" };
                 out.push(ContractRow {
                     contract_id: format!("topic::{topic}"),
                     kind: "topic".to_string(), role: "subscriber".to_string(),
@@ -1446,7 +1491,7 @@ fn scan_rust(file: &str, text: &str) -> Vec<ContractRow> {
             let verb = &caps[1];
             let topic = caps[2].to_string();
             let role = if verb == "publish" { "publisher" } else { "subscriber" };
-            let framework = if topic.contains('.') { "nats" } else { "redis" };
+            let framework = if topic.starts_with("$ENV.") || !topic.contains('.') { "redis" } else { "nats" };
             out.push(ContractRow {
                 contract_id: format!("topic::{topic}"),
                 kind: "topic".to_string(), role: role.to_string(),
@@ -1557,7 +1602,7 @@ fn scan_php(file: &str, text: &str) -> Vec<ContractRow> {
     for (i, line) in text.lines().enumerate() {
         if let Some(caps) = php_pub.captures(line) {
             let topic = caps[1].to_string();
-            let framework = if topic.contains('.') { "nats" } else { "redis" };
+            let framework = if topic.starts_with("$ENV.") || !topic.contains('.') { "redis" } else { "nats" };
             out.push(ContractRow {
                 contract_id: format!("topic::{topic}"),
                 kind: "topic".to_string(), role: "publisher".to_string(),
@@ -1571,7 +1616,7 @@ fn scan_php(file: &str, text: &str) -> Vec<ContractRow> {
             // arg-extractor picks up the topic args.
             let normalised = line.replace("->subscribe", ".subscribe");
             for topic in extract_subscribe_topics(&normalised) {
-                let framework = if topic.contains('.') { "nats" } else { "redis" };
+                let framework = if topic.starts_with("$ENV.") || !topic.contains('.') { "redis" } else { "nats" };
                 out.push(ContractRow {
                     contract_id: format!("topic::{topic}"),
                     kind: "topic".to_string(), role: "subscriber".to_string(),
@@ -1755,7 +1800,7 @@ fn scan_csharp(file: &str, text: &str) -> Vec<ContractRow> {
     for (i, line) in text.lines().enumerate() {
         if let Some(caps) = redis_go_publish_re().captures(line) {
             let topic = caps[1].to_string();
-            let framework = if topic.contains('.') { "nats" } else { "redis" };
+            let framework = if topic.starts_with("$ENV.") || !topic.contains('.') { "redis" } else { "nats" };
             out.push(ContractRow {
                 contract_id: format!("topic::{topic}"),
                 kind: "topic".to_string(), role: "publisher".to_string(),
@@ -1771,7 +1816,7 @@ fn scan_csharp(file: &str, text: &str) -> Vec<ContractRow> {
             let after = &line[args_start..];
             for cap in quoted_topic_args_re().captures_iter(after) {
                 let topic = cap[1].to_string();
-                let framework = if topic.contains('.') { "nats" } else { "redis" };
+                let framework = if topic.starts_with("$ENV.") || !topic.contains('.') { "redis" } else { "nats" };
                 out.push(ContractRow {
                     contract_id: format!("topic::{topic}"),
                     kind: "topic".to_string(), role: "subscriber".to_string(),
@@ -2666,6 +2711,141 @@ fn py_grpc_stub_re() -> &'static Regex {
     })
 }
 
+// ─── Env-var-aware topic resolution ──────────────────────────────────────────
+//
+// When a publish/subscribe arg is `os.environ['X']` / `process.env.X` /
+// `ENV['X']` / `os.Getenv("X")` etc., sigil can't statically know the
+// VALUE of X — but the env-var NAME is itself usable as a contract
+// identity (the team convention is to use the same env-var name in
+// every service that talks to the same topic).
+//
+// The matcher emits these as `topic::$ENV.<varname>`. Workspace-level
+// `.env` / `docker-compose.yml` / `values.yaml` parsing later resolves
+// these to literal values for stronger matching (see workspace.rs).
+
+/// Try to extract an env-var name from a single argument expression.
+/// Recognises every common syntax across languages:
+///
+///   * Python: `os.environ['X']`, `os.environ.get('X')`, `os.getenv('X')`,
+///             `os.getenv('X', default)`
+///   * JS/TS:  `process.env.X`, `process.env['X']`, `process.env["X"]`,
+///             `import.meta.env.X`
+///   * Ruby:   `ENV['X']`, `ENV.fetch('X')`, `ENV['X'] || 'default'`
+///   * PHP:    `getenv('X')`, `$_ENV['X']`, `$_SERVER['X']`
+///   * Go:     `os.Getenv("X")`, `os.LookupEnv("X")`
+///   * Rust:   `std::env::var("X")`, `env::var("X")`, `env!("X")`
+///   * Java:   `System.getenv("X")`
+///   * C#:     `Environment.GetEnvironmentVariable("X")`
+fn extract_env_var_ref(arg: &str) -> Option<String> {
+    let a = arg.trim();
+    // Match the recognised env-var lookup forms, returning the var name.
+    static RE: OnceLock<Regex> = OnceLock::new();
+    let re = RE.get_or_init(|| {
+        Regex::new(
+            r#"(?x)
+              (?: os\.environ(?:\.get)?     # Python os.environ['X'] / .get('X')
+                  | os\.getenv              # Python os.getenv('X')
+                  | os\.Getenv              # Go os.Getenv("X")
+                  | os\.LookupEnv           # Go os.LookupEnv("X")
+                  | process\.env\.         # JS process.env.X
+                  | process\.env           # JS process.env['X']
+                  | import\.meta\.env\.    # Vite/ESM import.meta.env.X
+                  | import\.meta\.env       # Vite/ESM import.meta.env['X']
+                  | ENV\.fetch              # Ruby ENV.fetch('X')
+                  | ENV                     # Ruby ENV['X']
+                  | getenv                  # PHP getenv('X')
+                  | \$_ENV                  # PHP $_ENV['X']
+                  | \$_SERVER               # PHP $_SERVER['X']
+                  | std::env::var           # Rust std::env::var
+                  | env::var                # Rust env::var
+                  | env!                    # Rust env!
+                  | System\.getenv          # Java System.getenv("X")
+                  | Environment\.GetEnvironmentVariable  # C#
+              )
+              \s* [\[\(]? \s*
+              ['"]?([A-Z][A-Z0-9_]*)['"]?
+            "#,
+        )
+        .unwrap()
+    });
+    re.captures(a).and_then(|c| c.get(1)).map(|m| m.as_str().to_string())
+}
+
+/// Topic descriptor used by `emit_pubsub_rows` and friends. A topic
+/// argument either resolves to a string literal, an env-var reference,
+/// or nothing static (dynamic — fstring / function call / etc.).
+#[derive(Debug, Clone)]
+enum TopicArg {
+    Literal(String),
+    Env(String),
+}
+
+impl TopicArg {
+    /// Build the contract_id for this topic, prefixing env vars with
+    /// `$ENV.` so they stay distinct from literal topic names.
+    fn to_contract_id(&self) -> String {
+        match self {
+            TopicArg::Literal(s) => format!("topic::{s}"),
+            TopicArg::Env(name) => format!("topic::$ENV.{name}"),
+        }
+    }
+
+    fn topic_field(&self) -> String {
+        match self {
+            TopicArg::Literal(s) => s.clone(),
+            TopicArg::Env(name) => format!("$ENV.{name}"),
+        }
+    }
+}
+
+/// Try to interpret a free-form argument expression as either a literal
+/// string or an env-var reference. Returns None for anything else
+/// (fstring, function call, identifier without a known constant).
+fn parse_topic_arg(arg: &str) -> Option<TopicArg> {
+    let a = arg.trim();
+    // Literal string — try both single and double quote variants.
+    static LIT_RE: OnceLock<Regex> = OnceLock::new();
+    let lit_re = LIT_RE.get_or_init(|| {
+        Regex::new(r#"^['"`]([A-Za-z0-9_][\w./:\-]*)['"`]\s*$"#).unwrap()
+    });
+    if let Some(c) = lit_re.captures(a) {
+        return Some(TopicArg::Literal(c[1].to_string()));
+    }
+    // Env-var reference.
+    extract_env_var_ref(a).map(TopicArg::Env)
+}
+
+/// Capture the full first-argument expression from a method call on
+/// `line` whose method matches one of the verbs. Used by env-aware
+/// pub-sub detection: when the existing regex didn't match because
+/// the first arg isn't a string literal, fall back to this looser
+/// extraction and re-interpret via `parse_topic_arg`.
+fn extract_first_arg_after_method(line: &str, method_names: &[&str]) -> Option<String> {
+    for m in method_names {
+        let needle = format!(".{m}(");
+        if let Some(idx) = line.find(&needle) {
+            let after = &line[idx + needle.len()..];
+            // Paren-balance to find the boundary of arg 1.
+            let bytes = after.as_bytes();
+            let mut depth = 1i32;
+            let mut end = 0usize;
+            for i in 0..bytes.len() {
+                match bytes[i] {
+                    b'(' | b'[' | b'{' => depth += 1,
+                    b')' | b']' | b'}' => {
+                        depth -= 1;
+                        if depth == 0 { end = i; break; }
+                    }
+                    b',' if depth == 1 => { end = i; break; }
+                    _ => {}
+                }
+            }
+            return Some(after[..end].to_string());
+        }
+    }
+    None
+}
+
 // ─── Redis / NATS pub-sub ────────────────────────────────────────────────────
 
 fn redis_publish_re() -> &'static Regex {
@@ -2721,13 +2901,41 @@ fn quoted_topic_args_re() -> &'static Regex {
     RE.get_or_init(|| Regex::new(r#"['"]([A-Za-z0-9_][\w./:\->]*)['"]"#).unwrap())
 }
 
+/// Walk a comma-separated argument list at depth 1 of a method call's
+/// parens. Returns the raw string of each top-level argument. Handles
+/// nested parens/brackets/braces correctly so a single env-var lookup
+/// `os.environ['X']` is one argument, not a sequence of three.
+fn split_top_level_args(args: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut depth = 0i32;
+    let mut start = 0;
+    let bytes = args.as_bytes();
+    for i in 0..bytes.len() {
+        match bytes[i] {
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            b',' if depth == 0 => {
+                out.push(args[start..i].trim().to_string());
+                start = i + 1;
+            }
+            _ => {}
+        }
+    }
+    let tail = args[start..].trim().to_string();
+    if !tail.is_empty() {
+        out.push(tail);
+    }
+    out
+}
+
 /// Determine whether a Redis-style `<client>.subscribe(...)` line is
 /// truly a pub/sub subscribe vs something HTTP/JS-shaped (e.g. RxJS
-/// `observable.subscribe(...)`). Gate: at least one argument must be
-/// a string literal that looks like a topic name.
+/// `observable.subscribe(...)`). Walks the top-level arguments and
+/// parses each as either a literal topic or an env-var reference.
+/// Returns canonical contract topic identifiers (e.g. `orders` or
+/// `$ENV.ORDERS_TOPIC`).
 fn extract_subscribe_topics(line: &str) -> Vec<String> {
     let mut out = Vec::new();
-    // Find the `(...)` argument list of the matching subscribe call.
     let Some(start) = line.find(".subscribe(") else { return out };
     let after = &line[start + ".subscribe(".len()..];
     // Bound the scan to the first closing `)` at depth 0.
@@ -2747,8 +2955,11 @@ fn extract_subscribe_topics(line: &str) -> Vec<String> {
         }
     }
     let args = &after[..end];
-    for caps in quoted_topic_args_re().captures_iter(args) {
-        out.push(caps[1].to_string());
+    for arg in split_top_level_args(args) {
+        if let Some(topic) = parse_topic_arg(&arg) {
+            // Literal → bare name; env → $ENV.<name>.
+            out.push(topic.topic_field());
+        }
     }
     out
 }
@@ -2762,12 +2973,13 @@ fn extract_subscribe_topics(line: &str) -> Vec<String> {
 /// backed event buses use instead of plain pub/sub.
 fn emit_pubsub_rows(file: &str, text: &str, language: &str, out: &mut Vec<ContractRow>) {
     for (i, line) in text.lines().enumerate() {
+        let mut publisher_matched = false;
         if let Some(caps) = redis_publish_re().captures(line) {
             let topic = caps[1].to_string();
             // Distinguish Redis from NATS by surrounding context. NATS
             // subjects conventionally use dotted hierarchy (`events.x.y`)
             // — if the topic contains a `.`, prefer NATS framework tag.
-            let framework = if topic.contains('.') { "nats" } else { "redis" };
+            let framework = if topic.starts_with("$ENV.") || !topic.contains('.') { "redis" } else { "nats" };
             out.push(ContractRow {
                 contract_id: format!("topic::{topic}"),
                 kind: "topic".to_string(),
@@ -2780,10 +2992,34 @@ fn emit_pubsub_rows(file: &str, text: &str, language: &str, out: &mut Vec<Contra
                 language: language.to_string(),
                 framework: framework.to_string(),
             });
+            publisher_matched = true;
         }
+        // Env-var fallback for publisher: when the line has `.publish(`
+        // but the literal-string regex didn't fire, try parsing the
+        // first arg as an env-var ref.
+        if !publisher_matched && line.contains(".publish(") {
+            if let Some(arg) = extract_first_arg_after_method(line, &["publish"])
+                && let Some(topic_arg) = parse_topic_arg(&arg)
+                && matches!(topic_arg, TopicArg::Env(_))
+            {
+                out.push(ContractRow {
+                    contract_id: topic_arg.to_contract_id(),
+                    kind: "topic".to_string(),
+                    role: "publisher".to_string(),
+                    method: None,
+                    path: None,
+                    topic: Some(topic_arg.topic_field()),
+                    file: file.to_string(),
+                    line: (i + 1) as u32,
+                    language: language.to_string(),
+                    framework: "redis".to_string(),
+                });
+            }
+        }
+        let mut subscriber_matched = false;
         if redis_subscribe_re().is_match(line) {
             for topic in extract_subscribe_topics(line) {
-                let framework = if topic.contains('.') { "nats" } else { "redis" };
+                let framework = if topic.starts_with("$ENV.") || !topic.contains('.') { "redis" } else { "nats" };
                 out.push(ContractRow {
                     contract_id: format!("topic::{topic}"),
                     kind: "topic".to_string(),
@@ -2795,6 +3031,27 @@ fn emit_pubsub_rows(file: &str, text: &str, language: &str, out: &mut Vec<Contra
                     line: (i + 1) as u32,
                     language: language.to_string(),
                     framework: framework.to_string(),
+                });
+                subscriber_matched = true;
+            }
+        }
+        // Env-var fallback for subscriber.
+        if !subscriber_matched && line.contains(".subscribe(") {
+            if let Some(arg) = extract_first_arg_after_method(line, &["subscribe"])
+                && let Some(topic_arg) = parse_topic_arg(&arg)
+                && matches!(topic_arg, TopicArg::Env(_))
+            {
+                out.push(ContractRow {
+                    contract_id: topic_arg.to_contract_id(),
+                    kind: "topic".to_string(),
+                    role: "subscriber".to_string(),
+                    method: None,
+                    path: None,
+                    topic: Some(topic_arg.topic_field()),
+                    file: file.to_string(),
+                    line: (i + 1) as u32,
+                    language: language.to_string(),
+                    framework: "redis".to_string(),
                 });
             }
         }
