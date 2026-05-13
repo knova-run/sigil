@@ -14548,316 +14548,339 @@
 {"file":"src/parser/javascript.rs","caller":"extract_method","name":"filter_js_tokens","kind":"call","line":918,"confidence":0.95}
 {"file":"src/parser/javascript.rs","caller":"extract_method","name":"extract_tokens","kind":"call","line":918,"confidence":0.5}
 {"file":"src/parser/javascript.rs","caller":"extract_method","name":"push_symbol","kind":"call","line":920,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"Node","kind":"type_annotation","line":934}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"Option","kind":"type_annotation","line":937}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"Vec","kind":"type_annotation","line":938}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"SymbolEntry","kind":"type_annotation","line":938}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"node_line_range","kind":"call","line":940,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"node\n        .parent()\n        .map(|p| p.kind() == \"export_statement\")\n        .unwrap_or","kind":"call","line":942}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"node\n        .parent()\n        .map","kind":"call","line":942}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"node\n        .parent","kind":"call","line":942}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"p.kind","kind":"call","line":944}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"\"public\".to_string","kind":"call","line":947}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"\"private\".to_string","kind":"call","line":949}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"node.kind","kind":"call","line":953}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"node.child(0)\n            .map(|c| node_text(c, source) == \"const\")\n            .unwrap_or","kind":"call","line":954}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"node.child(0)\n            .map","kind":"call","line":954}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"node.child","kind":"call","line":954}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"node_text","kind":"call","line":955,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"node.walk","kind":"call","line":960}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"node.children","kind":"call","line":961}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"child.kind","kind":"call","line":962}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"find_child_by_field","kind":"call","line":963,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"find_child_by_field","kind":"call","line":964,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"n.kind","kind":"call","line":968}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"node_text","kind":"call","line":971,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"value_node\n                    .map(|v| {\n                        matches!(\n                            v.kind(),\n                            \"arrow_function\"\n                                | \"function\"\n                                | \"function_expression\"\n                                | \"generator_function\"\n                        )\n                    })\n                    .unwrap_or","kind":"call","line":974}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"value_node\n                    .map","kind":"call","line":974}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"name.chars().all","kind":"call","line":989}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"name.chars","kind":"call","line":989}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"c.is_uppercase","kind":"call","line":989}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"name.len","kind":"call","line":990}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"value_node.and_then","kind":"call","line":1004}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"filter_js_tokens","kind":"call","line":1004,"confidence":0.95}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"extract_tokens","kind":"call","line":1004,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"value_node.map","kind":"call","line":1013}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"truncate_sig","kind":"call","line":1013,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"node_text","kind":"call","line":1013,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"symbols.push","kind":"call","line":1016}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"file_path.to_string","kind":"call","line":1017}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"kind.to_string","kind":"call","line":1019}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"parent_ctx.map","kind":"call","line":1021}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"visibility.clone","kind":"call","line":1024}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"String::new","kind":"call","line":1026}
-{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"Vec::new","kind":"call","line":1027}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"Node","kind":"type_annotation","line":1035}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"Vec","kind":"type_annotation","line":1038}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"SymbolEntry","kind":"type_annotation","line":1038}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"Vec","kind":"type_annotation","line":1039}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"ReferenceEntry","kind":"type_annotation","line":1039}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"node_line_range","kind":"call","line":1041,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"find_child_by_field(node, \"source\")\n        .map(|n| {\n            let raw = node_text(n, source);\n            strip_string_quotes(&raw)\n        })\n        .unwrap_or_default","kind":"call","line":1044}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"find_child_by_field(node, \"source\")\n        .map","kind":"call","line":1044}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"find_child_by_field","kind":"call","line":1044,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"node_text","kind":"call","line":1046,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"strip_string_quotes","kind":"call","line":1047,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"node.walk","kind":"call","line":1051}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"node.children","kind":"call","line":1052}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"child.kind","kind":"call","line":1053}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"child.walk","kind":"call","line":1054}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"child.children","kind":"call","line":1055}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"clause_child.kind","kind":"call","line":1056}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"node_text","kind":"call","line":1059,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"source_module.clone","kind":"call","line":1060}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"push_symbol","kind":"call","line":1061,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"full_name.clone","kind":"call","line":1064}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"\"private\".to_string","kind":"call","line":1070}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"references.push","kind":"call","line":1073}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"file_path.to_string","kind":"call","line":1074}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"\"import\".to_string","kind":"call","line":1076}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"String::new","kind":"call","line":1079}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"clause_child.walk","kind":"call","line":1085}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"clause_child.children","kind":"call","line":1086}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"spec.kind","kind":"call","line":1087}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"find_child_by_field(spec, \"name\").map","kind":"call","line":1089}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"find_child_by_field","kind":"call","line":1089,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"node_text","kind":"call","line":1089,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"find_child_by_field(spec, \"alias\")\n                                    .map","kind":"call","line":1090}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"find_child_by_field","kind":"call","line":1090,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"node_text","kind":"call","line":1091,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"push_symbol","kind":"call","line":1095,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"full_name.clone","kind":"call","line":1098}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"\"private\".to_string","kind":"call","line":1104}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"references.push","kind":"call","line":1107}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"file_path.to_string","kind":"call","line":1108}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"\"import\".to_string","kind":"call","line":1110}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"String::new","kind":"call","line":1113}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"find_child_by_field(clause_child, \"alias\")\n                            .or_else(|| {\n                                // In some grammars, the identifier is a direct child\n                                let mut c = clause_child.walk();\n                                clause_child\n                                    .children(&mut c)\n                                    .find(|n| n.kind() == \"identifier\")\n                            })\n                            .map","kind":"call","line":1122}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"find_child_by_field(clause_child, \"alias\")\n                            .or_else","kind":"call","line":1122}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"find_child_by_field","kind":"call","line":1122,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"clause_child.walk","kind":"call","line":1125}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"clause_child\n                                    .children(&mut c)\n                                    .find","kind":"call","line":1126}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"clause_child\n                                    .children","kind":"call","line":1126}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"n.kind","kind":"call","line":1128}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"node_text","kind":"call","line":1130,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"push_symbol","kind":"call","line":1132,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"full_name.clone","kind":"call","line":1135}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"\"private\".to_string","kind":"call","line":1141}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"references.push","kind":"call","line":1144}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"file_path.to_string","kind":"call","line":1145}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"\"import\".to_string","kind":"call","line":1147}
-{"file":"src/parser/javascript.rs","caller":"extract_import","name":"String::new","kind":"call","line":1150}
-{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"Node","kind":"type_annotation","line":1168}
-{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"Vec","kind":"type_annotation","line":1171}
-{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"SymbolEntry","kind":"type_annotation","line":1171}
-{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"Vec","kind":"type_annotation","line":1172}
-{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"ReferenceEntry","kind":"type_annotation","line":1172}
-{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"node_line_range","kind":"call","line":1174,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"find_child_by_field","kind":"call","line":1176,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"strip_string_quotes(&node_text(source_node, source)).to_string","kind":"call","line":1179}
-{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"strip_string_quotes","kind":"call","line":1179,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"node_text","kind":"call","line":1179,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"node.walk","kind":"call","line":1181}
-{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"node.children","kind":"call","line":1182}
-{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"child.kind","kind":"call","line":1183}
-{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"child.walk","kind":"call","line":1186}
-{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"child.children","kind":"call","line":1187}
-{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"spec.kind","kind":"call","line":1188}
-{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"find_child_by_field(spec, \"name\").map","kind":"call","line":1191}
-{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"find_child_by_field","kind":"call","line":1191,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"node_text","kind":"call","line":1191,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"find_child_by_field(spec, \"alias\")\n                        .map(|n| node_text(n, source))\n                        .or_else","kind":"call","line":1192}
-{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"find_child_by_field(spec, \"alias\")\n                        .map","kind":"call","line":1192}
-{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"find_child_by_field","kind":"call","line":1192,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"node_text","kind":"call","line":1193,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"imp_name.clone","kind":"call","line":1194}
-{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"push_symbol","kind":"call","line":1197,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"full_name.clone","kind":"call","line":1200}
-{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"\"private\".to_string","kind":"call","line":1206}
-{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"references.push","kind":"call","line":1208}
-{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"file_path.to_string","kind":"call","line":1209}
-{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"\"import\".to_string","kind":"call","line":1211}
-{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"String::new","kind":"call","line":1214}
-{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"push_symbol","kind":"call","line":1223,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"full_name.clone","kind":"call","line":1226}
-{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"\"private\".to_string","kind":"call","line":1232}
-{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"references.push","kind":"call","line":1234}
-{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"file_path.to_string","kind":"call","line":1235}
-{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"\"import\".to_string","kind":"call","line":1237}
-{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"String::new","kind":"call","line":1240}
-{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"Node","kind":"type_annotation","line":1250}
-{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"Option","kind":"type_annotation","line":1253}
-{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"Vec","kind":"type_annotation","line":1254}
-{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"TextEntry","kind":"type_annotation","line":1254}
-{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"node_text","kind":"call","line":1256,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"node_line_range","kind":"call","line":1257,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"raw.starts_with","kind":"call","line":1259}
-{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"strip_block_comment","kind":"call","line":1261,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"raw.starts_with","kind":"call","line":1263}
-{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"strip_block_comment","kind":"call","line":1264,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"raw.starts_with","kind":"call","line":1266}
-{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"raw.strip_prefix(\"//\").unwrap_or(&raw).trim().to_string","kind":"call","line":1267}
-{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"raw.strip_prefix(\"//\").unwrap_or(&raw).trim","kind":"call","line":1267}
-{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"raw.strip_prefix(\"//\").unwrap_or","kind":"call","line":1267}
-{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"raw.strip_prefix","kind":"call","line":1267}
-{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"is_trivial_text","kind":"call","line":1273,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"texts.push","kind":"call","line":1277}
-{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"file_path.to_string","kind":"call","line":1278}
-{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"kind.to_string","kind":"call","line":1279}
-{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"parent_ctx.map","kind":"call","line":1282}
-{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"String::new","kind":"call","line":1283}
-{"file":"src/parser/javascript.rs","caller":"build_function_signature","name":"Node","kind":"type_annotation","line":1287}
-{"file":"src/parser/javascript.rs","caller":"build_function_signature","name":"String","kind":"type_annotation","line":1287}
-{"file":"src/parser/javascript.rs","caller":"build_function_signature","name":"find_child_by_field(node, \"parameters\")\n        .map(|n| node_text(n, source))\n        .unwrap_or_else","kind":"call","line":1288}
-{"file":"src/parser/javascript.rs","caller":"build_function_signature","name":"find_child_by_field(node, \"parameters\")\n        .map","kind":"call","line":1288}
-{"file":"src/parser/javascript.rs","caller":"build_function_signature","name":"find_child_by_field","kind":"call","line":1288,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"build_function_signature","name":"node_text","kind":"call","line":1289,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"build_function_signature","name":"\"()\".to_string","kind":"call","line":1290}
-{"file":"src/parser/javascript.rs","caller":"build_function_signature","name":"node.child(0).map(|c| c.kind() == \"async\").unwrap_or","kind":"call","line":1292}
-{"file":"src/parser/javascript.rs","caller":"build_function_signature","name":"node.child(0).map","kind":"call","line":1292}
-{"file":"src/parser/javascript.rs","caller":"build_function_signature","name":"node.child","kind":"call","line":1292}
-{"file":"src/parser/javascript.rs","caller":"build_function_signature","name":"c.kind","kind":"call","line":1292}
-{"file":"src/parser/javascript.rs","caller":"build_function_signature","name":"node.kind","kind":"call","line":1294}
-{"file":"src/parser/javascript.rs","caller":"build_class_signature","name":"Node","kind":"type_annotation","line":1306}
-{"file":"src/parser/javascript.rs","caller":"build_class_signature","name":"String","kind":"type_annotation","line":1306}
-{"file":"src/parser/javascript.rs","caller":"build_class_signature","name":"find_child_by_field(node, \"heritage\")\n        .or_else(|| {\n            let mut cursor = node.walk();\n            node.children(&mut cursor)\n                .find(|c| c.kind() == \"class_heritage\")\n        })\n        .map(|n| {\n            let text = node_text(n, source);\n            format!(\" {text}\")\n        })\n        .unwrap_or_default","kind":"call","line":1308}
-{"file":"src/parser/javascript.rs","caller":"build_class_signature","name":"find_child_by_field(node, \"heritage\")\n        .or_else(|| {\n            let mut cursor = node.walk();\n            node.children(&mut cursor)\n                .find(|c| c.kind() == \"class_heritage\")\n        })\n        .map","kind":"call","line":1308}
-{"file":"src/parser/javascript.rs","caller":"build_class_signature","name":"find_child_by_field(node, \"heritage\")\n        .or_else","kind":"call","line":1308}
-{"file":"src/parser/javascript.rs","caller":"build_class_signature","name":"find_child_by_field","kind":"call","line":1308,"confidence":0.5}
-{"file":"src/parser/javascript.rs","caller":"build_class_signature","name":"node.walk","kind":"call","line":1310}
-{"file":"src/parser/javascript.rs","caller":"build_class_signature","name":"node.children(&mut cursor)\n                .find","kind":"call","line":1311}
-{"file":"src/parser/javascript.rs","caller":"build_class_signature","name":"node.children","kind":"call","line":1311}
-{"file":"src/parser/javascript.rs","caller":"build_class_signature","name":"c.kind","kind":"call","line":1312}
-{"file":"src/parser/javascript.rs","caller":"build_class_signature","name":"node_text","kind":"call","line":1315,"confidence":0.5}
-{"file":"src/parser/javascript.rs","name":"super::*","kind":"import","line":1325}
-{"file":"src/parser/javascript.rs","name":"crate::parser::treesitter::parse_file","kind":"import","line":1326}
-{"file":"src/parser/javascript.rs","caller":"find_sym","name":"SymbolEntry","kind":"type_annotation","line":1328}
-{"file":"src/parser/javascript.rs","caller":"find_sym","name":"SymbolEntry","kind":"type_annotation","line":1328}
-{"file":"src/parser/javascript.rs","caller":"find_sym","name":"symbols\n            .iter()\n            .find(|s| s.name == name)\n            .unwrap_or_else","kind":"call","line":1329}
-{"file":"src/parser/javascript.rs","caller":"find_sym","name":"symbols\n            .iter()\n            .find","kind":"call","line":1329}
-{"file":"src/parser/javascript.rs","caller":"find_sym","name":"symbols\n            .iter","kind":"call","line":1329}
-{"file":"src/parser/javascript.rs","caller":"js_bare_call_gets_tier1_confidence","name":"parse_file(source, \"javascript\", \"t.js\").unwrap","kind":"call","line":1341}
-{"file":"src/parser/javascript.rs","caller":"js_bare_call_gets_tier1_confidence","name":"parse_file","kind":"call","line":1341,"confidence":0.8}
-{"file":"src/parser/javascript.rs","caller":"js_bare_call_gets_tier1_confidence","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1341,"confidence":0.8}
-{"file":"src/parser/javascript.rs","caller":"js_bare_call_gets_tier1_confidence","name":"refs\n            .iter()\n            .find(|r| r.kind == \"call\" && r.name == \"helper\")\n            .expect","kind":"call","line":1342}
-{"file":"src/parser/javascript.rs","caller":"js_bare_call_gets_tier1_confidence","name":"refs\n            .iter()\n            .find","kind":"call","line":1342}
-{"file":"src/parser/javascript.rs","caller":"js_bare_call_gets_tier1_confidence","name":"refs\n            .iter","kind":"call","line":1342}
-{"file":"src/parser/javascript.rs","caller":"js_bare_call_gets_tier1_confidence","name":"refs.iter().find","kind":"call","line":1347}
-{"file":"src/parser/javascript.rs","caller":"js_bare_call_gets_tier1_confidence","name":"refs.iter","kind":"call","line":1347}
-{"file":"src/parser/javascript.rs","caller":"js_named_import_call_gets_tier2_two_edges","name":"parse_file(source, \"javascript\", \"t.js\").unwrap","kind":"call","line":1359}
-{"file":"src/parser/javascript.rs","caller":"js_named_import_call_gets_tier2_two_edges","name":"parse_file","kind":"call","line":1359,"confidence":0.8}
-{"file":"src/parser/javascript.rs","caller":"js_named_import_call_gets_tier2_two_edges","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1359,"confidence":0.8}
-{"file":"src/parser/javascript.rs","caller":"js_named_import_call_gets_tier2_two_edges","name":"refs\n            .iter()\n            .find(|r| r.kind == \"call\" && r.name == \"helper\")\n            .expect","kind":"call","line":1360}
-{"file":"src/parser/javascript.rs","caller":"js_named_import_call_gets_tier2_two_edges","name":"refs\n            .iter()\n            .find","kind":"call","line":1360}
-{"file":"src/parser/javascript.rs","caller":"js_named_import_call_gets_tier2_two_edges","name":"refs\n            .iter","kind":"call","line":1360}
-{"file":"src/parser/javascript.rs","caller":"js_named_import_call_gets_tier2_two_edges","name":"refs\n            .iter()\n            .find(|r| r.kind == \"call\" && r.name == \"./utils.helper/\")\n            .expect","kind":"call","line":1365}
-{"file":"src/parser/javascript.rs","caller":"js_named_import_call_gets_tier2_two_edges","name":"refs\n            .iter()\n            .find","kind":"call","line":1365}
-{"file":"src/parser/javascript.rs","caller":"js_named_import_call_gets_tier2_two_edges","name":"refs\n            .iter","kind":"call","line":1365}
-{"file":"src/parser/javascript.rs","caller":"js_namespace_import_member_call_resolves_tier2","name":"parse_file(source, \"javascript\", \"t.js\").unwrap","kind":"call","line":1377}
-{"file":"src/parser/javascript.rs","caller":"js_namespace_import_member_call_resolves_tier2","name":"parse_file","kind":"call","line":1377,"confidence":0.8}
-{"file":"src/parser/javascript.rs","caller":"js_namespace_import_member_call_resolves_tier2","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1377,"confidence":0.8}
-{"file":"src/parser/javascript.rs","caller":"js_namespace_import_member_call_resolves_tier2","name":"refs\n            .iter()\n            .find(|r| r.kind == \"call\" && r.name == \"np.array\")\n            .expect","kind":"call","line":1378}
-{"file":"src/parser/javascript.rs","caller":"js_namespace_import_member_call_resolves_tier2","name":"refs\n            .iter()\n            .find","kind":"call","line":1378}
-{"file":"src/parser/javascript.rs","caller":"js_namespace_import_member_call_resolves_tier2","name":"refs\n            .iter","kind":"call","line":1378}
-{"file":"src/parser/javascript.rs","caller":"js_namespace_import_member_call_resolves_tier2","name":"refs\n            .iter()\n            .find(|r| r.kind == \"call\" && r.name == \"numpy/array\")\n            .expect","kind":"call","line":1383}
-{"file":"src/parser/javascript.rs","caller":"js_namespace_import_member_call_resolves_tier2","name":"refs\n            .iter()\n            .find","kind":"call","line":1383}
-{"file":"src/parser/javascript.rs","caller":"js_namespace_import_member_call_resolves_tier2","name":"refs\n            .iter","kind":"call","line":1383}
-{"file":"src/parser/javascript.rs","caller":"test_js_functions","name":"parse_file(source, \"javascript\", \"test.js\").unwrap","kind":"call","line":1403}
-{"file":"src/parser/javascript.rs","caller":"test_js_functions","name":"parse_file","kind":"call","line":1403,"confidence":0.8}
-{"file":"src/parser/javascript.rs","caller":"test_js_functions","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1403,"confidence":0.8}
-{"file":"src/parser/javascript.rs","caller":"test_js_functions","name":"find_sym","kind":"call","line":1406,"confidence":0.95}
-{"file":"src/parser/javascript.rs","caller":"test_js_functions","name":"find_sym","kind":"call","line":1411,"confidence":0.95}
-{"file":"src/parser/javascript.rs","caller":"test_js_functions","name":"find_sym","kind":"call","line":1414,"confidence":0.95}
-{"file":"src/parser/javascript.rs","caller":"test_js_classes","name":"parse_file(source, \"javascript\", \"test.js\").unwrap","kind":"call","line":1437}
-{"file":"src/parser/javascript.rs","caller":"test_js_classes","name":"parse_file","kind":"call","line":1437,"confidence":0.8}
-{"file":"src/parser/javascript.rs","caller":"test_js_classes","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1437,"confidence":0.8}
-{"file":"src/parser/javascript.rs","caller":"test_js_classes","name":"find_sym","kind":"call","line":1439,"confidence":0.95}
-{"file":"src/parser/javascript.rs","caller":"test_js_classes","name":"find_sym","kind":"call","line":1443,"confidence":0.95}
-{"file":"src/parser/javascript.rs","caller":"test_js_classes","name":"find_sym","kind":"call","line":1447,"confidence":0.95}
-{"file":"src/parser/javascript.rs","caller":"test_js_classes","name":"find_sym","kind":"call","line":1450,"confidence":0.95}
-{"file":"src/parser/javascript.rs","caller":"test_js_variables","name":"parse_file(source, \"javascript\", \"test.js\").unwrap","kind":"call","line":1464}
-{"file":"src/parser/javascript.rs","caller":"test_js_variables","name":"parse_file","kind":"call","line":1464,"confidence":0.8}
-{"file":"src/parser/javascript.rs","caller":"test_js_variables","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1464,"confidence":0.8}
-{"file":"src/parser/javascript.rs","caller":"test_js_variables","name":"find_sym","kind":"call","line":1466,"confidence":0.95}
-{"file":"src/parser/javascript.rs","caller":"test_js_variables","name":"find_sym","kind":"call","line":1469,"confidence":0.95}
-{"file":"src/parser/javascript.rs","caller":"test_js_variables","name":"find_sym","kind":"call","line":1472,"confidence":0.95}
-{"file":"src/parser/javascript.rs","caller":"test_js_variables","name":"find_sym","kind":"call","line":1475,"confidence":0.95}
-{"file":"src/parser/javascript.rs","caller":"test_js_variables","name":"find_sym","kind":"call","line":1478,"confidence":0.95}
-{"file":"src/parser/javascript.rs","caller":"test_js_imports","name":"parse_file(source, \"javascript\", \"test.js\").unwrap","kind":"call","line":1488}
-{"file":"src/parser/javascript.rs","caller":"test_js_imports","name":"parse_file","kind":"call","line":1488,"confidence":0.8}
-{"file":"src/parser/javascript.rs","caller":"test_js_imports","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1488,"confidence":0.8}
-{"file":"src/parser/javascript.rs","caller":"test_js_imports","name":"symbols.iter().find(|s| s.name == \"react\").unwrap","kind":"call","line":1490}
-{"file":"src/parser/javascript.rs","caller":"test_js_imports","name":"symbols.iter().find","kind":"call","line":1490}
-{"file":"src/parser/javascript.rs","caller":"test_js_imports","name":"symbols.iter","kind":"call","line":1490}
-{"file":"src/parser/javascript.rs","caller":"test_js_imports","name":"symbols.iter().find(|s| s.name == \"react.useState\").unwrap","kind":"call","line":1494}
-{"file":"src/parser/javascript.rs","caller":"test_js_imports","name":"symbols.iter().find","kind":"call","line":1494}
-{"file":"src/parser/javascript.rs","caller":"test_js_imports","name":"symbols.iter","kind":"call","line":1494}
-{"file":"src/parser/javascript.rs","caller":"test_js_imports","name":"symbols.iter().find(|s| s.name == \"./utils.*\").unwrap","kind":"call","line":1497}
-{"file":"src/parser/javascript.rs","caller":"test_js_imports","name":"symbols.iter().find","kind":"call","line":1497}
-{"file":"src/parser/javascript.rs","caller":"test_js_imports","name":"symbols.iter","kind":"call","line":1497}
-{"file":"src/parser/javascript.rs","caller":"test_js_imports","name":"symbols\n            .iter()\n            .find(|s| s.name == \"react-dom.render\")\n            .unwrap","kind":"call","line":1500}
-{"file":"src/parser/javascript.rs","caller":"test_js_imports","name":"symbols\n            .iter()\n            .find","kind":"call","line":1500}
-{"file":"src/parser/javascript.rs","caller":"test_js_imports","name":"symbols\n            .iter","kind":"call","line":1500}
-{"file":"src/parser/javascript.rs","caller":"test_js_visibility","name":"parse_file(source, \"javascript\", \"test.js\").unwrap","kind":"call","line":1516}
-{"file":"src/parser/javascript.rs","caller":"test_js_visibility","name":"parse_file","kind":"call","line":1516,"confidence":0.8}
-{"file":"src/parser/javascript.rs","caller":"test_js_visibility","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1516,"confidence":0.8}
-{"file":"src/parser/javascript.rs","caller":"test_js_visibility","name":"symbols\n            .iter()\n            .find(|s| s.name == \"Foo.publicMethod\")\n            .unwrap","kind":"call","line":1518}
-{"file":"src/parser/javascript.rs","caller":"test_js_visibility","name":"symbols\n            .iter()\n            .find","kind":"call","line":1518}
-{"file":"src/parser/javascript.rs","caller":"test_js_visibility","name":"symbols\n            .iter","kind":"call","line":1518}
-{"file":"src/parser/javascript.rs","caller":"test_js_visibility","name":"symbols\n            .iter()\n            .find(|s| s.name == \"Foo._internalMethod\")\n            .unwrap","kind":"call","line":1524}
-{"file":"src/parser/javascript.rs","caller":"test_js_visibility","name":"symbols\n            .iter()\n            .find","kind":"call","line":1524}
-{"file":"src/parser/javascript.rs","caller":"test_js_visibility","name":"symbols\n            .iter","kind":"call","line":1524}
-{"file":"src/parser/javascript.rs","caller":"test_js_visibility","name":"symbols\n            .iter()\n            .find(|s| s.name == \"Foo.#privateMethod\")\n            .unwrap","kind":"call","line":1530}
-{"file":"src/parser/javascript.rs","caller":"test_js_visibility","name":"symbols\n            .iter()\n            .find","kind":"call","line":1530}
-{"file":"src/parser/javascript.rs","caller":"test_js_visibility","name":"symbols\n            .iter","kind":"call","line":1530}
-{"file":"src/parser/javascript.rs","caller":"test_js_comments","name":"parse_file(source, \"javascript\", \"test.js\").unwrap","kind":"call","line":1548}
-{"file":"src/parser/javascript.rs","caller":"test_js_comments","name":"parse_file","kind":"call","line":1548,"confidence":0.8}
-{"file":"src/parser/javascript.rs","caller":"test_js_comments","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1548,"confidence":0.8}
-{"file":"src/parser/javascript.rs","caller":"test_js_call_references","name":"parse_file(source, \"javascript\", \"test.js\").unwrap","kind":"call","line":1560}
-{"file":"src/parser/javascript.rs","caller":"test_js_call_references","name":"parse_file","kind":"call","line":1560,"confidence":0.8}
-{"file":"src/parser/javascript.rs","caller":"test_js_call_references","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1560,"confidence":0.8}
-{"file":"src/parser/javascript.rs","caller":"test_js_call_references","name":"refs.iter().filter(|r| r.kind == \"call\").collect","kind":"call","line":1562}
-{"file":"src/parser/javascript.rs","caller":"test_js_call_references","name":"refs.iter().filter","kind":"call","line":1562}
-{"file":"src/parser/javascript.rs","caller":"test_js_call_references","name":"refs.iter","kind":"call","line":1562}
-{"file":"src/parser/javascript.rs","caller":"test_js_function_decl_body_sets_caller_ctx","name":"parse_file(source, \"javascript\", \"test.js\").unwrap","kind":"call","line":1576}
-{"file":"src/parser/javascript.rs","caller":"test_js_function_decl_body_sets_caller_ctx","name":"parse_file","kind":"call","line":1576,"confidence":0.8}
-{"file":"src/parser/javascript.rs","caller":"test_js_function_decl_body_sets_caller_ctx","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1576,"confidence":0.8}
-{"file":"src/parser/javascript.rs","caller":"test_js_function_decl_body_sets_caller_ctx","name":"refs.iter().filter(|r| r.caller.as_deref() == Some(\"foo\")).collect","kind":"call","line":1577}
-{"file":"src/parser/javascript.rs","caller":"test_js_function_decl_body_sets_caller_ctx","name":"refs.iter().filter","kind":"call","line":1577}
-{"file":"src/parser/javascript.rs","caller":"test_js_function_decl_body_sets_caller_ctx","name":"refs.iter","kind":"call","line":1577}
-{"file":"src/parser/javascript.rs","caller":"test_js_function_decl_body_sets_caller_ctx","name":"r.caller.as_deref","kind":"call","line":1577}
-{"file":"src/parser/javascript.rs","caller":"test_js_function_expression_assigned_to_const_sets_caller_ctx","name":"parse_file(source, \"javascript\", \"test.js\").unwrap","kind":"call","line":1591}
-{"file":"src/parser/javascript.rs","caller":"test_js_function_expression_assigned_to_const_sets_caller_ctx","name":"parse_file","kind":"call","line":1591,"confidence":0.8}
-{"file":"src/parser/javascript.rs","caller":"test_js_function_expression_assigned_to_const_sets_caller_ctx","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1591,"confidence":0.8}
-{"file":"src/parser/javascript.rs","caller":"test_js_function_expression_assigned_to_const_sets_caller_ctx","name":"refs.iter().filter(|r| r.caller.as_deref() == Some(\"dayjs\")).collect","kind":"call","line":1592}
-{"file":"src/parser/javascript.rs","caller":"test_js_function_expression_assigned_to_const_sets_caller_ctx","name":"refs.iter().filter","kind":"call","line":1592}
-{"file":"src/parser/javascript.rs","caller":"test_js_function_expression_assigned_to_const_sets_caller_ctx","name":"refs.iter","kind":"call","line":1592}
-{"file":"src/parser/javascript.rs","caller":"test_js_function_expression_assigned_to_const_sets_caller_ctx","name":"r.caller.as_deref","kind":"call","line":1592}
-{"file":"src/parser/javascript.rs","caller":"test_js_function_expression_assigned_to_const_sets_caller_ctx","name":"refs.iter().filter(|r| r.caller.as_deref() == Some(\"arrow\")).collect","kind":"call","line":1595}
-{"file":"src/parser/javascript.rs","caller":"test_js_function_expression_assigned_to_const_sets_caller_ctx","name":"refs.iter().filter","kind":"call","line":1595}
-{"file":"src/parser/javascript.rs","caller":"test_js_function_expression_assigned_to_const_sets_caller_ctx","name":"refs.iter","kind":"call","line":1595}
-{"file":"src/parser/javascript.rs","caller":"test_js_function_expression_assigned_to_const_sets_caller_ctx","name":"r.caller.as_deref","kind":"call","line":1595}
-{"file":"src/parser/javascript.rs","caller":"test_js_bare_match_call_not_filtered_as_string_method","name":"parse_file(source, \"javascript\", \"test.js\").unwrap","kind":"call","line":1610}
-{"file":"src/parser/javascript.rs","caller":"test_js_bare_match_call_not_filtered_as_string_method","name":"parse_file","kind":"call","line":1610,"confidence":0.8}
-{"file":"src/parser/javascript.rs","caller":"test_js_bare_match_call_not_filtered_as_string_method","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1610,"confidence":0.8}
-{"file":"src/parser/javascript.rs","caller":"test_js_import_references","name":"parse_file(source, \"javascript\", \"test.js\").unwrap","kind":"call","line":1623}
-{"file":"src/parser/javascript.rs","caller":"test_js_import_references","name":"parse_file","kind":"call","line":1623,"confidence":0.8}
-{"file":"src/parser/javascript.rs","caller":"test_js_import_references","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1623,"confidence":0.8}
-{"file":"src/parser/javascript.rs","caller":"test_js_import_references","name":"refs.iter().filter(|r| r.kind == \"import\").collect","kind":"call","line":1625}
-{"file":"src/parser/javascript.rs","caller":"test_js_import_references","name":"refs.iter().filter","kind":"call","line":1625}
-{"file":"src/parser/javascript.rs","caller":"test_js_import_references","name":"refs.iter","kind":"call","line":1625}
-{"file":"src/parser/javascript.rs","caller":"test_js_instantiation_references","name":"parse_file(source, \"javascript\", \"test.js\").unwrap","kind":"call","line":1635}
-{"file":"src/parser/javascript.rs","caller":"test_js_instantiation_references","name":"parse_file","kind":"call","line":1635,"confidence":0.8}
-{"file":"src/parser/javascript.rs","caller":"test_js_instantiation_references","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1635,"confidence":0.8}
-{"file":"src/parser/javascript.rs","caller":"test_js_instantiation_references","name":"refs.iter().filter(|r| r.kind == \"instantiation\").collect","kind":"call","line":1637}
-{"file":"src/parser/javascript.rs","caller":"test_js_instantiation_references","name":"refs.iter().filter","kind":"call","line":1637}
-{"file":"src/parser/javascript.rs","caller":"test_js_instantiation_references","name":"refs.iter","kind":"call","line":1637}
-{"file":"src/parser/javascript.rs","caller":"test_js_class_heritage_references","name":"parse_file(source, \"javascript\", \"test.js\").unwrap","kind":"call","line":1648}
-{"file":"src/parser/javascript.rs","caller":"test_js_class_heritage_references","name":"parse_file","kind":"call","line":1648,"confidence":0.8}
-{"file":"src/parser/javascript.rs","caller":"test_js_class_heritage_references","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1648,"confidence":0.8}
-{"file":"src/parser/javascript.rs","caller":"test_js_class_heritage_references","name":"refs\n            .iter()\n            .filter(|r| r.kind == \"type_annotation\")\n            .collect","kind":"call","line":1650}
-{"file":"src/parser/javascript.rs","caller":"test_js_class_heritage_references","name":"refs\n            .iter()\n            .filter","kind":"call","line":1650}
-{"file":"src/parser/javascript.rs","caller":"test_js_class_heritage_references","name":"refs\n            .iter","kind":"call","line":1650}
+{"file":"src/parser/javascript.rs","caller":"extract_require_module","name":"Node","kind":"type_annotation","line":938}
+{"file":"src/parser/javascript.rs","caller":"extract_require_module","name":"Option","kind":"type_annotation","line":938}
+{"file":"src/parser/javascript.rs","caller":"extract_require_module","name":"String","kind":"type_annotation","line":938}
+{"file":"src/parser/javascript.rs","caller":"extract_require_module","name":"node.kind","kind":"call","line":939}
+{"file":"src/parser/javascript.rs","caller":"extract_require_module","name":"find_child_by_field","kind":"call","line":942,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_require_module","name":"func.kind","kind":"call","line":943}
+{"file":"src/parser/javascript.rs","caller":"extract_require_module","name":"node_text","kind":"call","line":943,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_require_module","name":"find_child_by_field","kind":"call","line":946,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_require_module","name":"args.walk","kind":"call","line":947}
+{"file":"src/parser/javascript.rs","caller":"extract_require_module","name":"args.children","kind":"call","line":948}
+{"file":"src/parser/javascript.rs","caller":"extract_require_module","name":"node_text","kind":"call","line":950,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_require_module","name":"strip_string_quotes(&raw).to_string","kind":"call","line":951}
+{"file":"src/parser/javascript.rs","caller":"extract_require_module","name":"strip_string_quotes","kind":"call","line":951,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"Node","kind":"type_annotation","line":958}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"Option","kind":"type_annotation","line":961}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"Vec","kind":"type_annotation","line":962}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"SymbolEntry","kind":"type_annotation","line":962}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"node_line_range","kind":"call","line":964,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"node\n        .parent()\n        .map(|p| p.kind() == \"export_statement\")\n        .unwrap_or","kind":"call","line":966}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"node\n        .parent()\n        .map","kind":"call","line":966}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"node\n        .parent","kind":"call","line":966}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"p.kind","kind":"call","line":968}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"\"public\".to_string","kind":"call","line":971}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"\"private\".to_string","kind":"call","line":973}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"node.kind","kind":"call","line":977}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"node.child(0)\n            .map(|c| node_text(c, source) == \"const\")\n            .unwrap_or","kind":"call","line":978}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"node.child(0)\n            .map","kind":"call","line":978}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"node.child","kind":"call","line":978}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"node_text","kind":"call","line":979,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"node.walk","kind":"call","line":984}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"node.children","kind":"call","line":985}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"child.kind","kind":"call","line":986}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"find_child_by_field","kind":"call","line":987,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"find_child_by_field","kind":"call","line":988,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"n.kind","kind":"call","line":992}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"node_text","kind":"call","line":995,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"extract_require_module","kind":"call","line":1003,"confidence":0.95}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"module.clone","kind":"call","line":1005}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"symbols.push","kind":"call","line":1006}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"file_path.to_string","kind":"call","line":1007}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"full_name.clone","kind":"call","line":1008}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"\"import\".to_string","kind":"call","line":1009}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"name.clone","kind":"call","line":1013}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"\"private\".to_string","kind":"call","line":1014}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"String::new","kind":"call","line":1016}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"Vec::new","kind":"call","line":1017}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"value_node\n                    .map(|v| {\n                        matches!(\n                            v.kind(),\n                            \"arrow_function\"\n                                | \"function\"\n                                | \"function_expression\"\n                                | \"generator_function\"\n                        )\n                    })\n                    .unwrap_or","kind":"call","line":1023}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"value_node\n                    .map","kind":"call","line":1023}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"name.chars().all","kind":"call","line":1038}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"name.chars","kind":"call","line":1038}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"c.is_uppercase","kind":"call","line":1038}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"name.len","kind":"call","line":1039}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"value_node.and_then","kind":"call","line":1053}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"filter_js_tokens","kind":"call","line":1053,"confidence":0.95}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"extract_tokens","kind":"call","line":1053,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"value_node.map","kind":"call","line":1062}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"truncate_sig","kind":"call","line":1062,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"node_text","kind":"call","line":1062,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"symbols.push","kind":"call","line":1065}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"file_path.to_string","kind":"call","line":1066}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"kind.to_string","kind":"call","line":1068}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"parent_ctx.map","kind":"call","line":1070}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"visibility.clone","kind":"call","line":1073}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"String::new","kind":"call","line":1075}
+{"file":"src/parser/javascript.rs","caller":"extract_variable_decl","name":"Vec::new","kind":"call","line":1076}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"Node","kind":"type_annotation","line":1084}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"Vec","kind":"type_annotation","line":1087}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"SymbolEntry","kind":"type_annotation","line":1087}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"Vec","kind":"type_annotation","line":1088}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"ReferenceEntry","kind":"type_annotation","line":1088}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"node_line_range","kind":"call","line":1090,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"find_child_by_field(node, \"source\")\n        .map(|n| {\n            let raw = node_text(n, source);\n            strip_string_quotes(&raw)\n        })\n        .unwrap_or_default","kind":"call","line":1093}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"find_child_by_field(node, \"source\")\n        .map","kind":"call","line":1093}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"find_child_by_field","kind":"call","line":1093,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"node_text","kind":"call","line":1095,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"strip_string_quotes","kind":"call","line":1096,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"node.walk","kind":"call","line":1100}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"node.children","kind":"call","line":1101}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"child.kind","kind":"call","line":1102}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"child.walk","kind":"call","line":1103}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"child.children","kind":"call","line":1104}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"clause_child.kind","kind":"call","line":1105}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"node_text","kind":"call","line":1108,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"source_module.clone","kind":"call","line":1109}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"push_symbol","kind":"call","line":1110,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"full_name.clone","kind":"call","line":1113}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"\"private\".to_string","kind":"call","line":1119}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"references.push","kind":"call","line":1122}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"file_path.to_string","kind":"call","line":1123}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"\"import\".to_string","kind":"call","line":1125}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"String::new","kind":"call","line":1128}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"clause_child.walk","kind":"call","line":1134}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"clause_child.children","kind":"call","line":1135}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"spec.kind","kind":"call","line":1136}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"find_child_by_field(spec, \"name\").map","kind":"call","line":1138}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"find_child_by_field","kind":"call","line":1138,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"node_text","kind":"call","line":1138,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"find_child_by_field(spec, \"alias\")\n                                    .map","kind":"call","line":1139}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"find_child_by_field","kind":"call","line":1139,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"node_text","kind":"call","line":1140,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"push_symbol","kind":"call","line":1144,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"full_name.clone","kind":"call","line":1147}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"\"private\".to_string","kind":"call","line":1153}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"references.push","kind":"call","line":1156}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"file_path.to_string","kind":"call","line":1157}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"\"import\".to_string","kind":"call","line":1159}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"String::new","kind":"call","line":1162}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"find_child_by_field(clause_child, \"alias\")\n                            .or_else(|| {\n                                // In some grammars, the identifier is a direct child\n                                let mut c = clause_child.walk();\n                                clause_child\n                                    .children(&mut c)\n                                    .find(|n| n.kind() == \"identifier\")\n                            })\n                            .map","kind":"call","line":1171}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"find_child_by_field(clause_child, \"alias\")\n                            .or_else","kind":"call","line":1171}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"find_child_by_field","kind":"call","line":1171,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"clause_child.walk","kind":"call","line":1174}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"clause_child\n                                    .children(&mut c)\n                                    .find","kind":"call","line":1175}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"clause_child\n                                    .children","kind":"call","line":1175}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"n.kind","kind":"call","line":1177}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"node_text","kind":"call","line":1179,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"push_symbol","kind":"call","line":1181,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"full_name.clone","kind":"call","line":1184}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"\"private\".to_string","kind":"call","line":1190}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"references.push","kind":"call","line":1193}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"file_path.to_string","kind":"call","line":1194}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"\"import\".to_string","kind":"call","line":1196}
+{"file":"src/parser/javascript.rs","caller":"extract_import","name":"String::new","kind":"call","line":1199}
+{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"Node","kind":"type_annotation","line":1217}
+{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"Vec","kind":"type_annotation","line":1220}
+{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"SymbolEntry","kind":"type_annotation","line":1220}
+{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"Vec","kind":"type_annotation","line":1221}
+{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"ReferenceEntry","kind":"type_annotation","line":1221}
+{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"node_line_range","kind":"call","line":1223,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"find_child_by_field","kind":"call","line":1225,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"strip_string_quotes(&node_text(source_node, source)).to_string","kind":"call","line":1228}
+{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"strip_string_quotes","kind":"call","line":1228,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"node_text","kind":"call","line":1228,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"node.walk","kind":"call","line":1230}
+{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"node.children","kind":"call","line":1231}
+{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"child.kind","kind":"call","line":1232}
+{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"child.walk","kind":"call","line":1235}
+{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"child.children","kind":"call","line":1236}
+{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"spec.kind","kind":"call","line":1237}
+{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"find_child_by_field(spec, \"name\").map","kind":"call","line":1240}
+{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"find_child_by_field","kind":"call","line":1240,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"node_text","kind":"call","line":1240,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"find_child_by_field(spec, \"alias\")\n                        .map(|n| node_text(n, source))\n                        .or_else","kind":"call","line":1241}
+{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"find_child_by_field(spec, \"alias\")\n                        .map","kind":"call","line":1241}
+{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"find_child_by_field","kind":"call","line":1241,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"node_text","kind":"call","line":1242,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"imp_name.clone","kind":"call","line":1243}
+{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"push_symbol","kind":"call","line":1246,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"full_name.clone","kind":"call","line":1249}
+{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"\"private\".to_string","kind":"call","line":1255}
+{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"references.push","kind":"call","line":1257}
+{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"file_path.to_string","kind":"call","line":1258}
+{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"\"import\".to_string","kind":"call","line":1260}
+{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"String::new","kind":"call","line":1263}
+{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"push_symbol","kind":"call","line":1272,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"full_name.clone","kind":"call","line":1275}
+{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"\"private\".to_string","kind":"call","line":1281}
+{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"references.push","kind":"call","line":1283}
+{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"file_path.to_string","kind":"call","line":1284}
+{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"\"import\".to_string","kind":"call","line":1286}
+{"file":"src/parser/javascript.rs","caller":"extract_reexport","name":"String::new","kind":"call","line":1289}
+{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"Node","kind":"type_annotation","line":1299}
+{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"Option","kind":"type_annotation","line":1302}
+{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"Vec","kind":"type_annotation","line":1303}
+{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"TextEntry","kind":"type_annotation","line":1303}
+{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"node_text","kind":"call","line":1305,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"node_line_range","kind":"call","line":1306,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"raw.starts_with","kind":"call","line":1308}
+{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"strip_block_comment","kind":"call","line":1310,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"raw.starts_with","kind":"call","line":1312}
+{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"strip_block_comment","kind":"call","line":1313,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"raw.starts_with","kind":"call","line":1315}
+{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"raw.strip_prefix(\"//\").unwrap_or(&raw).trim().to_string","kind":"call","line":1316}
+{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"raw.strip_prefix(\"//\").unwrap_or(&raw).trim","kind":"call","line":1316}
+{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"raw.strip_prefix(\"//\").unwrap_or","kind":"call","line":1316}
+{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"raw.strip_prefix","kind":"call","line":1316}
+{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"is_trivial_text","kind":"call","line":1322,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"texts.push","kind":"call","line":1326}
+{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"file_path.to_string","kind":"call","line":1327}
+{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"kind.to_string","kind":"call","line":1328}
+{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"parent_ctx.map","kind":"call","line":1331}
+{"file":"src/parser/javascript.rs","caller":"extract_js_comment","name":"String::new","kind":"call","line":1332}
+{"file":"src/parser/javascript.rs","caller":"build_function_signature","name":"Node","kind":"type_annotation","line":1336}
+{"file":"src/parser/javascript.rs","caller":"build_function_signature","name":"String","kind":"type_annotation","line":1336}
+{"file":"src/parser/javascript.rs","caller":"build_function_signature","name":"find_child_by_field(node, \"parameters\")\n        .map(|n| node_text(n, source))\n        .unwrap_or_else","kind":"call","line":1337}
+{"file":"src/parser/javascript.rs","caller":"build_function_signature","name":"find_child_by_field(node, \"parameters\")\n        .map","kind":"call","line":1337}
+{"file":"src/parser/javascript.rs","caller":"build_function_signature","name":"find_child_by_field","kind":"call","line":1337,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"build_function_signature","name":"node_text","kind":"call","line":1338,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"build_function_signature","name":"\"()\".to_string","kind":"call","line":1339}
+{"file":"src/parser/javascript.rs","caller":"build_function_signature","name":"node.child(0).map(|c| c.kind() == \"async\").unwrap_or","kind":"call","line":1341}
+{"file":"src/parser/javascript.rs","caller":"build_function_signature","name":"node.child(0).map","kind":"call","line":1341}
+{"file":"src/parser/javascript.rs","caller":"build_function_signature","name":"node.child","kind":"call","line":1341}
+{"file":"src/parser/javascript.rs","caller":"build_function_signature","name":"c.kind","kind":"call","line":1341}
+{"file":"src/parser/javascript.rs","caller":"build_function_signature","name":"node.kind","kind":"call","line":1343}
+{"file":"src/parser/javascript.rs","caller":"build_class_signature","name":"Node","kind":"type_annotation","line":1355}
+{"file":"src/parser/javascript.rs","caller":"build_class_signature","name":"String","kind":"type_annotation","line":1355}
+{"file":"src/parser/javascript.rs","caller":"build_class_signature","name":"find_child_by_field(node, \"heritage\")\n        .or_else(|| {\n            let mut cursor = node.walk();\n            node.children(&mut cursor)\n                .find(|c| c.kind() == \"class_heritage\")\n        })\n        .map(|n| {\n            let text = node_text(n, source);\n            format!(\" {text}\")\n        })\n        .unwrap_or_default","kind":"call","line":1357}
+{"file":"src/parser/javascript.rs","caller":"build_class_signature","name":"find_child_by_field(node, \"heritage\")\n        .or_else(|| {\n            let mut cursor = node.walk();\n            node.children(&mut cursor)\n                .find(|c| c.kind() == \"class_heritage\")\n        })\n        .map","kind":"call","line":1357}
+{"file":"src/parser/javascript.rs","caller":"build_class_signature","name":"find_child_by_field(node, \"heritage\")\n        .or_else","kind":"call","line":1357}
+{"file":"src/parser/javascript.rs","caller":"build_class_signature","name":"find_child_by_field","kind":"call","line":1357,"confidence":0.5}
+{"file":"src/parser/javascript.rs","caller":"build_class_signature","name":"node.walk","kind":"call","line":1359}
+{"file":"src/parser/javascript.rs","caller":"build_class_signature","name":"node.children(&mut cursor)\n                .find","kind":"call","line":1360}
+{"file":"src/parser/javascript.rs","caller":"build_class_signature","name":"node.children","kind":"call","line":1360}
+{"file":"src/parser/javascript.rs","caller":"build_class_signature","name":"c.kind","kind":"call","line":1361}
+{"file":"src/parser/javascript.rs","caller":"build_class_signature","name":"node_text","kind":"call","line":1364,"confidence":0.5}
+{"file":"src/parser/javascript.rs","name":"super::*","kind":"import","line":1374}
+{"file":"src/parser/javascript.rs","name":"crate::parser::treesitter::parse_file","kind":"import","line":1375}
+{"file":"src/parser/javascript.rs","caller":"find_sym","name":"SymbolEntry","kind":"type_annotation","line":1377}
+{"file":"src/parser/javascript.rs","caller":"find_sym","name":"SymbolEntry","kind":"type_annotation","line":1377}
+{"file":"src/parser/javascript.rs","caller":"find_sym","name":"symbols\n            .iter()\n            .find(|s| s.name == name)\n            .unwrap_or_else","kind":"call","line":1378}
+{"file":"src/parser/javascript.rs","caller":"find_sym","name":"symbols\n            .iter()\n            .find","kind":"call","line":1378}
+{"file":"src/parser/javascript.rs","caller":"find_sym","name":"symbols\n            .iter","kind":"call","line":1378}
+{"file":"src/parser/javascript.rs","caller":"js_bare_call_gets_tier1_confidence","name":"parse_file(source, \"javascript\", \"t.js\").unwrap","kind":"call","line":1390}
+{"file":"src/parser/javascript.rs","caller":"js_bare_call_gets_tier1_confidence","name":"parse_file","kind":"call","line":1390,"confidence":0.8}
+{"file":"src/parser/javascript.rs","caller":"js_bare_call_gets_tier1_confidence","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1390,"confidence":0.8}
+{"file":"src/parser/javascript.rs","caller":"js_bare_call_gets_tier1_confidence","name":"refs\n            .iter()\n            .find(|r| r.kind == \"call\" && r.name == \"helper\")\n            .expect","kind":"call","line":1391}
+{"file":"src/parser/javascript.rs","caller":"js_bare_call_gets_tier1_confidence","name":"refs\n            .iter()\n            .find","kind":"call","line":1391}
+{"file":"src/parser/javascript.rs","caller":"js_bare_call_gets_tier1_confidence","name":"refs\n            .iter","kind":"call","line":1391}
+{"file":"src/parser/javascript.rs","caller":"js_bare_call_gets_tier1_confidence","name":"refs.iter().find","kind":"call","line":1396}
+{"file":"src/parser/javascript.rs","caller":"js_bare_call_gets_tier1_confidence","name":"refs.iter","kind":"call","line":1396}
+{"file":"src/parser/javascript.rs","caller":"js_named_import_call_gets_tier2_two_edges","name":"parse_file(source, \"javascript\", \"t.js\").unwrap","kind":"call","line":1408}
+{"file":"src/parser/javascript.rs","caller":"js_named_import_call_gets_tier2_two_edges","name":"parse_file","kind":"call","line":1408,"confidence":0.8}
+{"file":"src/parser/javascript.rs","caller":"js_named_import_call_gets_tier2_two_edges","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1408,"confidence":0.8}
+{"file":"src/parser/javascript.rs","caller":"js_named_import_call_gets_tier2_two_edges","name":"refs\n            .iter()\n            .find(|r| r.kind == \"call\" && r.name == \"helper\")\n            .expect","kind":"call","line":1409}
+{"file":"src/parser/javascript.rs","caller":"js_named_import_call_gets_tier2_two_edges","name":"refs\n            .iter()\n            .find","kind":"call","line":1409}
+{"file":"src/parser/javascript.rs","caller":"js_named_import_call_gets_tier2_two_edges","name":"refs\n            .iter","kind":"call","line":1409}
+{"file":"src/parser/javascript.rs","caller":"js_named_import_call_gets_tier2_two_edges","name":"refs\n            .iter()\n            .find(|r| r.kind == \"call\" && r.name == \"./utils.helper/\")\n            .expect","kind":"call","line":1414}
+{"file":"src/parser/javascript.rs","caller":"js_named_import_call_gets_tier2_two_edges","name":"refs\n            .iter()\n            .find","kind":"call","line":1414}
+{"file":"src/parser/javascript.rs","caller":"js_named_import_call_gets_tier2_two_edges","name":"refs\n            .iter","kind":"call","line":1414}
+{"file":"src/parser/javascript.rs","caller":"js_namespace_import_member_call_resolves_tier2","name":"parse_file(source, \"javascript\", \"t.js\").unwrap","kind":"call","line":1426}
+{"file":"src/parser/javascript.rs","caller":"js_namespace_import_member_call_resolves_tier2","name":"parse_file","kind":"call","line":1426,"confidence":0.8}
+{"file":"src/parser/javascript.rs","caller":"js_namespace_import_member_call_resolves_tier2","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1426,"confidence":0.8}
+{"file":"src/parser/javascript.rs","caller":"js_namespace_import_member_call_resolves_tier2","name":"refs\n            .iter()\n            .find(|r| r.kind == \"call\" && r.name == \"np.array\")\n            .expect","kind":"call","line":1427}
+{"file":"src/parser/javascript.rs","caller":"js_namespace_import_member_call_resolves_tier2","name":"refs\n            .iter()\n            .find","kind":"call","line":1427}
+{"file":"src/parser/javascript.rs","caller":"js_namespace_import_member_call_resolves_tier2","name":"refs\n            .iter","kind":"call","line":1427}
+{"file":"src/parser/javascript.rs","caller":"js_namespace_import_member_call_resolves_tier2","name":"refs\n            .iter()\n            .find(|r| r.kind == \"call\" && r.name == \"numpy/array\")\n            .expect","kind":"call","line":1432}
+{"file":"src/parser/javascript.rs","caller":"js_namespace_import_member_call_resolves_tier2","name":"refs\n            .iter()\n            .find","kind":"call","line":1432}
+{"file":"src/parser/javascript.rs","caller":"js_namespace_import_member_call_resolves_tier2","name":"refs\n            .iter","kind":"call","line":1432}
+{"file":"src/parser/javascript.rs","caller":"test_js_functions","name":"parse_file(source, \"javascript\", \"test.js\").unwrap","kind":"call","line":1452}
+{"file":"src/parser/javascript.rs","caller":"test_js_functions","name":"parse_file","kind":"call","line":1452,"confidence":0.8}
+{"file":"src/parser/javascript.rs","caller":"test_js_functions","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1452,"confidence":0.8}
+{"file":"src/parser/javascript.rs","caller":"test_js_functions","name":"find_sym","kind":"call","line":1455,"confidence":0.95}
+{"file":"src/parser/javascript.rs","caller":"test_js_functions","name":"find_sym","kind":"call","line":1460,"confidence":0.95}
+{"file":"src/parser/javascript.rs","caller":"test_js_functions","name":"find_sym","kind":"call","line":1463,"confidence":0.95}
+{"file":"src/parser/javascript.rs","caller":"test_js_classes","name":"parse_file(source, \"javascript\", \"test.js\").unwrap","kind":"call","line":1486}
+{"file":"src/parser/javascript.rs","caller":"test_js_classes","name":"parse_file","kind":"call","line":1486,"confidence":0.8}
+{"file":"src/parser/javascript.rs","caller":"test_js_classes","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1486,"confidence":0.8}
+{"file":"src/parser/javascript.rs","caller":"test_js_classes","name":"find_sym","kind":"call","line":1488,"confidence":0.95}
+{"file":"src/parser/javascript.rs","caller":"test_js_classes","name":"find_sym","kind":"call","line":1492,"confidence":0.95}
+{"file":"src/parser/javascript.rs","caller":"test_js_classes","name":"find_sym","kind":"call","line":1496,"confidence":0.95}
+{"file":"src/parser/javascript.rs","caller":"test_js_classes","name":"find_sym","kind":"call","line":1499,"confidence":0.95}
+{"file":"src/parser/javascript.rs","caller":"test_js_variables","name":"parse_file(source, \"javascript\", \"test.js\").unwrap","kind":"call","line":1513}
+{"file":"src/parser/javascript.rs","caller":"test_js_variables","name":"parse_file","kind":"call","line":1513,"confidence":0.8}
+{"file":"src/parser/javascript.rs","caller":"test_js_variables","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1513,"confidence":0.8}
+{"file":"src/parser/javascript.rs","caller":"test_js_variables","name":"find_sym","kind":"call","line":1515,"confidence":0.95}
+{"file":"src/parser/javascript.rs","caller":"test_js_variables","name":"find_sym","kind":"call","line":1518,"confidence":0.95}
+{"file":"src/parser/javascript.rs","caller":"test_js_variables","name":"find_sym","kind":"call","line":1521,"confidence":0.95}
+{"file":"src/parser/javascript.rs","caller":"test_js_variables","name":"find_sym","kind":"call","line":1524,"confidence":0.95}
+{"file":"src/parser/javascript.rs","caller":"test_js_variables","name":"find_sym","kind":"call","line":1527,"confidence":0.95}
+{"file":"src/parser/javascript.rs","caller":"test_js_imports","name":"parse_file(source, \"javascript\", \"test.js\").unwrap","kind":"call","line":1537}
+{"file":"src/parser/javascript.rs","caller":"test_js_imports","name":"parse_file","kind":"call","line":1537,"confidence":0.8}
+{"file":"src/parser/javascript.rs","caller":"test_js_imports","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1537,"confidence":0.8}
+{"file":"src/parser/javascript.rs","caller":"test_js_imports","name":"symbols.iter().find(|s| s.name == \"react\").unwrap","kind":"call","line":1539}
+{"file":"src/parser/javascript.rs","caller":"test_js_imports","name":"symbols.iter().find","kind":"call","line":1539}
+{"file":"src/parser/javascript.rs","caller":"test_js_imports","name":"symbols.iter","kind":"call","line":1539}
+{"file":"src/parser/javascript.rs","caller":"test_js_imports","name":"symbols.iter().find(|s| s.name == \"react.useState\").unwrap","kind":"call","line":1543}
+{"file":"src/parser/javascript.rs","caller":"test_js_imports","name":"symbols.iter().find","kind":"call","line":1543}
+{"file":"src/parser/javascript.rs","caller":"test_js_imports","name":"symbols.iter","kind":"call","line":1543}
+{"file":"src/parser/javascript.rs","caller":"test_js_imports","name":"symbols.iter().find(|s| s.name == \"./utils.*\").unwrap","kind":"call","line":1546}
+{"file":"src/parser/javascript.rs","caller":"test_js_imports","name":"symbols.iter().find","kind":"call","line":1546}
+{"file":"src/parser/javascript.rs","caller":"test_js_imports","name":"symbols.iter","kind":"call","line":1546}
+{"file":"src/parser/javascript.rs","caller":"test_js_imports","name":"symbols\n            .iter()\n            .find(|s| s.name == \"react-dom.render\")\n            .unwrap","kind":"call","line":1549}
+{"file":"src/parser/javascript.rs","caller":"test_js_imports","name":"symbols\n            .iter()\n            .find","kind":"call","line":1549}
+{"file":"src/parser/javascript.rs","caller":"test_js_imports","name":"symbols\n            .iter","kind":"call","line":1549}
+{"file":"src/parser/javascript.rs","caller":"test_js_visibility","name":"parse_file(source, \"javascript\", \"test.js\").unwrap","kind":"call","line":1565}
+{"file":"src/parser/javascript.rs","caller":"test_js_visibility","name":"parse_file","kind":"call","line":1565,"confidence":0.8}
+{"file":"src/parser/javascript.rs","caller":"test_js_visibility","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1565,"confidence":0.8}
+{"file":"src/parser/javascript.rs","caller":"test_js_visibility","name":"symbols\n            .iter()\n            .find(|s| s.name == \"Foo.publicMethod\")\n            .unwrap","kind":"call","line":1567}
+{"file":"src/parser/javascript.rs","caller":"test_js_visibility","name":"symbols\n            .iter()\n            .find","kind":"call","line":1567}
+{"file":"src/parser/javascript.rs","caller":"test_js_visibility","name":"symbols\n            .iter","kind":"call","line":1567}
+{"file":"src/parser/javascript.rs","caller":"test_js_visibility","name":"symbols\n            .iter()\n            .find(|s| s.name == \"Foo._internalMethod\")\n            .unwrap","kind":"call","line":1573}
+{"file":"src/parser/javascript.rs","caller":"test_js_visibility","name":"symbols\n            .iter()\n            .find","kind":"call","line":1573}
+{"file":"src/parser/javascript.rs","caller":"test_js_visibility","name":"symbols\n            .iter","kind":"call","line":1573}
+{"file":"src/parser/javascript.rs","caller":"test_js_visibility","name":"symbols\n            .iter()\n            .find(|s| s.name == \"Foo.#privateMethod\")\n            .unwrap","kind":"call","line":1579}
+{"file":"src/parser/javascript.rs","caller":"test_js_visibility","name":"symbols\n            .iter()\n            .find","kind":"call","line":1579}
+{"file":"src/parser/javascript.rs","caller":"test_js_visibility","name":"symbols\n            .iter","kind":"call","line":1579}
+{"file":"src/parser/javascript.rs","caller":"test_js_comments","name":"parse_file(source, \"javascript\", \"test.js\").unwrap","kind":"call","line":1597}
+{"file":"src/parser/javascript.rs","caller":"test_js_comments","name":"parse_file","kind":"call","line":1597,"confidence":0.8}
+{"file":"src/parser/javascript.rs","caller":"test_js_comments","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1597,"confidence":0.8}
+{"file":"src/parser/javascript.rs","caller":"test_js_call_references","name":"parse_file(source, \"javascript\", \"test.js\").unwrap","kind":"call","line":1609}
+{"file":"src/parser/javascript.rs","caller":"test_js_call_references","name":"parse_file","kind":"call","line":1609,"confidence":0.8}
+{"file":"src/parser/javascript.rs","caller":"test_js_call_references","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1609,"confidence":0.8}
+{"file":"src/parser/javascript.rs","caller":"test_js_call_references","name":"refs.iter().filter(|r| r.kind == \"call\").collect","kind":"call","line":1611}
+{"file":"src/parser/javascript.rs","caller":"test_js_call_references","name":"refs.iter().filter","kind":"call","line":1611}
+{"file":"src/parser/javascript.rs","caller":"test_js_call_references","name":"refs.iter","kind":"call","line":1611}
+{"file":"src/parser/javascript.rs","caller":"test_js_function_decl_body_sets_caller_ctx","name":"parse_file(source, \"javascript\", \"test.js\").unwrap","kind":"call","line":1625}
+{"file":"src/parser/javascript.rs","caller":"test_js_function_decl_body_sets_caller_ctx","name":"parse_file","kind":"call","line":1625,"confidence":0.8}
+{"file":"src/parser/javascript.rs","caller":"test_js_function_decl_body_sets_caller_ctx","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1625,"confidence":0.8}
+{"file":"src/parser/javascript.rs","caller":"test_js_function_decl_body_sets_caller_ctx","name":"refs.iter().filter(|r| r.caller.as_deref() == Some(\"foo\")).collect","kind":"call","line":1626}
+{"file":"src/parser/javascript.rs","caller":"test_js_function_decl_body_sets_caller_ctx","name":"refs.iter().filter","kind":"call","line":1626}
+{"file":"src/parser/javascript.rs","caller":"test_js_function_decl_body_sets_caller_ctx","name":"refs.iter","kind":"call","line":1626}
+{"file":"src/parser/javascript.rs","caller":"test_js_function_decl_body_sets_caller_ctx","name":"r.caller.as_deref","kind":"call","line":1626}
+{"file":"src/parser/javascript.rs","caller":"test_js_function_expression_assigned_to_const_sets_caller_ctx","name":"parse_file(source, \"javascript\", \"test.js\").unwrap","kind":"call","line":1640}
+{"file":"src/parser/javascript.rs","caller":"test_js_function_expression_assigned_to_const_sets_caller_ctx","name":"parse_file","kind":"call","line":1640,"confidence":0.8}
+{"file":"src/parser/javascript.rs","caller":"test_js_function_expression_assigned_to_const_sets_caller_ctx","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1640,"confidence":0.8}
+{"file":"src/parser/javascript.rs","caller":"test_js_function_expression_assigned_to_const_sets_caller_ctx","name":"refs.iter().filter(|r| r.caller.as_deref() == Some(\"dayjs\")).collect","kind":"call","line":1641}
+{"file":"src/parser/javascript.rs","caller":"test_js_function_expression_assigned_to_const_sets_caller_ctx","name":"refs.iter().filter","kind":"call","line":1641}
+{"file":"src/parser/javascript.rs","caller":"test_js_function_expression_assigned_to_const_sets_caller_ctx","name":"refs.iter","kind":"call","line":1641}
+{"file":"src/parser/javascript.rs","caller":"test_js_function_expression_assigned_to_const_sets_caller_ctx","name":"r.caller.as_deref","kind":"call","line":1641}
+{"file":"src/parser/javascript.rs","caller":"test_js_function_expression_assigned_to_const_sets_caller_ctx","name":"refs.iter().filter(|r| r.caller.as_deref() == Some(\"arrow\")).collect","kind":"call","line":1644}
+{"file":"src/parser/javascript.rs","caller":"test_js_function_expression_assigned_to_const_sets_caller_ctx","name":"refs.iter().filter","kind":"call","line":1644}
+{"file":"src/parser/javascript.rs","caller":"test_js_function_expression_assigned_to_const_sets_caller_ctx","name":"refs.iter","kind":"call","line":1644}
+{"file":"src/parser/javascript.rs","caller":"test_js_function_expression_assigned_to_const_sets_caller_ctx","name":"r.caller.as_deref","kind":"call","line":1644}
+{"file":"src/parser/javascript.rs","caller":"test_js_bare_match_call_not_filtered_as_string_method","name":"parse_file(source, \"javascript\", \"test.js\").unwrap","kind":"call","line":1659}
+{"file":"src/parser/javascript.rs","caller":"test_js_bare_match_call_not_filtered_as_string_method","name":"parse_file","kind":"call","line":1659,"confidence":0.8}
+{"file":"src/parser/javascript.rs","caller":"test_js_bare_match_call_not_filtered_as_string_method","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1659,"confidence":0.8}
+{"file":"src/parser/javascript.rs","caller":"test_js_import_references","name":"parse_file(source, \"javascript\", \"test.js\").unwrap","kind":"call","line":1672}
+{"file":"src/parser/javascript.rs","caller":"test_js_import_references","name":"parse_file","kind":"call","line":1672,"confidence":0.8}
+{"file":"src/parser/javascript.rs","caller":"test_js_import_references","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1672,"confidence":0.8}
+{"file":"src/parser/javascript.rs","caller":"test_js_import_references","name":"refs.iter().filter(|r| r.kind == \"import\").collect","kind":"call","line":1674}
+{"file":"src/parser/javascript.rs","caller":"test_js_import_references","name":"refs.iter().filter","kind":"call","line":1674}
+{"file":"src/parser/javascript.rs","caller":"test_js_import_references","name":"refs.iter","kind":"call","line":1674}
+{"file":"src/parser/javascript.rs","caller":"test_js_instantiation_references","name":"parse_file(source, \"javascript\", \"test.js\").unwrap","kind":"call","line":1684}
+{"file":"src/parser/javascript.rs","caller":"test_js_instantiation_references","name":"parse_file","kind":"call","line":1684,"confidence":0.8}
+{"file":"src/parser/javascript.rs","caller":"test_js_instantiation_references","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1684,"confidence":0.8}
+{"file":"src/parser/javascript.rs","caller":"test_js_instantiation_references","name":"refs.iter().filter(|r| r.kind == \"instantiation\").collect","kind":"call","line":1686}
+{"file":"src/parser/javascript.rs","caller":"test_js_instantiation_references","name":"refs.iter().filter","kind":"call","line":1686}
+{"file":"src/parser/javascript.rs","caller":"test_js_instantiation_references","name":"refs.iter","kind":"call","line":1686}
+{"file":"src/parser/javascript.rs","caller":"test_js_class_heritage_references","name":"parse_file(source, \"javascript\", \"test.js\").unwrap","kind":"call","line":1697}
+{"file":"src/parser/javascript.rs","caller":"test_js_class_heritage_references","name":"parse_file","kind":"call","line":1697,"confidence":0.8}
+{"file":"src/parser/javascript.rs","caller":"test_js_class_heritage_references","name":"crate::parser::treesitter::parse_file/","kind":"call","line":1697,"confidence":0.8}
+{"file":"src/parser/javascript.rs","caller":"test_js_class_heritage_references","name":"refs\n            .iter()\n            .filter(|r| r.kind == \"type_annotation\")\n            .collect","kind":"call","line":1699}
+{"file":"src/parser/javascript.rs","caller":"test_js_class_heritage_references","name":"refs\n            .iter()\n            .filter","kind":"call","line":1699}
+{"file":"src/parser/javascript.rs","caller":"test_js_class_heritage_references","name":"refs\n            .iter","kind":"call","line":1699}
 {"file":"src/parser/kotlin.rs","name":"tree_sitter::{Node, Tree}","kind":"import","line":12}
 {"file":"src/parser/kotlin.rs","name":"crate::parser::format::{ReferenceEntry, SymbolEntry, TextEntry}","kind":"import","line":14}
 {"file":"src/parser/kotlin.rs","name":"crate::parser::helpers::*","kind":"import","line":15}
@@ -23018,141 +23041,148 @@
 {"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"path.exists","kind":"call","line":917}
 {"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"path.join","kind":"call","line":926}
 {"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"sigil_dir.exists","kind":"call","line":927}
-{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"crate::index::build_index","kind":"call","line":935}
-{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"sigil_dir.join","kind":"call","line":938}
-{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"sigil_dir.join","kind":"call","line":939}
-{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"stamp_file(&entities).unwrap_or","kind":"call","line":941}
-{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"stamp_file","kind":"call","line":941,"confidence":0.95}
-{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"refs.exists","kind":"call","line":942}
-{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"stamp_file(&refs).unwrap_or","kind":"call","line":943}
-{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"stamp_file","kind":"call","line":943,"confidence":0.95}
-{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"stamps.members.insert","kind":"call","line":948}
-{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"member.name.clone","kind":"call","line":949}
-{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"stamp_manifest_path","kind":"call","line":966,"confidence":0.95}
-{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"stamp_path.exists","kind":"call","line":972}
-{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"std::fs::read_to_string","kind":"call","line":973}
-{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"stamp_path.parent","kind":"call","line":986}
-{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"std::fs::create_dir_all(parent).ok","kind":"call","line":987}
-{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"std::fs::create_dir_all","kind":"call","line":987}
-{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"serde_json::to_string_pretty","kind":"call","line":989}
-{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"std::fs::write(&stamp_path, json + \"\\n\")\n        .with_context","kind":"call","line":990}
-{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"resolve_workspace_cross_repo","kind":"call","line":996,"confidence":0.95}
-{"file":"src/workspace.rs","caller":"list","name":"Path","kind":"type_annotation","line":1009}
-{"file":"src/workspace.rs","caller":"list","name":"Result","kind":"type_annotation","line":1009}
-{"file":"src/workspace.rs","caller":"list","name":"Vec","kind":"type_annotation","line":1009}
-{"file":"src/workspace.rs","caller":"list","name":"WorkspaceMember","kind":"type_annotation","line":1009}
-{"file":"src/workspace.rs","caller":"list","name":"read_manifest","kind":"call","line":1010,"confidence":0.95}
-{"file":"src/workspace.rs","caller":"set_disabled","name":"Path","kind":"type_annotation","line":1015}
-{"file":"src/workspace.rs","caller":"set_disabled","name":"Result","kind":"type_annotation","line":1015}
-{"file":"src/workspace.rs","caller":"set_disabled","name":"read_manifest","kind":"call","line":1016,"confidence":0.95}
-{"file":"src/workspace.rs","caller":"set_disabled","name":"canonicalize_input(Path::new(name_or_path)).ok","kind":"call","line":1018}
-{"file":"src/workspace.rs","caller":"set_disabled","name":"canonicalize_input","kind":"call","line":1018,"confidence":0.95}
-{"file":"src/workspace.rs","caller":"set_disabled","name":"Path::new","kind":"call","line":1018}
-{"file":"src/workspace.rs","caller":"set_disabled","name":"canonical_input.as_ref().map","kind":"call","line":1019}
-{"file":"src/workspace.rs","caller":"set_disabled","name":"canonical_input.as_ref","kind":"call","line":1019}
-{"file":"src/workspace.rs","caller":"set_disabled","name":"p.to_string_lossy().to_string","kind":"call","line":1019}
-{"file":"src/workspace.rs","caller":"set_disabled","name":"p.to_string_lossy","kind":"call","line":1019}
-{"file":"src/workspace.rs","caller":"set_disabled","name":"manifest.members.iter_mut().find","kind":"call","line":1021}
-{"file":"src/workspace.rs","caller":"set_disabled","name":"manifest.members.iter_mut","kind":"call","line":1021}
-{"file":"src/workspace.rs","caller":"set_disabled","name":"canonical_str.as_deref().is_some_and","kind":"call","line":1022}
-{"file":"src/workspace.rs","caller":"set_disabled","name":"canonical_str.as_deref","kind":"call","line":1022}
-{"file":"src/workspace.rs","caller":"set_disabled","name":"write_manifest","kind":"call","line":1035,"confidence":0.95}
-{"file":"src/workspace.rs","caller":"now_rfc3339","name":"String","kind":"type_annotation","line":1042}
-{"file":"src/workspace.rs","name":"std::time::{SystemTime, UNIX_EPOCH}","kind":"import","line":1043}
-{"file":"src/workspace.rs","caller":"now_rfc3339","name":"SystemTime::now()\n        .duration_since(UNIX_EPOCH)\n        .map(|d| d.as_secs())\n        .unwrap_or","kind":"call","line":1044}
-{"file":"src/workspace.rs","caller":"now_rfc3339","name":"SystemTime::now()\n        .duration_since(UNIX_EPOCH)\n        .map","kind":"call","line":1044}
-{"file":"src/workspace.rs","caller":"now_rfc3339","name":"SystemTime::now()\n        .duration_since","kind":"call","line":1044}
-{"file":"src/workspace.rs","caller":"now_rfc3339","name":"SystemTime::now","kind":"call","line":1044}
-{"file":"src/workspace.rs","caller":"now_rfc3339","name":"d.as_secs","kind":"call","line":1046}
-{"file":"src/workspace.rs","caller":"now_rfc3339","name":"civil_datetime","kind":"call","line":1048,"confidence":0.95}
-{"file":"src/workspace.rs","caller":"civil_datetime","name":"String","kind":"type_annotation","line":1053}
-{"file":"src/workspace.rs","caller":"civil_datetime","name":"epoch_secs.div_euclid","kind":"call","line":1057}
-{"file":"src/workspace.rs","caller":"civil_datetime","name":"epoch_secs.rem_euclid","kind":"call","line":1058}
-{"file":"src/workspace.rs","caller":"WorkspaceRepo","name":"String","kind":"type_annotation","line":1080}
-{"file":"src/workspace.rs","caller":"WorkspaceRepo","name":"String","kind":"type_annotation","line":1081}
-{"file":"src/workspace.rs","caller":"scan","name":"Path","kind":"type_annotation","line":1086}
-{"file":"src/workspace.rs","caller":"scan","name":"Vec","kind":"type_annotation","line":1086}
-{"file":"src/workspace.rs","caller":"scan","name":"WorkspaceRepo","kind":"type_annotation","line":1086}
-{"file":"src/workspace.rs","caller":"scan","name":"Vec::new","kind":"call","line":1087}
-{"file":"src/workspace.rs","caller":"scan","name":"std::fs::read_dir","kind":"call","line":1088}
-{"file":"src/workspace.rs","caller":"scan","name":"entries.flatten","kind":"call","line":1092}
-{"file":"src/workspace.rs","caller":"scan","name":"entry.path","kind":"call","line":1093}
-{"file":"src/workspace.rs","caller":"scan","name":"path.is_dir","kind":"call","line":1094}
-{"file":"src/workspace.rs","caller":"scan","name":"path.join","kind":"call","line":1097}
-{"file":"src/workspace.rs","caller":"scan","name":"git_meta.exists","kind":"call","line":1098}
-{"file":"src/workspace.rs","caller":"scan","name":"path\n            .file_name()\n            .map(|n| n.to_string_lossy().to_string())\n            .unwrap_or_else","kind":"call","line":1101}
-{"file":"src/workspace.rs","caller":"scan","name":"path\n            .file_name()\n            .map","kind":"call","line":1101}
-{"file":"src/workspace.rs","caller":"scan","name":"path\n            .file_name","kind":"call","line":1101}
-{"file":"src/workspace.rs","caller":"scan","name":"n.to_string_lossy().to_string","kind":"call","line":1103}
-{"file":"src/workspace.rs","caller":"scan","name":"n.to_string_lossy","kind":"call","line":1103}
-{"file":"src/workspace.rs","caller":"scan","name":"path.display().to_string","kind":"call","line":1104}
-{"file":"src/workspace.rs","caller":"scan","name":"path.display","kind":"call","line":1104}
-{"file":"src/workspace.rs","caller":"scan","name":"out.push","kind":"call","line":1105}
-{"file":"src/workspace.rs","caller":"scan","name":"path.display().to_string","kind":"call","line":1107}
-{"file":"src/workspace.rs","caller":"scan","name":"path.display","kind":"call","line":1107}
-{"file":"src/workspace.rs","caller":"scan","name":"out.sort_by","kind":"call","line":1110}
-{"file":"src/workspace.rs","caller":"scan","name":"a.repo.cmp","kind":"call","line":1110}
-{"file":"src/workspace.rs","caller":"WorkspaceResolution","name":"String","kind":"type_annotation","line":1123}
-{"file":"src/workspace.rs","caller":"WorkspaceResolution","name":"String","kind":"type_annotation","line":1125}
-{"file":"src/workspace.rs","caller":"WorkspaceResolution","name":"String","kind":"type_annotation","line":1127}
-{"file":"src/workspace.rs","caller":"WorkspaceResolution","name":"String","kind":"type_annotation","line":1129}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"Path","kind":"type_annotation","line":1153}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"Path","kind":"type_annotation","line":1154}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"Vec","kind":"type_annotation","line":1155}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"WorkspaceResolution","kind":"type_annotation","line":1155}
-{"file":"src/workspace.rs","name":"serde_json::Value","kind":"import","line":1156}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"Vec::new","kind":"call","line":1157}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"focus_repo.join","kind":"call","line":1159}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"std::fs::read_to_string","kind":"call","line":1160}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"Vec::new","kind":"call","line":1165}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"focus_text.lines","kind":"call","line":1166}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"serde_json::from_str","kind":"call","line":1167}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get(\"kind\").and_then","kind":"call","line":1168}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get","kind":"call","line":1168}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get(\"name\").and_then","kind":"call","line":1171}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get","kind":"call","line":1171}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"name.strip_prefix","kind":"call","line":1172}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"wanted.push","kind":"call","line":1173}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"modpath.to_string","kind":"call","line":1173}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"wanted.is_empty","kind":"call","line":1176}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"std::fs::canonicalize(focus_repo)\n        .unwrap_or_else","kind":"call","line":1182}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"std::fs::canonicalize","kind":"call","line":1182}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"focus_repo.to_path_buf","kind":"call","line":1183}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"scan","kind":"call","line":1185,"confidence":0.95}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"std::path::PathBuf::from","kind":"call","line":1186}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"std::fs::canonicalize(&sibling_path)\n            .unwrap_or_else","kind":"call","line":1187}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"std::fs::canonicalize","kind":"call","line":1187}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"sibling_path.clone","kind":"call","line":1188}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"sibling_path.join","kind":"call","line":1192}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"std::fs::read_to_string","kind":"call","line":1193}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"text.lines","kind":"call","line":1196}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"serde_json::from_str","kind":"call","line":1197}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get(\"kind\").and_then","kind":"call","line":1198}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get","kind":"call","line":1198}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get(\"name\").and_then(Value::as_str).unwrap_or","kind":"call","line":1201}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get(\"name\").and_then","kind":"call","line":1201}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get","kind":"call","line":1201}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get(\"file\").and_then(Value::as_str).unwrap_or","kind":"call","line":1202}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get(\"file\").and_then","kind":"call","line":1202}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get","kind":"call","line":1202}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get(\"qualified_name\").and_then","kind":"call","line":1203}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get","kind":"call","line":1203}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"w.rsplit(|c: char| c == '.' || c == '/').next().unwrap_or","kind":"call","line":1208}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"w.rsplit(|c: char| c == '.' || c == '/').next","kind":"call","line":1208}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"w.rsplit","kind":"call","line":1208}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"out.push","kind":"call","line":1210}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"w.clone","kind":"call","line":1211}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"sibling.repo.clone","kind":"call","line":1212}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"file.to_string","kind":"call","line":1213}
-{"file":"src/workspace.rs","caller":"resolve_externals","name":"name.to_string","kind":"call","line":1214}
-{"file":"src/workspace.rs","caller":"paths","name":"Path","kind":"type_annotation","line":1226}
-{"file":"src/workspace.rs","caller":"paths","name":"Vec","kind":"type_annotation","line":1226}
-{"file":"src/workspace.rs","caller":"paths","name":"PathBuf","kind":"type_annotation","line":1226}
-{"file":"src/workspace.rs","caller":"paths","name":"scan(parent)\n        .into_iter()\n        .map(|r| PathBuf::from(r.path))\n        .collect","kind":"call","line":1227}
-{"file":"src/workspace.rs","caller":"paths","name":"scan(parent)\n        .into_iter()\n        .map","kind":"call","line":1227}
-{"file":"src/workspace.rs","caller":"paths","name":"scan(parent)\n        .into_iter","kind":"call","line":1227}
-{"file":"src/workspace.rs","caller":"paths","name":"scan","kind":"call","line":1227,"confidence":0.95}
-{"file":"src/workspace.rs","caller":"paths","name":"PathBuf::from","kind":"call","line":1229}
+{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"crate::index::build_index","kind":"call","line":938}
+{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"result.refs.is_empty","kind":"call","line":942}
+{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"crate::rank::RankConfig::default","kind":"call","line":943}
+{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"crate::rank::rank_with_config","kind":"call","line":944}
+{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"crate::rank::apply_blast_radius","kind":"call","line":945}
+{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"crate::rank::RankManifest::from_ranked","kind":"call","line":946}
+{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"crate::writer::write_rank_json","kind":"call","line":947}
+{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"crate::writer::write_to_files","kind":"call","line":949}
+{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"sigil_dir.join","kind":"call","line":959}
+{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"sigil_dir.join","kind":"call","line":960}
+{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"stamp_file(&entities).unwrap_or","kind":"call","line":962}
+{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"stamp_file","kind":"call","line":962,"confidence":0.95}
+{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"refs.exists","kind":"call","line":963}
+{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"stamp_file(&refs).unwrap_or","kind":"call","line":964}
+{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"stamp_file","kind":"call","line":964,"confidence":0.95}
+{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"stamps.members.insert","kind":"call","line":969}
+{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"member.name.clone","kind":"call","line":970}
+{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"stamp_manifest_path","kind":"call","line":987,"confidence":0.95}
+{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"stamp_path.exists","kind":"call","line":993}
+{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"std::fs::read_to_string","kind":"call","line":994}
+{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"stamp_path.parent","kind":"call","line":1007}
+{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"std::fs::create_dir_all(parent).ok","kind":"call","line":1008}
+{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"std::fs::create_dir_all","kind":"call","line":1008}
+{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"serde_json::to_string_pretty","kind":"call","line":1010}
+{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"std::fs::write(&stamp_path, json + \"\\n\")\n        .with_context","kind":"call","line":1011}
+{"file":"src/workspace.rs","caller":"workspace_index_with_options","name":"resolve_workspace_cross_repo","kind":"call","line":1017,"confidence":0.95}
+{"file":"src/workspace.rs","caller":"list","name":"Path","kind":"type_annotation","line":1030}
+{"file":"src/workspace.rs","caller":"list","name":"Result","kind":"type_annotation","line":1030}
+{"file":"src/workspace.rs","caller":"list","name":"Vec","kind":"type_annotation","line":1030}
+{"file":"src/workspace.rs","caller":"list","name":"WorkspaceMember","kind":"type_annotation","line":1030}
+{"file":"src/workspace.rs","caller":"list","name":"read_manifest","kind":"call","line":1031,"confidence":0.95}
+{"file":"src/workspace.rs","caller":"set_disabled","name":"Path","kind":"type_annotation","line":1036}
+{"file":"src/workspace.rs","caller":"set_disabled","name":"Result","kind":"type_annotation","line":1036}
+{"file":"src/workspace.rs","caller":"set_disabled","name":"read_manifest","kind":"call","line":1037,"confidence":0.95}
+{"file":"src/workspace.rs","caller":"set_disabled","name":"canonicalize_input(Path::new(name_or_path)).ok","kind":"call","line":1039}
+{"file":"src/workspace.rs","caller":"set_disabled","name":"canonicalize_input","kind":"call","line":1039,"confidence":0.95}
+{"file":"src/workspace.rs","caller":"set_disabled","name":"Path::new","kind":"call","line":1039}
+{"file":"src/workspace.rs","caller":"set_disabled","name":"canonical_input.as_ref().map","kind":"call","line":1040}
+{"file":"src/workspace.rs","caller":"set_disabled","name":"canonical_input.as_ref","kind":"call","line":1040}
+{"file":"src/workspace.rs","caller":"set_disabled","name":"p.to_string_lossy().to_string","kind":"call","line":1040}
+{"file":"src/workspace.rs","caller":"set_disabled","name":"p.to_string_lossy","kind":"call","line":1040}
+{"file":"src/workspace.rs","caller":"set_disabled","name":"manifest.members.iter_mut().find","kind":"call","line":1042}
+{"file":"src/workspace.rs","caller":"set_disabled","name":"manifest.members.iter_mut","kind":"call","line":1042}
+{"file":"src/workspace.rs","caller":"set_disabled","name":"canonical_str.as_deref().is_some_and","kind":"call","line":1043}
+{"file":"src/workspace.rs","caller":"set_disabled","name":"canonical_str.as_deref","kind":"call","line":1043}
+{"file":"src/workspace.rs","caller":"set_disabled","name":"write_manifest","kind":"call","line":1056,"confidence":0.95}
+{"file":"src/workspace.rs","caller":"now_rfc3339","name":"String","kind":"type_annotation","line":1063}
+{"file":"src/workspace.rs","name":"std::time::{SystemTime, UNIX_EPOCH}","kind":"import","line":1064}
+{"file":"src/workspace.rs","caller":"now_rfc3339","name":"SystemTime::now()\n        .duration_since(UNIX_EPOCH)\n        .map(|d| d.as_secs())\n        .unwrap_or","kind":"call","line":1065}
+{"file":"src/workspace.rs","caller":"now_rfc3339","name":"SystemTime::now()\n        .duration_since(UNIX_EPOCH)\n        .map","kind":"call","line":1065}
+{"file":"src/workspace.rs","caller":"now_rfc3339","name":"SystemTime::now()\n        .duration_since","kind":"call","line":1065}
+{"file":"src/workspace.rs","caller":"now_rfc3339","name":"SystemTime::now","kind":"call","line":1065}
+{"file":"src/workspace.rs","caller":"now_rfc3339","name":"d.as_secs","kind":"call","line":1067}
+{"file":"src/workspace.rs","caller":"now_rfc3339","name":"civil_datetime","kind":"call","line":1069,"confidence":0.95}
+{"file":"src/workspace.rs","caller":"civil_datetime","name":"String","kind":"type_annotation","line":1074}
+{"file":"src/workspace.rs","caller":"civil_datetime","name":"epoch_secs.div_euclid","kind":"call","line":1078}
+{"file":"src/workspace.rs","caller":"civil_datetime","name":"epoch_secs.rem_euclid","kind":"call","line":1079}
+{"file":"src/workspace.rs","caller":"WorkspaceRepo","name":"String","kind":"type_annotation","line":1101}
+{"file":"src/workspace.rs","caller":"WorkspaceRepo","name":"String","kind":"type_annotation","line":1102}
+{"file":"src/workspace.rs","caller":"scan","name":"Path","kind":"type_annotation","line":1107}
+{"file":"src/workspace.rs","caller":"scan","name":"Vec","kind":"type_annotation","line":1107}
+{"file":"src/workspace.rs","caller":"scan","name":"WorkspaceRepo","kind":"type_annotation","line":1107}
+{"file":"src/workspace.rs","caller":"scan","name":"Vec::new","kind":"call","line":1108}
+{"file":"src/workspace.rs","caller":"scan","name":"std::fs::read_dir","kind":"call","line":1109}
+{"file":"src/workspace.rs","caller":"scan","name":"entries.flatten","kind":"call","line":1113}
+{"file":"src/workspace.rs","caller":"scan","name":"entry.path","kind":"call","line":1114}
+{"file":"src/workspace.rs","caller":"scan","name":"path.is_dir","kind":"call","line":1115}
+{"file":"src/workspace.rs","caller":"scan","name":"path.join","kind":"call","line":1118}
+{"file":"src/workspace.rs","caller":"scan","name":"git_meta.exists","kind":"call","line":1119}
+{"file":"src/workspace.rs","caller":"scan","name":"path\n            .file_name()\n            .map(|n| n.to_string_lossy().to_string())\n            .unwrap_or_else","kind":"call","line":1122}
+{"file":"src/workspace.rs","caller":"scan","name":"path\n            .file_name()\n            .map","kind":"call","line":1122}
+{"file":"src/workspace.rs","caller":"scan","name":"path\n            .file_name","kind":"call","line":1122}
+{"file":"src/workspace.rs","caller":"scan","name":"n.to_string_lossy().to_string","kind":"call","line":1124}
+{"file":"src/workspace.rs","caller":"scan","name":"n.to_string_lossy","kind":"call","line":1124}
+{"file":"src/workspace.rs","caller":"scan","name":"path.display().to_string","kind":"call","line":1125}
+{"file":"src/workspace.rs","caller":"scan","name":"path.display","kind":"call","line":1125}
+{"file":"src/workspace.rs","caller":"scan","name":"out.push","kind":"call","line":1126}
+{"file":"src/workspace.rs","caller":"scan","name":"path.display().to_string","kind":"call","line":1128}
+{"file":"src/workspace.rs","caller":"scan","name":"path.display","kind":"call","line":1128}
+{"file":"src/workspace.rs","caller":"scan","name":"out.sort_by","kind":"call","line":1131}
+{"file":"src/workspace.rs","caller":"scan","name":"a.repo.cmp","kind":"call","line":1131}
+{"file":"src/workspace.rs","caller":"WorkspaceResolution","name":"String","kind":"type_annotation","line":1144}
+{"file":"src/workspace.rs","caller":"WorkspaceResolution","name":"String","kind":"type_annotation","line":1146}
+{"file":"src/workspace.rs","caller":"WorkspaceResolution","name":"String","kind":"type_annotation","line":1148}
+{"file":"src/workspace.rs","caller":"WorkspaceResolution","name":"String","kind":"type_annotation","line":1150}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"Path","kind":"type_annotation","line":1174}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"Path","kind":"type_annotation","line":1175}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"Vec","kind":"type_annotation","line":1176}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"WorkspaceResolution","kind":"type_annotation","line":1176}
+{"file":"src/workspace.rs","name":"serde_json::Value","kind":"import","line":1177}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"Vec::new","kind":"call","line":1178}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"focus_repo.join","kind":"call","line":1180}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"std::fs::read_to_string","kind":"call","line":1181}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"Vec::new","kind":"call","line":1186}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"focus_text.lines","kind":"call","line":1187}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"serde_json::from_str","kind":"call","line":1188}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get(\"kind\").and_then","kind":"call","line":1189}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get","kind":"call","line":1189}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get(\"name\").and_then","kind":"call","line":1192}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get","kind":"call","line":1192}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"name.strip_prefix","kind":"call","line":1193}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"wanted.push","kind":"call","line":1194}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"modpath.to_string","kind":"call","line":1194}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"wanted.is_empty","kind":"call","line":1197}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"std::fs::canonicalize(focus_repo)\n        .unwrap_or_else","kind":"call","line":1203}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"std::fs::canonicalize","kind":"call","line":1203}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"focus_repo.to_path_buf","kind":"call","line":1204}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"scan","kind":"call","line":1206,"confidence":0.95}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"std::path::PathBuf::from","kind":"call","line":1207}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"std::fs::canonicalize(&sibling_path)\n            .unwrap_or_else","kind":"call","line":1208}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"std::fs::canonicalize","kind":"call","line":1208}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"sibling_path.clone","kind":"call","line":1209}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"sibling_path.join","kind":"call","line":1213}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"std::fs::read_to_string","kind":"call","line":1214}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"text.lines","kind":"call","line":1217}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"serde_json::from_str","kind":"call","line":1218}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get(\"kind\").and_then","kind":"call","line":1219}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get","kind":"call","line":1219}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get(\"name\").and_then(Value::as_str).unwrap_or","kind":"call","line":1222}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get(\"name\").and_then","kind":"call","line":1222}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get","kind":"call","line":1222}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get(\"file\").and_then(Value::as_str).unwrap_or","kind":"call","line":1223}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get(\"file\").and_then","kind":"call","line":1223}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get","kind":"call","line":1223}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get(\"qualified_name\").and_then","kind":"call","line":1224}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"e.get","kind":"call","line":1224}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"w.rsplit(|c: char| c == '.' || c == '/').next().unwrap_or","kind":"call","line":1229}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"w.rsplit(|c: char| c == '.' || c == '/').next","kind":"call","line":1229}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"w.rsplit","kind":"call","line":1229}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"out.push","kind":"call","line":1231}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"w.clone","kind":"call","line":1232}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"sibling.repo.clone","kind":"call","line":1233}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"file.to_string","kind":"call","line":1234}
+{"file":"src/workspace.rs","caller":"resolve_externals","name":"name.to_string","kind":"call","line":1235}
+{"file":"src/workspace.rs","caller":"paths","name":"Path","kind":"type_annotation","line":1247}
+{"file":"src/workspace.rs","caller":"paths","name":"Vec","kind":"type_annotation","line":1247}
+{"file":"src/workspace.rs","caller":"paths","name":"PathBuf","kind":"type_annotation","line":1247}
+{"file":"src/workspace.rs","caller":"paths","name":"scan(parent)\n        .into_iter()\n        .map(|r| PathBuf::from(r.path))\n        .collect","kind":"call","line":1248}
+{"file":"src/workspace.rs","caller":"paths","name":"scan(parent)\n        .into_iter()\n        .map","kind":"call","line":1248}
+{"file":"src/workspace.rs","caller":"paths","name":"scan(parent)\n        .into_iter","kind":"call","line":1248}
+{"file":"src/workspace.rs","caller":"paths","name":"scan","kind":"call","line":1248,"confidence":0.95}
+{"file":"src/workspace.rs","caller":"paths","name":"PathBuf::from","kind":"call","line":1250}
 {"file":"src/writer.rs","name":"std::io::Write","kind":"import","line":1}
 {"file":"src/writer.rs","name":"std::path::Path","kind":"import","line":2}
 {"file":"src/writer.rs","name":"crate::entity::{Entity, Reference}","kind":"import","line":3}

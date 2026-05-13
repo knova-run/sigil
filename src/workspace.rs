@@ -929,10 +929,31 @@ pub fn workspace_index_with_options(workspace_root: &Path, full: bool) -> Result
                 "workspace index: auto-building .sigil/ for '{}' ({})",
                 member.name, member.path
             );
-            // Best-effort; the per-repo build pipeline writes its own
-            // .sigil/ atomically. We don't need to inspect the result —
-            // we re-stat below.
-            let _ = crate::index::build_index(&path, None, false, true, true, false);
+            // Mirror the persistence pass `Cli::Index` does after
+            // `build_index`: write entities + refs to JSONL, then run a
+            // rank + blast-radius pass and persist rank.json. Without
+            // this the `.sigil/` directory never lands on disk and the
+            // subsequent stamp + cross-repo resolver runs against
+            // nothing.
+            let mut result = crate::index::build_index(
+                &path, None, /* full */ true, /* include_refs */ true,
+                /* tier3 */ true, /* verbose */ false,
+            );
+            if !result.refs.is_empty() {
+                let cfg = crate::rank::RankConfig::default();
+                let ranked = crate::rank::rank_with_config(&result.entities, &result.refs, &cfg);
+                crate::rank::apply_blast_radius(&mut result.entities, &ranked);
+                let rank_manifest = crate::rank::RankManifest::from_ranked(&ranked, &cfg);
+                let _ = crate::writer::write_rank_json(&rank_manifest, &path, /* pretty */ false);
+            }
+            if let Err(e) = crate::writer::write_to_files(
+                &result.entities, &result.refs, &path, /* pretty */ false,
+            ) {
+                eprintln!(
+                    "workspace index: failed to write .sigil/ for '{}': {}",
+                    member.name, e
+                );
+            }
         }
 
         let entities = sigil_dir.join("entities.jsonl");
