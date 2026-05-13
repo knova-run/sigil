@@ -90,6 +90,49 @@ fn lang_for(file: &str) -> Option<&'static str> {
 /// The tail segment of a `::`-qualified name, or `None` if the name has
 /// no `::` (i.e., is already bare). Used so qualified ref names are
 /// looked up under both the full path and the unqualified tail.
+/// Enumerate each meaningful class prefix of a caller string, for use
+/// in `refs_by_caller` indexing. For `Sinatra::Base.foo` returns
+/// [`Sinatra::Base`, `Base`, `Sinatra`] — so `callees Base` reaches
+/// the method's outgoing calls even though the caller is stored as
+/// `Sinatra::Base.foo`. At each prefix step we ALSO emit the
+/// qualified tail of that prefix, mirroring the qualified-tail
+/// indexing on the callee side. Skips the full caller (already
+/// indexed) and empty strings.
+fn caller_prefixes(caller: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    let mut cur = caller.to_string();
+    loop {
+        // Pick the split that yields the LONGER head — corresponds to
+        // the latest separator in the string. Handles mixed
+        // `Sinatra::Base.foo` cases correctly.
+        let by_dot = cur.rsplit_once('.').map(|(h, _)| h.to_string());
+        let by_cc = cur.rsplit_once("::").map(|(h, _)| h.to_string());
+        let next = match (by_dot, by_cc) {
+            (Some(d), Some(c)) => if d.len() > c.len() { d } else { c },
+            (Some(d), None) => d,
+            (None, Some(c)) => c,
+            _ => break,
+        };
+        if next.is_empty() || next == cur {
+            break;
+        }
+        out.push(next.clone());
+        // Also emit the bare leaf segment of this prefix so a lookup
+        // by the inner class name (e.g. `Base`) reaches refs whose
+        // caller has an outer namespace (e.g. `Sinatra::Base.foo` OR
+        // the dot-normalized `Rack.Protection.Base.call`). The leaf
+        // is whichever separator (`.` or `::`) comes latest in the
+        // string.
+        if let Some(leaf) = bare_leaf(&next) {
+            if leaf != next {
+                out.push(leaf.to_string());
+            }
+        }
+        cur = next;
+    }
+    out
+}
+
 fn qualified_tail(name: &str) -> Option<&str> {
     let tail = name.rsplit("::").next().unwrap_or(name);
     if tail.len() == name.len() {
@@ -97,6 +140,22 @@ fn qualified_tail(name: &str) -> Option<&str> {
     } else {
         Some(tail)
     }
+}
+
+/// Bare-leaf segment after the LATEST `.` or `::` separator. Handles
+/// both Ruby-style `Rack.Protection.Base` (dot-normalized namespaces)
+/// and Rust/Ruby `Sinatra::Base`. Returns None when `name` has no
+/// separator (i.e., is already bare).
+fn bare_leaf(name: &str) -> Option<&str> {
+    let dot_pos = name.rfind('.');
+    let cc_pos = name.rfind("::");
+    let cut = match (dot_pos, cc_pos) {
+        (Some(d), Some(c)) => Some(if d > c + 1 { d + 1 } else { c + 2 }),
+        (Some(d), None) => Some(d + 1),
+        (None, Some(c)) => Some(c + 2),
+        _ => None,
+    }?;
+    Some(&name[cut..])
 }
 
 /// In-memory index over sigil's entities and references.
@@ -154,18 +213,16 @@ impl Index {
             }
             if let Some(caller) = &r.caller {
                 refs_by_caller.entry(caller.clone()).or_default().push(i);
-                // Also index under the class prefix so `callees Moshi`
-                // returns refs whose caller is `Moshi.foo` / `Moshi::foo`.
-                // Mirrors `refs_by_name`'s qualified-tail indexing on the
-                // callee side — same symmetry for the caller side.
-                if let Some(head) = caller
-                    .rsplit_once("::")
-                    .or_else(|| caller.rsplit_once('.'))
-                    .map(|(h, _)| h)
-                {
-                    if !head.is_empty() && head != caller {
-                        refs_by_caller.entry(head.to_string()).or_default().push(i);
-                    }
+                // Also index under each progressive class prefix so
+                // `callees Moshi` returns refs whose caller is
+                // `Moshi.foo`, AND `callees Base` returns refs whose
+                // caller is `Sinatra::Base.foo`. Two-level fan-out is
+                // needed because mixed `::` + `.` separators (Ruby
+                // emits `Sinatra::Base.method`) carry two split points.
+                // Symmetric with `refs_by_name`'s qualified-tail
+                // indexing on the callee side.
+                for head in caller_prefixes(caller) {
+                    refs_by_caller.entry(head).or_default().push(i);
                 }
             }
             refs_by_file.entry(r.file.clone()).or_default().push(i);
@@ -633,6 +690,56 @@ mod tests {
         assert_eq!(from_main.len(), 2);
         let from_helper: Vec<_> = idx.refs_from("helper").collect();
         assert_eq!(from_helper.len(), 1);
+    }
+
+    #[test]
+    fn refs_from_matches_method_scoped_caller_via_mixed_separator_prefixes() {
+        // Ruby emits caller=`Sinatra::Base.foo` (mixed `::` + `.`).
+        // `callees Base` should reach those refs because `Base` is the
+        // qualified tail of `Sinatra::Base`, which is itself the class
+        // prefix of `Sinatra::Base.foo`.
+        let idx = Index::build(
+            vec![],
+            vec![
+                refr("a.rb", Some("Sinatra::Base.foo"), "log", "call"),
+                refr("a.rb", Some("Sinatra::Base.bar"), "puts", "call"),
+            ],
+        );
+        let from_base: Vec<_> = idx.refs_from("Base").collect();
+        assert_eq!(
+            from_base.len(),
+            2,
+            "callees of class `Base` should reach refs whose caller is `Sinatra::Base.<method>`; got {:?}",
+            from_base.iter().map(|r| (&r.caller, &r.name)).collect::<Vec<_>>(),
+        );
+        let from_qualified: Vec<_> = idx.refs_from("Sinatra::Base").collect();
+        assert_eq!(from_qualified.len(), 2, "intermediate prefix also indexed");
+    }
+
+    #[test]
+    fn refs_from_matches_nested_dot_only_caller_via_inner_class_leaf() {
+        // Ruby parser normalizes `::` namespace separators to `.`, so a
+        // class body method like `Rack::Protection::Base#call` is stored
+        // with caller `Rack.Protection.Base.call`. Looking up `callees
+        // Base` (the bare class name) MUST reach this ref — the inner
+        // class is what the user wants to navigate by, even though
+        // there is no `::` separator anywhere in the caller string.
+        let idx = Index::build(
+            vec![],
+            vec![
+                refr("a.rb", Some("Rack.Protection.Base.call"), "puts", "call"),
+                refr("a.rb", Some("Rack.Protection.Base.debug"), "log", "call"),
+            ],
+        );
+        let from_base: Vec<_> = idx.refs_from("Base").collect();
+        assert_eq!(
+            from_base.len(),
+            2,
+            "callees of class `Base` should reach refs whose caller is `Rack.Protection.Base.<method>`; got {:?}",
+            from_base.iter().map(|r| (&r.caller, &r.name)).collect::<Vec<_>>(),
+        );
+        let from_qualified: Vec<_> = idx.refs_from("Rack.Protection.Base").collect();
+        assert_eq!(from_qualified.len(), 2, "intermediate prefix also indexed");
     }
 
     #[test]
