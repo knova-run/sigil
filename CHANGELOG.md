@@ -6,6 +6,91 @@ All notable changes to sigil are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-05-14 — agent-loop context improvements + native MCP server
+
+### Added
+
+- **`sigil mcp` — native Model Context Protocol stdio server** (issue
+  #39). Built on the official [rmcp 1.7](https://docs.rs/rmcp/) SDK
+  with `tokio` as the async runtime. Exposes sigil's structural
+  intelligence as 5 deterministic tools clients can call directly:
+  * `sigil_search` — substring search over symbols + files; returns
+    short-keyed hits.
+  * `get_context` — per-symbol context bundle (batched over
+    multiple targets). Accepts bare names, qualified forms
+    (`file::Class::method`), or bare file paths.
+  * `get_overview` — `sigil map`-shaped architecture map with top
+    entities per subsystem.
+  * `get_dead_code` — framework-aware dead-code findings
+    partitioned into `safe_to_delete` (>= 0.85, file-level +
+    exported-orphan tier, matching `sigil dead-code --safe-only`)
+    and `review_first` (< 0.85, internal helpers).
+  * `get_why` — three-mode decision-record search (free-text /
+    file-path / no-args dashboard).
+  All input JSON schemas are auto-derived via `schemars`. Loads the
+  index once on startup, services JSON-RPC requests until stdin
+  closes. No LLM dependency, no API key.
+
+- **6th MCP tool `get_answer` — RAG synthesis via MCP sampling**
+  (issue #41). Capability-aware: captures the client's
+  `capabilities.sampling` from the `initialize` handshake and
+  returns a structural bundle (top-ranked entities, matching
+  decisions, citation-mandating synthesis prompt) plus
+  `sampling_supported: true|false`. When sampling is supported, the
+  client can hand `synthesis_prompt` directly to its own model via
+  `sampling/createMessage`; otherwise a fallback `note` documents
+  inline synthesis. Sigil itself performs no LLM calls — zero
+  API-key dependency preserved.
+
+- **`sigil context <unknown_symbol> --format agent|json` emits
+  structured no-match JSON on stdout** (issue #36). Shape:
+  `{q, resolved: false, reason, candidates: [{f, n, k, l}]}`.
+  Candidates come from `Index::search(Scope::All, limit=10)` with
+  edit-distance typo fallback via `suggest_similar`. Exit 2
+  unchanged. Markdown format still emits the stderr text.
+
+- **`sigil context <file_path>` returns a per-file digest** (issue
+  #37). When the query matches an indexed file path, the bundle is
+  `{q, kind:"file", f, entities:[{n,k,l:[start,end],v?,d?}],
+  top_callers, top_callees}` instead of routing to symbol
+  resolution. Top-level outline only (methods filtered out); cross-
+  file edges deduped and sorted deterministically by (file, line).
+
+- **Heritage in `sigil context` bundles** (issue #38). Two
+  complementary additions:
+  * `Context.parents` (agent JSON key `h.parents`) for class
+    entities — resolved through `extend`/`implement`/`trait_impl`
+    edges. Lets an agent see `class Flask(App):` → App without a
+    separate `sigil heritage` call.
+  * `Subclass::member` queries that miss direct resolution walk
+    the parent class's inheritance chain (BFS, depth-bounded 16)
+    looking for the member. On hit, the response carries
+    `resolved_via: "heritage"` and a file-qualified `ancestor`
+    handle (e.g. `src/flask/sansio/app.py::App`).
+
+### Changed
+
+- **DuckDB backend simplification.** `DuckDbBackend::open` and
+  `open_workspace` now use `Connection::open_in_memory()` and
+  populate TEMP tables from JSONL on every open. The on-disk
+  `.sigil/index.duckdb` and `.sigil-workspace/index.duckdb`
+  artifacts (and their `.stamp` siblings) are no longer written.
+  ~80 LOC of stamp infrastructure removed. JSONL is the
+  authoritative source. Pre-existing `.duckdb` files from prior
+  versions are ignored (not read, not deleted; users can `rm` to
+  reclaim disk).
+
+- **`sigil context` CLI help** documents the new file-path form as
+  a fourth accepted query shape.
+
+### Dependencies
+
+- Added `rmcp = "1.7"` (`server` + `macros` + `transport-io`
+  features) and its required `tokio = "1.52.3"` + `schemars = "1"`
+  peers.
+- Refreshed `blake3 1.8.5`, `tokio 1.52.3`, `tree-sitter-c 0.24.2`
+  to latest patch.
+
 ## [0.5.5] — 2026-05-13 — call-graph accuracy, 15-language heritage, DuckDB parity, cross-repo external resolve
 
 ### Added
