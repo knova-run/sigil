@@ -877,6 +877,74 @@ func main() {
     assert!(!subs.is_empty(), "expected NATS subscribers; got {nats:?}");
 }
 
+// ───── Batch 7: OpenAPI / AsyncAPI ingestion ─────
+
+#[test]
+fn detects_openapi_yaml_routes() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("openapi.yaml"),
+        r#"openapi: 3.0.0
+info:
+  title: Sample API
+  version: 1.0.0
+paths:
+  /users:
+    get:
+      summary: List users
+    post:
+      summary: Create user
+  /users/{id}:
+    get:
+      summary: Get user
+    delete:
+      summary: Delete user
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let oa: Vec<_> = rows.iter().filter(|r| r["framework"] == "openapi").collect();
+    let ids: Vec<&str> = oa.iter().map(|r| r["contract_id"].as_str().unwrap()).collect();
+    assert!(ids.contains(&"http::GET::/users"), "OpenAPI GET /users; got {ids:?}");
+    assert!(ids.contains(&"http::POST::/users"), "OpenAPI POST /users; got {ids:?}");
+    assert!(ids.contains(&"http::GET::/users/{param}"), "path param; got {ids:?}");
+    assert!(ids.contains(&"http::DELETE::/users/{param}"));
+    assert!(oa.iter().all(|r| r["role"] == "provider"),
+        "OpenAPI spec declares routes = provider; got {oa:?}");
+}
+
+#[test]
+fn detects_asyncapi_yaml_channels() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("asyncapi.yaml"),
+        r#"asyncapi: 2.6.0
+info:
+  title: Order Events
+  version: 1.0.0
+channels:
+  user/signedup:
+    publish:
+      summary: User signed up
+  order/placed:
+    subscribe:
+      summary: Order placed
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let aa: Vec<_> = rows.iter().filter(|r| r["framework"] == "asyncapi").collect();
+    let pairs: Vec<(&str, &str)> = aa.iter()
+        .map(|r| (r["contract_id"].as_str().unwrap(),
+                  r["role"].as_str().unwrap())).collect();
+    assert!(pairs.iter().any(|t| t == &("topic::user/signedup", "publisher")),
+        "AsyncAPI publish channel; got {pairs:?}");
+    assert!(pairs.iter().any(|t| t == &("topic::order/placed", "subscriber")),
+        "AsyncAPI subscribe channel; got {pairs:?}");
+}
+
 // ───── Batch 6: database table contracts ─────
 
 #[test]

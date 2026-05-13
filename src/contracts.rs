@@ -229,6 +229,7 @@ fn walk(root: &Path, dir: &Path, out: &mut Vec<ContractRow>) {
             "proto" => out.extend(scan_proto(&rel, &text)),
             "graphql" | "gql" => out.extend(scan_graphql(&rel, &text)),
             "sql" => emit_db_table_rows(&rel, &text, "sql", out),
+            "yaml" | "yml" | "json" => out.extend(scan_openapi(&rel, &text)),
             _ => {}
         }
     }
@@ -1783,6 +1784,92 @@ fn scan_csharp(file: &str, text: &str) -> Vec<ContractRow> {
     }
     emit_cloud_queue_rows(file, text, "csharp", &mut out);
     emit_db_table_rows(file, text, "csharp", &mut out);
+    out
+}
+
+// ─── OpenAPI / AsyncAPI ingestion ────────────────────────────────────────────
+//
+// When a workspace member ships an `openapi.yaml` / `asyncapi.yaml`,
+// sigil parses it as the authoritative contract. OpenAPI paths become
+// `http::<METHOD>::<path>` provider rows; AsyncAPI channels become
+// `topic::<channel>` publisher/subscriber rows. Each member that
+// publishes a spec is treated as the provider of every route it lists.
+
+fn scan_openapi(file: &str, text: &str) -> Vec<ContractRow> {
+    let mut out = Vec::new();
+    // Detect the spec kind by leading top-level key. Both OpenAPI 2.0
+    // (swagger) and 3.x expose `paths:`; AsyncAPI exposes `channels:`.
+    let is_openapi = text.contains("openapi:") || text.contains("swagger:") || text.contains("\"openapi\":") || text.contains("\"swagger\":");
+    let is_asyncapi = text.contains("asyncapi:") || text.contains("\"asyncapi\":");
+    if !is_openapi && !is_asyncapi {
+        return out;
+    }
+
+    // YAML parsing — use the existing serde_yml dep already pulled in
+    // for sigil's `yaml_index.rs`.
+    let Ok(doc): Result<serde_yml::Value, _> = serde_yml::from_str(text) else {
+        return out;
+    };
+
+    let methods = ["get", "post", "put", "delete", "patch", "options", "head"];
+
+    if is_openapi
+        && let Some(paths) = doc.get("paths").and_then(|p| p.as_mapping())
+    {
+        for (key, val) in paths {
+            let Some(path) = key.as_str() else { continue };
+            let Some(verbs) = val.as_mapping() else { continue };
+            for (method_key, _) in verbs {
+                let Some(m) = method_key.as_str() else { continue };
+                let m_lower = m.to_ascii_lowercase();
+                if !methods.contains(&m_lower.as_str()) { continue; }
+                let normalized = normalize_http_path(path);
+                let method_upper = m_lower.to_uppercase();
+                out.push(ContractRow {
+                    contract_id: format!("http::{method_upper}::{normalized}"),
+                    kind: "http".to_string(),
+                    role: "provider".to_string(),
+                    method: Some(method_upper),
+                    path: Some(normalized),
+                    topic: None,
+                    file: file.to_string(),
+                    line: 0,
+                    language: "yaml".to_string(),
+                    framework: "openapi".to_string(),
+                });
+            }
+        }
+    }
+
+    if is_asyncapi
+        && let Some(channels) = doc.get("channels").and_then(|c| c.as_mapping())
+    {
+        for (key, val) in channels {
+            let Some(channel) = key.as_str() else { continue };
+            let Some(ops) = val.as_mapping() else { continue };
+            for (op_key, _) in ops {
+                let Some(op) = op_key.as_str() else { continue };
+                let role = match op {
+                    "publish" => "publisher",
+                    "subscribe" => "subscriber",
+                    _ => continue,
+                };
+                out.push(ContractRow {
+                    contract_id: format!("topic::{channel}"),
+                    kind: "topic".to_string(),
+                    role: role.to_string(),
+                    method: None,
+                    path: None,
+                    topic: Some(channel.to_string()),
+                    file: file.to_string(),
+                    line: 0,
+                    language: "yaml".to_string(),
+                    framework: "asyncapi".to_string(),
+                });
+            }
+        }
+    }
+
     out
 }
 
