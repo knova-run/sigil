@@ -32,6 +32,14 @@ axoupdater = { version = "0.10", features = ["github_releases", "blocking"] }
 # Language grammars are feature-gated; defaults match codeix's defaults.
 tree-sitter = "0.26"
 
+# Official Rust MCP SDK + async runtime for the `sigil mcp` server.
+# `server`/`macros`/`transport-io` features give us ServerHandler +
+# `#[tool_router]`/`#[tool]` derive macros + the stdio transport.
+rmcp = { version = "1.7", features = ["server", "macros", "transport-io"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "io-std", "sync"] }
+# Match rmcp's internal schemars version so derive macros line up.
+schemars = "1"
+
 tree-sitter-python     = { version = "0.25", optional = true }
 tree-sitter-rust       = { version = "0.24", optional = true }
 tree-sitter-javascript = { version = "0.25", optional = true }
