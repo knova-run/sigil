@@ -472,6 +472,328 @@ pub fn resolve_workspace_cross_repo(workspace_root: &Path) -> Result<usize> {
     Ok(emitted_count)
 }
 
+/// Result of a `--from-manifest` parse — a list of absolute paths the
+/// manifest declares as workspace members. Glob patterns are already
+/// expanded against the manifest's own directory.
+#[derive(Debug, PartialEq)]
+pub struct BulkAddPlan {
+    pub manifest_kind: String,
+    pub paths: Vec<PathBuf>,
+}
+
+/// Parse one of the supported workspace-manifest formats into a list of
+/// member paths. Supported:
+///   - `Cargo.toml` — `[workspace] members = [...]` (globs honored)
+///   - `pnpm-workspace.yaml` — `packages: [...]` (globs honored)
+///   - `package.json` — `workspaces: [...]` (globs honored)
+///
+/// Returns paths that exist on disk and contain a `.git/`; non-git
+/// directories matched by a glob are skipped silently.
+pub fn parse_manifest(manifest: &Path) -> Result<BulkAddPlan> {
+    let base = manifest
+        .parent()
+        .ok_or_else(|| anyhow!("manifest has no parent dir: {}", manifest.display()))?;
+    let name = manifest
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("");
+
+    let (kind, patterns) = match name {
+        "Cargo.toml" => ("cargo", patterns_from_cargo_toml(manifest)?),
+        "pnpm-workspace.yaml" | "pnpm-workspace.yml" => {
+            ("pnpm", patterns_from_pnpm_yaml(manifest)?)
+        }
+        "package.json" => ("npm", patterns_from_package_json(manifest)?),
+        _ => {
+            return Err(anyhow!(
+                "unsupported manifest: {} — expected Cargo.toml, \
+                 pnpm-workspace.yaml, or package.json",
+                manifest.display()
+            ));
+        }
+    };
+
+    let mut paths: Vec<PathBuf> = Vec::new();
+    for pat in &patterns {
+        for resolved in expand_glob(base, pat) {
+            if resolved.is_dir() && resolved.join(".git").exists() {
+                paths.push(resolved);
+            }
+        }
+    }
+    paths.sort();
+    paths.dedup();
+    Ok(BulkAddPlan {
+        manifest_kind: kind.to_string(),
+        paths,
+    })
+}
+
+fn patterns_from_cargo_toml(p: &Path) -> Result<Vec<String>> {
+    let text = std::fs::read_to_string(p)
+        .with_context(|| format!("read {}", p.display()))?;
+    let doc: toml::Value = toml::from_str(&text)
+        .with_context(|| format!("parse {}", p.display()))?;
+    let members = doc
+        .get("workspace")
+        .and_then(|w| w.get("members"))
+        .and_then(|m| m.as_array());
+    let mut out = Vec::new();
+    if let Some(arr) = members {
+        for v in arr {
+            if let Some(s) = v.as_str() {
+                out.push(s.to_string());
+            }
+        }
+    }
+    Ok(out)
+}
+
+fn patterns_from_pnpm_yaml(p: &Path) -> Result<Vec<String>> {
+    let text = std::fs::read_to_string(p)
+        .with_context(|| format!("read {}", p.display()))?;
+    let doc: serde_yml::Value = serde_yml::from_str(&text)
+        .with_context(|| format!("parse {}", p.display()))?;
+    let packages = doc.get("packages").and_then(|v| v.as_sequence());
+    let mut out = Vec::new();
+    if let Some(seq) = packages {
+        for v in seq {
+            if let Some(s) = v.as_str() {
+                out.push(s.to_string());
+            }
+        }
+    }
+    Ok(out)
+}
+
+fn patterns_from_package_json(p: &Path) -> Result<Vec<String>> {
+    let text = std::fs::read_to_string(p)
+        .with_context(|| format!("read {}", p.display()))?;
+    let doc: serde_json::Value = serde_json::from_str(&text)
+        .with_context(|| format!("parse {}", p.display()))?;
+
+    let mut out = Vec::new();
+    // npm-style: "workspaces": ["pkg/*"]
+    if let Some(arr) = doc.get("workspaces").and_then(|v| v.as_array()) {
+        for v in arr {
+            if let Some(s) = v.as_str() {
+                out.push(s.to_string());
+            }
+        }
+    }
+    // yarn-style: "workspaces": { "packages": [...] }
+    if let Some(arr) = doc
+        .get("workspaces")
+        .and_then(|w| w.get("packages"))
+        .and_then(|v| v.as_array())
+    {
+        for v in arr {
+            if let Some(s) = v.as_str() {
+                out.push(s.to_string());
+            }
+        }
+    }
+    Ok(out)
+}
+
+/// Expand a workspace-manifest pattern relative to `base`. Supports the
+/// `<dir>/*` suffix style (most common case across nx/pnpm/Cargo).
+/// Non-glob patterns are returned as a single absolute path.
+fn expand_glob(base: &Path, pattern: &str) -> Vec<PathBuf> {
+    if let Some(prefix) = pattern.strip_suffix("/*") {
+        let dir = base.join(prefix);
+        let Ok(entries) = std::fs::read_dir(&dir) else {
+            return Vec::new();
+        };
+        let mut out: Vec<PathBuf> = entries
+            .flatten()
+            .map(|e| e.path())
+            .filter(|p| p.is_dir())
+            .collect();
+        out.sort();
+        return out;
+    }
+    if pattern.contains('*') {
+        // More elaborate globs not supported in the MVP; users can use
+        // `<dir>/*` or list paths individually.
+        eprintln!(
+            "workspace: complex glob {:?} not supported — use `<dir>/*` or list explicit paths",
+            pattern
+        );
+        return Vec::new();
+    }
+    vec![base.join(pattern)]
+}
+
+/// Apply a bulk-add plan: register each path as a member. Existing
+/// canonical paths are skipped. Returns (added_count, skipped_count).
+pub fn apply_bulk_add(workspace_root: &Path, plan: &BulkAddPlan) -> Result<(usize, usize)> {
+    let mut added = 0usize;
+    let mut skipped = 0usize;
+    for path in &plan.paths {
+        let canonical = canonicalize_input(path)?;
+        let canonical_str = canonical.to_string_lossy().to_string();
+        let manifest = read_manifest(workspace_root)?;
+        let already = manifest.members.iter().any(|m| m.path == canonical_str);
+        if already {
+            skipped += 1;
+            continue;
+        }
+        match add(workspace_root, path, None, None, false) {
+            Ok(_) => added += 1,
+            Err(e) => eprintln!(
+                "workspace bulk-add: skipping {} ({})",
+                path.display(),
+                e
+            ),
+        }
+    }
+    Ok((added, skipped))
+}
+
+/// Compute the dry-run preview for a bulk-add plan. Returns (would-add,
+/// already-member) path lists so the CLI can print a diff.
+pub fn preview_bulk_add(
+    workspace_root: &Path,
+    plan: &BulkAddPlan,
+) -> Result<(Vec<PathBuf>, Vec<PathBuf>)> {
+    let manifest = read_manifest(workspace_root)?;
+    let existing: std::collections::HashSet<String> =
+        manifest.members.iter().map(|m| m.path.clone()).collect();
+    let mut would_add = Vec::new();
+    let mut already = Vec::new();
+    for path in &plan.paths {
+        let canonical = canonicalize_input(path).unwrap_or_else(|_| path.clone());
+        if existing.contains(&canonical.to_string_lossy().to_string()) {
+            already.push(canonical);
+        } else {
+            would_add.push(canonical);
+        }
+    }
+    Ok((would_add, already))
+}
+
+/// Marker line written into each member's post-commit hook. Lets
+/// `uninstall` find and remove the sigil-managed entry without
+/// disturbing user-authored hook code that might also live there.
+const HOOK_BEGIN: &str = "# >>> sigil workspace hook (managed) >>>";
+const HOOK_END: &str = "# <<< sigil workspace hook (managed) <<<";
+
+/// `sigil workspace install` — drop a post-commit hook into each enabled
+/// member's `.git/hooks/post-commit` that re-runs `sigil workspace index
+/// --root <ws>` on every commit. Idempotent: re-running upserts the
+/// managed block (between `HOOK_BEGIN` and `HOOK_END` markers); the
+/// rest of the hook (user code) is left untouched.
+pub fn install_hook(workspace_root: &Path) -> Result<usize> {
+    let ws_abs = std::path::absolute(workspace_root)
+        .with_context(|| format!("absolutising {}", workspace_root.display()))?;
+    let members = list(workspace_root)?;
+    let enabled: Vec<_> = members.into_iter().filter(|m| !m.disabled).collect();
+    if enabled.is_empty() {
+        return Err(anyhow!(
+            "no enabled members in {} — `workspace install` has nothing to wire",
+            workspace_root.display()
+        ));
+    }
+
+    let body = format!(
+        "{HOOK_BEGIN}\nsigil workspace index --root '{}' >/dev/null 2>&1 || true\n{HOOK_END}",
+        ws_abs.display().to_string().replace('\'', "'\\''")
+    );
+
+    let mut installed = 0usize;
+    for m in &enabled {
+        let hook = std::path::Path::new(&m.path).join(".git/hooks/post-commit");
+        let hooks_dir = match hook.parent() {
+            Some(d) => d,
+            None => continue,
+        };
+        std::fs::create_dir_all(hooks_dir)
+            .with_context(|| format!("creating {}", hooks_dir.display()))?;
+
+        let existing = std::fs::read_to_string(&hook).unwrap_or_default();
+        let stripped = strip_managed_block(&existing);
+        let new_content = if stripped.is_empty() {
+            format!("#!/bin/sh\n{body}\n")
+        } else if stripped.starts_with("#!") {
+            format!("{}\n{body}\n", stripped.trim_end())
+        } else {
+            format!("#!/bin/sh\n{}\n{body}\n", stripped.trim_end())
+        };
+
+        std::fs::write(&hook, new_content)
+            .with_context(|| format!("writing {}", hook.display()))?;
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = std::fs::metadata(&hook)?.permissions();
+            perms.set_mode(0o755);
+            std::fs::set_permissions(&hook, perms)
+                .with_context(|| format!("chmod {}", hook.display()))?;
+        }
+
+        installed += 1;
+    }
+    Ok(installed)
+}
+
+/// `sigil workspace uninstall` — strip the sigil-managed block from
+/// every enabled member's post-commit hook. Leaves user-authored hook
+/// code alone. Idempotent.
+pub fn uninstall_hook(workspace_root: &Path) -> Result<usize> {
+    let members = list(workspace_root)?;
+    let mut removed = 0usize;
+    for m in &members {
+        let hook = std::path::Path::new(&m.path).join(".git/hooks/post-commit");
+        if !hook.exists() {
+            continue;
+        }
+        let existing = std::fs::read_to_string(&hook).unwrap_or_default();
+        if !existing.contains(HOOK_BEGIN) {
+            continue;
+        }
+        let stripped = strip_managed_block(&existing);
+        if stripped.trim().is_empty() || stripped.trim() == "#!/bin/sh" {
+            // Nothing left — drop the file entirely so re-install
+            // starts clean.
+            std::fs::remove_file(&hook).ok();
+        } else {
+            std::fs::write(&hook, stripped.trim_end().to_string() + "\n")
+                .with_context(|| format!("writing {}", hook.display()))?;
+        }
+        removed += 1;
+    }
+    Ok(removed)
+}
+
+/// Strip the sigil-managed block (everything between HOOK_BEGIN and
+/// HOOK_END inclusive, plus a leading blank line if present) from a
+/// hook file's contents. Used by install (to upsert) and uninstall.
+fn strip_managed_block(text: &str) -> String {
+    let mut out = String::new();
+    let mut in_block = false;
+    for line in text.lines() {
+        if line.contains(HOOK_BEGIN) {
+            in_block = true;
+            // Drop trailing blank line we added before the block
+            while out.ends_with("\n\n") {
+                out.pop();
+            }
+            continue;
+        }
+        if in_block {
+            if line.contains(HOOK_END) {
+                in_block = false;
+            }
+            continue;
+        }
+        out.push_str(line);
+        out.push('\n');
+    }
+    out
+}
+
 fn leaf_segment(s: &str) -> &str {
     s.rsplit(|c: char| c == '.' || c == '/' || c == ':')
         .next()

@@ -1314,3 +1314,241 @@ fn workspace_duckdb_auto_engages_above_threshold() {
     let db_path = ws.join(".sigil-workspace/index.duckdb");
     assert!(db_path.exists(), "workspace DuckDB file should be created at {}", db_path.display());
 }
+
+// ---------------------------------------------------------------------------
+// Phase 6 — bulk-add from external manifests. `sigil workspace add
+// --from-manifest <file>` parses Cargo.toml `[workspace] members`,
+// pnpm-workspace.yaml `packages`, or package.json `workspaces`, expands
+// globs relative to the manifest dir, and adds each as a member. Dry-run
+// by default; `--apply` actually mutates members.json.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn workspace_bulk_add_from_cargo_workspace_manifest() {
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let mono = tmp.path().join("monorepo");
+    fs::create_dir_all(&ws).unwrap();
+    fs::create_dir_all(&mono).unwrap();
+
+    // Cargo workspace with two crate members
+    let crate_a = mono.join("crates").join("core");
+    let crate_b = mono.join("crates").join("cli");
+    init_repo(&crate_a);
+    init_repo(&crate_b);
+
+    let cargo_toml = mono.join("Cargo.toml");
+    fs::write(&cargo_toml, "[workspace]\nmembers = [\"crates/core\", \"crates/cli\"]\n").unwrap();
+
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+
+    // Dry-run: must NOT mutate members.json
+    let dry = sigil(&[
+        "workspace", "add",
+        "--from-manifest", cargo_toml.to_str().unwrap(),
+        "--root", ws.to_str().unwrap(),
+    ]);
+    assert!(dry.status.success(), "dry-run: {}", String::from_utf8_lossy(&dry.stderr));
+    let dry_stdout = String::from_utf8_lossy(&dry.stdout).to_string();
+    assert!(
+        dry_stdout.contains("would add") || dry_stdout.contains("dry-run"),
+        "dry-run output should announce itself; got: {dry_stdout}"
+    );
+    let after_dry: serde_json::Value = serde_json::from_str(
+        &fs::read_to_string(ws.join(".sigil-workspace/members.json")).unwrap()
+    ).unwrap();
+    assert_eq!(after_dry["members"].as_array().unwrap().len(), 0,
+        "dry-run must not mutate members.json");
+
+    // --apply: actually adds both members
+    let apply = sigil(&[
+        "workspace", "add",
+        "--from-manifest", cargo_toml.to_str().unwrap(),
+        "--root", ws.to_str().unwrap(),
+        "--apply",
+    ]);
+    assert!(apply.status.success(), "apply: {}", String::from_utf8_lossy(&apply.stderr));
+
+    let after_apply: serde_json::Value = serde_json::from_str(
+        &fs::read_to_string(ws.join(".sigil-workspace/members.json")).unwrap()
+    ).unwrap();
+    let names: Vec<&str> = after_apply["members"]
+        .as_array().unwrap()
+        .iter()
+        .map(|m| m["name"].as_str().unwrap())
+        .collect();
+    assert!(names.contains(&"core"), "expected 'core' in {names:?}");
+    assert!(names.contains(&"cli"), "expected 'cli' in {names:?}");
+}
+
+#[test]
+fn workspace_bulk_add_from_cargo_glob_pattern() {
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let mono = tmp.path().join("monorepo");
+    fs::create_dir_all(&ws).unwrap();
+    fs::create_dir_all(&mono).unwrap();
+
+    // `crates/*` glob — three child crates
+    for name in &["alpha", "beta", "gamma"] {
+        init_repo(&mono.join("crates").join(name));
+    }
+    fs::write(mono.join("Cargo.toml"), "[workspace]\nmembers = [\"crates/*\"]\n").unwrap();
+
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    let out = sigil(&[
+        "workspace", "add",
+        "--from-manifest", mono.join("Cargo.toml").to_str().unwrap(),
+        "--root", ws.to_str().unwrap(),
+        "--apply",
+    ]);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+
+    let v: serde_json::Value = serde_json::from_str(
+        &fs::read_to_string(ws.join(".sigil-workspace/members.json")).unwrap()
+    ).unwrap();
+    let names: Vec<&str> = v["members"].as_array().unwrap().iter()
+        .map(|m| m["name"].as_str().unwrap()).collect();
+    let mut sorted = names.clone();
+    sorted.sort();
+    assert_eq!(sorted, vec!["alpha", "beta", "gamma"],
+        "glob should expand to all three crates; got {names:?}");
+}
+
+#[test]
+fn workspace_bulk_add_from_pnpm_workspace_yaml() {
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let mono = tmp.path().join("mono");
+    fs::create_dir_all(&ws).unwrap();
+    fs::create_dir_all(&mono).unwrap();
+    for name in &["web", "mobile", "shared"] {
+        init_repo(&mono.join("apps").join(name));
+    }
+    fs::write(
+        mono.join("pnpm-workspace.yaml"),
+        "packages:\n  - \"apps/*\"\n",
+    ).unwrap();
+
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    let out = sigil(&[
+        "workspace", "add",
+        "--from-manifest", mono.join("pnpm-workspace.yaml").to_str().unwrap(),
+        "--root", ws.to_str().unwrap(),
+        "--apply",
+    ]);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    let v: serde_json::Value = serde_json::from_str(
+        &fs::read_to_string(ws.join(".sigil-workspace/members.json")).unwrap()
+    ).unwrap();
+    assert_eq!(v["members"].as_array().unwrap().len(), 3);
+}
+
+#[test]
+fn workspace_bulk_add_skips_already_registered_members() {
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let mono = tmp.path().join("mono");
+    fs::create_dir_all(&ws).unwrap();
+    fs::create_dir_all(&mono).unwrap();
+    let crate_a = mono.join("a");
+    init_repo(&crate_a);
+    fs::write(mono.join("Cargo.toml"), "[workspace]\nmembers = [\"a\"]\n").unwrap();
+
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    // Pre-register `a` manually
+    sigil(&["workspace", "add", crate_a.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+
+    // Bulk add against the same manifest — `a` is already a member; the
+    // dry-run preview should call that out, and --apply should be a no-op
+    // for already-registered paths.
+    let dry = sigil(&[
+        "workspace", "add",
+        "--from-manifest", mono.join("Cargo.toml").to_str().unwrap(),
+        "--root", ws.to_str().unwrap(),
+    ]);
+    assert!(dry.status.success(), "{}", String::from_utf8_lossy(&dry.stderr));
+    let stdout = String::from_utf8_lossy(&dry.stdout).to_string();
+    assert!(
+        stdout.contains("already") || stdout.contains("skip"),
+        "preview should call out already-registered members; got: {stdout}"
+    );
+
+    let apply = sigil(&[
+        "workspace", "add",
+        "--from-manifest", mono.join("Cargo.toml").to_str().unwrap(),
+        "--root", ws.to_str().unwrap(),
+        "--apply",
+    ]);
+    assert!(apply.status.success());
+    let v: serde_json::Value = serde_json::from_str(
+        &fs::read_to_string(ws.join(".sigil-workspace/members.json")).unwrap()
+    ).unwrap();
+    assert_eq!(v["members"].as_array().unwrap().len(), 1,
+        "idempotent: re-applying must not duplicate");
+}
+
+#[test]
+fn workspace_install_writes_post_commit_hooks_into_each_member() {
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let a = tmp.path().join("a");
+    let b = tmp.path().join("b");
+    fs::create_dir_all(&ws).unwrap();
+    init_repo(&a);
+    init_repo(&b);
+
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", a.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", b.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+
+    let out = sigil(&["workspace", "install", "--root", ws.to_str().unwrap()]);
+    assert!(out.status.success(), "install: {}", String::from_utf8_lossy(&out.stderr));
+
+    for repo in [&a, &b] {
+        let hook = repo.join(".git/hooks/post-commit");
+        assert!(hook.exists(), "post-commit hook missing in {}", repo.display());
+        let content = fs::read_to_string(&hook).unwrap();
+        assert!(content.contains("sigil workspace index"),
+            "hook should invoke workspace index; got: {content}");
+        assert!(content.contains(ws.to_str().unwrap()),
+            "hook should reference the workspace root; got: {content}");
+        // Verify executable bit (best-effort on Unix)
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = fs::metadata(&hook).unwrap().permissions().mode();
+            assert!(mode & 0o100 != 0, "post-commit hook must be executable; mode={mode:o}");
+        }
+    }
+
+    // Re-running install is idempotent
+    let again = sigil(&["workspace", "install", "--root", ws.to_str().unwrap()]);
+    assert!(again.status.success(), "re-install must succeed");
+}
+
+#[test]
+fn workspace_uninstall_removes_workspace_managed_hooks() {
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let a = tmp.path().join("a");
+    fs::create_dir_all(&ws).unwrap();
+    init_repo(&a);
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", a.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "install", "--root", ws.to_str().unwrap()]);
+
+    let hook = a.join(".git/hooks/post-commit");
+    assert!(hook.exists());
+
+    let out = sigil(&["workspace", "uninstall", "--root", ws.to_str().unwrap()]);
+    assert!(out.status.success(), "uninstall: {}", String::from_utf8_lossy(&out.stderr));
+
+    // Sigil-managed line removed; if hook becomes empty, file may stay
+    // (with an empty body) or be removed — either is fine.
+    if hook.exists() {
+        let content = fs::read_to_string(&hook).unwrap();
+        assert!(!content.contains("sigil workspace index"),
+            "uninstall must drop the sigil line; got: {content}");
+    }
+}

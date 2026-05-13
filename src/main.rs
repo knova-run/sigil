@@ -918,6 +918,20 @@ enum WorkspaceAction {
         #[arg(short, long, default_value = ".")]
         root: PathBuf,
     },
+    /// Wire a post-commit git hook into every enabled member's
+    /// `.git/hooks/post-commit`. Each commit then runs `sigil workspace
+    /// index --root <ws>` so the workspace stays fresh without manual
+    /// invocation. Idempotent — re-running upserts the managed block.
+    Install {
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
+    },
+    /// Remove the sigil-managed block from every member's post-commit
+    /// hook. User-authored hook code is preserved.
+    Uninstall {
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
+    },
     /// Refresh workspace stamps for every enabled member. Phase 1
     /// implementation: stamps each member's `.sigil/entities.jsonl` +
     /// `refs.jsonl` size/mtime into `manifest.json` and writes an empty
@@ -964,22 +978,37 @@ enum WorkspaceAction {
     /// absolutises the path (symlinks preserved), and appends an entry to
     /// `<root>/.sigil-workspace/members.json`. Idempotent on canonical
     /// path. Asserts the path exists and contains `.git/`.
+    ///
+    /// Bulk mode: `--from-manifest <file>` parses Cargo.toml `[workspace]
+    /// members`, pnpm-workspace.yaml `packages:`, or package.json
+    /// `workspaces:` and adds every resolved path. Dry-run by default;
+    /// pass `--apply` to actually mutate members.json.
     Add {
         /// Repo path. Can be relative or absolute; `~/...` is expanded
-        /// against `$HOME`.
-        repo: PathBuf,
+        /// against `$HOME`. Required unless `--from-manifest` is used.
+        repo: Option<PathBuf>,
+        /// Bulk-add mode: parse this manifest file and add every member
+        /// it declares. Honors Cargo / pnpm / npm-workspaces conventions.
+        #[arg(long)]
+        from_manifest: Option<PathBuf>,
+        /// In bulk mode, actually mutate members.json. Without it, the
+        /// command prints a dry-run preview.
+        #[arg(long)]
+        apply: bool,
         /// Workspace root. Defaults to current dir.
         #[arg(short, long, default_value = ".")]
         root: PathBuf,
         /// Override the default member name (path basename). Useful when
-        /// multiple repos share a basename.
+        /// multiple repos share a basename. Ignored in bulk mode.
         #[arg(long = "as")]
         name: Option<String>,
         /// Optional free-form description stored on the member entry.
+        /// Ignored in bulk mode.
         #[arg(long)]
         description: Option<String>,
         /// Add the member in the disabled state. Disabled members are
-        /// kept in members.json but skipped by `index`.
+        /// kept in members.json but skipped by `index`. Ignored in bulk
+        /// mode.
         #[arg(long)]
         disabled: bool,
     },
@@ -1994,6 +2023,24 @@ fn main() {
                     std::process::exit(2);
                 }
             }
+            WorkspaceAction::Install { root } => {
+                match sigil::workspace::install_hook(&root) {
+                    Ok(n) => eprintln!("workspace install: wired {} member(s)", n),
+                    Err(e) => {
+                        eprintln!("workspace install: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+            WorkspaceAction::Uninstall { root } => {
+                match sigil::workspace::uninstall_hook(&root) {
+                    Ok(n) => eprintln!("workspace uninstall: removed hook from {} member(s)", n),
+                    Err(e) => {
+                        eprintln!("workspace uninstall: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
             WorkspaceAction::List { root, json } => {
                 match sigil::workspace::list(&root) {
                     Ok(members) => {
@@ -2033,19 +2080,70 @@ fn main() {
                     std::process::exit(1);
                 }
             }
-            WorkspaceAction::Add { repo, root, name, description, disabled } => {
-                match sigil::workspace::add(
-                    &root,
-                    &repo,
-                    name.as_deref(),
-                    description.as_deref(),
-                    disabled,
-                ) {
-                    Ok(m) => println!("{}", serde_json::to_string(&m).unwrap()),
-                    Err(e) => {
-                        eprintln!("workspace add: {}", e);
-                        std::process::exit(1);
+            WorkspaceAction::Add { repo, from_manifest, apply, root, name, description, disabled } => {
+                if let Some(manifest) = from_manifest {
+                    match sigil::workspace::parse_manifest(&manifest) {
+                        Ok(plan) => {
+                            if apply {
+                                match sigil::workspace::apply_bulk_add(&root, &plan) {
+                                    Ok((added, skipped)) => {
+                                        eprintln!(
+                                            "workspace bulk-add ({}): added {}, skipped {} already-registered",
+                                            plan.manifest_kind, added, skipped
+                                        );
+                                    }
+                                    Err(e) => {
+                                        eprintln!("workspace bulk-add: {}", e);
+                                        std::process::exit(1);
+                                    }
+                                }
+                            } else {
+                                match sigil::workspace::preview_bulk_add(&root, &plan) {
+                                    Ok((would_add, already)) => {
+                                        println!(
+                                            "dry-run: parsed {} ({} candidate(s))",
+                                            manifest.display(), plan.paths.len()
+                                        );
+                                        for p in &would_add {
+                                            println!("  would add: {}", p.display());
+                                        }
+                                        for p in &already {
+                                            println!("  already member: {}", p.display());
+                                        }
+                                        println!(
+                                            "\n{} to add, {} already member. Pass --apply to write to members.json.",
+                                            would_add.len(), already.len()
+                                        );
+                                    }
+                                    Err(e) => {
+                                        eprintln!("workspace bulk-add: {}", e);
+                                        std::process::exit(1);
+                                    }
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("workspace add --from-manifest: {}", e);
+                            std::process::exit(1);
+                        }
                     }
+                } else if let Some(repo) = repo {
+                    match sigil::workspace::add(
+                        &root,
+                        &repo,
+                        name.as_deref(),
+                        description.as_deref(),
+                        disabled,
+                    ) {
+                        Ok(m) => println!("{}", serde_json::to_string(&m).unwrap()),
+                        Err(e) => {
+                            eprintln!("workspace add: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                } else {
+                    eprintln!("workspace add: pass a <repo> path or --from-manifest <file>");
+                    std::process::exit(1);
                 }
             }
             WorkspaceAction::Scan { root } => {
