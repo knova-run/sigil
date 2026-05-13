@@ -70,6 +70,14 @@ impl Backend {
         let root = root
             .canonicalize()
             .with_context(|| format!("cannot resolve path: {}", root.display()))?;
+
+        // Workspace mode wins when `.sigil-workspace/members.json` is
+        // present at the root. We never auto-build a workspace — the
+        // user opts in via `sigil workspace init` + `add` + `index`.
+        if is_workspace_root(&root) {
+            return load_workspace_in_memory(&root);
+        }
+
         ensure_indexed(&root)?;
         let forced = std::env::var("SIGIL_BACKEND").ok();
         match forced.as_deref() {
@@ -274,6 +282,27 @@ fn load_in_memory(root: &Path) -> Result<Backend> {
     Ok(Backend::InMemory(idx))
 }
 
+/// Workspace-mode in-memory load. Reads members.json + each member's
+/// per-repo .sigil/ + cross_repo_refs.jsonl. Phase 2: in-memory only —
+/// the DuckDB workspace backend lands in Phase 5.
+fn load_workspace_in_memory(root: &Path) -> Result<Backend> {
+    let idx = index::Index::load_workspace(root)
+        .with_context(|| format!("failed to load workspace at {}", root.display()))?;
+    if idx.is_empty() {
+        anyhow::bail!(
+            "workspace at {} has no indexed members — run `sigil workspace add <repo>` \
+             then `sigil workspace index` first",
+            root.display()
+        );
+    }
+    Ok(Backend::InMemory(idx))
+}
+
+/// Detect workspace mode: a directory containing `.sigil-workspace/members.json`.
+pub fn is_workspace_root(root: &Path) -> bool {
+    root.join(".sigil-workspace").join("members.json").exists()
+}
+
 #[cfg(feature = "db")]
 fn load_db(root: &Path) -> Result<Backend> {
     let db = duckdb_backend::DuckDbBackend::open(root)?;
@@ -374,6 +403,23 @@ pub fn load(root: &Path) -> Result<Index> {
     let root = root
         .canonicalize()
         .with_context(|| format!("cannot resolve path: {}", root.display()))?;
+
+    // Workspace mode: union-load over every enabled member's per-repo
+    // .sigil/, never auto-build. The user must explicitly opt in via
+    // `sigil workspace init` + `add` + `index`.
+    if is_workspace_root(&root) {
+        let idx = Index::load_workspace(&root)
+            .with_context(|| format!("failed to load workspace at {}", root.display()))?;
+        if idx.is_empty() {
+            anyhow::bail!(
+                "workspace at {} has no indexed members — run `sigil workspace add <repo>` \
+                 then `sigil workspace index` first",
+                root.display()
+            );
+        }
+        return Ok(idx);
+    }
+
     ensure_indexed(&root)?;
     let idx = Index::load(&root).context("failed to load .sigil/ index")?;
     if idx.is_empty() {

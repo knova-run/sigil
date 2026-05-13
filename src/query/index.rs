@@ -323,6 +323,69 @@ impl Index {
         Ok(Self::build(entities, references))
     }
 
+    /// Workspace-mode union load. Reads `<root>/.sigil-workspace/members.json`,
+    /// then for each ENABLED member loads its `.sigil/entities.jsonl` +
+    /// `refs.jsonl` and rewrites every `file` field to `<member.name>/<rel>`
+    /// so cross-repo same-named files don't collide. Appends rows from
+    /// `.sigil-workspace/cross_repo_refs.jsonl` last (Phase 3 fills it).
+    ///
+    /// Missing per-repo `.sigil/` directories are skipped silently — the
+    /// user is expected to have run `sigil workspace index` first to
+    /// build / refresh them. Disabled members are omitted.
+    pub fn load_workspace(root: &Path) -> Result<Self> {
+        let manifest = crate::workspace::list(root)
+            .context("failed to read workspace members.json")?;
+
+        let mut entities: Vec<Entity> = Vec::new();
+        let mut references: Vec<Reference> = Vec::new();
+
+        for member in manifest {
+            if member.disabled {
+                continue;
+            }
+            let member_path = std::path::PathBuf::from(&member.path);
+            let sigil_dir = member_path.join(".sigil");
+            if !sigil_dir.exists() {
+                continue;
+            }
+
+            let prefix = format!("{}/", member.name);
+
+            let mut ents = read_jsonl::<Entity>(&sigil_dir.join("entities.jsonl"))
+                .with_context(|| format!("load {}/entities.jsonl", sigil_dir.display()))?;
+            for e in &mut ents {
+                // External sentinels live at synthetic `<external>` — leave as-is
+                if e.file != "<external>" {
+                    e.file = format!("{}{}", prefix, e.file);
+                }
+            }
+            entities.extend(ents);
+
+            let mut refs = read_jsonl::<Reference>(&sigil_dir.join("refs.jsonl"))
+                .with_context(|| format!("load {}/refs.jsonl", sigil_dir.display()))?;
+            for r in &mut refs {
+                r.file = format!("{}{}", prefix, r.file);
+                // callee_id is `<file>::<symbol-path>` — keep it consistent
+                if let Some(cid) = r.callee_id.as_mut()
+                    && !cid.starts_with("<external>")
+                {
+                    *cid = format!("{}{}", prefix, cid);
+                }
+            }
+            references.extend(refs);
+        }
+
+        // Append cross-repo refs (Phase 3 will fill this; empty for now)
+        let cross = root.join(".sigil-workspace").join("cross_repo_refs.jsonl");
+        if cross.exists() {
+            let extras = read_jsonl::<Reference>(&cross)
+                .context("load cross_repo_refs.jsonl")?;
+            references.extend(extras);
+        }
+
+        Ok(Self::build(entities, references))
+    }
+
     /// Total counts — useful for stats output and for the Phase 0.5 DuckDB
     /// auto-upgrade heuristic.
     pub fn len(&self) -> (usize, usize) {

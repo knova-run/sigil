@@ -609,3 +609,218 @@ fn workspace_index_drops_stamp_for_removed_member() {
     assert!(stamped.contains_key("a"));
     assert!(!stamped.contains_key("b"));
 }
+
+// ---------------------------------------------------------------------------
+// Phase 2 — union-load: Backend::load reads .sigil-workspace/ transparently
+// and returns one Index covering every member. File paths get prefixed with
+// `<member-name>/` so cross-repo same-name files don't collide.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn workspace_callers_returns_refs_from_multiple_repos() {
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let provider = tmp.path().join("provider");
+    let consumer = tmp.path().join("consumer");
+    fs::create_dir_all(&ws).unwrap();
+    init_repo(&provider);
+    init_repo(&consumer);
+
+    // provider/.sigil/entities.jsonl defines the function "Greet"
+    let prov_ent = "{\"file\":\"src/lib.rs\",\"name\":\"Greet\",\"kind\":\"function\",\
+        \"line_start\":1,\"line_end\":3,\"struct_hash\":\"a\"}\n";
+    write_fake_sigil(&provider, prov_ent, "");
+
+    // consumer/.sigil/refs.jsonl has a call to "Greet"
+    let cons_ent = "{\"file\":\"src/main.rs\",\"name\":\"main\",\"kind\":\"function\",\
+        \"line_start\":1,\"line_end\":5,\"struct_hash\":\"b\"}\n";
+    let cons_ref = "{\"file\":\"src/main.rs\",\"caller\":\"main\",\"name\":\"Greet\",\
+        \"kind\":\"call\",\"line\":2}\n";
+    write_fake_sigil(&consumer, cons_ent, cons_ref);
+
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", provider.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", consumer.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "index", "--root", ws.to_str().unwrap()]);
+
+    // `sigil --root <ws> callers Greet` must surface the cross-repo caller
+    let out = Command::new(env!("CARGO_BIN_EXE_sigil"))
+        .args(["callers", "Greet", "--root", ws.to_str().unwrap(), "--json"])
+        .env("SIGIL_NO_AUTO_INDEX", "1") // workspaces must not auto-index
+        .output()
+        .expect("sigil callers failed to run");
+    assert!(
+        out.status.success(),
+        "callers --root <ws>: status={} stderr={}",
+        out.status,
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+    let parsed: serde_json::Value = serde_json::from_str(&stdout)
+        .unwrap_or_else(|e| panic!("callers stdout must be JSON; got: {stdout:?}\nerr: {e}"));
+    let refs = parsed.as_array().expect("callers JSON is an array");
+    assert_eq!(refs.len(), 1, "expected one cross-repo caller; got {refs:?}");
+    let r = &refs[0];
+    assert_eq!(r["caller"].as_str(), Some("main"));
+    assert_eq!(r["name"].as_str(), Some("Greet"));
+
+    // File path is prefixed with the member name so cross-repo same-named
+    // files don't collide
+    assert_eq!(
+        r["file"].as_str(),
+        Some("consumer/src/main.rs"),
+        "file should be prefixed with member name; got {r:?}"
+    );
+}
+
+#[test]
+fn workspace_load_skips_disabled_member() {
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let a = tmp.path().join("a");
+    let b = tmp.path().join("b");
+    fs::create_dir_all(&ws).unwrap();
+    init_repo(&a);
+    init_repo(&b);
+
+    let ent = |file: &str, name: &str| format!(
+        "{{\"file\":\"{file}\",\"name\":\"{name}\",\"kind\":\"function\",\
+        \"line_start\":1,\"line_end\":2,\"struct_hash\":\"x\"}}\n"
+    );
+    write_fake_sigil(&a, &ent("src/lib.rs", "alpha"), "");
+    write_fake_sigil(&b, &ent("src/lib.rs", "beta"), "");
+
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", a.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", b.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "disable", "b", "--root", ws.to_str().unwrap()]);
+
+    let out = Command::new(env!("CARGO_BIN_EXE_sigil"))
+        .args(["symbols", "src/lib.rs", "--root", ws.to_str().unwrap(), "--json"])
+        .env("SIGIL_NO_AUTO_INDEX", "1")
+        .output()
+        .unwrap();
+    // The query API uses prefixed paths in workspace mode; `symbols
+    // src/lib.rs` against a workspace finds nothing (no member is at that
+    // bare relative path). Use the prefixed form instead.
+    let _ = out;
+
+    let alpha = Command::new(env!("CARGO_BIN_EXE_sigil"))
+        .args(["symbols", "a/src/lib.rs", "--root", ws.to_str().unwrap(), "--json"])
+        .env("SIGIL_NO_AUTO_INDEX", "1")
+        .output()
+        .unwrap();
+    assert!(alpha.status.success(), "alpha lookup: {}", String::from_utf8_lossy(&alpha.stderr));
+    let alpha_json: serde_json::Value = serde_json::from_str(
+        &String::from_utf8_lossy(&alpha.stdout)
+    ).unwrap();
+    assert!(alpha_json.as_array().unwrap().iter().any(|e| e["name"] == "alpha"),
+        "enabled member 'a' should be in the workspace index");
+
+    let beta = Command::new(env!("CARGO_BIN_EXE_sigil"))
+        .args(["symbols", "b/src/lib.rs", "--root", ws.to_str().unwrap(), "--json"])
+        .env("SIGIL_NO_AUTO_INDEX", "1")
+        .output()
+        .unwrap();
+    // disabled members are absent — sigil symbols returns either empty or
+    // an error (no entities at that file path)
+    let beta_stdout = String::from_utf8_lossy(&beta.stdout).to_string();
+    if let Ok(beta_json) = serde_json::from_str::<serde_json::Value>(&beta_stdout) {
+        assert!(beta_json.as_array().map(|a| a.is_empty()).unwrap_or(true),
+            "disabled member must be absent; got {beta_json:?}");
+    }
+}
+
+#[test]
+fn workspace_external_sentinels_keep_synthetic_file_marker() {
+    // `external:<modpath>` entities have `file = "<external>"`. The
+    // union-load must NOT prefix them with the member name — they're
+    // synthetic, not real source files.
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let repo = tmp.path().join("repo");
+    fs::create_dir_all(&ws).unwrap();
+    init_repo(&repo);
+
+    let ents = concat!(
+        "{\"file\":\"<external>\",\"name\":\"external:requests.get\",\"kind\":\"external\",",
+            "\"line_start\":0,\"line_end\":0,\"struct_hash\":\"0\"}\n",
+        "{\"file\":\"src/app.py\",\"name\":\"handler\",\"kind\":\"function\",",
+            "\"line_start\":1,\"line_end\":3,\"struct_hash\":\"a\"}\n",
+    );
+    write_fake_sigil(&repo, ents, "");
+
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", repo.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "index", "--root", ws.to_str().unwrap()]);
+
+    // Real file gets prefixed; external sentinel does not
+    let real = Command::new(env!("CARGO_BIN_EXE_sigil"))
+        .args(["symbols", "repo/src/app.py", "--root", ws.to_str().unwrap(), "--json"])
+        .env("SIGIL_NO_AUTO_INDEX", "1")
+        .output()
+        .unwrap();
+    let real_json: serde_json::Value = serde_json::from_str(
+        &String::from_utf8_lossy(&real.stdout)
+    ).unwrap();
+    assert!(real_json.as_array().unwrap().iter().any(|e| e["name"] == "handler"),
+        "real file should be prefixed-locatable; got {real_json:?}");
+
+    // External sentinel survives at `<external>` (NOT `repo/<external>`)
+    let ext = Command::new(env!("CARGO_BIN_EXE_sigil"))
+        .args(["symbols", "<external>", "--root", ws.to_str().unwrap(), "--json"])
+        .env("SIGIL_NO_AUTO_INDEX", "1")
+        .output()
+        .unwrap();
+    let ext_json: serde_json::Value = serde_json::from_str(
+        &String::from_utf8_lossy(&ext.stdout)
+    ).unwrap();
+    assert!(
+        ext_json.as_array().unwrap().iter().any(|e| e["name"] == "external:requests.get"),
+        "external sentinel must keep its <external> file marker; got {ext_json:?}"
+    );
+}
+
+#[test]
+fn workspace_load_includes_cross_repo_refs() {
+    // Phase 3 will fill cross_repo_refs.jsonl automatically. For Phase 2,
+    // just verify that hand-written rows are loaded and surfaced via the
+    // standard query API.
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let provider = tmp.path().join("provider");
+    let consumer = tmp.path().join("consumer");
+    fs::create_dir_all(&ws).unwrap();
+    init_repo(&provider);
+    init_repo(&consumer);
+
+    let prov_ent = "{\"file\":\"lib.py\",\"name\":\"run\",\"kind\":\"function\",\
+        \"line_start\":1,\"line_end\":2,\"struct_hash\":\"a\"}\n";
+    let cons_ent = "{\"file\":\"main.py\",\"name\":\"main\",\"kind\":\"function\",\
+        \"line_start\":1,\"line_end\":3,\"struct_hash\":\"b\"}\n";
+    write_fake_sigil(&provider, prov_ent, "");
+    write_fake_sigil(&consumer, cons_ent, "");
+
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", provider.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", consumer.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "index", "--root", ws.to_str().unwrap()]);
+
+    // Hand-write a cross-repo ref (already prefixed with `consumer/`)
+    let cross = ws.join(".sigil-workspace/cross_repo_refs.jsonl");
+    fs::write(&cross,
+        "{\"file\":\"consumer/main.py\",\"caller\":\"main\",\"name\":\"run\",\
+        \"kind\":\"call\",\"line\":2,\"confidence\":0.4}\n"
+    ).unwrap();
+
+    let out = Command::new(env!("CARGO_BIN_EXE_sigil"))
+        .args(["callers", "run", "--root", ws.to_str().unwrap(), "--json"])
+        .env("SIGIL_NO_AUTO_INDEX", "1")
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "callers: {}", String::from_utf8_lossy(&out.stderr));
+    let parsed: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    let refs = parsed.as_array().unwrap();
+    assert_eq!(refs.len(), 1, "expected the hand-written cross-repo ref; got {refs:?}");
+    assert_eq!(refs[0]["confidence"].as_f64(), Some(0.4));
+}
