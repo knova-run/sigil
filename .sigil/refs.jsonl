@@ -2704,333 +2704,427 @@
 {"file":"src/contracts.rs","caller":"normalize_http_path","name":"regex::Regex/new","kind":"call","line":84,"confidence":0.8}
 {"file":"src/contracts.rs","caller":"normalize_http_path","name":"re.replace_all(&trimmed, \"{param}\").into_owned","kind":"call","line":86}
 {"file":"src/contracts.rs","caller":"normalize_http_path","name":"re.replace_all","kind":"call","line":86}
-{"file":"src/contracts.rs","caller":"extract_from_root","name":"Path","kind":"type_annotation","line":90}
-{"file":"src/contracts.rs","caller":"extract_from_root","name":"Vec","kind":"type_annotation","line":90}
-{"file":"src/contracts.rs","caller":"extract_from_root","name":"ContractRow","kind":"type_annotation","line":90}
-{"file":"src/contracts.rs","caller":"extract_from_root","name":"Vec::new","kind":"call","line":91}
-{"file":"src/contracts.rs","caller":"extract_from_root","name":"walk","kind":"call","line":92,"confidence":0.95}
-{"file":"src/contracts.rs","caller":"WorkspaceContractRow","name":"String","kind":"type_annotation","line":102}
-{"file":"src/contracts.rs","caller":"WorkspaceContractRow","name":"ContractRow","kind":"type_annotation","line":104}
-{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"Path","kind":"type_annotation","line":113}
-{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"Vec","kind":"type_annotation","line":113}
-{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"WorkspaceContractRow","kind":"type_annotation","line":113}
-{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"root.join(\".sigil-workspace\").join","kind":"call","line":114}
-{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"root.join","kind":"call","line":114}
-{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"workspace_marker.exists","kind":"call","line":115}
-{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"crate::workspace::list(root).unwrap_or_default","kind":"call","line":116}
-{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"crate::workspace::list","kind":"call","line":116}
-{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"Vec::new","kind":"call","line":117}
-{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"members.into_iter().filter","kind":"call","line":118}
-{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"members.into_iter","kind":"call","line":118}
-{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"std::path::Path::new","kind":"call","line":119}
-{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"extract_from_root","kind":"call","line":120,"confidence":0.95}
-{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"out.push","kind":"call","line":121}
-{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"m.name.clone","kind":"call","line":122}
-{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"root\n        .file_name()\n        .map(|n| n.to_string_lossy().to_string())\n        .unwrap_or_else","kind":"call","line":129}
-{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"root\n        .file_name()\n        .map","kind":"call","line":129}
-{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"root\n        .file_name","kind":"call","line":129}
-{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"n.to_string_lossy().to_string","kind":"call","line":131}
-{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"n.to_string_lossy","kind":"call","line":131}
-{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"\".\".to_string","kind":"call","line":132}
-{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"extract_from_root(root)\n        .into_iter()\n        .map(|row| WorkspaceContractRow {\n            repo: repo.clone(),\n            row,\n        })\n        .collect","kind":"call","line":133}
-{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"extract_from_root(root)\n        .into_iter()\n        .map","kind":"call","line":133}
-{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"extract_from_root(root)\n        .into_iter","kind":"call","line":133}
-{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"extract_from_root","kind":"call","line":133,"confidence":0.95}
-{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"repo.clone","kind":"call","line":136}
-{"file":"src/contracts.rs","caller":"walk","name":"Vec","kind":"type_annotation","line":142}
-{"file":"src/contracts.rs","caller":"walk","name":"ContractRow","kind":"type_annotation","line":142}
-{"file":"src/contracts.rs","caller":"walk","name":"Path","kind":"type_annotation","line":142}
-{"file":"src/contracts.rs","caller":"walk","name":"Path","kind":"type_annotation","line":142}
-{"file":"src/contracts.rs","caller":"walk","name":"std::fs::read_dir","kind":"call","line":143}
-{"file":"src/contracts.rs","caller":"walk","name":"entries.flatten","kind":"call","line":147}
-{"file":"src/contracts.rs","caller":"walk","name":"entry.path","kind":"call","line":148}
-{"file":"src/contracts.rs","caller":"walk","name":"path.is_dir","kind":"call","line":149}
-{"file":"src/contracts.rs","caller":"walk","name":"is_skipped_dir","kind":"call","line":150,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"walk","name":"super::is_skipped_dir/","kind":"call","line":150,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"walk","name":"walk","kind":"call","line":153,"confidence":0.95}
-{"file":"src/contracts.rs","caller":"walk","name":"path.extension().and_then","kind":"call","line":156}
-{"file":"src/contracts.rs","caller":"walk","name":"path.extension","kind":"call","line":156}
-{"file":"src/contracts.rs","caller":"walk","name":"e.to_str","kind":"call","line":156}
-{"file":"src/contracts.rs","caller":"walk","name":"std::fs::read_to_string","kind":"call","line":159}
-{"file":"src/contracts.rs","caller":"walk","name":"path.strip_prefix(root).unwrap_or(&path).to_string_lossy().to_string","kind":"call","line":162}
-{"file":"src/contracts.rs","caller":"walk","name":"path.strip_prefix(root).unwrap_or(&path).to_string_lossy","kind":"call","line":162}
-{"file":"src/contracts.rs","caller":"walk","name":"path.strip_prefix(root).unwrap_or","kind":"call","line":162}
-{"file":"src/contracts.rs","caller":"walk","name":"path.strip_prefix","kind":"call","line":162}
-{"file":"src/contracts.rs","caller":"walk","name":"out.extend","kind":"call","line":164}
-{"file":"src/contracts.rs","caller":"walk","name":"scan_python","kind":"call","line":164,"confidence":0.95}
-{"file":"src/contracts.rs","caller":"walk","name":"out.extend","kind":"call","line":166}
-{"file":"src/contracts.rs","caller":"walk","name":"scan_js_ts","kind":"call","line":166,"confidence":0.95}
-{"file":"src/contracts.rs","caller":"walk","name":"out.extend","kind":"call","line":168}
-{"file":"src/contracts.rs","caller":"walk","name":"scan_go","kind":"call","line":168,"confidence":0.95}
-{"file":"src/contracts.rs","caller":"walk","name":"out.extend","kind":"call","line":169}
-{"file":"src/contracts.rs","caller":"walk","name":"scan_java","kind":"call","line":169,"confidence":0.95}
-{"file":"src/contracts.rs","caller":"walk","name":"out.extend","kind":"call","line":170}
-{"file":"src/contracts.rs","caller":"walk","name":"scan_proto","kind":"call","line":170,"confidence":0.95}
-{"file":"src/contracts.rs","caller":"is_skipped_dir","name":"Path","kind":"type_annotation","line":176}
-{"file":"src/contracts.rs","caller":"is_skipped_dir","name":"path.file_name","kind":"call","line":177}
-{"file":"src/contracts.rs","caller":"is_skipped_dir","name":"n.to_string_lossy","kind":"call","line":178}
-{"file":"src/contracts.rs","name":"super::is_skipped_dir","kind":"import","line":198}
-{"file":"src/contracts.rs","name":"std::path::PathBuf","kind":"import","line":199}
-{"file":"src/contracts.rs","caller":"fastapi_re","name":"Regex","kind":"type_annotation","line":227}
-{"file":"src/contracts.rs","caller":"fastapi_re","name":"OnceLock::new","kind":"call","line":228,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"fastapi_re","name":"std::sync::OnceLock/new","kind":"call","line":228,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"fastapi_re","name":"RE.get_or_init","kind":"call","line":229}
-{"file":"src/contracts.rs","caller":"fastapi_re","name":"Regex::new(\n            r#\"@\\s*[A-Za-z_][A-Za-z0-9_]*\\.(get|post|put|delete|patch|options|head)\\(\\s*['\"]([^'\"]+)['\"]\"#,\n        )\n        .unwrap","kind":"call","line":232,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"fastapi_re","name":"Regex::new","kind":"call","line":232,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"fastapi_re","name":"regex::Regex/new(\n            r#\"@\\s*[A-Za-z_][A-Za-z0-9_]*\\.(get|post|put|delete|patch|options|head)\\(\\s*['\"]([^'\"]+)['\"]\"#,\n        )\n        .unwrap","kind":"call","line":232,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"fastapi_re","name":"regex::Regex/new","kind":"call","line":232,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"express_re","name":"Regex","kind":"type_annotation","line":239}
-{"file":"src/contracts.rs","caller":"express_re","name":"OnceLock::new","kind":"call","line":240,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"express_re","name":"std::sync::OnceLock/new","kind":"call","line":240,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"express_re","name":"RE.get_or_init","kind":"call","line":241}
-{"file":"src/contracts.rs","caller":"express_re","name":"Regex::new(\n            r#\"\\b[A-Za-z_][A-Za-z0-9_]*\\.(get|post|put|delete|patch|options|head|all)\\(\\s*['\"`]([^'\"`]+)['\"`]\"#,\n        )\n        .unwrap","kind":"call","line":244,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"express_re","name":"Regex::new","kind":"call","line":244,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"express_re","name":"regex::Regex/new(\n            r#\"\\b[A-Za-z_][A-Za-z0-9_]*\\.(get|post|put|delete|patch|options|head|all)\\(\\s*['\"`]([^'\"`]+)['\"`]\"#,\n        )\n        .unwrap","kind":"call","line":244,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"express_re","name":"regex::Regex/new","kind":"call","line":244,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"axios_re","name":"Regex","kind":"type_annotation","line":251}
-{"file":"src/contracts.rs","caller":"axios_re","name":"OnceLock::new","kind":"call","line":252,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"axios_re","name":"std::sync::OnceLock/new","kind":"call","line":252,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"axios_re","name":"RE.get_or_init","kind":"call","line":253}
-{"file":"src/contracts.rs","caller":"axios_re","name":"Regex::new(\n            r#\"\\baxios\\.(get|post|put|delete|patch|options|head)\\(\\s*['\"`]([^'\"`]+)['\"`]\"#,\n        )\n        .unwrap","kind":"call","line":257,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"axios_re","name":"Regex::new","kind":"call","line":257,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"axios_re","name":"regex::Regex/new(\n            r#\"\\baxios\\.(get|post|put|delete|patch|options|head)\\(\\s*['\"`]([^'\"`]+)['\"`]\"#,\n        )\n        .unwrap","kind":"call","line":257,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"axios_re","name":"regex::Regex/new","kind":"call","line":257,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"fetch_re","name":"Regex","kind":"type_annotation","line":264}
-{"file":"src/contracts.rs","caller":"fetch_re","name":"OnceLock::new","kind":"call","line":265,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"fetch_re","name":"std::sync::OnceLock/new","kind":"call","line":265,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"fetch_re","name":"RE.get_or_init","kind":"call","line":266}
-{"file":"src/contracts.rs","caller":"fetch_re","name":"Regex::new(r#\"\\bfetch\\s*\\(\\s*['\"`]([^'\"`]+)['\"`]\"#).unwrap","kind":"call","line":270,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"fetch_re","name":"Regex::new","kind":"call","line":270,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"fetch_re","name":"regex::Regex/new(r#\"\\bfetch\\s*\\(\\s*['\"`]([^'\"`]+)['\"`]\"#).unwrap","kind":"call","line":270,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"fetch_re","name":"regex::Regex/new","kind":"call","line":270,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"fetch_method_re","name":"Regex","kind":"type_annotation","line":274}
-{"file":"src/contracts.rs","caller":"fetch_method_re","name":"OnceLock::new","kind":"call","line":275,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"fetch_method_re","name":"std::sync::OnceLock/new","kind":"call","line":275,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"fetch_method_re","name":"RE.get_or_init","kind":"call","line":276}
-{"file":"src/contracts.rs","caller":"fetch_method_re","name":"Regex::new(r#\"\\bfetch\\s*\\(\\s*['\"`]([^'\"`]+)['\"`]\\s*,\\s*\\{[^}]*method\\s*:\\s*['\"]([A-Za-z]+)['\"]\"#).unwrap","kind":"call","line":278,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"fetch_method_re","name":"Regex::new","kind":"call","line":278,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"fetch_method_re","name":"regex::Regex/new(r#\"\\bfetch\\s*\\(\\s*['\"`]([^'\"`]+)['\"`]\\s*,\\s*\\{[^}]*method\\s*:\\s*['\"]([A-Za-z]+)['\"]\"#).unwrap","kind":"call","line":278,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"fetch_method_re","name":"regex::Regex/new","kind":"call","line":278,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"Vec","kind":"type_annotation","line":282}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"ContractRow","kind":"type_annotation","line":282}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"ext.starts_with","kind":"call","line":283}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"Vec::new","kind":"call","line":284}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"text.lines().enumerate","kind":"call","line":285}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"text.lines","kind":"call","line":285}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"axios_re().captures","kind":"call","line":288}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"axios_re","kind":"call","line":288,"confidence":0.95}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"caps[1].to_uppercase","kind":"call","line":289}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"normalize_http_path","kind":"call","line":290,"confidence":0.95}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"out.push","kind":"call","line":291}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"\"http\".to_string","kind":"call","line":293}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"\"consumer\".to_string","kind":"call","line":294}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"file.to_string","kind":"call","line":298}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"language.to_string","kind":"call","line":300}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"\"axios\".to_string","kind":"call","line":301}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"fetch_method_re()\n            .captures(line)\n            .map(|c| (c[2].to_uppercase(), c[1].to_string()))\n            .or_else","kind":"call","line":308}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"fetch_method_re()\n            .captures(line)\n            .map","kind":"call","line":308}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"fetch_method_re()\n            .captures","kind":"call","line":308}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"fetch_method_re","kind":"call","line":308,"confidence":0.95}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"c[2].to_uppercase","kind":"call","line":310}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"c[1].to_string","kind":"call","line":310}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"fetch_re()\n                    .captures(line)\n                    .map","kind":"call","line":312}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"fetch_re()\n                    .captures","kind":"call","line":312}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"fetch_re","kind":"call","line":312,"confidence":0.95}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"\"GET\".to_string","kind":"call","line":314}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"c[1].to_string","kind":"call","line":314}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"normalize_http_path","kind":"call","line":317,"confidence":0.95}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"out.push","kind":"call","line":318}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"\"http\".to_string","kind":"call","line":320}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"\"consumer\".to_string","kind":"call","line":321}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"file.to_string","kind":"call","line":325}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"language.to_string","kind":"call","line":327}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"\"fetch\".to_string","kind":"call","line":328}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"express_re().captures","kind":"call","line":332}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"express_re","kind":"call","line":332,"confidence":0.95}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"caps[1].to_uppercase","kind":"call","line":333}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"normalize_http_path","kind":"call","line":334,"confidence":0.95}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"out.push","kind":"call","line":335}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"\"http\".to_string","kind":"call","line":337}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"\"provider\".to_string","kind":"call","line":338}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"file.to_string","kind":"call","line":342}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"language.to_string","kind":"call","line":344}
-{"file":"src/contracts.rs","caller":"scan_js_ts","name":"\"express\".to_string","kind":"call","line":345}
-{"file":"src/contracts.rs","caller":"go_route_re","name":"Regex","kind":"type_annotation","line":352}
-{"file":"src/contracts.rs","caller":"go_route_re","name":"OnceLock::new","kind":"call","line":353,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"go_route_re","name":"std::sync::OnceLock/new","kind":"call","line":353,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"go_route_re","name":"RE.get_or_init","kind":"call","line":354}
-{"file":"src/contracts.rs","caller":"go_route_re","name":"Regex::new(\n            r#\"\\.(GET|POST|PUT|DELETE|PATCH|OPTIONS|HEAD|Get|Post|Put|Delete|Patch|Options|Head|Handle|HandleFunc)\\(\\s*['\"`]([^'\"`]+)['\"`]\"#,\n        )\n        .unwrap","kind":"call","line":361,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"go_route_re","name":"Regex::new","kind":"call","line":361,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"go_route_re","name":"regex::Regex/new(\n            r#\"\\.(GET|POST|PUT|DELETE|PATCH|OPTIONS|HEAD|Get|Post|Put|Delete|Patch|Options|Head|Handle|HandleFunc)\\(\\s*['\"`]([^'\"`]+)['\"`]\"#,\n        )\n        .unwrap","kind":"call","line":361,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"go_route_re","name":"regex::Regex/new","kind":"call","line":361,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"go_grpc_server_re","name":"Regex","kind":"type_annotation","line":368}
-{"file":"src/contracts.rs","caller":"go_grpc_server_re","name":"OnceLock::new","kind":"call","line":369,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"go_grpc_server_re","name":"std::sync::OnceLock/new","kind":"call","line":369,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"go_grpc_server_re","name":"RE.get_or_init","kind":"call","line":370}
-{"file":"src/contracts.rs","caller":"go_grpc_server_re","name":"Regex::new(r#\"\\.Register(\\w+)Server\\s*\\(\"#).unwrap","kind":"call","line":373,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"go_grpc_server_re","name":"Regex::new","kind":"call","line":373,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"go_grpc_server_re","name":"regex::Regex/new(r#\"\\.Register(\\w+)Server\\s*\\(\"#).unwrap","kind":"call","line":373,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"go_grpc_server_re","name":"regex::Regex/new","kind":"call","line":373,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"go_grpc_client_re","name":"Regex","kind":"type_annotation","line":377}
-{"file":"src/contracts.rs","caller":"go_grpc_client_re","name":"OnceLock::new","kind":"call","line":378,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"go_grpc_client_re","name":"std::sync::OnceLock/new","kind":"call","line":378,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"go_grpc_client_re","name":"RE.get_or_init","kind":"call","line":379}
-{"file":"src/contracts.rs","caller":"go_grpc_client_re","name":"Regex::new(r#\"\\.New(\\w+)Client\\s*\\(\"#).unwrap","kind":"call","line":382,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"go_grpc_client_re","name":"Regex::new","kind":"call","line":382,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"go_grpc_client_re","name":"regex::Regex/new(r#\"\\.New(\\w+)Client\\s*\\(\"#).unwrap","kind":"call","line":382,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"go_grpc_client_re","name":"regex::Regex/new","kind":"call","line":382,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"scan_go","name":"Vec","kind":"type_annotation","line":386}
-{"file":"src/contracts.rs","caller":"scan_go","name":"ContractRow","kind":"type_annotation","line":386}
-{"file":"src/contracts.rs","caller":"scan_go","name":"Vec::new","kind":"call","line":387}
-{"file":"src/contracts.rs","caller":"scan_go","name":"text.lines().enumerate","kind":"call","line":388}
-{"file":"src/contracts.rs","caller":"scan_go","name":"text.lines","kind":"call","line":388}
-{"file":"src/contracts.rs","caller":"scan_go","name":"go_grpc_server_re().captures","kind":"call","line":393}
-{"file":"src/contracts.rs","caller":"scan_go","name":"go_grpc_server_re","kind":"call","line":393,"confidence":0.95}
-{"file":"src/contracts.rs","caller":"scan_go","name":"caps[1].to_string","kind":"call","line":394}
-{"file":"src/contracts.rs","caller":"scan_go","name":"out.push","kind":"call","line":395}
-{"file":"src/contracts.rs","caller":"scan_go","name":"\"grpc\".to_string","kind":"call","line":397}
-{"file":"src/contracts.rs","caller":"scan_go","name":"\"provider\".to_string","kind":"call","line":398}
-{"file":"src/contracts.rs","caller":"scan_go","name":"svc.clone","kind":"call","line":400}
-{"file":"src/contracts.rs","caller":"scan_go","name":"file.to_string","kind":"call","line":402}
-{"file":"src/contracts.rs","caller":"scan_go","name":"\"go\".to_string","kind":"call","line":404}
-{"file":"src/contracts.rs","caller":"scan_go","name":"\"grpc\".to_string","kind":"call","line":405}
-{"file":"src/contracts.rs","caller":"scan_go","name":"go_grpc_client_re().captures","kind":"call","line":411}
-{"file":"src/contracts.rs","caller":"scan_go","name":"go_grpc_client_re","kind":"call","line":411,"confidence":0.95}
-{"file":"src/contracts.rs","caller":"scan_go","name":"caps[1].to_string","kind":"call","line":412}
-{"file":"src/contracts.rs","caller":"scan_go","name":"out.push","kind":"call","line":413}
-{"file":"src/contracts.rs","caller":"scan_go","name":"\"grpc\".to_string","kind":"call","line":415}
-{"file":"src/contracts.rs","caller":"scan_go","name":"\"consumer\".to_string","kind":"call","line":416}
-{"file":"src/contracts.rs","caller":"scan_go","name":"svc.clone","kind":"call","line":418}
-{"file":"src/contracts.rs","caller":"scan_go","name":"file.to_string","kind":"call","line":420}
-{"file":"src/contracts.rs","caller":"scan_go","name":"\"go\".to_string","kind":"call","line":422}
-{"file":"src/contracts.rs","caller":"scan_go","name":"\"grpc\".to_string","kind":"call","line":423}
-{"file":"src/contracts.rs","caller":"scan_go","name":"go_route_re().captures","kind":"call","line":427}
-{"file":"src/contracts.rs","caller":"scan_go","name":"go_route_re","kind":"call","line":427,"confidence":0.95}
-{"file":"src/contracts.rs","caller":"scan_go","name":"caps[1].to_string","kind":"call","line":428}
-{"file":"src/contracts.rs","caller":"scan_go","name":"\"*\".to_string","kind":"call","line":432}
-{"file":"src/contracts.rs","caller":"scan_go","name":"raw_verb.to_uppercase","kind":"call","line":434}
-{"file":"src/contracts.rs","caller":"scan_go","name":"normalize_http_path","kind":"call","line":436,"confidence":0.95}
-{"file":"src/contracts.rs","caller":"scan_go","name":"out.push","kind":"call","line":440}
-{"file":"src/contracts.rs","caller":"scan_go","name":"\"http\".to_string","kind":"call","line":442}
-{"file":"src/contracts.rs","caller":"scan_go","name":"\"provider\".to_string","kind":"call","line":443}
-{"file":"src/contracts.rs","caller":"scan_go","name":"file.to_string","kind":"call","line":447}
-{"file":"src/contracts.rs","caller":"scan_go","name":"\"go\".to_string","kind":"call","line":449}
-{"file":"src/contracts.rs","caller":"scan_go","name":"\"go\".to_string","kind":"call","line":450}
-{"file":"src/contracts.rs","caller":"spring_method_re","name":"Regex","kind":"type_annotation","line":457}
-{"file":"src/contracts.rs","caller":"spring_method_re","name":"OnceLock::new","kind":"call","line":458,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"spring_method_re","name":"std::sync::OnceLock/new","kind":"call","line":458,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"spring_method_re","name":"RE.get_or_init","kind":"call","line":459}
-{"file":"src/contracts.rs","caller":"spring_method_re","name":"Regex::new(\n            r#\"@(Get|Post|Put|Delete|Patch)Mapping\\s*\\(\\s*(?:value\\s*=\\s*)?['\"]([^'\"]+)['\"]\"#,\n        )\n        .unwrap","kind":"call","line":461,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"spring_method_re","name":"Regex::new","kind":"call","line":461,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"spring_method_re","name":"regex::Regex/new(\n            r#\"@(Get|Post|Put|Delete|Patch)Mapping\\s*\\(\\s*(?:value\\s*=\\s*)?['\"]([^'\"]+)['\"]\"#,\n        )\n        .unwrap","kind":"call","line":461,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"spring_method_re","name":"regex::Regex/new","kind":"call","line":461,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"scan_java","name":"Vec","kind":"type_annotation","line":468}
-{"file":"src/contracts.rs","caller":"scan_java","name":"ContractRow","kind":"type_annotation","line":468}
-{"file":"src/contracts.rs","caller":"scan_java","name":"Vec::new","kind":"call","line":469}
-{"file":"src/contracts.rs","caller":"scan_java","name":"text.lines().enumerate","kind":"call","line":470}
-{"file":"src/contracts.rs","caller":"scan_java","name":"text.lines","kind":"call","line":470}
-{"file":"src/contracts.rs","caller":"scan_java","name":"spring_method_re().captures","kind":"call","line":471}
-{"file":"src/contracts.rs","caller":"scan_java","name":"spring_method_re","kind":"call","line":471,"confidence":0.95}
-{"file":"src/contracts.rs","caller":"scan_java","name":"caps[1].to_uppercase","kind":"call","line":472}
-{"file":"src/contracts.rs","caller":"scan_java","name":"normalize_http_path","kind":"call","line":473,"confidence":0.95}
-{"file":"src/contracts.rs","caller":"scan_java","name":"out.push","kind":"call","line":474}
-{"file":"src/contracts.rs","caller":"scan_java","name":"\"http\".to_string","kind":"call","line":476}
-{"file":"src/contracts.rs","caller":"scan_java","name":"\"provider\".to_string","kind":"call","line":477}
-{"file":"src/contracts.rs","caller":"scan_java","name":"file.to_string","kind":"call","line":481}
-{"file":"src/contracts.rs","caller":"scan_java","name":"\"java\".to_string","kind":"call","line":483}
-{"file":"src/contracts.rs","caller":"scan_java","name":"\"spring\".to_string","kind":"call","line":484}
-{"file":"src/contracts.rs","caller":"proto_service_re","name":"Regex","kind":"type_annotation","line":491}
-{"file":"src/contracts.rs","caller":"proto_service_re","name":"OnceLock::new","kind":"call","line":492,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"proto_service_re","name":"std::sync::OnceLock/new","kind":"call","line":492,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"proto_service_re","name":"RE.get_or_init","kind":"call","line":493}
-{"file":"src/contracts.rs","caller":"proto_service_re","name":"Regex::new(r#\"^\\s*service\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*\\{?\"#).unwrap","kind":"call","line":493,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"proto_service_re","name":"Regex::new","kind":"call","line":493,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"proto_service_re","name":"regex::Regex/new(r#\"^\\s*service\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*\\{?\"#).unwrap","kind":"call","line":493,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"proto_service_re","name":"regex::Regex/new","kind":"call","line":493,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"proto_rpc_re","name":"Regex","kind":"type_annotation","line":496}
-{"file":"src/contracts.rs","caller":"proto_rpc_re","name":"OnceLock::new","kind":"call","line":497,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"proto_rpc_re","name":"std::sync::OnceLock/new","kind":"call","line":497,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"proto_rpc_re","name":"RE.get_or_init","kind":"call","line":498}
-{"file":"src/contracts.rs","caller":"proto_rpc_re","name":"Regex::new(r#\"^\\s*rpc\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*\\(\"#).unwrap","kind":"call","line":498,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"proto_rpc_re","name":"Regex::new","kind":"call","line":498,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"proto_rpc_re","name":"regex::Regex/new(r#\"^\\s*rpc\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*\\(\"#).unwrap","kind":"call","line":498,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"proto_rpc_re","name":"regex::Regex/new","kind":"call","line":498,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"scan_proto","name":"Vec","kind":"type_annotation","line":501}
-{"file":"src/contracts.rs","caller":"scan_proto","name":"ContractRow","kind":"type_annotation","line":501}
-{"file":"src/contracts.rs","caller":"scan_proto","name":"Vec::new","kind":"call","line":502}
-{"file":"src/contracts.rs","caller":"scan_proto","name":"text.lines().enumerate","kind":"call","line":508}
-{"file":"src/contracts.rs","caller":"scan_proto","name":"text.lines","kind":"call","line":508}
-{"file":"src/contracts.rs","caller":"scan_proto","name":"current_service.is_none","kind":"call","line":509}
-{"file":"src/contracts.rs","caller":"scan_proto","name":"proto_service_re().captures","kind":"call","line":510}
-{"file":"src/contracts.rs","caller":"scan_proto","name":"proto_service_re","kind":"call","line":510,"confidence":0.95}
-{"file":"src/contracts.rs","caller":"scan_proto","name":"caps[1].to_string","kind":"call","line":511}
-{"file":"src/contracts.rs","caller":"scan_proto","name":"line.matches('{').count","kind":"call","line":512}
-{"file":"src/contracts.rs","caller":"scan_proto","name":"line.matches","kind":"call","line":512}
-{"file":"src/contracts.rs","caller":"scan_proto","name":"line.matches('}').count","kind":"call","line":513}
-{"file":"src/contracts.rs","caller":"scan_proto","name":"line.matches","kind":"call","line":513}
-{"file":"src/contracts.rs","caller":"scan_proto","name":"current_service.as_deref","kind":"call","line":525}
-{"file":"src/contracts.rs","caller":"scan_proto","name":"proto_rpc_re().captures","kind":"call","line":529}
-{"file":"src/contracts.rs","caller":"scan_proto","name":"proto_rpc_re","kind":"call","line":529,"confidence":0.95}
-{"file":"src/contracts.rs","caller":"scan_proto","name":"out.push","kind":"call","line":531}
-{"file":"src/contracts.rs","caller":"scan_proto","name":"\"grpc\".to_string","kind":"call","line":533}
-{"file":"src/contracts.rs","caller":"scan_proto","name":"\"provider\".to_string","kind":"call","line":534}
-{"file":"src/contracts.rs","caller":"scan_proto","name":"file.to_string","kind":"call","line":538}
-{"file":"src/contracts.rs","caller":"scan_proto","name":"\"proto\".to_string","kind":"call","line":540}
-{"file":"src/contracts.rs","caller":"scan_proto","name":"\"grpc\".to_string","kind":"call","line":541}
-{"file":"src/contracts.rs","caller":"scan_proto","name":"line.matches('{').count","kind":"call","line":545}
-{"file":"src/contracts.rs","caller":"scan_proto","name":"line.matches","kind":"call","line":545}
-{"file":"src/contracts.rs","caller":"scan_proto","name":"line.matches('}').count","kind":"call","line":546}
-{"file":"src/contracts.rs","caller":"scan_proto","name":"line.matches","kind":"call","line":546}
-{"file":"src/contracts.rs","caller":"kafka_send_re","name":"Regex","kind":"type_annotation","line":557}
-{"file":"src/contracts.rs","caller":"kafka_send_re","name":"OnceLock::new","kind":"call","line":558,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"kafka_send_re","name":"std::sync::OnceLock/new","kind":"call","line":558,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"kafka_send_re","name":"RE.get_or_init","kind":"call","line":559}
-{"file":"src/contracts.rs","caller":"kafka_send_re","name":"Regex::new(\n            r#\"\\b[A-Za-z_][A-Za-z0-9_]*\\.send\\(\\s*['\"]([A-Za-z_][\\w./:\\-]*)['\"]\"#,\n        )\n        .unwrap","kind":"call","line":563,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"kafka_send_re","name":"Regex::new","kind":"call","line":563,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"kafka_send_re","name":"regex::Regex/new(\n            r#\"\\b[A-Za-z_][A-Za-z0-9_]*\\.send\\(\\s*['\"]([A-Za-z_][\\w./:\\-]*)['\"]\"#,\n        )\n        .unwrap","kind":"call","line":563,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"kafka_send_re","name":"regex::Regex/new","kind":"call","line":563,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"requests_re","name":"Regex","kind":"type_annotation","line":570}
-{"file":"src/contracts.rs","caller":"requests_re","name":"OnceLock::new","kind":"call","line":571,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"requests_re","name":"std::sync::OnceLock/new","kind":"call","line":571,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"requests_re","name":"RE.get_or_init","kind":"call","line":572}
-{"file":"src/contracts.rs","caller":"requests_re","name":"Regex::new(\n            r#\"\\b(?:requests|httpx)\\.(get|post|put|delete|patch|options|head)\\(\\s*['\"]([^'\"]+)['\"]\"#,\n        )\n        .unwrap","kind":"call","line":573,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"requests_re","name":"Regex::new","kind":"call","line":573,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"requests_re","name":"regex::Regex/new(\n            r#\"\\b(?:requests|httpx)\\.(get|post|put|delete|patch|options|head)\\(\\s*['\"]([^'\"]+)['\"]\"#,\n        )\n        .unwrap","kind":"call","line":573,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"requests_re","name":"regex::Regex/new","kind":"call","line":573,"confidence":0.8}
-{"file":"src/contracts.rs","caller":"scan_python","name":"Vec","kind":"type_annotation","line":580}
-{"file":"src/contracts.rs","caller":"scan_python","name":"ContractRow","kind":"type_annotation","line":580}
-{"file":"src/contracts.rs","caller":"scan_python","name":"Vec::new","kind":"call","line":581}
-{"file":"src/contracts.rs","caller":"scan_python","name":"text.lines().enumerate","kind":"call","line":582}
-{"file":"src/contracts.rs","caller":"scan_python","name":"text.lines","kind":"call","line":582}
-{"file":"src/contracts.rs","caller":"scan_python","name":"fastapi_re().captures","kind":"call","line":583}
-{"file":"src/contracts.rs","caller":"scan_python","name":"fastapi_re","kind":"call","line":583,"confidence":0.95}
-{"file":"src/contracts.rs","caller":"scan_python","name":"caps[1].to_uppercase","kind":"call","line":584}
-{"file":"src/contracts.rs","caller":"scan_python","name":"normalize_http_path","kind":"call","line":585,"confidence":0.95}
-{"file":"src/contracts.rs","caller":"scan_python","name":"out.push","kind":"call","line":586}
-{"file":"src/contracts.rs","caller":"scan_python","name":"\"http\".to_string","kind":"call","line":588}
-{"file":"src/contracts.rs","caller":"scan_python","name":"\"provider\".to_string","kind":"call","line":589}
-{"file":"src/contracts.rs","caller":"scan_python","name":"file.to_string","kind":"call","line":593}
-{"file":"src/contracts.rs","caller":"scan_python","name":"\"python\".to_string","kind":"call","line":595}
-{"file":"src/contracts.rs","caller":"scan_python","name":"\"fastapi\".to_string","kind":"call","line":596}
-{"file":"src/contracts.rs","caller":"scan_python","name":"requests_re().captures","kind":"call","line":600}
-{"file":"src/contracts.rs","caller":"scan_python","name":"requests_re","kind":"call","line":600,"confidence":0.95}
-{"file":"src/contracts.rs","caller":"scan_python","name":"caps[1].to_uppercase","kind":"call","line":601}
-{"file":"src/contracts.rs","caller":"scan_python","name":"normalize_http_path","kind":"call","line":602,"confidence":0.95}
-{"file":"src/contracts.rs","caller":"scan_python","name":"out.push","kind":"call","line":603}
-{"file":"src/contracts.rs","caller":"scan_python","name":"\"http\".to_string","kind":"call","line":605}
-{"file":"src/contracts.rs","caller":"scan_python","name":"\"consumer\".to_string","kind":"call","line":606}
-{"file":"src/contracts.rs","caller":"scan_python","name":"file.to_string","kind":"call","line":610}
-{"file":"src/contracts.rs","caller":"scan_python","name":"\"python\".to_string","kind":"call","line":612}
-{"file":"src/contracts.rs","caller":"scan_python","name":"\"requests\".to_string","kind":"call","line":613}
-{"file":"src/contracts.rs","caller":"scan_python","name":"kafka_send_re().captures","kind":"call","line":617}
-{"file":"src/contracts.rs","caller":"scan_python","name":"kafka_send_re","kind":"call","line":617,"confidence":0.95}
-{"file":"src/contracts.rs","caller":"scan_python","name":"caps[1].to_string","kind":"call","line":618}
-{"file":"src/contracts.rs","caller":"scan_python","name":"out.push","kind":"call","line":619}
-{"file":"src/contracts.rs","caller":"scan_python","name":"\"topic\".to_string","kind":"call","line":621}
-{"file":"src/contracts.rs","caller":"scan_python","name":"\"publisher\".to_string","kind":"call","line":622}
-{"file":"src/contracts.rs","caller":"scan_python","name":"file.to_string","kind":"call","line":626}
-{"file":"src/contracts.rs","caller":"scan_python","name":"\"python\".to_string","kind":"call","line":628}
-{"file":"src/contracts.rs","caller":"scan_python","name":"\"kafka\".to_string","kind":"call","line":629}
+{"file":"src/contracts.rs","caller":"django_path_to_braces","name":"String","kind":"type_annotation","line":92}
+{"file":"src/contracts.rs","caller":"django_path_to_braces","name":"OnceLock::new","kind":"call","line":94,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"django_path_to_braces","name":"std::sync::OnceLock/new","kind":"call","line":94,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"django_path_to_braces","name":"RE.get_or_init","kind":"call","line":95}
+{"file":"src/contracts.rs","caller":"django_path_to_braces","name":"Regex::new(r\"<(?:[A-Za-z_]+:)?([A-Za-z_][A-Za-z0-9_]*)>\").unwrap","kind":"call","line":95,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"django_path_to_braces","name":"Regex::new","kind":"call","line":95,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"django_path_to_braces","name":"regex::Regex/new(r\"<(?:[A-Za-z_]+:)?([A-Za-z_][A-Za-z0-9_]*)>\").unwrap","kind":"call","line":95,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"django_path_to_braces","name":"regex::Regex/new","kind":"call","line":95,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"django_path_to_braces","name":"re.replace_all(p, \"{$1}\").into_owned","kind":"call","line":96}
+{"file":"src/contracts.rs","caller":"django_path_to_braces","name":"re.replace_all","kind":"call","line":96}
+{"file":"src/contracts.rs","caller":"extract_from_root","name":"Path","kind":"type_annotation","line":100}
+{"file":"src/contracts.rs","caller":"extract_from_root","name":"Vec","kind":"type_annotation","line":100}
+{"file":"src/contracts.rs","caller":"extract_from_root","name":"ContractRow","kind":"type_annotation","line":100}
+{"file":"src/contracts.rs","caller":"extract_from_root","name":"Vec::new","kind":"call","line":101}
+{"file":"src/contracts.rs","caller":"extract_from_root","name":"walk","kind":"call","line":102,"confidence":0.95}
+{"file":"src/contracts.rs","caller":"WorkspaceContractRow","name":"String","kind":"type_annotation","line":112}
+{"file":"src/contracts.rs","caller":"WorkspaceContractRow","name":"ContractRow","kind":"type_annotation","line":114}
+{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"Path","kind":"type_annotation","line":123}
+{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"Vec","kind":"type_annotation","line":123}
+{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"WorkspaceContractRow","kind":"type_annotation","line":123}
+{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"root.join(\".sigil-workspace\").join","kind":"call","line":124}
+{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"root.join","kind":"call","line":124}
+{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"workspace_marker.exists","kind":"call","line":125}
+{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"crate::workspace::list(root).unwrap_or_default","kind":"call","line":126}
+{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"crate::workspace::list","kind":"call","line":126}
+{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"Vec::new","kind":"call","line":127}
+{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"members.into_iter().filter","kind":"call","line":128}
+{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"members.into_iter","kind":"call","line":128}
+{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"std::path::Path::new","kind":"call","line":129}
+{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"extract_from_root","kind":"call","line":130,"confidence":0.95}
+{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"out.push","kind":"call","line":131}
+{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"m.name.clone","kind":"call","line":132}
+{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"root\n        .file_name()\n        .map(|n| n.to_string_lossy().to_string())\n        .unwrap_or_else","kind":"call","line":139}
+{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"root\n        .file_name()\n        .map","kind":"call","line":139}
+{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"root\n        .file_name","kind":"call","line":139}
+{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"n.to_string_lossy().to_string","kind":"call","line":141}
+{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"n.to_string_lossy","kind":"call","line":141}
+{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"\".\".to_string","kind":"call","line":142}
+{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"extract_from_root(root)\n        .into_iter()\n        .map(|row| WorkspaceContractRow {\n            repo: repo.clone(),\n            row,\n        })\n        .collect","kind":"call","line":143}
+{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"extract_from_root(root)\n        .into_iter()\n        .map","kind":"call","line":143}
+{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"extract_from_root(root)\n        .into_iter","kind":"call","line":143}
+{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"extract_from_root","kind":"call","line":143,"confidence":0.95}
+{"file":"src/contracts.rs","caller":"extract_workspace_or_repo","name":"repo.clone","kind":"call","line":146}
+{"file":"src/contracts.rs","caller":"walk","name":"Vec","kind":"type_annotation","line":152}
+{"file":"src/contracts.rs","caller":"walk","name":"ContractRow","kind":"type_annotation","line":152}
+{"file":"src/contracts.rs","caller":"walk","name":"Path","kind":"type_annotation","line":152}
+{"file":"src/contracts.rs","caller":"walk","name":"Path","kind":"type_annotation","line":152}
+{"file":"src/contracts.rs","caller":"walk","name":"std::fs::read_dir","kind":"call","line":153}
+{"file":"src/contracts.rs","caller":"walk","name":"entries.flatten","kind":"call","line":157}
+{"file":"src/contracts.rs","caller":"walk","name":"entry.path","kind":"call","line":158}
+{"file":"src/contracts.rs","caller":"walk","name":"path.is_dir","kind":"call","line":159}
+{"file":"src/contracts.rs","caller":"walk","name":"is_skipped_dir","kind":"call","line":160,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"walk","name":"super::is_skipped_dir/","kind":"call","line":160,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"walk","name":"walk","kind":"call","line":163,"confidence":0.95}
+{"file":"src/contracts.rs","caller":"walk","name":"path.extension().and_then","kind":"call","line":166}
+{"file":"src/contracts.rs","caller":"walk","name":"path.extension","kind":"call","line":166}
+{"file":"src/contracts.rs","caller":"walk","name":"e.to_str","kind":"call","line":166}
+{"file":"src/contracts.rs","caller":"walk","name":"std::fs::read_to_string","kind":"call","line":169}
+{"file":"src/contracts.rs","caller":"walk","name":"path.strip_prefix(root).unwrap_or(&path).to_string_lossy().to_string","kind":"call","line":172}
+{"file":"src/contracts.rs","caller":"walk","name":"path.strip_prefix(root).unwrap_or(&path).to_string_lossy","kind":"call","line":172}
+{"file":"src/contracts.rs","caller":"walk","name":"path.strip_prefix(root).unwrap_or","kind":"call","line":172}
+{"file":"src/contracts.rs","caller":"walk","name":"path.strip_prefix","kind":"call","line":172}
+{"file":"src/contracts.rs","caller":"walk","name":"out.extend","kind":"call","line":174}
+{"file":"src/contracts.rs","caller":"walk","name":"scan_python","kind":"call","line":174,"confidence":0.95}
+{"file":"src/contracts.rs","caller":"walk","name":"out.extend","kind":"call","line":176}
+{"file":"src/contracts.rs","caller":"walk","name":"scan_js_ts","kind":"call","line":176,"confidence":0.95}
+{"file":"src/contracts.rs","caller":"walk","name":"out.extend","kind":"call","line":178}
+{"file":"src/contracts.rs","caller":"walk","name":"scan_go","kind":"call","line":178,"confidence":0.95}
+{"file":"src/contracts.rs","caller":"walk","name":"out.extend","kind":"call","line":179}
+{"file":"src/contracts.rs","caller":"walk","name":"scan_java","kind":"call","line":179,"confidence":0.95}
+{"file":"src/contracts.rs","caller":"walk","name":"out.extend","kind":"call","line":180}
+{"file":"src/contracts.rs","caller":"walk","name":"scan_proto","kind":"call","line":180,"confidence":0.95}
+{"file":"src/contracts.rs","caller":"is_skipped_dir","name":"Path","kind":"type_annotation","line":186}
+{"file":"src/contracts.rs","caller":"is_skipped_dir","name":"path.file_name","kind":"call","line":187}
+{"file":"src/contracts.rs","caller":"is_skipped_dir","name":"n.to_string_lossy","kind":"call","line":188}
+{"file":"src/contracts.rs","name":"super::is_skipped_dir","kind":"import","line":208}
+{"file":"src/contracts.rs","name":"std::path::PathBuf","kind":"import","line":209}
+{"file":"src/contracts.rs","caller":"fastapi_re","name":"Regex","kind":"type_annotation","line":237}
+{"file":"src/contracts.rs","caller":"fastapi_re","name":"OnceLock::new","kind":"call","line":238,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"fastapi_re","name":"std::sync::OnceLock/new","kind":"call","line":238,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"fastapi_re","name":"RE.get_or_init","kind":"call","line":239}
+{"file":"src/contracts.rs","caller":"fastapi_re","name":"Regex::new(\n            r#\"@(app|router|api|app_router|router_v\\d+|api_v\\d+|api_router|sub_app|sub_router)\\.(get|post|put|delete|patch|options|head)\\(\\s*['\"]([^'\"]+)['\"]\"#,\n        )\n        .unwrap","kind":"call","line":245,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"fastapi_re","name":"Regex::new","kind":"call","line":245,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"fastapi_re","name":"regex::Regex/new(\n            r#\"@(app|router|api|app_router|router_v\\d+|api_v\\d+|api_router|sub_app|sub_router)\\.(get|post|put|delete|patch|options|head)\\(\\s*['\"]([^'\"]+)['\"]\"#,\n        )\n        .unwrap","kind":"call","line":245,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"fastapi_re","name":"regex::Regex/new","kind":"call","line":245,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"express_re","name":"Regex","kind":"type_annotation","line":252}
+{"file":"src/contracts.rs","caller":"express_re","name":"OnceLock::new","kind":"call","line":253,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"express_re","name":"std::sync::OnceLock/new","kind":"call","line":253,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"express_re","name":"RE.get_or_init","kind":"call","line":254}
+{"file":"src/contracts.rs","caller":"express_re","name":"Regex::new(\n            r#\"\\b(?:app|router|api|app_router|server|expressApp|router\\d*|[A-Za-z_][A-Za-z0-9_]*Router)\\.(get|post|put|delete|patch|options|head|all)\\(\\s*['\"`](/[^'\"`]*)['\"`]\"#,\n        )\n        .unwrap","kind":"call","line":265,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"express_re","name":"Regex::new","kind":"call","line":265,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"express_re","name":"regex::Regex/new(\n            r#\"\\b(?:app|router|api|app_router|server|expressApp|router\\d*|[A-Za-z_][A-Za-z0-9_]*Router)\\.(get|post|put|delete|patch|options|head|all)\\(\\s*['\"`](/[^'\"`]*)['\"`]\"#,\n        )\n        .unwrap","kind":"call","line":265,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"express_re","name":"regex::Regex/new","kind":"call","line":265,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"django_path_re","name":"Regex","kind":"type_annotation","line":272}
+{"file":"src/contracts.rs","caller":"django_path_re","name":"OnceLock::new","kind":"call","line":273,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"django_path_re","name":"std::sync::OnceLock/new","kind":"call","line":273,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"django_path_re","name":"RE.get_or_init","kind":"call","line":274}
+{"file":"src/contracts.rs","caller":"django_path_re","name":"Regex::new(r#\"\\b(?:re_path|path)\\(\\s*r?['\"]([^'\"]+)['\"]\"#).unwrap","kind":"call","line":279,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"django_path_re","name":"Regex::new","kind":"call","line":279,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"django_path_re","name":"regex::Regex/new(r#\"\\b(?:re_path|path)\\(\\s*r?['\"]([^'\"]+)['\"]\"#).unwrap","kind":"call","line":279,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"django_path_re","name":"regex::Regex/new","kind":"call","line":279,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"drf_router_register_re","name":"Regex","kind":"type_annotation","line":283}
+{"file":"src/contracts.rs","caller":"drf_router_register_re","name":"OnceLock::new","kind":"call","line":284,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"drf_router_register_re","name":"std::sync::OnceLock/new","kind":"call","line":284,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"drf_router_register_re","name":"RE.get_or_init","kind":"call","line":285}
+{"file":"src/contracts.rs","caller":"drf_router_register_re","name":"Regex::new(r#\"\\brouter\\.register\\(\\s*r?['\"]([^'\"]+)['\"]\"#).unwrap","kind":"call","line":291,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"drf_router_register_re","name":"Regex::new","kind":"call","line":291,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"drf_router_register_re","name":"regex::Regex/new(r#\"\\brouter\\.register\\(\\s*r?['\"]([^'\"]+)['\"]\"#).unwrap","kind":"call","line":291,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"drf_router_register_re","name":"regex::Regex/new","kind":"call","line":291,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"drf_action_methods_re","name":"Regex","kind":"type_annotation","line":295}
+{"file":"src/contracts.rs","caller":"drf_action_methods_re","name":"OnceLock::new","kind":"call","line":296,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"drf_action_methods_re","name":"std::sync::OnceLock/new","kind":"call","line":296,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"drf_action_methods_re","name":"RE.get_or_init","kind":"call","line":297}
+{"file":"src/contracts.rs","caller":"drf_action_methods_re","name":"Regex::new(r#\"methods\\s*=\\s*\\[([^\\]]+)\\]\"#).unwrap","kind":"call","line":302,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"drf_action_methods_re","name":"Regex::new","kind":"call","line":302,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"drf_action_methods_re","name":"regex::Regex/new(r#\"methods\\s*=\\s*\\[([^\\]]+)\\]\"#).unwrap","kind":"call","line":302,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"drf_action_methods_re","name":"regex::Regex/new","kind":"call","line":302,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"drf_action_url_path_re","name":"Regex","kind":"type_annotation","line":306}
+{"file":"src/contracts.rs","caller":"drf_action_url_path_re","name":"OnceLock::new","kind":"call","line":307,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"drf_action_url_path_re","name":"std::sync::OnceLock/new","kind":"call","line":307,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"drf_action_url_path_re","name":"RE.get_or_init","kind":"call","line":308}
+{"file":"src/contracts.rs","caller":"drf_action_url_path_re","name":"Regex::new(r#\"url_path\\s*=\\s*['\"]([^'\"]+)['\"]\"#).unwrap","kind":"call","line":308,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"drf_action_url_path_re","name":"Regex::new","kind":"call","line":308,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"drf_action_url_path_re","name":"regex::Regex/new(r#\"url_path\\s*=\\s*['\"]([^'\"]+)['\"]\"#).unwrap","kind":"call","line":308,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"drf_action_url_path_re","name":"regex::Regex/new","kind":"call","line":308,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"axios_re","name":"Regex","kind":"type_annotation","line":311}
+{"file":"src/contracts.rs","caller":"axios_re","name":"OnceLock::new","kind":"call","line":312,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"axios_re","name":"std::sync::OnceLock/new","kind":"call","line":312,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"axios_re","name":"RE.get_or_init","kind":"call","line":313}
+{"file":"src/contracts.rs","caller":"axios_re","name":"Regex::new(\n            r#\"\\baxios\\.(get|post|put|delete|patch|options|head)\\(\\s*['\"`]([^'\"`]+)['\"`]\"#,\n        )\n        .unwrap","kind":"call","line":317,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"axios_re","name":"Regex::new","kind":"call","line":317,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"axios_re","name":"regex::Regex/new(\n            r#\"\\baxios\\.(get|post|put|delete|patch|options|head)\\(\\s*['\"`]([^'\"`]+)['\"`]\"#,\n        )\n        .unwrap","kind":"call","line":317,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"axios_re","name":"regex::Regex/new","kind":"call","line":317,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"fetch_re","name":"Regex","kind":"type_annotation","line":324}
+{"file":"src/contracts.rs","caller":"fetch_re","name":"OnceLock::new","kind":"call","line":325,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"fetch_re","name":"std::sync::OnceLock/new","kind":"call","line":325,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"fetch_re","name":"RE.get_or_init","kind":"call","line":326}
+{"file":"src/contracts.rs","caller":"fetch_re","name":"Regex::new(r#\"\\bfetch\\s*\\(\\s*['\"`]([^'\"`]+)['\"`]\"#).unwrap","kind":"call","line":330,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"fetch_re","name":"Regex::new","kind":"call","line":330,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"fetch_re","name":"regex::Regex/new(r#\"\\bfetch\\s*\\(\\s*['\"`]([^'\"`]+)['\"`]\"#).unwrap","kind":"call","line":330,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"fetch_re","name":"regex::Regex/new","kind":"call","line":330,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"fetch_method_re","name":"Regex","kind":"type_annotation","line":334}
+{"file":"src/contracts.rs","caller":"fetch_method_re","name":"OnceLock::new","kind":"call","line":335,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"fetch_method_re","name":"std::sync::OnceLock/new","kind":"call","line":335,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"fetch_method_re","name":"RE.get_or_init","kind":"call","line":336}
+{"file":"src/contracts.rs","caller":"fetch_method_re","name":"Regex::new(r#\"\\bfetch\\s*\\(\\s*['\"`]([^'\"`]+)['\"`]\\s*,\\s*\\{[^}]*method\\s*:\\s*['\"]([A-Za-z]+)['\"]\"#).unwrap","kind":"call","line":338,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"fetch_method_re","name":"Regex::new","kind":"call","line":338,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"fetch_method_re","name":"regex::Regex/new(r#\"\\bfetch\\s*\\(\\s*['\"`]([^'\"`]+)['\"`]\\s*,\\s*\\{[^}]*method\\s*:\\s*['\"]([A-Za-z]+)['\"]\"#).unwrap","kind":"call","line":338,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"fetch_method_re","name":"regex::Regex/new","kind":"call","line":338,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"Vec","kind":"type_annotation","line":342}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"ContractRow","kind":"type_annotation","line":342}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"ext.starts_with","kind":"call","line":343}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"Vec::new","kind":"call","line":344}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"text.lines().enumerate","kind":"call","line":345}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"text.lines","kind":"call","line":345}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"axios_re().captures","kind":"call","line":348}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"axios_re","kind":"call","line":348,"confidence":0.95}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"caps[1].to_uppercase","kind":"call","line":349}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"normalize_http_path","kind":"call","line":350,"confidence":0.95}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"out.push","kind":"call","line":351}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"\"http\".to_string","kind":"call","line":353}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"\"consumer\".to_string","kind":"call","line":354}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"file.to_string","kind":"call","line":358}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"language.to_string","kind":"call","line":360}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"\"axios\".to_string","kind":"call","line":361}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"fetch_method_re()\n            .captures(line)\n            .map(|c| (c[2].to_uppercase(), c[1].to_string()))\n            .or_else","kind":"call","line":368}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"fetch_method_re()\n            .captures(line)\n            .map","kind":"call","line":368}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"fetch_method_re()\n            .captures","kind":"call","line":368}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"fetch_method_re","kind":"call","line":368,"confidence":0.95}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"c[2].to_uppercase","kind":"call","line":370}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"c[1].to_string","kind":"call","line":370}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"fetch_re()\n                    .captures(line)\n                    .map","kind":"call","line":372}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"fetch_re()\n                    .captures","kind":"call","line":372}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"fetch_re","kind":"call","line":372,"confidence":0.95}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"\"GET\".to_string","kind":"call","line":374}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"c[1].to_string","kind":"call","line":374}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"normalize_http_path","kind":"call","line":377,"confidence":0.95}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"out.push","kind":"call","line":378}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"\"http\".to_string","kind":"call","line":380}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"\"consumer\".to_string","kind":"call","line":381}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"file.to_string","kind":"call","line":385}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"language.to_string","kind":"call","line":387}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"\"fetch\".to_string","kind":"call","line":388}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"express_re().captures","kind":"call","line":392}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"express_re","kind":"call","line":392,"confidence":0.95}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"caps[1].to_uppercase","kind":"call","line":393}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"normalize_http_path","kind":"call","line":394,"confidence":0.95}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"out.push","kind":"call","line":395}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"\"http\".to_string","kind":"call","line":397}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"\"provider\".to_string","kind":"call","line":398}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"file.to_string","kind":"call","line":402}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"language.to_string","kind":"call","line":404}
+{"file":"src/contracts.rs","caller":"scan_js_ts","name":"\"express\".to_string","kind":"call","line":405}
+{"file":"src/contracts.rs","caller":"go_route_re","name":"Regex","kind":"type_annotation","line":412}
+{"file":"src/contracts.rs","caller":"go_route_re","name":"OnceLock::new","kind":"call","line":413,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"go_route_re","name":"std::sync::OnceLock/new","kind":"call","line":413,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"go_route_re","name":"RE.get_or_init","kind":"call","line":414}
+{"file":"src/contracts.rs","caller":"go_route_re","name":"Regex::new(\n            r#\"\\.(GET|POST|PUT|DELETE|PATCH|OPTIONS|HEAD|Get|Post|Put|Delete|Patch|Options|Head|Handle|HandleFunc)\\(\\s*['\"`]([^'\"`]+)['\"`]\"#,\n        )\n        .unwrap","kind":"call","line":421,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"go_route_re","name":"Regex::new","kind":"call","line":421,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"go_route_re","name":"regex::Regex/new(\n            r#\"\\.(GET|POST|PUT|DELETE|PATCH|OPTIONS|HEAD|Get|Post|Put|Delete|Patch|Options|Head|Handle|HandleFunc)\\(\\s*['\"`]([^'\"`]+)['\"`]\"#,\n        )\n        .unwrap","kind":"call","line":421,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"go_route_re","name":"regex::Regex/new","kind":"call","line":421,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"go_grpc_server_re","name":"Regex","kind":"type_annotation","line":428}
+{"file":"src/contracts.rs","caller":"go_grpc_server_re","name":"OnceLock::new","kind":"call","line":429,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"go_grpc_server_re","name":"std::sync::OnceLock/new","kind":"call","line":429,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"go_grpc_server_re","name":"RE.get_or_init","kind":"call","line":430}
+{"file":"src/contracts.rs","caller":"go_grpc_server_re","name":"Regex::new(r#\"\\.Register(\\w+)Server\\s*\\(\"#).unwrap","kind":"call","line":433,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"go_grpc_server_re","name":"Regex::new","kind":"call","line":433,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"go_grpc_server_re","name":"regex::Regex/new(r#\"\\.Register(\\w+)Server\\s*\\(\"#).unwrap","kind":"call","line":433,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"go_grpc_server_re","name":"regex::Regex/new","kind":"call","line":433,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"go_grpc_client_re","name":"Regex","kind":"type_annotation","line":437}
+{"file":"src/contracts.rs","caller":"go_grpc_client_re","name":"OnceLock::new","kind":"call","line":438,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"go_grpc_client_re","name":"std::sync::OnceLock/new","kind":"call","line":438,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"go_grpc_client_re","name":"RE.get_or_init","kind":"call","line":439}
+{"file":"src/contracts.rs","caller":"go_grpc_client_re","name":"Regex::new(r#\"\\.New(\\w+)Client\\s*\\(\"#).unwrap","kind":"call","line":442,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"go_grpc_client_re","name":"Regex::new","kind":"call","line":442,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"go_grpc_client_re","name":"regex::Regex/new(r#\"\\.New(\\w+)Client\\s*\\(\"#).unwrap","kind":"call","line":442,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"go_grpc_client_re","name":"regex::Regex/new","kind":"call","line":442,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"scan_go","name":"Vec","kind":"type_annotation","line":446}
+{"file":"src/contracts.rs","caller":"scan_go","name":"ContractRow","kind":"type_annotation","line":446}
+{"file":"src/contracts.rs","caller":"scan_go","name":"Vec::new","kind":"call","line":447}
+{"file":"src/contracts.rs","caller":"scan_go","name":"text.lines().enumerate","kind":"call","line":448}
+{"file":"src/contracts.rs","caller":"scan_go","name":"text.lines","kind":"call","line":448}
+{"file":"src/contracts.rs","caller":"scan_go","name":"go_grpc_server_re().captures","kind":"call","line":453}
+{"file":"src/contracts.rs","caller":"scan_go","name":"go_grpc_server_re","kind":"call","line":453,"confidence":0.95}
+{"file":"src/contracts.rs","caller":"scan_go","name":"caps[1].to_string","kind":"call","line":454}
+{"file":"src/contracts.rs","caller":"scan_go","name":"out.push","kind":"call","line":455}
+{"file":"src/contracts.rs","caller":"scan_go","name":"\"grpc\".to_string","kind":"call","line":457}
+{"file":"src/contracts.rs","caller":"scan_go","name":"\"provider\".to_string","kind":"call","line":458}
+{"file":"src/contracts.rs","caller":"scan_go","name":"svc.clone","kind":"call","line":460}
+{"file":"src/contracts.rs","caller":"scan_go","name":"file.to_string","kind":"call","line":462}
+{"file":"src/contracts.rs","caller":"scan_go","name":"\"go\".to_string","kind":"call","line":464}
+{"file":"src/contracts.rs","caller":"scan_go","name":"\"grpc\".to_string","kind":"call","line":465}
+{"file":"src/contracts.rs","caller":"scan_go","name":"go_grpc_client_re().captures","kind":"call","line":471}
+{"file":"src/contracts.rs","caller":"scan_go","name":"go_grpc_client_re","kind":"call","line":471,"confidence":0.95}
+{"file":"src/contracts.rs","caller":"scan_go","name":"caps[1].to_string","kind":"call","line":472}
+{"file":"src/contracts.rs","caller":"scan_go","name":"out.push","kind":"call","line":473}
+{"file":"src/contracts.rs","caller":"scan_go","name":"\"grpc\".to_string","kind":"call","line":475}
+{"file":"src/contracts.rs","caller":"scan_go","name":"\"consumer\".to_string","kind":"call","line":476}
+{"file":"src/contracts.rs","caller":"scan_go","name":"svc.clone","kind":"call","line":478}
+{"file":"src/contracts.rs","caller":"scan_go","name":"file.to_string","kind":"call","line":480}
+{"file":"src/contracts.rs","caller":"scan_go","name":"\"go\".to_string","kind":"call","line":482}
+{"file":"src/contracts.rs","caller":"scan_go","name":"\"grpc\".to_string","kind":"call","line":483}
+{"file":"src/contracts.rs","caller":"scan_go","name":"go_route_re().captures","kind":"call","line":487}
+{"file":"src/contracts.rs","caller":"scan_go","name":"go_route_re","kind":"call","line":487,"confidence":0.95}
+{"file":"src/contracts.rs","caller":"scan_go","name":"caps[1].to_string","kind":"call","line":488}
+{"file":"src/contracts.rs","caller":"scan_go","name":"\"*\".to_string","kind":"call","line":492}
+{"file":"src/contracts.rs","caller":"scan_go","name":"raw_verb.to_uppercase","kind":"call","line":494}
+{"file":"src/contracts.rs","caller":"scan_go","name":"normalize_http_path","kind":"call","line":496,"confidence":0.95}
+{"file":"src/contracts.rs","caller":"scan_go","name":"out.push","kind":"call","line":500}
+{"file":"src/contracts.rs","caller":"scan_go","name":"\"http\".to_string","kind":"call","line":502}
+{"file":"src/contracts.rs","caller":"scan_go","name":"\"provider\".to_string","kind":"call","line":503}
+{"file":"src/contracts.rs","caller":"scan_go","name":"file.to_string","kind":"call","line":507}
+{"file":"src/contracts.rs","caller":"scan_go","name":"\"go\".to_string","kind":"call","line":509}
+{"file":"src/contracts.rs","caller":"scan_go","name":"\"go\".to_string","kind":"call","line":510}
+{"file":"src/contracts.rs","caller":"spring_method_re","name":"Regex","kind":"type_annotation","line":517}
+{"file":"src/contracts.rs","caller":"spring_method_re","name":"OnceLock::new","kind":"call","line":518,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"spring_method_re","name":"std::sync::OnceLock/new","kind":"call","line":518,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"spring_method_re","name":"RE.get_or_init","kind":"call","line":519}
+{"file":"src/contracts.rs","caller":"spring_method_re","name":"Regex::new(\n            r#\"@(Get|Post|Put|Delete|Patch)Mapping\\s*\\(\\s*(?:value\\s*=\\s*)?['\"]([^'\"]+)['\"]\"#,\n        )\n        .unwrap","kind":"call","line":521,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"spring_method_re","name":"Regex::new","kind":"call","line":521,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"spring_method_re","name":"regex::Regex/new(\n            r#\"@(Get|Post|Put|Delete|Patch)Mapping\\s*\\(\\s*(?:value\\s*=\\s*)?['\"]([^'\"]+)['\"]\"#,\n        )\n        .unwrap","kind":"call","line":521,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"spring_method_re","name":"regex::Regex/new","kind":"call","line":521,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"scan_java","name":"Vec","kind":"type_annotation","line":528}
+{"file":"src/contracts.rs","caller":"scan_java","name":"ContractRow","kind":"type_annotation","line":528}
+{"file":"src/contracts.rs","caller":"scan_java","name":"Vec::new","kind":"call","line":529}
+{"file":"src/contracts.rs","caller":"scan_java","name":"text.lines().enumerate","kind":"call","line":530}
+{"file":"src/contracts.rs","caller":"scan_java","name":"text.lines","kind":"call","line":530}
+{"file":"src/contracts.rs","caller":"scan_java","name":"spring_method_re().captures","kind":"call","line":531}
+{"file":"src/contracts.rs","caller":"scan_java","name":"spring_method_re","kind":"call","line":531,"confidence":0.95}
+{"file":"src/contracts.rs","caller":"scan_java","name":"caps[1].to_uppercase","kind":"call","line":532}
+{"file":"src/contracts.rs","caller":"scan_java","name":"normalize_http_path","kind":"call","line":533,"confidence":0.95}
+{"file":"src/contracts.rs","caller":"scan_java","name":"out.push","kind":"call","line":534}
+{"file":"src/contracts.rs","caller":"scan_java","name":"\"http\".to_string","kind":"call","line":536}
+{"file":"src/contracts.rs","caller":"scan_java","name":"\"provider\".to_string","kind":"call","line":537}
+{"file":"src/contracts.rs","caller":"scan_java","name":"file.to_string","kind":"call","line":541}
+{"file":"src/contracts.rs","caller":"scan_java","name":"\"java\".to_string","kind":"call","line":543}
+{"file":"src/contracts.rs","caller":"scan_java","name":"\"spring\".to_string","kind":"call","line":544}
+{"file":"src/contracts.rs","caller":"proto_service_re","name":"Regex","kind":"type_annotation","line":551}
+{"file":"src/contracts.rs","caller":"proto_service_re","name":"OnceLock::new","kind":"call","line":552,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"proto_service_re","name":"std::sync::OnceLock/new","kind":"call","line":552,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"proto_service_re","name":"RE.get_or_init","kind":"call","line":553}
+{"file":"src/contracts.rs","caller":"proto_service_re","name":"Regex::new(r#\"^\\s*service\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*\\{?\"#).unwrap","kind":"call","line":553,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"proto_service_re","name":"Regex::new","kind":"call","line":553,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"proto_service_re","name":"regex::Regex/new(r#\"^\\s*service\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*\\{?\"#).unwrap","kind":"call","line":553,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"proto_service_re","name":"regex::Regex/new","kind":"call","line":553,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"proto_rpc_re","name":"Regex","kind":"type_annotation","line":556}
+{"file":"src/contracts.rs","caller":"proto_rpc_re","name":"OnceLock::new","kind":"call","line":557,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"proto_rpc_re","name":"std::sync::OnceLock/new","kind":"call","line":557,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"proto_rpc_re","name":"RE.get_or_init","kind":"call","line":558}
+{"file":"src/contracts.rs","caller":"proto_rpc_re","name":"Regex::new(r#\"^\\s*rpc\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*\\(\"#).unwrap","kind":"call","line":558,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"proto_rpc_re","name":"Regex::new","kind":"call","line":558,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"proto_rpc_re","name":"regex::Regex/new(r#\"^\\s*rpc\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*\\(\"#).unwrap","kind":"call","line":558,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"proto_rpc_re","name":"regex::Regex/new","kind":"call","line":558,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"Vec","kind":"type_annotation","line":561}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"ContractRow","kind":"type_annotation","line":561}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"Vec::new","kind":"call","line":562}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"text.lines().enumerate","kind":"call","line":568}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"text.lines","kind":"call","line":568}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"current_service.is_none","kind":"call","line":569}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"proto_service_re().captures","kind":"call","line":570}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"proto_service_re","kind":"call","line":570,"confidence":0.95}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"caps[1].to_string","kind":"call","line":571}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"line.matches('{').count","kind":"call","line":572}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"line.matches","kind":"call","line":572}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"line.matches('}').count","kind":"call","line":573}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"line.matches","kind":"call","line":573}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"current_service.as_deref","kind":"call","line":585}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"proto_rpc_re().captures","kind":"call","line":589}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"proto_rpc_re","kind":"call","line":589,"confidence":0.95}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"out.push","kind":"call","line":591}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"\"grpc\".to_string","kind":"call","line":593}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"\"provider\".to_string","kind":"call","line":594}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"file.to_string","kind":"call","line":598}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"\"proto\".to_string","kind":"call","line":600}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"\"grpc\".to_string","kind":"call","line":601}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"line.matches('{').count","kind":"call","line":605}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"line.matches","kind":"call","line":605}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"line.matches('}').count","kind":"call","line":606}
+{"file":"src/contracts.rs","caller":"scan_proto","name":"line.matches","kind":"call","line":606}
+{"file":"src/contracts.rs","caller":"kafka_send_re","name":"Regex","kind":"type_annotation","line":617}
+{"file":"src/contracts.rs","caller":"kafka_send_re","name":"OnceLock::new","kind":"call","line":618,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"kafka_send_re","name":"std::sync::OnceLock/new","kind":"call","line":618,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"kafka_send_re","name":"RE.get_or_init","kind":"call","line":619}
+{"file":"src/contracts.rs","caller":"kafka_send_re","name":"Regex::new(\n            r#\"\\b[A-Za-z_][A-Za-z0-9_]*\\.send\\(\\s*['\"]([A-Za-z_][\\w./:\\-]*)['\"]\"#,\n        )\n        .unwrap","kind":"call","line":623,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"kafka_send_re","name":"Regex::new","kind":"call","line":623,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"kafka_send_re","name":"regex::Regex/new(\n            r#\"\\b[A-Za-z_][A-Za-z0-9_]*\\.send\\(\\s*['\"]([A-Za-z_][\\w./:\\-]*)['\"]\"#,\n        )\n        .unwrap","kind":"call","line":623,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"kafka_send_re","name":"regex::Regex/new","kind":"call","line":623,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"requests_re","name":"Regex","kind":"type_annotation","line":630}
+{"file":"src/contracts.rs","caller":"requests_re","name":"OnceLock::new","kind":"call","line":631,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"requests_re","name":"std::sync::OnceLock/new","kind":"call","line":631,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"requests_re","name":"RE.get_or_init","kind":"call","line":632}
+{"file":"src/contracts.rs","caller":"requests_re","name":"Regex::new(\n            r#\"\\b(?:requests|httpx)\\.(get|post|put|delete|patch|options|head)\\(\\s*['\"]([^'\"]+)['\"]\"#,\n        )\n        .unwrap","kind":"call","line":633,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"requests_re","name":"Regex::new","kind":"call","line":633,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"requests_re","name":"regex::Regex/new(\n            r#\"\\b(?:requests|httpx)\\.(get|post|put|delete|patch|options|head)\\(\\s*['\"]([^'\"]+)['\"]\"#,\n        )\n        .unwrap","kind":"call","line":633,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"requests_re","name":"regex::Regex/new","kind":"call","line":633,"confidence":0.8}
+{"file":"src/contracts.rs","caller":"scan_python","name":"Vec","kind":"type_annotation","line":640}
+{"file":"src/contracts.rs","caller":"scan_python","name":"ContractRow","kind":"type_annotation","line":640}
+{"file":"src/contracts.rs","caller":"scan_python","name":"Vec::new","kind":"call","line":641}
+{"file":"src/contracts.rs","caller":"scan_python","name":"text.lines().enumerate","kind":"call","line":642}
+{"file":"src/contracts.rs","caller":"scan_python","name":"text.lines","kind":"call","line":642}
+{"file":"src/contracts.rs","caller":"scan_python","name":"fastapi_re().captures","kind":"call","line":643}
+{"file":"src/contracts.rs","caller":"scan_python","name":"fastapi_re","kind":"call","line":643,"confidence":0.95}
+{"file":"src/contracts.rs","caller":"scan_python","name":"caps[2].to_uppercase","kind":"call","line":646}
+{"file":"src/contracts.rs","caller":"scan_python","name":"normalize_http_path","kind":"call","line":647,"confidence":0.95}
+{"file":"src/contracts.rs","caller":"scan_python","name":"out.push","kind":"call","line":648}
+{"file":"src/contracts.rs","caller":"scan_python","name":"\"http\".to_string","kind":"call","line":650}
+{"file":"src/contracts.rs","caller":"scan_python","name":"\"provider\".to_string","kind":"call","line":651}
+{"file":"src/contracts.rs","caller":"scan_python","name":"file.to_string","kind":"call","line":655}
+{"file":"src/contracts.rs","caller":"scan_python","name":"\"python\".to_string","kind":"call","line":657}
+{"file":"src/contracts.rs","caller":"scan_python","name":"\"fastapi\".to_string","kind":"call","line":658}
+{"file":"src/contracts.rs","caller":"scan_python","name":"django_path_re().captures","kind":"call","line":664}
+{"file":"src/contracts.rs","caller":"scan_python","name":"django_path_re","kind":"call","line":664,"confidence":0.95}
+{"file":"src/contracts.rs","caller":"scan_python","name":"caps[1].to_string","kind":"call","line":665}
+{"file":"src/contracts.rs","caller":"scan_python","name":"raw_path.is_empty","kind":"call","line":669}
+{"file":"src/contracts.rs","caller":"scan_python","name":"django_path_to_braces","kind":"call","line":675,"confidence":0.95}
+{"file":"src/contracts.rs","caller":"scan_python","name":"normalize_http_path","kind":"call","line":676,"confidence":0.95}
+{"file":"src/contracts.rs","caller":"scan_python","name":"out.push","kind":"call","line":677}
+{"file":"src/contracts.rs","caller":"scan_python","name":"\"http\".to_string","kind":"call","line":679}
+{"file":"src/contracts.rs","caller":"scan_python","name":"\"provider\".to_string","kind":"call","line":680}
+{"file":"src/contracts.rs","caller":"scan_python","name":"\"*\".to_string","kind":"call","line":681}
+{"file":"src/contracts.rs","caller":"scan_python","name":"file.to_string","kind":"call","line":684}
+{"file":"src/contracts.rs","caller":"scan_python","name":"\"python\".to_string","kind":"call","line":686}
+{"file":"src/contracts.rs","caller":"scan_python","name":"\"django\".to_string","kind":"call","line":687}
+{"file":"src/contracts.rs","caller":"scan_python","name":"drf_router_register_re().captures","kind":"call","line":693}
+{"file":"src/contracts.rs","caller":"scan_python","name":"drf_router_register_re","kind":"call","line":693,"confidence":0.95}
+{"file":"src/contracts.rs","caller":"scan_python","name":"caps[1].to_string","kind":"call","line":694}
+{"file":"src/contracts.rs","caller":"scan_python","name":"raw.starts_with","kind":"call","line":697}
+{"file":"src/contracts.rs","caller":"scan_python","name":"normalize_http_path","kind":"call","line":702,"confidence":0.95}
+{"file":"src/contracts.rs","caller":"scan_python","name":"out.push","kind":"call","line":703}
+{"file":"src/contracts.rs","caller":"scan_python","name":"\"http\".to_string","kind":"call","line":705}
+{"file":"src/contracts.rs","caller":"scan_python","name":"\"provider\".to_string","kind":"call","line":706}
+{"file":"src/contracts.rs","caller":"scan_python","name":"\"*\".to_string","kind":"call","line":707}
+{"file":"src/contracts.rs","caller":"scan_python","name":"file.to_string","kind":"call","line":710}
+{"file":"src/contracts.rs","caller":"scan_python","name":"\"python\".to_string","kind":"call","line":712}
+{"file":"src/contracts.rs","caller":"scan_python","name":"\"drf\".to_string","kind":"call","line":713}
+{"file":"src/contracts.rs","caller":"scan_python","name":"line.trim_start","kind":"call","line":722}
+{"file":"src/contracts.rs","caller":"scan_python","name":"trimmed_line.starts_with","kind":"call","line":723}
+{"file":"src/contracts.rs","caller":"scan_python","name":"drf_action_methods_re().captures","kind":"call","line":724}
+{"file":"src/contracts.rs","caller":"scan_python","name":"drf_action_methods_re","kind":"call","line":724,"confidence":0.95}
+{"file":"src/contracts.rs","caller":"scan_python","name":"mcaps[1].to_string","kind":"call","line":726}
+{"file":"src/contracts.rs","caller":"scan_python","name":"drf_action_url_path_re()\n                .captures(line)\n                .map(|c| c[1].to_string())\n                .unwrap_or_else","kind":"call","line":727}
+{"file":"src/contracts.rs","caller":"scan_python","name":"drf_action_url_path_re()\n                .captures(line)\n                .map","kind":"call","line":727}
+{"file":"src/contracts.rs","caller":"scan_python","name":"drf_action_url_path_re()\n                .captures","kind":"call","line":727}
+{"file":"src/contracts.rs","caller":"scan_python","name":"drf_action_url_path_re","kind":"call","line":727,"confidence":0.95}
+{"file":"src/contracts.rs","caller":"scan_python","name":"c[1].to_string","kind":"call","line":729}
+{"file":"src/contracts.rs","caller":"scan_python","name":"\"*\".to_string","kind":"call","line":730}
+{"file":"src/contracts.rs","caller":"scan_python","name":"methods_str.as_str","kind":"call","line":731}
+{"file":"src/contracts.rs","caller":"scan_python","name":"\"*\".to_string","kind":"call","line":733}
+{"file":"src/contracts.rs","caller":"scan_python","name":"path.starts_with","kind":"call","line":735}
+{"file":"src/contracts.rs","caller":"scan_python","name":"normalize_http_path","kind":"call","line":740,"confidence":0.95}
+{"file":"src/contracts.rs","caller":"scan_python","name":"methods_str.split","kind":"call","line":743}
+{"file":"src/contracts.rs","caller":"scan_python","name":"tok.trim().trim_matches","kind":"call","line":744}
+{"file":"src/contracts.rs","caller":"scan_python","name":"tok.trim","kind":"call","line":744}
+{"file":"src/contracts.rs","caller":"scan_python","name":"m.is_empty","kind":"call","line":745}
+{"file":"src/contracts.rs","caller":"scan_python","name":"m.to_uppercase","kind":"call","line":748}
+{"file":"src/contracts.rs","caller":"scan_python","name":"out.push","kind":"call","line":749}
+{"file":"src/contracts.rs","caller":"scan_python","name":"\"http\".to_string","kind":"call","line":751}
+{"file":"src/contracts.rs","caller":"scan_python","name":"\"provider\".to_string","kind":"call","line":752}
+{"file":"src/contracts.rs","caller":"scan_python","name":"normalized.clone","kind":"call","line":754}
+{"file":"src/contracts.rs","caller":"scan_python","name":"file.to_string","kind":"call","line":756}
+{"file":"src/contracts.rs","caller":"scan_python","name":"\"python\".to_string","kind":"call","line":758}
+{"file":"src/contracts.rs","caller":"scan_python","name":"\"drf\".to_string","kind":"call","line":759}
+{"file":"src/contracts.rs","caller":"scan_python","name":"requests_re().captures","kind":"call","line":764}
+{"file":"src/contracts.rs","caller":"scan_python","name":"requests_re","kind":"call","line":764,"confidence":0.95}
+{"file":"src/contracts.rs","caller":"scan_python","name":"caps[1].to_uppercase","kind":"call","line":765}
+{"file":"src/contracts.rs","caller":"scan_python","name":"normalize_http_path","kind":"call","line":766,"confidence":0.95}
+{"file":"src/contracts.rs","caller":"scan_python","name":"out.push","kind":"call","line":767}
+{"file":"src/contracts.rs","caller":"scan_python","name":"\"http\".to_string","kind":"call","line":769}
+{"file":"src/contracts.rs","caller":"scan_python","name":"\"consumer\".to_string","kind":"call","line":770}
+{"file":"src/contracts.rs","caller":"scan_python","name":"file.to_string","kind":"call","line":774}
+{"file":"src/contracts.rs","caller":"scan_python","name":"\"python\".to_string","kind":"call","line":776}
+{"file":"src/contracts.rs","caller":"scan_python","name":"\"requests\".to_string","kind":"call","line":777}
+{"file":"src/contracts.rs","caller":"scan_python","name":"kafka_send_re().captures","kind":"call","line":781}
+{"file":"src/contracts.rs","caller":"scan_python","name":"kafka_send_re","kind":"call","line":781,"confidence":0.95}
+{"file":"src/contracts.rs","caller":"scan_python","name":"caps[1].to_string","kind":"call","line":782}
+{"file":"src/contracts.rs","caller":"scan_python","name":"out.push","kind":"call","line":783}
+{"file":"src/contracts.rs","caller":"scan_python","name":"\"topic\".to_string","kind":"call","line":785}
+{"file":"src/contracts.rs","caller":"scan_python","name":"\"publisher\".to_string","kind":"call","line":786}
+{"file":"src/contracts.rs","caller":"scan_python","name":"file.to_string","kind":"call","line":790}
+{"file":"src/contracts.rs","caller":"scan_python","name":"\"python\".to_string","kind":"call","line":792}
+{"file":"src/contracts.rs","caller":"scan_python","name":"\"kafka\".to_string","kind":"call","line":793}
 {"file":"src/cross_repo_cochange.rs","name":"anyhow::{Context, Result}","kind":"import","line":11}
 {"file":"src/cross_repo_cochange.rs","name":"serde::Serialize","kind":"import","line":12}
 {"file":"src/cross_repo_cochange.rs","name":"std::path::{Path, PathBuf}","kind":"import","line":13}
@@ -24369,87 +24463,154 @@
 {"file":"tests/contracts_integration.rs","caller":"detects_spring_mapping_annotations","name":"rows.iter","kind":"call","line":312}
 {"file":"tests/contracts_integration.rs","caller":"detects_spring_mapping_annotations","name":"r[\"contract_id\"].as_str().unwrap","kind":"call","line":312}
 {"file":"tests/contracts_integration.rs","caller":"detects_spring_mapping_annotations","name":"r[\"contract_id\"].as_str","kind":"call","line":312}
-{"file":"tests/contracts_integration.rs","name":"std::process::Command","kind":"import","line":321}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"TempDir::new().unwrap","kind":"call","line":322,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"TempDir::new","kind":"call","line":322,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"tempfile::TempDir/new().unwrap","kind":"call","line":322,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"tempfile::TempDir/new","kind":"call","line":322,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"tmp.path().join","kind":"call","line":323}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"tmp.path","kind":"call","line":323}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"tmp.path().join","kind":"call","line":324}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"tmp.path","kind":"call","line":324}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"tmp.path().join","kind":"call","line":325}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"tmp.path","kind":"call","line":325}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"fs::create_dir_all(&ws).unwrap","kind":"call","line":326,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"fs::create_dir_all","kind":"call","line":326,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::fs/create_dir_all(&ws).unwrap","kind":"call","line":326,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::fs/create_dir_all","kind":"call","line":326,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"fs::create_dir_all(&api).unwrap","kind":"call","line":327,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"fs::create_dir_all","kind":"call","line":327,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::fs/create_dir_all(&api).unwrap","kind":"call","line":327,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::fs/create_dir_all","kind":"call","line":327,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"fs::create_dir_all(&client).unwrap","kind":"call","line":328,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"fs::create_dir_all","kind":"call","line":328,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::fs/create_dir_all(&client).unwrap","kind":"call","line":328,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::fs/create_dir_all","kind":"call","line":328,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"Command::new(\"git\").args([\"init\", \"-q\"]).current_dir(p).output().unwrap","kind":"call","line":332,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"Command::new(\"git\").args([\"init\", \"-q\"]).current_dir(p).output","kind":"call","line":332,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"Command::new(\"git\").args([\"init\", \"-q\"]).current_dir","kind":"call","line":332,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"Command::new(\"git\").args","kind":"call","line":332,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"Command::new","kind":"call","line":332,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::process::Command/new(\"git\").args([\"init\", \"-q\"]).current_dir(p).output().unwrap","kind":"call","line":332,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::process::Command/new(\"git\").args([\"init\", \"-q\"]).current_dir(p).output","kind":"call","line":332,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::process::Command/new(\"git\").args([\"init\", \"-q\"]).current_dir","kind":"call","line":332,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::process::Command/new(\"git\").args","kind":"call","line":332,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::process::Command/new","kind":"call","line":332,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"fs::write(api.join(\"app.py\"),\n        \"@app.get('/users')\\ndef list_users(): return []\\n\").unwrap","kind":"call","line":335,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"api.join","kind":"call","line":335}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::fs/write(api.join(\"app.py\"),\n        \"@app.get('/users')\\ndef list_users(): return []\\n\").unwrap","kind":"call","line":335,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"fs::write(client.join(\"client.js\"),\n        \"fetch('/users');\\n\").unwrap","kind":"call","line":337,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"client.join","kind":"call","line":337}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::fs/write(client.join(\"client.js\"),\n        \"fetch('/users');\\n\").unwrap","kind":"call","line":337,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .args([\"workspace\", \"init\", ws.to_str().unwrap()])\n        .output().unwrap","kind":"call","line":340,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .args([\"workspace\", \"init\", ws.to_str().unwrap()])\n        .output","kind":"call","line":340,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .args","kind":"call","line":340,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"Command::new","kind":"call","line":340,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::process::Command/new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .args([\"workspace\", \"init\", ws.to_str().unwrap()])\n        .output().unwrap","kind":"call","line":340,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::process::Command/new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .args([\"workspace\", \"init\", ws.to_str().unwrap()])\n        .output","kind":"call","line":340,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::process::Command/new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .args","kind":"call","line":340,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::process::Command/new","kind":"call","line":340,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"ws.to_str().unwrap","kind":"call","line":341}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"ws.to_str","kind":"call","line":341}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .args([\"workspace\", \"add\", api.to_str().unwrap(), \"--root\", ws.to_str().unwrap()])\n        .output().unwrap","kind":"call","line":343,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .args([\"workspace\", \"add\", api.to_str().unwrap(), \"--root\", ws.to_str().unwrap()])\n        .output","kind":"call","line":343,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .args","kind":"call","line":343,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"Command::new","kind":"call","line":343,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::process::Command/new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .args([\"workspace\", \"add\", api.to_str().unwrap(), \"--root\", ws.to_str().unwrap()])\n        .output().unwrap","kind":"call","line":343,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::process::Command/new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .args([\"workspace\", \"add\", api.to_str().unwrap(), \"--root\", ws.to_str().unwrap()])\n        .output","kind":"call","line":343,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::process::Command/new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .args","kind":"call","line":343,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::process::Command/new","kind":"call","line":343,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"api.to_str().unwrap","kind":"call","line":344}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"api.to_str","kind":"call","line":344}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"ws.to_str().unwrap","kind":"call","line":344}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"ws.to_str","kind":"call","line":344}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .args([\"workspace\", \"add\", client.to_str().unwrap(), \"--root\", ws.to_str().unwrap()])\n        .output().unwrap","kind":"call","line":346,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .args([\"workspace\", \"add\", client.to_str().unwrap(), \"--root\", ws.to_str().unwrap()])\n        .output","kind":"call","line":346,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .args","kind":"call","line":346,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"Command::new","kind":"call","line":346,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::process::Command/new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .args([\"workspace\", \"add\", client.to_str().unwrap(), \"--root\", ws.to_str().unwrap()])\n        .output().unwrap","kind":"call","line":346,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::process::Command/new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .args([\"workspace\", \"add\", client.to_str().unwrap(), \"--root\", ws.to_str().unwrap()])\n        .output","kind":"call","line":346,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::process::Command/new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .args","kind":"call","line":346,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::process::Command/new","kind":"call","line":346,"confidence":0.8}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"client.to_str().unwrap","kind":"call","line":347}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"client.to_str","kind":"call","line":347}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"ws.to_str().unwrap","kind":"call","line":347}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"ws.to_str","kind":"call","line":347}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"run_contracts","kind":"call","line":350,"confidence":0.95}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"parse","kind":"call","line":352,"confidence":0.95}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"rows.iter().find(|r| r[\"role\"] == \"provider\")\n        .unwrap_or_else","kind":"call","line":355}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"rows.iter().find","kind":"call","line":355}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"rows.iter","kind":"call","line":355}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"rows.iter().find(|r| r[\"role\"] == \"consumer\")\n        .unwrap_or_else","kind":"call","line":360}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"rows.iter().find","kind":"call","line":360}
-{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"rows.iter","kind":"call","line":360}
+{"file":"tests/contracts_integration.rs","caller":"fastapi_regex_does_not_match_mock_patch_decorators","name":"TempDir::new().unwrap","kind":"call","line":325,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"fastapi_regex_does_not_match_mock_patch_decorators","name":"TempDir::new","kind":"call","line":325,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"fastapi_regex_does_not_match_mock_patch_decorators","name":"tempfile::TempDir/new().unwrap","kind":"call","line":325,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"fastapi_regex_does_not_match_mock_patch_decorators","name":"tempfile::TempDir/new","kind":"call","line":325,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"fastapi_regex_does_not_match_mock_patch_decorators","name":"fs::write(\n        tmp.path().join(\"test_things.py\"),\n        r#\"from unittest import mock\nimport pytest\n\n@mock.patch(\"products.something.helper\")\ndef test_a(): pass\n\n@mock.patch(\"products.other.thing.cancel_workflow\")\ndef test_b(): pass\n\n@pytest.fixture\ndef some_fixture(): pass\n\"#,\n    ).unwrap","kind":"call","line":326,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"fastapi_regex_does_not_match_mock_patch_decorators","name":"std::fs/write(\n        tmp.path().join(\"test_things.py\"),\n        r#\"from unittest import mock\nimport pytest\n\n@mock.patch(\"products.something.helper\")\ndef test_a(): pass\n\n@mock.patch(\"products.other.thing.cancel_workflow\")\ndef test_b(): pass\n\n@pytest.fixture\ndef some_fixture(): pass\n\"#,\n    ).unwrap","kind":"call","line":326,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"fastapi_regex_does_not_match_mock_patch_decorators","name":"tmp.path().join","kind":"call","line":327}
+{"file":"tests/contracts_integration.rs","caller":"fastapi_regex_does_not_match_mock_patch_decorators","name":"tmp.path","kind":"call","line":327}
+{"file":"tests/contracts_integration.rs","caller":"fastapi_regex_does_not_match_mock_patch_decorators","name":"run_contracts","kind":"call","line":341,"confidence":0.95}
+{"file":"tests/contracts_integration.rs","caller":"fastapi_regex_does_not_match_mock_patch_decorators","name":"tmp.path","kind":"call","line":341}
+{"file":"tests/contracts_integration.rs","caller":"fastapi_regex_does_not_match_mock_patch_decorators","name":"parse","kind":"call","line":343,"confidence":0.95}
+{"file":"tests/contracts_integration.rs","caller":"fastapi_regex_does_not_match_mock_patch_decorators","name":"rows.iter().filter(|r| r[\"framework\"] == \"fastapi\").collect","kind":"call","line":344}
+{"file":"tests/contracts_integration.rs","caller":"fastapi_regex_does_not_match_mock_patch_decorators","name":"rows.iter().filter","kind":"call","line":344}
+{"file":"tests/contracts_integration.rs","caller":"fastapi_regex_does_not_match_mock_patch_decorators","name":"rows.iter","kind":"call","line":344}
+{"file":"tests/contracts_integration.rs","caller":"express_regex_does_not_match_random_get_calls","name":"TempDir::new().unwrap","kind":"call","line":357,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"express_regex_does_not_match_random_get_calls","name":"TempDir::new","kind":"call","line":357,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"express_regex_does_not_match_random_get_calls","name":"tempfile::TempDir/new().unwrap","kind":"call","line":357,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"express_regex_does_not_match_random_get_calls","name":"tempfile::TempDir/new","kind":"call","line":357,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"express_regex_does_not_match_random_get_calls","name":"fs::write(\n        tmp.path().join(\"client.ts\"),\n        r#\"const params = new URLSearchParams(window.location.search);\nconst v1 = params.get('ordering');\nconst v2 = cache.get('user-id');\nconst v3 = redis.get('session');\nconst v4 = pipeline.get('orgId');\n\"#,\n    ).unwrap","kind":"call","line":358,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"express_regex_does_not_match_random_get_calls","name":"std::fs/write(\n        tmp.path().join(\"client.ts\"),\n        r#\"const params = new URLSearchParams(window.location.search);\nconst v1 = params.get('ordering');\nconst v2 = cache.get('user-id');\nconst v3 = redis.get('session');\nconst v4 = pipeline.get('orgId');\n\"#,\n    ).unwrap","kind":"call","line":358,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"express_regex_does_not_match_random_get_calls","name":"tmp.path().join","kind":"call","line":359}
+{"file":"tests/contracts_integration.rs","caller":"express_regex_does_not_match_random_get_calls","name":"tmp.path","kind":"call","line":359}
+{"file":"tests/contracts_integration.rs","caller":"express_regex_does_not_match_random_get_calls","name":"run_contracts","kind":"call","line":367,"confidence":0.95}
+{"file":"tests/contracts_integration.rs","caller":"express_regex_does_not_match_random_get_calls","name":"tmp.path","kind":"call","line":367}
+{"file":"tests/contracts_integration.rs","caller":"express_regex_does_not_match_random_get_calls","name":"parse","kind":"call","line":369,"confidence":0.95}
+{"file":"tests/contracts_integration.rs","caller":"express_regex_does_not_match_random_get_calls","name":"rows.iter().filter(|r| r[\"framework\"] == \"express\").collect","kind":"call","line":370}
+{"file":"tests/contracts_integration.rs","caller":"express_regex_does_not_match_random_get_calls","name":"rows.iter().filter","kind":"call","line":370}
+{"file":"tests/contracts_integration.rs","caller":"express_regex_does_not_match_random_get_calls","name":"rows.iter","kind":"call","line":370}
+{"file":"tests/contracts_integration.rs","caller":"detects_django_path_and_re_path_providers","name":"TempDir::new().unwrap","kind":"call","line":379,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"detects_django_path_and_re_path_providers","name":"TempDir::new","kind":"call","line":379,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"detects_django_path_and_re_path_providers","name":"tempfile::TempDir/new().unwrap","kind":"call","line":379,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"detects_django_path_and_re_path_providers","name":"tempfile::TempDir/new","kind":"call","line":379,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"detects_django_path_and_re_path_providers","name":"fs::write(\n        tmp.path().join(\"urls.py\"),\n        r#\"from django.urls import path, re_path\nfrom . import views\n\nurlpatterns = [\n    path('api/projects/<int:pk>/', views.project_detail),\n    path('api/users/', views.user_list),\n    re_path(r'^api/teams/(?P<team_id>\\d+)/$', views.team_detail),\n]\n\"#,\n    ).unwrap","kind":"call","line":380,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"detects_django_path_and_re_path_providers","name":"std::fs/write(\n        tmp.path().join(\"urls.py\"),\n        r#\"from django.urls import path, re_path\nfrom . import views\n\nurlpatterns = [\n    path('api/projects/<int:pk>/', views.project_detail),\n    path('api/users/', views.user_list),\n    re_path(r'^api/teams/(?P<team_id>\\d+)/$', views.team_detail),\n]\n\"#,\n    ).unwrap","kind":"call","line":380,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"detects_django_path_and_re_path_providers","name":"tmp.path().join","kind":"call","line":381}
+{"file":"tests/contracts_integration.rs","caller":"detects_django_path_and_re_path_providers","name":"tmp.path","kind":"call","line":381}
+{"file":"tests/contracts_integration.rs","caller":"detects_django_path_and_re_path_providers","name":"run_contracts","kind":"call","line":392,"confidence":0.95}
+{"file":"tests/contracts_integration.rs","caller":"detects_django_path_and_re_path_providers","name":"tmp.path","kind":"call","line":392}
+{"file":"tests/contracts_integration.rs","caller":"detects_django_path_and_re_path_providers","name":"parse","kind":"call","line":394,"confidence":0.95}
+{"file":"tests/contracts_integration.rs","caller":"detects_django_path_and_re_path_providers","name":"rows.iter().map(|r| r[\"contract_id\"].as_str().unwrap()).collect","kind":"call","line":395}
+{"file":"tests/contracts_integration.rs","caller":"detects_django_path_and_re_path_providers","name":"rows.iter().map","kind":"call","line":395}
+{"file":"tests/contracts_integration.rs","caller":"detects_django_path_and_re_path_providers","name":"rows.iter","kind":"call","line":395}
+{"file":"tests/contracts_integration.rs","caller":"detects_django_path_and_re_path_providers","name":"r[\"contract_id\"].as_str().unwrap","kind":"call","line":395}
+{"file":"tests/contracts_integration.rs","caller":"detects_django_path_and_re_path_providers","name":"r[\"contract_id\"].as_str","kind":"call","line":395}
+{"file":"tests/contracts_integration.rs","caller":"detects_django_path_and_re_path_providers","name":"rows.iter().find(|r| r[\"contract_id\"] == \"http::*::/api/projects/{param}\").unwrap","kind":"call","line":404}
+{"file":"tests/contracts_integration.rs","caller":"detects_django_path_and_re_path_providers","name":"rows.iter().find","kind":"call","line":404}
+{"file":"tests/contracts_integration.rs","caller":"detects_django_path_and_re_path_providers","name":"rows.iter","kind":"call","line":404}
+{"file":"tests/contracts_integration.rs","caller":"detects_drf_router_register_and_action_decorator","name":"TempDir::new().unwrap","kind":"call","line":410,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"detects_drf_router_register_and_action_decorator","name":"TempDir::new","kind":"call","line":410,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"detects_drf_router_register_and_action_decorator","name":"tempfile::TempDir/new().unwrap","kind":"call","line":410,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"detects_drf_router_register_and_action_decorator","name":"tempfile::TempDir/new","kind":"call","line":410,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"detects_drf_router_register_and_action_decorator","name":"fs::write(\n        tmp.path().join(\"urls.py\"),\n        r#\"from rest_framework import routers\nfrom . import views\n\nrouter = routers.DefaultRouter()\nrouter.register(r'projects', views.ProjectViewSet, basename='project')\nrouter.register(r'dashboards', views.DashboardViewSet)\n\"#,\n    ).unwrap","kind":"call","line":411,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"detects_drf_router_register_and_action_decorator","name":"std::fs/write(\n        tmp.path().join(\"urls.py\"),\n        r#\"from rest_framework import routers\nfrom . import views\n\nrouter = routers.DefaultRouter()\nrouter.register(r'projects', views.ProjectViewSet, basename='project')\nrouter.register(r'dashboards', views.DashboardViewSet)\n\"#,\n    ).unwrap","kind":"call","line":411,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"detects_drf_router_register_and_action_decorator","name":"tmp.path().join","kind":"call","line":412}
+{"file":"tests/contracts_integration.rs","caller":"detects_drf_router_register_and_action_decorator","name":"tmp.path","kind":"call","line":412}
+{"file":"tests/contracts_integration.rs","caller":"detects_drf_router_register_and_action_decorator","name":"fs::write(\n        tmp.path().join(\"views.py\"),\n        r#\"from rest_framework.decorators import action\nfrom rest_framework import viewsets\n\nclass ProjectViewSet(viewsets.ModelViewSet):\n    @action(detail=True, methods=['POST'], url_path='archive')\n    def archive(self, request, pk=None):\n        pass\n\n    @action(detail=False, methods=['GET'])\n    def list_active(self, request):\n        pass\n\"#,\n    ).unwrap","kind":"call","line":421,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"detects_drf_router_register_and_action_decorator","name":"std::fs/write(\n        tmp.path().join(\"views.py\"),\n        r#\"from rest_framework.decorators import action\nfrom rest_framework import viewsets\n\nclass ProjectViewSet(viewsets.ModelViewSet):\n    @action(detail=True, methods=['POST'], url_path='archive')\n    def archive(self, request, pk=None):\n        pass\n\n    @action(detail=False, methods=['GET'])\n    def list_active(self, request):\n        pass\n\"#,\n    ).unwrap","kind":"call","line":421,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"detects_drf_router_register_and_action_decorator","name":"tmp.path().join","kind":"call","line":422}
+{"file":"tests/contracts_integration.rs","caller":"detects_drf_router_register_and_action_decorator","name":"tmp.path","kind":"call","line":422}
+{"file":"tests/contracts_integration.rs","caller":"detects_drf_router_register_and_action_decorator","name":"run_contracts","kind":"call","line":436,"confidence":0.95}
+{"file":"tests/contracts_integration.rs","caller":"detects_drf_router_register_and_action_decorator","name":"tmp.path","kind":"call","line":436}
+{"file":"tests/contracts_integration.rs","caller":"detects_drf_router_register_and_action_decorator","name":"parse","kind":"call","line":438,"confidence":0.95}
+{"file":"tests/contracts_integration.rs","caller":"detects_drf_router_register_and_action_decorator","name":"rows.iter().map(|r| r[\"contract_id\"].as_str().unwrap()).collect","kind":"call","line":439}
+{"file":"tests/contracts_integration.rs","caller":"detects_drf_router_register_and_action_decorator","name":"rows.iter().map","kind":"call","line":439}
+{"file":"tests/contracts_integration.rs","caller":"detects_drf_router_register_and_action_decorator","name":"rows.iter","kind":"call","line":439}
+{"file":"tests/contracts_integration.rs","caller":"detects_drf_router_register_and_action_decorator","name":"r[\"contract_id\"].as_str().unwrap","kind":"call","line":439}
+{"file":"tests/contracts_integration.rs","caller":"detects_drf_router_register_and_action_decorator","name":"r[\"contract_id\"].as_str","kind":"call","line":439}
+{"file":"tests/contracts_integration.rs","name":"std::process::Command","kind":"import","line":456}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"TempDir::new().unwrap","kind":"call","line":457,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"TempDir::new","kind":"call","line":457,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"tempfile::TempDir/new().unwrap","kind":"call","line":457,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"tempfile::TempDir/new","kind":"call","line":457,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"tmp.path().join","kind":"call","line":458}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"tmp.path","kind":"call","line":458}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"tmp.path().join","kind":"call","line":459}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"tmp.path","kind":"call","line":459}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"tmp.path().join","kind":"call","line":460}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"tmp.path","kind":"call","line":460}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"fs::create_dir_all(&ws).unwrap","kind":"call","line":461,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"fs::create_dir_all","kind":"call","line":461,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::fs/create_dir_all(&ws).unwrap","kind":"call","line":461,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::fs/create_dir_all","kind":"call","line":461,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"fs::create_dir_all(&api).unwrap","kind":"call","line":462,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"fs::create_dir_all","kind":"call","line":462,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::fs/create_dir_all(&api).unwrap","kind":"call","line":462,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::fs/create_dir_all","kind":"call","line":462,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"fs::create_dir_all(&client).unwrap","kind":"call","line":463,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"fs::create_dir_all","kind":"call","line":463,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::fs/create_dir_all(&client).unwrap","kind":"call","line":463,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::fs/create_dir_all","kind":"call","line":463,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"Command::new(\"git\").args([\"init\", \"-q\"]).current_dir(p).output().unwrap","kind":"call","line":467,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"Command::new(\"git\").args([\"init\", \"-q\"]).current_dir(p).output","kind":"call","line":467,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"Command::new(\"git\").args([\"init\", \"-q\"]).current_dir","kind":"call","line":467,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"Command::new(\"git\").args","kind":"call","line":467,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"Command::new","kind":"call","line":467,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::process::Command/new(\"git\").args([\"init\", \"-q\"]).current_dir(p).output().unwrap","kind":"call","line":467,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::process::Command/new(\"git\").args([\"init\", \"-q\"]).current_dir(p).output","kind":"call","line":467,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::process::Command/new(\"git\").args([\"init\", \"-q\"]).current_dir","kind":"call","line":467,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::process::Command/new(\"git\").args","kind":"call","line":467,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::process::Command/new","kind":"call","line":467,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"fs::write(api.join(\"app.py\"),\n        \"@app.get('/users')\\ndef list_users(): return []\\n\").unwrap","kind":"call","line":470,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"api.join","kind":"call","line":470}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::fs/write(api.join(\"app.py\"),\n        \"@app.get('/users')\\ndef list_users(): return []\\n\").unwrap","kind":"call","line":470,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"fs::write(client.join(\"client.js\"),\n        \"fetch('/users');\\n\").unwrap","kind":"call","line":472,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"client.join","kind":"call","line":472}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::fs/write(client.join(\"client.js\"),\n        \"fetch('/users');\\n\").unwrap","kind":"call","line":472,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .args([\"workspace\", \"init\", ws.to_str().unwrap()])\n        .output().unwrap","kind":"call","line":475,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .args([\"workspace\", \"init\", ws.to_str().unwrap()])\n        .output","kind":"call","line":475,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .args","kind":"call","line":475,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"Command::new","kind":"call","line":475,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::process::Command/new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .args([\"workspace\", \"init\", ws.to_str().unwrap()])\n        .output().unwrap","kind":"call","line":475,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::process::Command/new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .args([\"workspace\", \"init\", ws.to_str().unwrap()])\n        .output","kind":"call","line":475,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::process::Command/new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .args","kind":"call","line":475,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::process::Command/new","kind":"call","line":475,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"ws.to_str().unwrap","kind":"call","line":476}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"ws.to_str","kind":"call","line":476}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .args([\"workspace\", \"add\", api.to_str().unwrap(), \"--root\", ws.to_str().unwrap()])\n        .output().unwrap","kind":"call","line":478,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .args([\"workspace\", \"add\", api.to_str().unwrap(), \"--root\", ws.to_str().unwrap()])\n        .output","kind":"call","line":478,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .args","kind":"call","line":478,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"Command::new","kind":"call","line":478,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::process::Command/new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .args([\"workspace\", \"add\", api.to_str().unwrap(), \"--root\", ws.to_str().unwrap()])\n        .output().unwrap","kind":"call","line":478,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::process::Command/new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .args([\"workspace\", \"add\", api.to_str().unwrap(), \"--root\", ws.to_str().unwrap()])\n        .output","kind":"call","line":478,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::process::Command/new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .args","kind":"call","line":478,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::process::Command/new","kind":"call","line":478,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"api.to_str().unwrap","kind":"call","line":479}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"api.to_str","kind":"call","line":479}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"ws.to_str().unwrap","kind":"call","line":479}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"ws.to_str","kind":"call","line":479}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .args([\"workspace\", \"add\", client.to_str().unwrap(), \"--root\", ws.to_str().unwrap()])\n        .output().unwrap","kind":"call","line":481,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .args([\"workspace\", \"add\", client.to_str().unwrap(), \"--root\", ws.to_str().unwrap()])\n        .output","kind":"call","line":481,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"Command::new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .args","kind":"call","line":481,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"Command::new","kind":"call","line":481,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::process::Command/new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .args([\"workspace\", \"add\", client.to_str().unwrap(), \"--root\", ws.to_str().unwrap()])\n        .output().unwrap","kind":"call","line":481,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::process::Command/new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .args([\"workspace\", \"add\", client.to_str().unwrap(), \"--root\", ws.to_str().unwrap()])\n        .output","kind":"call","line":481,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::process::Command/new(env!(\"CARGO_BIN_EXE_sigil\"))\n        .args","kind":"call","line":481,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"std::process::Command/new","kind":"call","line":481,"confidence":0.8}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"client.to_str().unwrap","kind":"call","line":482}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"client.to_str","kind":"call","line":482}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"ws.to_str().unwrap","kind":"call","line":482}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"ws.to_str","kind":"call","line":482}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"run_contracts","kind":"call","line":485,"confidence":0.95}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"parse","kind":"call","line":487,"confidence":0.95}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"rows.iter().find(|r| r[\"role\"] == \"provider\")\n        .unwrap_or_else","kind":"call","line":490}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"rows.iter().find","kind":"call","line":490}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"rows.iter","kind":"call","line":490}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"rows.iter().find(|r| r[\"role\"] == \"consumer\")\n        .unwrap_or_else","kind":"call","line":495}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"rows.iter().find","kind":"call","line":495}
+{"file":"tests/contracts_integration.rs","caller":"contracts_works_on_workspace_root","name":"rows.iter","kind":"call","line":495}
 {"file":"tests/cross_repo_cochange_integration.rs","name":"std::fs","kind":"import","line":4}
 {"file":"tests/cross_repo_cochange_integration.rs","name":"std::process::Command","kind":"import","line":5}
 {"file":"tests/cross_repo_cochange_integration.rs","name":"tempfile::TempDir","kind":"import","line":6}

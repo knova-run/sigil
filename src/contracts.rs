@@ -86,6 +86,16 @@ pub fn normalize_http_path(path: &str) -> String {
     re.replace_all(&trimmed, "{param}").into_owned()
 }
 
+/// Translate Django path-converters (`<int:pk>`, `<str:slug>`,
+/// `<uuid:id>`, `<path:rest>`, etc.) into the curly-brace form that
+/// `normalize_http_path`'s `{param}` collapsing already understands.
+fn django_path_to_braces(p: &str) -> String {
+    // Replace `<converter:name>` and bare `<name>` with `{name}`.
+    static RE: OnceLock<Regex> = OnceLock::new();
+    let re = RE.get_or_init(|| Regex::new(r"<(?:[A-Za-z_]+:)?([A-Za-z_][A-Za-z0-9_]*)>").unwrap());
+    re.replace_all(p, "{$1}").into_owned()
+}
+
 /// Walk `root` and return all contract rows discovered.
 pub fn extract_from_root(root: &Path) -> Vec<ContractRow> {
     let mut out = Vec::new();
@@ -227,10 +237,13 @@ mod skipped_dir_tests {
 fn fastapi_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| {
-        // Match @<app>.<verb>("path") with optional surrounding whitespace and
-        // additional kwargs after the path. Captures the verb and path.
+        // Match `@app.get("path")` / `@router.post("path")` / `@api.put(...)`
+        // (with an optional `_<suffix>` for `@app_router`, `@api_v2`, etc.).
+        // Pre-PostHog this regex was `@<any-ident>.<verb>(...)` which
+        // catastrophically matched `@mock.patch(...)` (91% of FastAPI
+        // emissions on PostHog were `@mock.patch` decorators).
         Regex::new(
-            r#"@\s*[A-Za-z_][A-Za-z0-9_]*\.(get|post|put|delete|patch|options|head)\(\s*['"]([^'"]+)['"]"#,
+            r#"@(app|router|api|app_router|router_v\d+|api_v\d+|api_router|sub_app|sub_router)\.(get|post|put|delete|patch|options|head)\(\s*['"]([^'"]+)['"]"#,
         )
         .unwrap()
     })
@@ -239,13 +252,60 @@ fn fastapi_re() -> &'static Regex {
 fn express_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| {
-        // Match `app.get('/path', ...)` and similar Express verbs. Captures
-        // the verb and the literal route string.
+        // Match `app.get('/path', ...)` / `router.get(...)` / `r.get(...)`
+        // and variants. Two narrowing rules vs the pre-PostHog version
+        // (which matched `<any-ident>.<verb>('...')` and produced
+        // ~93% false positives like `params.get('foo')`, `cache.get(...)`,
+        // `redis.get(...)` etc.):
+        //
+        //   1. Receiver must be a recognised Express-style router/app
+        //      identifier (incl. common suffixes like `Router`).
+        //   2. Path must start with `/` — HTTP routes always do, but
+        //      data-structure `.get('key')` calls don't.
         Regex::new(
-            r#"\b[A-Za-z_][A-Za-z0-9_]*\.(get|post|put|delete|patch|options|head|all)\(\s*['"`]([^'"`]+)['"`]"#,
+            r#"\b(?:app|router|api|app_router|server|expressApp|router\d*|[A-Za-z_][A-Za-z0-9_]*Router)\.(get|post|put|delete|patch|options|head|all)\(\s*['"`](/[^'"`]*)['"`]"#,
         )
         .unwrap()
     })
+}
+
+fn django_path_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // Django `path('foo/<int:pk>/', view)` and
+        // `re_path(r'^foo/(?P<pk>\d+)/$', view)`. We capture the route
+        // literal; the method binding is `*` because Django routes
+        // don't carry a method (the view function decides).
+        Regex::new(r#"\b(?:re_path|path)\(\s*r?['"]([^'"]+)['"]"#).unwrap()
+    })
+}
+
+fn drf_router_register_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // DRF: `router.register(r'projects', ProjectViewSet, ...)` —
+        // expands to 5 routes (list / retrieve / create / update /
+        // partial_update / destroy). We emit one provider row per
+        // canonical viewset action; cross-repo matching joins on the
+        // base path, not the action suffix.
+        Regex::new(r#"\brouter\.register\(\s*r?['"]([^'"]+)['"]"#).unwrap()
+    })
+}
+
+fn drf_action_methods_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // Capture the `methods=['GET', 'POST', ...]` list inside an
+        // `@action(...)` call. Lookbehind for `@action` is too costly in
+        // Rust regex (no fixed-width assertions for `\b@action\b`); we
+        // gate on the literal `@action` prefix in the scan step.
+        Regex::new(r#"methods\s*=\s*\[([^\]]+)\]"#).unwrap()
+    })
+}
+
+fn drf_action_url_path_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(r#"url_path\s*=\s*['"]([^'"]+)['"]"#).unwrap())
 }
 
 fn axios_re() -> &'static Regex {
@@ -581,8 +641,10 @@ fn scan_python(file: &str, text: &str) -> Vec<ContractRow> {
     let mut out = Vec::new();
     for (i, line) in text.lines().enumerate() {
         if let Some(caps) = fastapi_re().captures(line) {
-            let method = caps[1].to_uppercase();
-            let normalized = normalize_http_path(&caps[2]);
+            // FastAPI: caps[1] = receiver (app|router|api|…), caps[2] = verb,
+            // caps[3] = path.
+            let method = caps[2].to_uppercase();
+            let normalized = normalize_http_path(&caps[3]);
             out.push(ContractRow {
                 contract_id: format!("http::{method}::{normalized}"),
                 kind: "http".to_string(),
@@ -595,6 +657,108 @@ fn scan_python(file: &str, text: &str) -> Vec<ContractRow> {
                 language: "python".to_string(),
                 framework: "fastapi".to_string(),
             });
+            continue;
+        }
+        // Django path() / re_path() — method is `*` since the view dispatch
+        // decides which verbs to accept.
+        if let Some(caps) = django_path_re().captures(line) {
+            let raw_path = caps[1].to_string();
+            // Strip Django's regex anchors and skip non-route lookups like
+            // `path.join(...)` (which our `\b` already excludes via the
+            // `path(` opener — but defend against odd matches anyway).
+            if raw_path.is_empty() {
+                continue;
+            }
+            // Django path patterns use `<int:pk>` / `<str:slug>` / `<uuid:id>`;
+            // normalize them to `{param}` for cross-repo joining with the
+            // consumer's `/api/.../{id}` literal.
+            let pre_normalized = django_path_to_braces(&raw_path);
+            let normalized = normalize_http_path(&pre_normalized);
+            out.push(ContractRow {
+                contract_id: format!("http::*::{normalized}"),
+                kind: "http".to_string(),
+                role: "provider".to_string(),
+                method: Some("*".to_string()),
+                path: Some(normalized),
+                topic: None,
+                file: file.to_string(),
+                line: (i + 1) as u32,
+                language: "python".to_string(),
+                framework: "django".to_string(),
+            });
+            continue;
+        }
+        // DRF `router.register(r'foo', FooViewSet, ...)` — emit one base
+        // contract; downstream consumers join on the path prefix.
+        if let Some(caps) = drf_router_register_re().captures(line) {
+            let raw = caps[1].to_string();
+            // The DRF basename is registered without a leading slash; add
+            // one so the contract_id joins cleanly with consumer paths.
+            let with_slash = if raw.starts_with('/') {
+                raw
+            } else {
+                format!("/{raw}")
+            };
+            let normalized = normalize_http_path(&with_slash);
+            out.push(ContractRow {
+                contract_id: format!("http::*::{normalized}"),
+                kind: "http".to_string(),
+                role: "provider".to_string(),
+                method: Some("*".to_string()),
+                path: Some(normalized),
+                topic: None,
+                file: file.to_string(),
+                line: (i + 1) as u32,
+                language: "python".to_string(),
+                framework: "drf".to_string(),
+            });
+            continue;
+        }
+        // DRF `@action(methods=['GET'], url_path='custom')`. Match the
+        // line starts-with `@action(` (cheap pre-filter), then pull
+        // methods + url_path with two separate regex passes since Rust
+        // regex doesn't tolerate the lookahead/non-greedy combination
+        // needed for one all-in-one capture.
+        let trimmed_line = line.trim_start();
+        if trimmed_line.starts_with("@action(")
+            && let Some(mcaps) = drf_action_methods_re().captures(line)
+        {
+            let methods_str = mcaps[1].to_string();
+            let path = drf_action_url_path_re()
+                .captures(line)
+                .map(|c| c[1].to_string())
+                .unwrap_or_else(|| "*".to_string());
+            let methods_str = methods_str.as_str();
+            let normalized = if path == "*" {
+                "*".to_string()
+            } else {
+                let with_slash = if path.starts_with('/') {
+                    path
+                } else {
+                    format!("/{path}")
+                };
+                normalize_http_path(&with_slash)
+            };
+            // Methods are like `'GET', 'POST'` — split and emit one row each.
+            for tok in methods_str.split(',') {
+                let m = tok.trim().trim_matches(|c| c == '\'' || c == '"');
+                if m.is_empty() {
+                    continue;
+                }
+                let method = m.to_uppercase();
+                out.push(ContractRow {
+                    contract_id: format!("http::{method}::{normalized}"),
+                    kind: "http".to_string(),
+                    role: "provider".to_string(),
+                    method: Some(method),
+                    path: Some(normalized.clone()),
+                    topic: None,
+                    file: file.to_string(),
+                    line: (i + 1) as u32,
+                    language: "python".to_string(),
+                    framework: "drf".to_string(),
+                });
+            }
             continue;
         }
         if let Some(caps) = requests_re().captures(line) {

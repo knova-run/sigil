@@ -317,6 +317,141 @@ public class UserController {
 }
 
 #[test]
+fn fastapi_regex_does_not_match_mock_patch_decorators() {
+    // PostHog audit caught this: the pre-tightening regex matched any
+    // `@<ident>.<verb>(...)` and emitted 282 false "fastapi" routes
+    // from `@mock.patch(...)` / `@pytest.fixture` / similar test
+    // decorators in posthog's tests/.
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("test_things.py"),
+        r#"from unittest import mock
+import pytest
+
+@mock.patch("products.something.helper")
+def test_a(): pass
+
+@mock.patch("products.other.thing.cancel_workflow")
+def test_b(): pass
+
+@pytest.fixture
+def some_fixture(): pass
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let fastapi_rows: Vec<_> = rows.iter().filter(|r| r["framework"] == "fastapi").collect();
+    assert!(
+        fastapi_rows.is_empty(),
+        "expected 0 fastapi routes from @mock.patch decorators; got {fastapi_rows:?}"
+    );
+}
+
+#[test]
+fn express_regex_does_not_match_random_get_calls() {
+    // PostHog audit: 93% of pre-fix "express" rows were false positives
+    // from `params.get('ordering')`, `cache.get(...)`, `redis.get(...)`,
+    // `Map.get(...)` etc. The fix requires receiver ∈ {app, router, …,
+    // *Router} AND path starts with `/`.
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("client.ts"),
+        r#"const params = new URLSearchParams(window.location.search);
+const v1 = params.get('ordering');
+const v2 = cache.get('user-id');
+const v3 = redis.get('session');
+const v4 = pipeline.get('orgId');
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let express_rows: Vec<_> = rows.iter().filter(|r| r["framework"] == "express").collect();
+    assert!(
+        express_rows.is_empty(),
+        "expected 0 express routes from data-structure .get() calls; got {express_rows:?}"
+    );
+}
+
+#[test]
+fn detects_django_path_and_re_path_providers() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("urls.py"),
+        r#"from django.urls import path, re_path
+from . import views
+
+urlpatterns = [
+    path('api/projects/<int:pk>/', views.project_detail),
+    path('api/users/', views.user_list),
+    re_path(r'^api/teams/(?P<team_id>\d+)/$', views.team_detail),
+]
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let ids: Vec<&str> = rows.iter().map(|r| r["contract_id"].as_str().unwrap()).collect();
+    assert!(
+        ids.contains(&"http::*::/api/projects/{param}"),
+        "expected Django path('api/projects/<int:pk>/'); got {ids:?}"
+    );
+    assert!(
+        ids.contains(&"http::*::/api/users"),
+        "expected Django path('api/users/'); got {ids:?}"
+    );
+    let drf = rows.iter().find(|r| r["contract_id"] == "http::*::/api/projects/{param}").unwrap();
+    assert_eq!(drf["framework"], "django");
+}
+
+#[test]
+fn detects_drf_router_register_and_action_decorator() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("urls.py"),
+        r#"from rest_framework import routers
+from . import views
+
+router = routers.DefaultRouter()
+router.register(r'projects', views.ProjectViewSet, basename='project')
+router.register(r'dashboards', views.DashboardViewSet)
+"#,
+    ).unwrap();
+    fs::write(
+        tmp.path().join("views.py"),
+        r#"from rest_framework.decorators import action
+from rest_framework import viewsets
+
+class ProjectViewSet(viewsets.ModelViewSet):
+    @action(detail=True, methods=['POST'], url_path='archive')
+    def archive(self, request, pk=None):
+        pass
+
+    @action(detail=False, methods=['GET'])
+    def list_active(self, request):
+        pass
+"#,
+    ).unwrap();
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let ids: Vec<&str> = rows.iter().map(|r| r["contract_id"].as_str().unwrap()).collect();
+    assert!(
+        ids.contains(&"http::*::/projects"),
+        "router.register('projects'); got {ids:?}"
+    );
+    assert!(
+        ids.contains(&"http::*::/dashboards"),
+        "router.register('dashboards'); got {ids:?}"
+    );
+    assert!(
+        ids.contains(&"http::POST::/archive"),
+        "@action with explicit url_path; got {ids:?}"
+    );
+}
+
+#[test]
 fn contracts_works_on_workspace_root() {
     use std::process::Command;
     let tmp = TempDir::new().unwrap();
