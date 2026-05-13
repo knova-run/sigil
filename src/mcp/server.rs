@@ -264,7 +264,7 @@ fn call_tool(
                     .map(|n| n as usize)
                     .unwrap_or(1500),
             };
-            super::tools::context(idx, &targets, &opts)
+            super::tools::context(idx, root, &targets, &opts)
         }
         "get_overview" => {
             let budget = args
@@ -392,7 +392,7 @@ fn tool_descriptors(state: &ServerState) -> Value {
         },
         {
             "name": "get_dead_code",
-            "description": "Framework-aware dead-code findings partitioned by confidence: `safe_to_delete` (>= 0.70) and `review_first` (< 0.70). Each finding has file, kind, line, confidence, and recent-activity signal.",
+            "description": "Framework-aware dead-code findings partitioned by confidence: `safe_to_delete` (>= 0.85 — file-level and exported-orphan tier) and `review_first` (< 0.85 — internal helpers, higher false-positive rate). Each finding has file, kind, line, confidence, and recent-activity signal.",
             "inputSchema": {
                 "type": "object",
                 "properties": {

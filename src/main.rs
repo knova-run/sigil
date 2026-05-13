@@ -895,10 +895,12 @@ enum Cli {
         pretty: bool,
     },
     /// Run sigil as a Model Context Protocol server over stdio. Exposes
-    /// 5 deterministic, zero-LLM tools: `sigil_search`, `get_context`,
-    /// `get_overview`, `get_dead_code`, `get_why`. Loads the index
-    /// once on startup, then services JSON-RPC requests until stdin
-    /// closes.
+    /// 6 tools: `sigil_search`, `get_context`, `get_overview`,
+    /// `get_dead_code`, `get_why` (all deterministic, zero-LLM), and
+    /// `get_answer` (capability-aware — bundles a synthesis prompt
+    /// the client can hand to its own model via MCP sampling; sigil
+    /// itself performs no LLM calls). Loads the index once on
+    /// startup, then services JSON-RPC requests until stdin closes.
     Mcp {
         /// Project root directory (must contain `.sigil/entities.jsonl`).
         #[arg(short, long, default_value = ".")]

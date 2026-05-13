@@ -91,15 +91,25 @@ impl Default for ContextToolOptions {
 ///   * If neither matches, the entry is the no-match payload from
 ///     `build_no_match` (issue #36) so the agent gets candidates back
 ///     instead of an opaque error.
-pub fn context(idx: &Index, targets: &[String], opts: &ContextToolOptions) -> Value {
+pub fn context(
+    idx: &Index,
+    root: &std::path::Path,
+    targets: &[String],
+    opts: &ContextToolOptions,
+) -> Value {
     let bundles: Vec<Value> = targets
         .iter()
-        .map(|q| context_one(idx, q, opts))
+        .map(|q| context_one(idx, root, q, opts))
         .collect();
     json!({ "bundles": bundles })
 }
 
-fn context_one(idx: &Index, query: &str, opts: &ContextToolOptions) -> Value {
+fn context_one(
+    idx: &Index,
+    root: &std::path::Path,
+    query: &str,
+    opts: &ContextToolOptions,
+) -> Value {
     // File path? Return file digest.
     if let Some(fc) = build_file_context(idx, query) {
         let payload = if opts.compact {
@@ -119,7 +129,7 @@ fn context_one(idx: &Index, query: &str, opts: &ContextToolOptions) -> Value {
         },
         exclude_tests: false,
         with_body: opts.include_source,
-        project_root: std::path::PathBuf::from("."),
+        project_root: root.to_path_buf(),
     };
     if let Some(ctx) = build_context(idx, query, &ctx_opts) {
         let payload = if opts.compact {
@@ -174,14 +184,17 @@ pub fn why(root: &std::path::Path, query: Option<&str>) -> Value {
 }
 
 /// `get_dead_code` — framework-aware dead-code findings, partitioned
-/// by confidence into `safe_to_delete` (>= 0.70 — file-level and
-/// exported orphans) and `review_first` (< 0.70 — internal helpers
-/// where the false-positive rate is higher).
+/// by confidence into `safe_to_delete` (>= 0.85 — file-level and
+/// exported-orphan tier, matching `sigil dead-code --safe-only` per
+/// the documented confidence tiers in CLAUDE.md) and `review_first`
+/// (< 0.85 — internal helpers and lower-confidence rows where the
+/// false-positive rate is higher).
 ///
 /// Mirrors `sigil dead-code` minus the CLI-level filters. The MCP
 /// caller passes `min_confidence` (default 0.4 per the issue spec) and
 /// `include_internals` (default false — when true, the search includes
-/// the lower-confidence internal-helper tier).
+/// the < 0.70 lower-confidence rows; internal helpers at 0.70-0.84
+/// are always retrieved so `review_first` is meaningful).
 pub fn dead_code(
     root: &std::path::Path,
     idx: &Index,
@@ -198,7 +211,7 @@ pub fn dead_code(
 
     let (safe, review): (Vec<_>, Vec<_>) = findings
         .into_iter()
-        .partition(|c| c.confidence >= 0.70);
+        .partition(|c| c.confidence >= 0.85);
     json!({
         "safe_to_delete": safe,
         "review_first": review,
@@ -458,6 +471,50 @@ mod tests {
     }
 
     #[test]
+    fn context_uses_root_arg_for_source_body_read() {
+        // Regression: `context_one` used to hardcode `project_root` to
+        // ".", so `--with-body` (via `include: ["source"]`) silently
+        // returned `body: None` whenever the MCP server's `--root`
+        // differed from the process's CWD. The fix threads `root`
+        // through `context()` so source files resolve correctly.
+        let tmp = tempfile::tempdir().unwrap();
+        let file = tmp.path().join("foo.rs");
+        std::fs::write(&file, "fn helper() {\n    let x = 1;\n}\n").unwrap();
+        let idx = Index::build(
+            vec![Entity {
+                file: "foo.rs".to_string(),
+                name: "helper".to_string(),
+                kind: "function".to_string(),
+                line_start: 1,
+                line_end: 3,
+                parent: None,
+                qualified_name: None,
+                sig: None,
+                meta: None,
+                body_hash: None,
+                sig_hash: None,
+                struct_hash: "0123456789abcdef".to_string(),
+                visibility: None,
+                rank: None,
+                blast_radius: None,
+                doc: None,
+                heritage: Vec::new(),
+                alias: None,
+            }],
+            vec![],
+        );
+        let opts = ContextToolOptions {
+            include_source: true,
+            ..ContextToolOptions::default()
+        };
+        let v = context(&idx, tmp.path(), &["helper".to_string()], &opts);
+        let b = v["bundles"][0]["b"]
+            .as_str()
+            .expect("body should be populated from --root, not CWD");
+        assert!(b.contains("fn helper()"), "body missing source: {:?}", b);
+    }
+
+    #[test]
     fn context_returns_bundle_for_resolved_symbol() {
         let idx = Index::build(
             vec![ent("src/lib.rs", "foo", "function", 12)],
@@ -465,6 +522,7 @@ mod tests {
         );
         let v = context(
             &idx,
+            std::path::Path::new("."),
             &["foo".to_string()],
             &ContextToolOptions::default(),
         );
@@ -482,6 +540,7 @@ mod tests {
         );
         let v = context(
             &idx,
+            std::path::Path::new("."),
             &["UnknownSymbol".to_string()],
             &ContextToolOptions::default(),
         );
@@ -501,6 +560,7 @@ mod tests {
         );
         let v = context(
             &idx,
+            std::path::Path::new("."),
             &["foo".to_string(), "bar".to_string()],
             &ContextToolOptions::default(),
         );
@@ -630,6 +690,58 @@ mod tests {
         let v = dead_code(tmp.path(), &idx, 0.4, false);
         assert!(v["safe_to_delete"].is_array());
         assert!(v["review_first"].is_array());
+    }
+
+    #[test]
+    fn dead_code_partition_threshold_matches_claude_md_safe_only_tier() {
+        // CLAUDE.md: `sigil dead-code --safe-only` filters to
+        // `confidence >= 0.85` (file-level + exported-orphan tier).
+        // The MCP `safe_to_delete` bucket must use the same boundary
+        // so an agent's "safe" findings match the CI gate. Mixed
+        // synthetic findings drive the partition directly.
+        use crate::dead_code::DeadCodeCandidate;
+        let safe = DeadCodeCandidate {
+            kind: "file".to_string(),
+            file: "src/dead.rs".to_string(),
+            name: None,
+            entity_kind: None,
+            line_start: None,
+            confidence: 1.0,
+            dynamic_name_match: None,
+            recent_activity: false,
+            primary_owner: None,
+        };
+        let exported_orphan = DeadCodeCandidate {
+            confidence: 0.85,
+            ..clone_candidate(&safe)
+        };
+        let internal_helper = DeadCodeCandidate {
+            confidence: 0.70,
+            ..clone_candidate(&safe)
+        };
+        let findings = vec![safe, exported_orphan, internal_helper];
+        let (s, r): (Vec<_>, Vec<_>) =
+            findings.into_iter().partition(|c| c.confidence >= 0.85);
+        assert_eq!(s.len(), 2, "1.0 + 0.85 belong in safe_to_delete");
+        assert_eq!(
+            r.len(),
+            1,
+            "0.70 internal helpers belong in review_first per CLAUDE.md"
+        );
+    }
+
+    fn clone_candidate(c: &crate::dead_code::DeadCodeCandidate) -> crate::dead_code::DeadCodeCandidate {
+        crate::dead_code::DeadCodeCandidate {
+            kind: c.kind.clone(),
+            file: c.file.clone(),
+            name: c.name.clone(),
+            entity_kind: c.entity_kind.clone(),
+            line_start: c.line_start,
+            confidence: c.confidence,
+            dynamic_name_match: c.dynamic_name_match.clone(),
+            recent_activity: c.recent_activity,
+            primary_owner: c.primary_owner.clone(),
+        }
     }
 
     #[test]

@@ -383,31 +383,64 @@ pub fn build_file_context(idx: &Index, query: &str) -> Option<FileContext> {
         .map(|e| e.name.as_str())
         .collect();
     let mut seen: HashSet<(String, u32)> = HashSet::new();
-    let top_callers: Vec<Edge> = target_names
+    let mut top_callers: Vec<Edge> = target_names
         .iter()
         .flat_map(|name| idx.refs_to(name))
         .filter(|r| r.file != query)
         .filter(|r| seen.insert((r.file.clone(), r.line)))
         .map(caller_edge)
         .collect();
+    // Determinism: `target_names` is a HashSet so the per-name fan-out
+    // produces unspecified ordering. Sort by (file, line) to match
+    // the project's "Entity output is sorted deterministically"
+    // invariant.
+    top_callers.sort_by(|a, b| a.file.cmp(&b.file).then(a.line.cmp(&b.line)));
 
     // Aggregate outbound callees: refs whose caller is inside this
     // file but whose target resolves outside this file. Refs without a
-    // resolvable target (no defining entity) are kept too — they are
-    // the file's external symbol references.
-    let in_file_names: std::collections::HashSet<&str> = idx
-        .entities_by_file(query)
-        .map(|e| e.name.as_str())
-        .collect();
+    // resolvable target (no defining entity) are kept — they are the
+    // file's external symbol references.
+    //
+    // Target-resolution check: a ref to a name `N` "resolves locally"
+    // only when `entities_by_name(N)` returns an entity defined in
+    // this same file. Refs to names that have a same-file definition
+    // AND an external definition (e.g. `parse` defined locally and
+    // also called as `serde::parse`) are kept — they're cross-file
+    // edges that just happen to share a short name with a local
+    // symbol.
+    let is_local_only_target = |name: &str| -> bool {
+        let mut any_local = false;
+        let mut any_external = false;
+        for e in idx.entities_by_name(name) {
+            if e.kind == "import" {
+                continue;
+            }
+            if e.file == query {
+                any_local = true;
+            } else {
+                any_external = true;
+            }
+        }
+        any_local && !any_external
+    };
     let mut seen: HashSet<(String, u32, String)> = HashSet::new();
-    let top_callees: Vec<Edge> = idx
+    let mut top_callees: Vec<Edge> = idx
         .entities_by_file(query)
         .flat_map(|e| idx.refs_from(&e.name))
         .filter(|r| r.file == query)
-        .filter(|r| !in_file_names.contains(r.name.as_str()))
+        .filter(|r| !is_local_only_target(&r.name))
         .filter(|r| seen.insert((r.file.clone(), r.line, r.name.clone())))
         .map(callee_edge)
         .collect();
+    // Deterministic order: (file, line, symbol). All refs are
+    // in-file by construction here (file == query), so the file
+    // component is constant — line + symbol drives the sort.
+    top_callees.sort_by(|a, b| {
+        a.file
+            .cmp(&b.file)
+            .then(a.line.cmp(&b.line))
+            .then(a.symbol.cmp(&b.symbol))
+    });
 
     Some(FileContext {
         q: query.to_string(),
@@ -626,8 +659,12 @@ fn resolve_via_heritage<'a>(
     let parent_name = parent_hint?;
 
     let start = lookup_class(idx, parent_name)?;
-    let mut visited: HashSet<String> = HashSet::new();
-    visited.insert(start.name.clone());
+    // Visited keys on `(file, name)` so two different classes that share
+    // a bare name (e.g. `Base` in module A vs module B) can both be
+    // traversed. A bare-name key would prematurely terminate the BFS
+    // through the same-named class even when the actual entity differs.
+    let mut visited: HashSet<(String, String)> = HashSet::new();
+    visited.insert((start.file.clone(), start.name.clone()));
     let mut frontier: Vec<&Entity> = vec![start];
 
     // Bound the walk — pathological inheritance chains are rare, but a
@@ -645,7 +682,7 @@ fn resolve_via_heritage<'a>(
                 let Some(parent_cls) = lookup_class(idx, &edge.target) else {
                     continue;
                 };
-                if !visited.insert(parent_cls.name.clone()) {
+                if !visited.insert((parent_cls.file.clone(), parent_cls.name.clone())) {
                     continue;
                 }
                 // Look for `name` as a child of this ancestor.
@@ -1502,6 +1539,88 @@ mod tests {
     }
 
     #[test]
+    fn build_file_context_edges_are_sorted_deterministically() {
+        // CLAUDE.md invariant: "Entity output is sorted deterministically
+        // by (file, line_start)". The original implementation iterated
+        // a HashSet to fan out per-target refs, producing
+        // unspecified order. Now top_callers/top_callees sort by
+        // `(file, line)`.
+        let idx = Index::build(
+            vec![
+                ent_full("src/foo.rs", "Foo", "struct", None, None, None, 0),
+                ent_full("src/foo.rs", "Bar", "struct", None, None, None, 0),
+                ent_full("src/foo.rs", "Baz", "struct", None, None, None, 0),
+            ],
+            vec![
+                // Many callers across different files / lines so the
+                // sort actually has work to do.
+                refr("z.rs", Some("main"), "Foo", "call", 12),
+                refr("a.rs", Some("main"), "Bar", "call", 7),
+                refr("m.rs", Some("main"), "Baz", "call", 3),
+                refr("a.rs", Some("main"), "Foo", "call", 1),
+            ],
+        );
+        // Run the build twice — same input, expect identical output
+        // shape.
+        let fc1 = build_file_context(&idx, "src/foo.rs").expect("file matches");
+        let fc2 = build_file_context(&idx, "src/foo.rs").expect("file matches");
+        let c1 = fc1.top_callers.expect("populated");
+        let c2 = fc2.top_callers.expect("populated");
+
+        // Deterministic: ascending by (file, line).
+        let expected: Vec<(String, u32)> = vec![
+            ("a.rs".to_string(), 1),
+            ("a.rs".to_string(), 7),
+            ("m.rs".to_string(), 3),
+            ("z.rs".to_string(), 12),
+        ];
+        let actual1: Vec<(String, u32)> =
+            c1.iter().map(|e| (e.file.clone(), e.line)).collect();
+        let actual2: Vec<(String, u32)> =
+            c2.iter().map(|e| (e.file.clone(), e.line)).collect();
+        assert_eq!(actual1, expected, "top_callers must be sorted");
+        assert_eq!(actual1, actual2, "two runs must produce identical order");
+    }
+
+    #[test]
+    fn build_file_context_does_not_drop_external_calls_sharing_a_local_name() {
+        // Regression: `top_callees` used to filter by bare name
+        // membership in `in_file_names`. If file `a.rs` defined
+        // `fn parse(...)` AND called an external `serde::parse(...)`,
+        // the external call was silently dropped because `"parse"`
+        // appeared in the file's entity-name set.
+        //
+        // Fix: only drop a ref when ALL entities named N live in this
+        // file. When the name has both a local AND an external
+        // definition, the ref is kept (it's cross-file).
+        let idx = Index::build(
+            vec![
+                // Two `parse` definitions: one local to a.rs, one in
+                // the external library file.
+                ent_full("src/a.rs", "parse", "function", None, None, None, 0),
+                ent_full("src/a.rs", "caller", "function", None, None, None, 0),
+                ent_full("src/lib.rs", "parse", "function", None, None, None, 0),
+            ],
+            vec![
+                // External call from a.rs::caller to parse — should
+                // resolve to src/lib.rs::parse (not a.rs::parse).
+                refr("src/a.rs", Some("caller"), "parse", "call", 5),
+            ],
+        );
+        let fc = build_file_context(&idx, "src/a.rs").expect("file matches");
+        let callees = fc.top_callees.expect("top_callees populated");
+        // The bare-name filter would have dropped this; with target-
+        // file resolution, the external call to lib.rs::parse remains.
+        assert_eq!(
+            callees.len(),
+            1,
+            "external call with name shared by an in-file entity was dropped: {:?}",
+            callees
+        );
+        assert_eq!(callees[0].symbol, "parse");
+    }
+
+    #[test]
     fn build_file_context_aggregates_top_callees_from_inside_file() {
         // Foo (in src/foo.rs) calls External.do (in src/ext.rs).
         // top_callees should surface that outbound ref.
@@ -1830,6 +1949,53 @@ mod tests {
         let v: serde_json::Value = serde_json::from_str(&agent).expect("valid JSON");
         assert_eq!(v["resolved_via"], "heritage");
         assert_eq!(v["ancestor"], "src/super.rs::Superclass");
+    }
+
+    #[test]
+    fn resolve_via_heritage_handles_same_named_classes_in_different_files() {
+        // Regression: the visited-set used to key on bare class name,
+        // so a second `Base` in a different file got silently skipped
+        // as "already visited" — the BFS would terminate before
+        // finding an inherited member that actually lives on the
+        // *other* Base. Now the visited key is `(file, name)`.
+        //
+        // Topology:
+        //   src/a.rs::Sub extends Base (resolves to whichever `Base`
+        //     comes first via `lookup_class`).
+        //   src/a.rs::Base — does NOT define `member`.
+        //   src/b.rs::Base — DOES define `member`.
+        //
+        // `lookup_class` returns the first `Base` it finds; if that's
+        // the one without `member`, the BFS used to bail. With the
+        // (file, name) key, BOTH `Base` entities can be enqueued.
+        let mut sub = ent_full("src/a.rs", "Sub", "class", None, None, None, 0);
+        sub.heritage = vec![crate::entity::HeritageEdge {
+            kind: "extend".to_string(),
+            target: "Base".to_string(),
+        }];
+        let mut base_a = ent_full("src/a.rs", "Base", "class", None, None, None, 0);
+        base_a.heritage = vec![crate::entity::HeritageEdge {
+            kind: "extend".to_string(),
+            // Point a.rs::Base at b.rs::Base so the BFS has to walk
+            // through the same-named class.
+            target: "Base".to_string(),
+        }];
+        let base_b = ent_full("src/b.rs", "Base", "class", None, None, None, 0);
+        let member = ent_full(
+            "src/b.rs",
+            "member",
+            "variable",
+            Some("Base"),
+            None,
+            None,
+            0,
+        );
+        let idx = Index::build(vec![sub, base_a, base_b, member], vec![]);
+
+        let ctx = build_context(&idx, "Sub::member", &ContextOptions::default())
+            .expect("heritage walk should find the b.rs Base");
+        assert_eq!(ctx.chosen.file, "src/b.rs");
+        assert_eq!(ctx.resolved_via.as_deref(), Some("heritage"));
     }
 
     #[test]
