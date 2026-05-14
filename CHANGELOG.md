@@ -6,6 +6,51 @@ All notable changes to sigil are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.6.1] — 2026-05-14 — MCP workspace-aware loading + DuckDB-async + workspace rank.json
+
+### Fixed
+
+- **`sigil mcp` at a workspace root now union-loads members** (issue
+  #43). `SigilServer` previously read `<root>/.sigil/entities.jsonl`
+  directly via a hand-rolled `load_index`, which bailed when only
+  `.sigil-workspace/` existed at the root. The startup path now routes
+  through `Backend::load`, which auto-detects
+  `.sigil-workspace/members.json` and dispatches to
+  `Index::load_workspace`. Cross-member symbol queries through MCP
+  (e.g. flask + werkzeug workspace) now surface entities from sibling
+  repos.
+
+### Added
+
+- **`Backend::materialize_index()`** — lazy in-memory `Index` view on a
+  `Backend`. `InMemory` returns its wrapped `Index` for free; `DuckDb`
+  variants re-parse JSONL on first call and cache the result via
+  `OnceLock<Result<Index, String>>`. Re-parse is lossless — preserves
+  `doc`, `heritage`, `rank`, `blast_radius`, `meta` that the columnar
+  schema drops. MCP's `get_context` / `get_overview` / `get_dead_code` /
+  `get_answer` route through this; `sigil_search` stays on direct
+  `Backend.search` so search-only sessions over DuckDB workspaces never
+  trigger materialization. Failures surface as `Err(msg)` rather than
+  panicking the tokio worker.
+
+- **`DuckDbBackend.conn` wrapped in `std::sync::Mutex`** so
+  `Backend: Send + Sync`. Unlocks `Arc<Backend>` across async await
+  boundaries — rmcp tool-handler futures now satisfy the `Send` bound
+  with DuckDB engaged. A compile-time `assert_send_sync::<Backend>()`
+  test pins the contract.
+
+- **Workspace-level `.sigil-workspace/rank.json`** — `sigil workspace
+  index` computes PageRank over the union-loaded graph (cross-repo refs
+  included, file paths member-prefixed) and writes it alongside the
+  existing cross-repo artifacts. `workspace::load_rank_manifest` prefers
+  it when present; falls back to merging per-member `.sigil/rank.json`
+  files.
+
+- **`RankManifest.file_rank` switched from `HashMap` to `BTreeMap`** —
+  both per-repo and workspace `rank.json` outputs are now deterministic
+  (lexicographically-sorted keys). Matches CLAUDE.md's deterministic-
+  diff rule for workspace artifacts.
+
 ## [0.6.0] — 2026-05-14 — agent-loop context improvements + native MCP server
 
 ### Added
