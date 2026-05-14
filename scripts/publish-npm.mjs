@@ -67,14 +67,9 @@ const TARGETS = [
         binName: 'sigil',
         archiveExt: '.tar.gz',
     },
-    {
-        triple: 'x86_64-apple-darwin',
-        suffix: 'darwin-x64',
-        os: 'darwin',
-        cpu: 'x64',
-        binName: 'sigil',
-        archiveExt: '.tar.gz',
-    },
+    // `x86_64-apple-darwin` (darwin-x64) was dropped in 0.6.2 — `dist`
+    // no longer builds the archive. Intel-only Mac users without Rosetta
+    // 2 need `cargo install sigil` or `brew install` instead of `npx`.
     {
         triple: 'aarch64-unknown-linux-gnu',
         suffix: 'linux-arm64-gnu',

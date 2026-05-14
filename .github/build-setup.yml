@@ -4,11 +4,36 @@
 # grammars are not rebuilt from scratch on every tag push.
 #
 # Cache keys are scoped per matrix target so we don't cross-contaminate
-# between (say) x86_64-apple-darwin and aarch64-apple-darwin, which have
-# incompatible target/ artifacts.
+# between targets with incompatible `target/` artifacts.
 - name: Cache cargo (Swatinem/rust-cache)
   uses: Swatinem/rust-cache@v2
   with:
     key: release-${{ join(matrix.targets, '-') }}
     shared-key: release
     cache-on-failure: true
+# Secondary cache: tree-sitter grammars + DuckDB C++ build output. Keyed
+# by the manifest's dep versions (not lockfile hash) with a restore-keys
+# prefix so cache hits survive lockfile bumps. The Swatinem cache above
+# misses on every tag push because GH Actions caches are ref-scoped and
+# tag refs don't inherit branch caches — this layer recovers the heavy
+# C/C++ compile output across releases.
+- name: Cache tree-sitter + DuckDB build artifacts
+  uses: actions/cache@v4
+  with:
+    path: |
+      target/dist/build/tree-sitter-*
+      target/dist/build/duckdb-*
+      target/release/build/tree-sitter-*
+      target/release/build/duckdb-*
+    key: native-deps-${{ join(matrix.targets, '-') }}-${{ hashFiles('Cargo.toml') }}
+    restore-keys: |
+      native-deps-${{ join(matrix.targets, '-') }}-
+# Disable thin LTO for the Windows MSVC build — the MSVC frontend's
+# LTO pass added 2–4 minutes on every release (it was the long pole at
+# 21 min on v0.6.1). 3–5% larger binary, no measurable runtime impact
+# for a CLI workload. `CARGO_PROFILE_DIST_LTO` overrides the
+# `lto = "thin"` field on `[profile.dist]` in Cargo.toml.
+- name: "Disable LTO on Windows MSVC (CI speedup)"
+  if: contains(join(matrix.targets, ''), 'windows-msvc')
+  shell: bash
+  run: echo "CARGO_PROFILE_DIST_LTO=false" >> $GITHUB_ENV

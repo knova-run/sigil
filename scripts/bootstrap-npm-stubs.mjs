@@ -46,9 +46,12 @@ if (NPM_TOKEN) {
 }
 
 const SCOPE = '@knova-run';
+// `darwin-x64` was dropped in 0.6.2 (Rosetta 2 covers Intel Macs). The
+// existing 0.0.0 stub at @knova-run/sigil-darwin-x64 stays on npm
+// indefinitely — it just never gets republished. Removing from this
+// list prevents accidental re-bootstrap.
 const STUBS = [
     { suffix: 'darwin-arm64',     os: 'darwin', cpu: 'arm64' },
-    { suffix: 'darwin-x64',       os: 'darwin', cpu: 'x64' },
     { suffix: 'linux-arm64-gnu',  os: 'linux',  cpu: 'arm64', libc: 'glibc' },
     { suffix: 'linux-x64-gnu',    os: 'linux',  cpu: 'x64',   libc: 'glibc' },
     { suffix: 'win32-x64-msvc',   os: 'win32',  cpu: 'x64' },
