@@ -28,7 +28,10 @@ use rmcp::transport::stdio;
 use rmcp::{ErrorData as McpError, RoleServer, ServerHandler, ServiceExt, tool, tool_handler, tool_router};
 use tokio::sync::RwLock;
 
+use crate::query::Backend;
+#[cfg(test)]
 use crate::query::index::Index;
+use crate::query::index::Scope;
 use crate::rank::RankManifest;
 
 /// Per-connection mutable state. `Arc<RwLock<...>>` so the handler
@@ -47,7 +50,7 @@ struct ConnState {
 #[derive(Clone)]
 pub struct SigilServer {
     root: Arc<PathBuf>,
-    idx: Arc<Index>,
+    backend: Arc<Backend>,
     rank: Arc<RankManifest>,
     state: Arc<RwLock<ConnState>>,
     tool_router: ToolRouter<SigilServer>,
@@ -110,10 +113,10 @@ struct AnswerArgs {
 
 #[tool_router]
 impl SigilServer {
-    pub fn new(root: PathBuf, idx: Index, rank: RankManifest) -> Self {
+    pub fn new(root: PathBuf, backend: Backend, rank: RankManifest) -> Self {
         Self {
             root: Arc::new(root),
-            idx: Arc::new(idx),
+            backend: Arc::new(backend),
             rank: Arc::new(rank),
             state: Arc::new(RwLock::new(ConnState::default())),
             tool_router: Self::tool_router(),
@@ -129,8 +132,15 @@ impl SigilServer {
         &self,
         Parameters(args): Parameters<SearchArgs>,
     ) -> Result<CallToolResult, McpError> {
+        // Direct Backend point query — DuckDB-engaged workspaces serve
+        // this path without ever triggering `materialize_index` (the
+        // bulk-graph fallback used by the other tools). Sessions that
+        // only call sigil_search stay on the columnar engine.
         let limit = args.limit.unwrap_or(25);
-        let v = super::tools::search(&self.idx, &args.query, limit);
+        let hits = self
+            .backend
+            .search(&args.query, Scope::All, None, None, limit);
+        let v = super::tools::format_owned_hits(hits);
         Ok(Self::text_result(v))
     }
 
@@ -149,7 +159,8 @@ impl SigilServer {
             depth: args.depth.unwrap_or(10),
             budget: args.budget.unwrap_or(1500),
         };
-        let v = super::tools::context(&self.idx, &self.root, &args.targets, &opts);
+        let idx = self.backend.materialize_index();
+        let v = super::tools::context(idx, &self.root, &args.targets, &opts);
         Ok(Self::text_result(v))
     }
 
@@ -159,7 +170,8 @@ impl SigilServer {
         Parameters(args): Parameters<OverviewArgs>,
     ) -> Result<CallToolResult, McpError> {
         let budget = args.budget.unwrap_or(2500);
-        let v = super::tools::overview(&self.idx, &self.rank, budget);
+        let idx = self.backend.materialize_index();
+        let v = super::tools::overview(idx, &self.rank, budget);
         Ok(Self::text_result(v))
     }
 
@@ -170,7 +182,8 @@ impl SigilServer {
     ) -> Result<CallToolResult, McpError> {
         let min_confidence = args.min_confidence.unwrap_or(0.4);
         let include_internals = args.include_internals.unwrap_or(false);
-        let v = super::tools::dead_code(&self.root, &self.idx, min_confidence, include_internals);
+        let idx = self.backend.materialize_index();
+        let v = super::tools::dead_code(&self.root, idx, min_confidence, include_internals);
         Ok(Self::text_result(v))
     }
 
@@ -189,8 +202,8 @@ impl SigilServer {
         Parameters(args): Parameters<AnswerArgs>,
     ) -> Result<CallToolResult, McpError> {
         let max_targets = args.max_targets.unwrap_or(8);
-        let bundle =
-            super::tools::answer_bundle(&self.idx, &self.root, &args.question, max_targets);
+        let idx = self.backend.materialize_index();
+        let bundle = super::tools::answer_bundle(idx, &self.root, &args.question, max_targets);
         let mut response = serde_json::to_value(&bundle).unwrap_or(serde_json::Value::Null);
         let supports_sampling = self.state.read().await.supports_sampling;
         response["sampling_supported"] = serde_json::json!(supports_sampling);
@@ -236,46 +249,23 @@ pub fn run_stdio(root: PathBuf) -> Result<()> {
 }
 
 async fn run_stdio_async(root: PathBuf) -> Result<()> {
-    let idx = load_index(&root).context("load index")?;
-    let rank = crate::map::load_rank_manifest(&root).unwrap_or_default();
-    let server = SigilServer::new(root, idx, rank);
+    // Backend::load is workspace-aware (issue #43): detects
+    // `.sigil-workspace/members.json` and dispatches to
+    // `Index::load_workspace`, otherwise per-repo `.sigil/`. Above the
+    // 5 MB threshold (or `SIGIL_BACKEND=db`) it routes to DuckDB. The
+    // DuckDbBackend's `Connection` is wrapped in `std::sync::Mutex` so
+    // `Backend: Send + Sync` — required for rmcp's async tool-handler
+    // futures.
+    let backend = crate::query::Backend::load(&root).context("load index")?;
+    let rank = if crate::query::is_workspace_root(&root) {
+        crate::map::load_workspace_rank_manifest(&root)
+    } else {
+        crate::map::load_rank_manifest(&root).unwrap_or_default()
+    };
+    let server = SigilServer::new(root, backend, rank);
     let service = server.serve(stdio()).await.context("serve mcp stdio")?;
     service.waiting().await.context("mcp service wait")?;
     Ok(())
-}
-
-fn load_index(root: &std::path::Path) -> Result<Index> {
-    let sigil_dir = root.join(".sigil");
-    let entities_path = sigil_dir.join("entities.jsonl");
-    let refs_path = sigil_dir.join("refs.jsonl");
-    anyhow::ensure!(
-        entities_path.exists(),
-        "no .sigil/entities.jsonl at {} — run `sigil index` first",
-        root.display()
-    );
-
-    let entities = read_jsonl(&entities_path)?;
-    let refs = if refs_path.exists() {
-        read_jsonl(&refs_path)?
-    } else {
-        Vec::new()
-    };
-    Ok(Index::build(entities, refs))
-}
-
-fn read_jsonl<T: serde::de::DeserializeOwned>(path: &std::path::Path) -> Result<Vec<T>> {
-    let s = std::fs::read_to_string(path)
-        .with_context(|| format!("read {}", path.display()))?;
-    let mut out = Vec::new();
-    for (i, line) in s.lines().enumerate() {
-        if line.trim().is_empty() {
-            continue;
-        }
-        let row: T = serde_json::from_str(line)
-            .with_context(|| format!("{}:line {} parse", path.display(), i + 1))?;
-        out.push(row);
-    }
-    Ok(out)
 }
 
 #[cfg(test)]
@@ -311,7 +301,11 @@ mod tests {
             vec![ent("src/lib.rs", "process_data", "function", 12)],
             vec![],
         );
-        SigilServer::new(PathBuf::from("."), idx, RankManifest::default())
+        SigilServer::new(
+            PathBuf::from("."),
+            Backend::InMemory(idx),
+            RankManifest::default(),
+        )
     }
 
     #[test]
@@ -418,5 +412,88 @@ mod tests {
                 .unwrap_or_default()
                 .contains("synthesize")
         );
+    }
+
+    // ── Workspace-mode coverage (issue #43) ─────────────────────────
+    //
+    // The bug: SigilServer used to read `<root>/.sigil/entities.jsonl`
+    // directly, so `sigil mcp --root <workspace>` bailed because workspace
+    // roots only have `.sigil-workspace/`. The fix routes startup through
+    // `Backend::load`, which detects `.sigil-workspace/members.json` and
+    // dispatches to `Index::load_workspace` for union-loading.
+
+    fn tmp_workspace(name: &str) -> PathBuf {
+        let p = std::env::temp_dir().join(format!("sigil_mcp_ws_{name}_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&p);
+        std::fs::create_dir_all(&p).unwrap();
+        p
+    }
+
+    fn seed_member(root: &std::path::Path, entities: Vec<Entity>) {
+        crate::writer::write_to_files(&entities, &[], root, /* pretty */ false).unwrap();
+    }
+
+    fn write_members_json(workspace_root: &std::path::Path, members: &[(&str, &PathBuf)]) {
+        let ws_dir = workspace_root.join(".sigil-workspace");
+        std::fs::create_dir_all(&ws_dir).unwrap();
+        let arr: Vec<_> = members
+            .iter()
+            .map(|(name, path)| {
+                serde_json::json!({
+                    "name": name,
+                    "path": path.to_string_lossy(),
+                    "added_at": "2026-05-14T00:00:00Z",
+                })
+            })
+            .collect();
+        let body = serde_json::json!({"version": 1, "members": arr});
+        std::fs::write(ws_dir.join("members.json"), body.to_string()).unwrap();
+    }
+
+    #[tokio::test]
+    async fn sigil_search_at_workspace_root_returns_cross_member_entity() {
+        let ws = tmp_workspace("xref_search");
+        let alpha = ws.join("alpha");
+        let beta = ws.join("beta");
+        std::fs::create_dir_all(&alpha).unwrap();
+        std::fs::create_dir_all(&beta).unwrap();
+
+        seed_member(
+            &alpha,
+            vec![ent("src/lib.rs", "unique_alpha_symbol", "function", 5)],
+        );
+        seed_member(
+            &beta,
+            vec![ent("src/lib.rs", "unique_beta_symbol", "function", 7)],
+        );
+
+        write_members_json(&ws, &[("alpha", &alpha), ("beta", &beta)]);
+
+        let backend = crate::query::Backend::load(&ws).expect("workspace-aware load");
+        let server = SigilServer::new(ws.clone(), backend, RankManifest::default());
+
+        let result = server
+            .sigil_search(Parameters(SearchArgs {
+                query: "unique_beta_symbol".to_string(),
+                limit: Some(10),
+            }))
+            .await
+            .expect("sigil_search call");
+
+        let text = match &result.content[0].raw {
+            rmcp::model::RawContent::Text(t) => t.text.clone(),
+            other => panic!("expected text content, got {:?}", other),
+        };
+        let payload: serde_json::Value =
+            serde_json::from_str(&text).expect("text payload is JSON");
+        let hits = payload["hits"].as_array().expect("hits array");
+        assert_eq!(hits.len(), 1, "expected one cross-member hit, got {hits:?}");
+        assert_eq!(hits[0]["n"], "unique_beta_symbol");
+        assert_eq!(
+            hits[0]["f"], "beta/src/lib.rs",
+            "file path must be member-prefixed by Index::load_workspace",
+        );
+
+        std::fs::remove_dir_all(&ws).ok();
     }
 }

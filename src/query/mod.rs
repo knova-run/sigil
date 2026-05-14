@@ -90,6 +90,26 @@ impl Backend {
         }
     }
 
+    /// Lazy in-memory `Index` view. For the `InMemory` variant this is a
+    /// borrow of the wrapped Index (free). For the `DuckDb` variant it
+    /// re-parses JSONL on first call (lossless — preserves `doc`,
+    /// `heritage`, `rank`, `blast_radius`, `meta` which the DuckDB schema
+    /// drops) and caches the result for the rest of this backend's life.
+    ///
+    /// Consumers that operate on the full graph — `map::build_map`,
+    /// `dead_code::find_dead_code_in_index`, `context::build_context` —
+    /// reach for this when called from MCP via a Backend handle. Pure
+    /// point-query callers should prefer `Backend::search`,
+    /// `Backend::get_callers`, etc. — those stay on DuckDB and avoid
+    /// triggering materialization.
+    pub fn materialize_index(&self) -> &index::Index {
+        match self {
+            Self::InMemory(idx) => idx,
+            #[cfg(feature = "db")]
+            Self::DuckDb(db) => db.materialize_index(),
+        }
+    }
+
     /// Convenience for callers that just want the counts. Matches the
     /// semantics of `Index::len` and `DuckDbBackend::len`.
     pub fn len(&self) -> (usize, usize) {
@@ -966,5 +986,64 @@ mod json_emit_tests {
         let old = r#"{"file":"a.rs","caller":"m","name":"foo","ref_kind":"call","line":7}"#;
         let parsed: Reference = serde_json::from_str(old).unwrap();
         assert_eq!(parsed.ref_kind, "call");
+    }
+}
+
+#[cfg(test)]
+mod backend_dispatch_tests {
+    use super::*;
+    use crate::entity::{Entity, HeritageEdge};
+    use crate::query::index::Index;
+
+    fn ent_with_doc(name: &str, doc: &str) -> Entity {
+        Entity {
+            file: "src/foo.rs".into(),
+            name: name.into(),
+            kind: "struct".into(),
+            line_start: 1,
+            line_end: 2,
+            parent: None,
+            qualified_name: None,
+            sig: None,
+            meta: None,
+            body_hash: None,
+            sig_hash: None,
+            struct_hash: "h".into(),
+            visibility: None,
+            rank: None,
+            blast_radius: None,
+            doc: Some(doc.into()),
+            heritage: vec![HeritageEdge {
+                kind: "implement".into(),
+                target: "Trait".into(),
+            }],
+            alias: None,
+        }
+    }
+
+    /// Static assertion: Backend must be Send + Sync so async MCP
+    /// handlers (which require Send futures) can hold `Arc<Backend>`
+    /// across await points. The DuckDb variant's underlying Connection
+    /// is wrapped in `std::sync::Mutex` to satisfy this.
+    #[test]
+    fn backend_is_send_and_sync() {
+        fn assert_send_sync<T: Send + Sync>() {}
+        assert_send_sync::<Backend>();
+    }
+
+    #[test]
+    fn backend_inmemory_materialize_returns_wrapped_index_unchanged() {
+        // The InMemory variant must hand back the same Index it wraps —
+        // no re-parsing, no copying, no field loss. Bulk MCP tools call
+        // this every invocation; it has to be free.
+        let idx = Index::build(vec![ent_with_doc("Foo", "doc text")], vec![]);
+        let backend = Backend::InMemory(idx);
+        let returned = backend.materialize_index();
+        let found = returned
+            .entities_by_name("Foo")
+            .next()
+            .expect("Foo in materialized");
+        assert_eq!(found.doc.as_deref(), Some("doc text"));
+        assert_eq!(found.heritage.len(), 1);
     }
 }

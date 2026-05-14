@@ -69,6 +69,7 @@
 #![cfg(feature = "db")]
 
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
 
 use std::collections::BTreeMap;
 
@@ -76,7 +77,7 @@ use anyhow::{Context as _, Result};
 use duckdb::{Connection, params};
 
 use crate::entity::{Entity, Reference};
-use crate::query::index::{DirSummary, FileHit, Scope};
+use crate::query::index::{DirSummary, FileHit, Index, Scope};
 use crate::query::SearchHitOwned;
 
 /// Default auto-upgrade threshold in bytes.
@@ -107,8 +108,20 @@ pub fn should_auto_engage(root: &Path, threshold_bytes: u64) -> bool {
 /// DuckDB-backed query engine. Opens (or rebuilds) the `.sigil/index.duckdb`
 /// cache on construction; queries run against that materialized store.
 pub struct DuckDbBackend {
-    conn: Connection,
+    /// Wrapped in `std::sync::Mutex` so `DuckDbBackend: Sync`. DuckDB's
+    /// `Connection` has `RefCell` internals (single-threaded by design);
+    /// the Mutex serializes access without changing the C-side
+    /// semantics. The cost is a brief uncontested lock per query — SQL
+    /// drives the latency, lock acquisition is noise. This is the
+    /// invariant that lets async MCP hold `Arc<Backend>` across await
+    /// points (issue #43 follow-up).
+    conn: Mutex<Connection>,
     root: PathBuf,
+    /// Lazily-built in-memory Index, populated on the first
+    /// `materialize_index()` call by re-parsing JSONL (lossless), not by
+    /// `SELECT * FROM entities` (which drops `doc`, `heritage`, `rank`,
+    /// `blast_radius`, `meta` per `row_to_entity`'s documented limits).
+    materialized: OnceLock<Index>,
 }
 
 impl DuckDbBackend {
@@ -125,8 +138,9 @@ impl DuckDbBackend {
         populate_workspace(&conn, root)
             .context("populate workspace DuckDB TEMP tables from per-repo JSONL")?;
         Ok(Self {
-            conn,
+            conn: Mutex::new(conn),
             root: root.to_path_buf(),
+            materialized: OnceLock::new(),
         })
     }
 
@@ -146,19 +160,40 @@ impl DuckDbBackend {
         populate(&conn, &sigil_dir)
             .context("populate DuckDB TEMP tables from JSONL")?;
         Ok(Self {
-            conn,
+            conn: Mutex::new(conn),
             root: root.to_path_buf(),
+            materialized: OnceLock::new(),
+        })
+    }
+
+    /// Lazy in-memory `Index` view, built by re-parsing JSONL on first
+    /// call and cached for the lifetime of this backend. The DuckDB
+    /// columnar schema is intentionally lossy (no `meta`, `rank`,
+    /// `blast_radius`, `doc`, `heritage` round-trip); consumers that need
+    /// the rich struct — `context.rs`, `map.rs`, `dead_code.rs` —
+    /// reach for this instead of running `SELECT * FROM entities`.
+    ///
+    /// In workspace mode (`<root>/.sigil-workspace/members.json` exists)
+    /// this delegates to `Index::load_workspace`, mirroring how
+    /// `Backend::load` routes between per-repo and workspace modes.
+    pub fn materialize_index(&self) -> &Index {
+        self.materialized.get_or_init(|| {
+            if super::is_workspace_root(&self.root) {
+                Index::load_workspace(&self.root)
+                    .expect("materialize_index: workspace JSONL re-parse failed")
+            } else {
+                Index::load(&self.root)
+                    .expect("materialize_index: JSONL re-parse failed")
+            }
         })
     }
 
     /// Total `(entities, references)` counts — cheap sanity check.
     pub fn len(&self) -> Result<(usize, usize)> {
-        let entities: i64 = self
-            .conn
-            .query_row("SELECT COUNT(*) FROM entities", [], |r| r.get(0))?;
-        let refs: i64 = self
-            .conn
-            .query_row("SELECT COUNT(*) FROM refs", [], |r| r.get(0))?;
+        let conn = self.conn.lock().expect("duckdb conn poisoned");
+        let entities: i64 =
+            conn.query_row("SELECT COUNT(*) FROM entities", [], |r| r.get(0))?;
+        let refs: i64 = conn.query_row("SELECT COUNT(*) FROM refs", [], |r| r.get(0))?;
         Ok((entities as usize, refs as usize))
     }
 
@@ -233,7 +268,8 @@ impl DuckDbBackend {
             sql.push_str(&format!(" LIMIT {}", limit));
         }
 
-        let mut stmt = self.conn.prepare(&sql)?;
+        let conn = self.conn.lock().expect("duckdb conn poisoned");
+        let mut stmt = conn.prepare(&sql)?;
         let rows = stmt
             .query_map(bind.as_slice(), row_to_reference)?
             .collect::<std::result::Result<Vec<_>, _>>()?;
@@ -301,7 +337,8 @@ impl DuckDbBackend {
         if limit > 0 {
             sql.push_str(&format!(" LIMIT {}", limit));
         }
-        let mut stmt = self.conn.prepare(&sql)?;
+        let conn = self.conn.lock().expect("duckdb conn poisoned");
+        let mut stmt = conn.prepare(&sql)?;
         let rows = stmt
             .query_map(bind.as_slice(), row_to_reference)?
             .collect::<std::result::Result<Vec<_>, _>>()?;
@@ -336,7 +373,8 @@ impl DuckDbBackend {
         if limit > 0 {
             sql.push_str(&format!(" LIMIT {}", limit));
         }
-        let mut stmt = self.conn.prepare(&sql)?;
+        let conn = self.conn.lock().expect("duckdb conn poisoned");
+        let mut stmt = conn.prepare(&sql)?;
         let rows = if let Some(k) = kind_filter {
             stmt.query_map(params![file, k], row_to_entity)?
                 .collect::<std::result::Result<Vec<_>, _>>()?
@@ -369,7 +407,8 @@ impl DuckDbBackend {
         if limit > 0 {
             sql.push_str(&format!(" LIMIT {}", limit));
         }
-        let mut stmt = self.conn.prepare(&sql)?;
+        let conn = self.conn.lock().expect("duckdb conn poisoned");
+        let mut stmt = conn.prepare(&sql)?;
         let rows = if let Some(k) = kind_filter {
             stmt.query_map(params![file, parent, k], row_to_entity)?
                 .collect::<std::result::Result<Vec<_>, _>>()?
@@ -445,7 +484,8 @@ impl DuckDbBackend {
         if limit > 0 {
             sql.push_str(&format!(" LIMIT {}", limit));
         }
-        let mut stmt = self.conn.prepare(&sql)?;
+        let conn = self.conn.lock().expect("duckdb conn poisoned");
+        let mut stmt = conn.prepare(&sql)?;
         let rows = match (kind_filter, path_prefix) {
             (Some(k), Some(p)) => stmt
                 .query_map(params![needle, k, format!("{p}%")], row_to_entity)?
@@ -487,7 +527,8 @@ impl DuckDbBackend {
         if limit > 0 {
             sql.push_str(&format!(" LIMIT {}", limit));
         }
-        let mut stmt = self.conn.prepare(&sql)?;
+        let conn = self.conn.lock().expect("duckdb conn poisoned");
+        let mut stmt = conn.prepare(&sql)?;
         let rows: Vec<(String, i64)> = if let Some(p) = path_prefix {
             stmt.query_map(params![needle, format!("{p}%")], |r| {
                 Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?))
@@ -574,7 +615,8 @@ impl DuckDbBackend {
         if path_prefix.is_some() {
             sql.push_str(" WHERE file LIKE ?");
         }
-        let mut stmt = self.conn.prepare(&sql)?;
+        let conn = self.conn.lock().expect("duckdb conn poisoned");
+        let mut stmt = conn.prepare(&sql)?;
         let rows: Vec<String> = if let Some(p) = path_prefix {
             stmt.query_map(params![format!("{p}%")], |r| r.get::<_, String>(0))?
                 .collect::<std::result::Result<Vec<_>, _>>()?
@@ -605,7 +647,8 @@ impl DuckDbBackend {
     /// materialized store out from under sigil is at the user's risk
     /// since the next staleness-triggered rebuild will blow it away.
     pub fn exec_query(&self, sql: &str) -> Result<QueryResult> {
-        let mut stmt = self.conn.prepare(sql)?;
+        let conn = self.conn.lock().expect("duckdb conn poisoned");
+        let mut stmt = conn.prepare(sql)?;
         // `column_names()` reads the schema set up during `query()` —
         // call query() first, then extract column names, then iterate.
         // Calling column_names() on a prepared-but-not-yet-executed
@@ -1676,6 +1719,45 @@ mod tests {
         assert_eq!(db.len().unwrap(), (0, 0));
         assert!(db.get_callers("anything", None, 0).unwrap().is_empty());
         assert!(db.get_file_symbols("missing.rs", None, 0).unwrap().is_empty());
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn materialize_index_preserves_rich_fields_via_jsonl_reparse() {
+        // Backend::materialize_index() builds the in-memory Index by re-parsing
+        // JSONL, not by `SELECT * FROM entities` (which silently drops `doc`,
+        // `heritage`, `rank`, `blast_radius`, `meta` per row_to_entity's
+        // documented limitation). MCP's bulk tools (get_context, get_overview,
+        // get_dead_code) rely on these fields being present. This is the
+        // correctness guarantee behind issue #43's Arch 1 fix.
+        let root = tmpdir("materialize_preserves_rich_fields");
+        let mut entity = ent("src/foo.rs", "Foo", "struct");
+        entity.doc = Some("Documentation for Foo.".to_string());
+        entity.heritage = vec![crate::entity::HeritageEdge {
+            kind: "implement".to_string(),
+            target: "Trait".to_string(),
+        }];
+        seed(&root, vec![entity], vec![]);
+
+        let db = DuckDbBackend::open(&root).expect("open");
+        let idx = db.materialize_index();
+
+        let found = idx
+            .entities_by_name("Foo")
+            .next()
+            .expect("Foo should exist in materialized index");
+        assert_eq!(
+            found.doc.as_deref(),
+            Some("Documentation for Foo."),
+            "doc must survive materialize_index — JSONL re-parse path expected",
+        );
+        assert_eq!(
+            found.heritage.len(),
+            1,
+            "heritage must survive materialize_index",
+        );
+        assert_eq!(found.heritage[0].kind, "implement");
+        assert_eq!(found.heritage[0].target, "Trait");
         std::fs::remove_dir_all(&root).ok();
     }
 }

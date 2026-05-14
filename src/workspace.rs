@@ -1997,15 +1997,52 @@ pub fn workspace_index_with_options(workspace_root: &Path, full: bool) -> Result
         }
     };
 
+    // Workspace-level PageRank over the union-loaded graph (cross-repo
+    // refs included). File-rank keys use the `<member.name>/<rel>`
+    // naming that `Index::load_workspace` emits, so consumers like
+    // `map::load_workspace_rank_manifest` and MCP's `get_overview`
+    // resolve correctly. Best-effort — a parse failure on one member
+    // doesn't abort the whole index.
+    let rank_files = match write_workspace_rank(workspace_root) {
+        Ok(n) => n,
+        Err(e) => {
+            eprintln!("workspace index: rank computation failed: {} (skipped)", e);
+            0
+        }
+    };
+
     eprintln!(
-        "workspace index: stamped {} member(s){}, {} cross-repo ref(s), {} co-change edge(s), {} contract link(s)",
+        "workspace index: stamped {} member(s){}, {} cross-repo ref(s), {} co-change edge(s), {} contract link(s), {} ranked file(s)",
         stamps.members.len(),
         if warnings > 0 { format!(" ({} skipped)", warnings) } else { String::new() },
         cross_emitted,
         co_change_count,
         contract_link_count,
+        rank_files,
     );
     Ok(())
+}
+
+/// Compute PageRank over the union-loaded workspace graph and write
+/// `<workspace>/.sigil-workspace/rank.json`. File-rank keys carry the
+/// `<member.name>/<rel>` prefix so downstream consumers (map's overview,
+/// MCP's get_overview) hit the same names that `Index::load_workspace`
+/// emits. Returns the number of ranked files. Empty graph → empty
+/// manifest, written so consumers know the file is current.
+fn write_workspace_rank(workspace_root: &Path) -> Result<usize> {
+    let idx = crate::query::index::Index::load_workspace(workspace_root)
+        .context("union-load workspace for rank pass")?;
+    let cfg = crate::rank::RankConfig::default();
+    let ranked = crate::rank::rank_with_config(&idx.entities, &idx.references, &cfg);
+    let manifest = crate::rank::RankManifest::from_ranked(&ranked, &cfg);
+    let rank_path = workspace_root.join(".sigil-workspace").join("rank.json");
+    if let Some(parent) = rank_path.parent() {
+        std::fs::create_dir_all(parent).ok();
+    }
+    let body = serde_json::to_string(&manifest)?;
+    std::fs::write(&rank_path, body + "\n")
+        .with_context(|| format!("writing {}", rank_path.display()))?;
+    Ok(manifest.file_count)
 }
 
 /// Read the current membership list. Used by `workspace list` and by
