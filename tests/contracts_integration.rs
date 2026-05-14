@@ -1222,6 +1222,53 @@ func Recv(ctx context.Context, c *sqs.Client) error {
 }
 
 #[test]
+fn kafka_segmentio_regex_does_not_stitch_across_struct_boundaries() {
+    // Regression for the (?s).*? regex stitching issue: when the first
+    // kafka.Writer{} struct lacks a `Topic:` field, the lazy match used
+    // to cross the closing `}` and attribute the SECOND struct's Topic
+    // to the first. The fix bounds the dotall span to characters that
+    // never close the outer struct.
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("k.go"),
+        r#"package k
+
+import "github.com/segmentio/kafka-go"
+
+var noTopic = &kafka.Writer{
+    Addr:    kafka.TCP("a:9092"),
+    Brokers: []string{"a:9092", "b:9092"},
+}
+
+var hasTopic = &kafka.Writer{
+    Topic: "orders.created",
+}
+"#,
+    ).unwrap();
+
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let writers: Vec<_> = rows.iter()
+        .filter(|r| r["framework"] == "kafka-segmentio" && r["role"] == "publisher")
+        .collect();
+    assert_eq!(
+        writers.len(), 1,
+        "exactly one publisher row (from hasTopic); got {writers:?}",
+    );
+    assert_eq!(writers[0]["topic"], "orders.created");
+    // Critical assertion: the row must point at the SECOND struct
+    // (the one with the Topic field), not the first. Pre-fix, lazy
+    // `.*?` stitched across the closing brace of the first struct
+    // and attributed the second struct's Topic to the first.
+    let line = writers[0]["line"].as_u64().unwrap();
+    assert!(
+        line >= 10,
+        "publisher row must point at hasTopic block (line ≥10), not noTopic (line ~5); got line={line}",
+    );
+}
+
+#[test]
 fn detects_kafka_segmentio_writer_and_reader() {
     // Issue #45: segmentio/kafka-go. Topic field on Writer / ReaderConfig.
     let tmp = TempDir::new().unwrap();
@@ -1310,6 +1357,44 @@ func MarkShipped(db *gorm.DB, id int64) error {
 }
 
 #[test]
+fn detects_raw_sql_in_multiline_go_backtick_string() {
+    // Go raw-string literals (backticks) commonly span multiple lines
+    // for long SQL queries. The detector must scan across newlines.
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("dao.go"),
+        r#"package dao
+
+import "context"
+
+func Report(ctx context.Context, db DB) error {
+    _, err := db.Query(`
+        SELECT u.id, u.name, o.total
+        FROM users u
+        JOIN orders o ON o.user_id = u.id
+        WHERE u.active = true
+    `)
+    return err
+}
+"#,
+    ).unwrap();
+
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let ids: Vec<&str> = rows.iter()
+        .filter(|r| r["kind"] == "db" && r["role"] == "consumer")
+        .map(|r| r["contract_id"].as_str().unwrap())
+        .collect();
+    for expected in ["db::users", "db::orders"] {
+        assert!(
+            ids.contains(&expected),
+            "multi-line backtick SQL must surface {expected} consumer row; got {ids:?}",
+        );
+    }
+}
+
+#[test]
 fn detects_raw_sql_table_consumers_in_go() {
     // Issue #46: raw SQL via sqlx/database/sql/pgx. The tokenizer must
     // extract FROM/JOIN/INSERT INTO/UPDATE/DELETE FROM targets and
@@ -1363,6 +1448,43 @@ func ListWithJoin(ctx context.Context, db DB) error {
             "expected {expected} in consumer rows; got {consumer_ids:?}",
         );
     }
+}
+
+#[test]
+fn db_consumer_rows_carry_access_read_or_write() {
+    // ContractRow now has an optional `access` field. SELECT/FROM/JOIN
+    // → "read", INSERT INTO / UPDATE / DELETE FROM → "write".
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("dao.go"),
+        r#"package dao
+
+import "context"
+
+func List(ctx context.Context, db DB) error {
+    _, err := db.Query("SELECT id FROM users")
+    return err
+}
+
+func Add(ctx context.Context, db DB) error {
+    _, err := db.Exec("INSERT INTO users (id) VALUES ($1)", 7)
+    return err
+}
+"#,
+    ).unwrap();
+
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let users: Vec<_> = rows.iter()
+        .filter(|r| r["kind"] == "db" && r["contract_id"] == "db::users" && r["role"] == "consumer")
+        .collect();
+    assert!(users.len() >= 2, "expected 2 user-table rows; got {users:?}");
+    let accesses: Vec<&str> = users.iter()
+        .filter_map(|r| r["access"].as_str())
+        .collect();
+    assert!(accesses.contains(&"read"), "SELECT must emit access=read; got {accesses:?}");
+    assert!(accesses.contains(&"write"), "INSERT INTO must emit access=write; got {accesses:?}");
 }
 
 #[test]

@@ -290,6 +290,62 @@ fn workspace_resolve_focus_accepts_member_name() {
 }
 
 #[test]
+fn workspace_resolve_cross_repo_refs_is_fully_lexicographically_sorted() {
+    // CLAUDE.md: "Output JSONL artifacts ... are lexicographically
+    // sorted for deterministic diffs." `persist_resolutions_grouped`
+    // was producing two ordered partitions (preserved module-level rows
+    // + new symbol rows) rather than one fully sorted file. After the
+    // fix, the entire file is sorted as one sequence.
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let focus = ws.join("alpha");
+    let member = ws.join("beta");
+    fs::create_dir_all(&ws).unwrap();
+    init_repo(&focus);
+    init_repo(&member);
+
+    fs::create_dir_all(focus.join(".sigil")).unwrap();
+    fs::write(
+        focus.join(".sigil/entities.jsonl"),
+        "{\"file\":\"<external>\",\"name\":\"external:shared.run\",\"kind\":\"external\",\"line_start\":0,\"line_end\":0,\"struct_hash\":\"0\"}\n",
+    ).unwrap();
+    fs::create_dir_all(member.join(".sigil")).unwrap();
+    fs::write(
+        member.join(".sigil/entities.jsonl"),
+        "{\"file\":\"shared.py\",\"name\":\"run\",\"kind\":\"function\",\"line_start\":1,\"line_end\":2,\"struct_hash\":\"1\"}\n",
+    ).unwrap();
+
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", focus.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", member.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+
+    // Seed the file with an out-of-order module-level row that resolve
+    // must preserve but also sort relative to the new symbol rows.
+    let cross = ws.join(".sigil-workspace/cross_repo_refs.jsonl");
+    fs::create_dir_all(cross.parent().unwrap()).unwrap();
+    fs::write(
+        &cross,
+        "{\"file\":\"zzz/last.rs\",\"caller\":\"z\",\"name\":\"z_ref\",\"kind\":\"cross_repo_dep\",\"line\":1}\n",
+    ).unwrap();
+
+    let out = sigil(&[
+        "workspace", "resolve",
+        "--root", ws.to_str().unwrap(),
+        "--focus", focus.to_str().unwrap(),
+    ]);
+    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+
+    let content = fs::read_to_string(&cross).unwrap();
+    let lines: Vec<&str> = content.lines().filter(|l| !l.is_empty()).collect();
+    let mut sorted = lines.clone();
+    sorted.sort();
+    assert_eq!(
+        lines, sorted,
+        "cross_repo_refs.jsonl must be fully lexicographically sorted (CLAUDE.md determinism rule); got:\n{content}",
+    );
+}
+
+#[test]
 fn workspace_resolve_persists_resolutions_to_cross_repo_refs_jsonl() {
     // Bug #47.5: today `workspace resolve` only prints to stdout.
     // Persisting to `.sigil-workspace/cross_repo_refs.jsonl` (folded
@@ -344,6 +400,46 @@ fn workspace_resolve_persists_resolutions_to_cross_repo_refs_jsonl() {
         row["callee_id"].as_str(),
         Some("beta/shared.py::run"),
         "callee_id carries provider_repo/file::symbol",
+    );
+}
+
+#[test]
+fn workspace_resolve_filters_python_camelcase_stdlib() {
+    // Regression for PYTHON_STDLIB sort ordering. `cProfile` had been
+    // wedged in mid-alphabet (after `copyreg`), but `'P' (0x50) < 'o'
+    // (0x6F)`, so the slice was not sorted and `binary_search` could
+    // miss it — `cProfile` imports would leak through stdlib filtering.
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let focus = ws.join("alpha");
+    let member = ws.join("beta");
+    fs::create_dir_all(&ws).unwrap();
+    init_repo(&focus);
+    init_repo(&member);
+    fs::create_dir_all(focus.join(".sigil")).unwrap();
+    fs::write(
+        focus.join(".sigil/entities.jsonl"),
+        "{\"file\":\"<external>\",\"name\":\"external:cProfile\",\"kind\":\"external\",\"line_start\":0,\"line_end\":0,\"struct_hash\":\"x\"}\n",
+    ).unwrap();
+    fs::create_dir_all(member.join(".sigil")).unwrap();
+    fs::write(
+        member.join(".sigil/entities.jsonl"),
+        "{\"file\":\"prof.py\",\"name\":\"cProfile\",\"kind\":\"function\",\"line_start\":1,\"line_end\":2,\"struct_hash\":\"a\"}\n",
+    ).unwrap();
+
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", focus.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", member.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+
+    let output = sigil(&[
+        "workspace", "resolve",
+        "--root", ws.to_str().unwrap(),
+        "--focus", focus.to_str().unwrap(),
+    ]);
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    assert!(
+        !stdout.contains("cProfile"),
+        "Python stdlib cProfile must be filtered; got: {stdout}",
     );
 }
 

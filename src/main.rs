@@ -1046,12 +1046,16 @@ enum WorkspaceAction {
         #[arg(short, long, default_value = ".")]
         root: PathBuf,
     },
-    /// Cross-repo external-symbol resolution. For each `external:<modpath>`
-    /// sentinel in the focus repo, scans sibling repos under the
-    /// workspace root for a matching entity definition. Emits a JSONL row
-    /// per resolution at confidence 0.4 (cross-repo binding is inherently
-    /// less certain than intra-repo). MVP; doesn't yet constrain
-    /// resolution via `sigil package-deps` edges (open design question).
+    /// Cross-repo external-symbol resolution. Walks each focus member's
+    /// `external:<modpath>` sentinels and resolves them against the
+    /// other enabled members in `.sigil-workspace/members.json` (issue
+    /// #47.3 — scoped to explicit membership; was a broad sibling
+    /// scan). When `--focus` is omitted, every enabled member is
+    /// resolved in turn. Stdlib imports (Go / Python / Node / Rust)
+    /// are filtered. Emits a JSONL row per resolution at confidence
+    /// 0.4; also persists to `.sigil-workspace/cross_repo_refs.jsonl`
+    /// with `kind: "cross_repo_symbol"` (issue #47.5). MVP; doesn't
+    /// yet constrain resolution via `sigil package-deps` edges.
     Resolve {
         /// Workspace root — parent directory of child sigil-indexed repos.
         #[arg(short, long, default_value = ".")]

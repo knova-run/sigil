@@ -79,6 +79,13 @@ pub struct ContractRow {
     pub line: u32,
     pub language: String,
     pub framework: String,
+    /// DB-consumer rows only: `"read"` (SELECT / FROM / JOIN) vs
+    /// `"write"` (INSERT INTO / UPDATE / DELETE FROM). `None` for every
+    /// non-db row and for db owner rows. Lets downstream tooling split
+    /// the consumer surface into read-only vs write paths without
+    /// re-parsing the SQL.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub access: Option<String>,
 }
 
 /// Normalize an HTTP path so paths from different framework conventions
@@ -501,6 +508,7 @@ fn scan_js_ts(file: &str, text: &str, ext: &str) -> Vec<ContractRow> {
                 line: (i + 1) as u32,
                 language: language.to_string(),
                 framework: "axios".to_string(),
+            access: None,
             });
             continue;
         }
@@ -528,6 +536,7 @@ fn scan_js_ts(file: &str, text: &str, ext: &str) -> Vec<ContractRow> {
                 line: (i + 1) as u32,
                 language: language.to_string(),
                 framework: "superagent".to_string(),
+            access: None,
             });
             continue;
         }
@@ -555,6 +564,7 @@ fn scan_js_ts(file: &str, text: &str, ext: &str) -> Vec<ContractRow> {
                 line: (i + 1) as u32,
                 language: language.to_string(),
                 framework: "fetch".to_string(),
+            access: None,
             });
             continue;
         }
@@ -581,6 +591,7 @@ fn scan_js_ts(file: &str, text: &str, ext: &str) -> Vec<ContractRow> {
                 line: (i + 1) as u32,
                 language: language.to_string(),
                 framework: framework.to_string(),
+            access: None,
             });
         }
     }
@@ -607,6 +618,7 @@ fn scan_js_ts(file: &str, text: &str, ext: &str) -> Vec<ContractRow> {
                     method: None, path: Some(svc), topic: None,
                     file: file.to_string(), line: (i + 1) as u32,
                     language: language.to_string(), framework: "grpc".to_string(),
+                access: None,
                 });
             }
             if let Some(caps) = grpc_js_client.captures(line) {
@@ -617,6 +629,7 @@ fn scan_js_ts(file: &str, text: &str, ext: &str) -> Vec<ContractRow> {
                     method: None, path: Some(svc), topic: None,
                     file: file.to_string(), line: (i + 1) as u32,
                     language: language.to_string(), framework: "grpc".to_string(),
+                access: None,
                 });
             }
         }
@@ -645,6 +658,7 @@ fn scan_js_ts(file: &str, text: &str, ext: &str) -> Vec<ContractRow> {
                     method: None, path: Some(name.clone()), topic: None,
                     file: file.to_string(), line: (i + 1) as u32,
                     language: language.to_string(), framework: "trpc".to_string(),
+                access: None,
                 });
                 continue;
             }
@@ -656,6 +670,7 @@ fn scan_js_ts(file: &str, text: &str, ext: &str) -> Vec<ContractRow> {
                     method: None, path: Some(name.clone()), topic: None,
                     file: file.to_string(), line: (i + 1) as u32,
                     language: language.to_string(), framework: "trpc".to_string(),
+                access: None,
                 });
             }
         }
@@ -675,6 +690,7 @@ fn scan_js_ts(file: &str, text: &str, ext: &str) -> Vec<ContractRow> {
                         method: None, path: Some(name.clone()), topic: None,
                         file: file.to_string(), line: (i + 1) as u32,
                         language: language.to_string(), framework: "jsonrpc".to_string(),
+                    access: None,
                     });
                 }
             }
@@ -795,6 +811,7 @@ fn scan_go(file: &str, text: &str) -> Vec<ContractRow> {
                     method: None, path: None, topic: Some(format!("$ENV.{name}")),
                     file: file.to_string(), line: (i + 1) as u32,
                     language: "go".to_string(), framework: "redis".to_string(),
+                access: None,
                 });
                 continue;
             }
@@ -817,6 +834,7 @@ fn scan_go(file: &str, text: &str) -> Vec<ContractRow> {
                     method: None, path: None, topic: Some(format!("$ENV.{name}")),
                     file: file.to_string(), line: (i + 1) as u32,
                     language: "go".to_string(), framework: "redis".to_string(),
+                access: None,
                 });
                 continue;
             }
@@ -835,6 +853,7 @@ fn scan_go(file: &str, text: &str) -> Vec<ContractRow> {
                 line: (i + 1) as u32,
                 language: "go".to_string(),
                 framework: framework.to_string(),
+            access: None,
             });
             continue;
         }
@@ -856,6 +875,7 @@ fn scan_go(file: &str, text: &str) -> Vec<ContractRow> {
                     line: (i + 1) as u32,
                     language: "go".to_string(),
                     framework: framework.to_string(),
+                access: None,
                 });
             }
             continue;
@@ -887,6 +907,7 @@ fn scan_go(file: &str, text: &str) -> Vec<ContractRow> {
                 line: (i + 1) as u32,
                 language: "go".to_string(),
                 framework: "grpc".to_string(),
+            access: None,
             });
             continue;
         }
@@ -907,6 +928,7 @@ fn scan_go(file: &str, text: &str) -> Vec<ContractRow> {
                 line: (i + 1) as u32,
                 language: "go".to_string(),
                 framework: "grpc".to_string(),
+            access: None,
             });
             continue;
         }
@@ -949,6 +971,7 @@ fn scan_go(file: &str, text: &str) -> Vec<ContractRow> {
                     method: None, path: Some(normalized.clone()), topic: None,
                     file: file.to_string(), line: (i + 1) as u32,
                     language: "go".to_string(), framework: "gorilla".to_string(),
+                access: None,
                 });
             }
             // The framework label is best-effort; we can't distinguish
@@ -965,6 +988,7 @@ fn scan_go(file: &str, text: &str) -> Vec<ContractRow> {
                 line: (i + 1) as u32,
                 language: "go".to_string(),
                 framework: "go".to_string(),
+            access: None,
             });
         }
     }
@@ -1023,6 +1047,7 @@ fn scan_java(file: &str, text: &str) -> Vec<ContractRow> {
                 line: (i + 1) as u32,
                 language: "java".to_string(),
                 framework: "grpc".to_string(),
+            access: None,
             });
             continue;
         }
@@ -1040,6 +1065,7 @@ fn scan_java(file: &str, text: &str) -> Vec<ContractRow> {
                 line: (i + 1) as u32,
                 language: "java".to_string(),
                 framework: "grpc".to_string(),
+            access: None,
             });
             continue;
         }
@@ -1057,6 +1083,7 @@ fn scan_java(file: &str, text: &str) -> Vec<ContractRow> {
                 line: (i + 1) as u32,
                 language: "java".to_string(),
                 framework: "spring".to_string(),
+            access: None,
             });
         }
     }
@@ -1079,6 +1106,7 @@ fn scan_java(file: &str, text: &str) -> Vec<ContractRow> {
                 method: None, path: None, topic: Some(topic),
                 file: file.to_string(), line: (i + 1) as u32,
                 language: "java".to_string(), framework: framework.to_string(),
+            access: None,
             });
             continue;
         }
@@ -1091,6 +1119,7 @@ fn scan_java(file: &str, text: &str) -> Vec<ContractRow> {
                     method: None, path: None, topic: Some(topic),
                     file: file.to_string(), line: (i + 1) as u32,
                     language: "java".to_string(), framework: framework.to_string(),
+                access: None,
                 });
             }
         }
@@ -1151,6 +1180,7 @@ fn scan_proto(file: &str, text: &str) -> Vec<ContractRow> {
                         line: (i + 1) as u32,
                         language: "proto".to_string(),
                         framework: "grpc".to_string(),
+                    access: None,
                     });
                 }
             }
@@ -1225,6 +1255,7 @@ fn scan_ruby(file: &str, text: &str) -> Vec<ContractRow> {
                         method: None, path: Some(svc), topic: None,
                         file: file.to_string(), line: (i + 1) as u32,
                         language: "ruby".to_string(), framework: "grpc".to_string(),
+                    access: None,
                     });
                 }
             }
@@ -1237,6 +1268,7 @@ fn scan_ruby(file: &str, text: &str) -> Vec<ContractRow> {
                         method: None, path: Some(svc), topic: None,
                         file: file.to_string(), line: (i + 1) as u32,
                         language: "ruby".to_string(), framework: "grpc".to_string(),
+                    access: None,
                     });
                 }
             }
@@ -1300,6 +1332,7 @@ fn scan_ruby(file: &str, text: &str) -> Vec<ContractRow> {
                 line: (i + 1) as u32,
                 language: "ruby".to_string(),
                 framework: "rails".to_string(),
+            access: None,
             });
             continue;
         }
@@ -1317,6 +1350,7 @@ fn scan_ruby(file: &str, text: &str) -> Vec<ContractRow> {
                 line: (i + 1) as u32,
                 language: "ruby".to_string(),
                 framework: "rails".to_string(),
+            access: None,
             });
         }
     }
@@ -1441,6 +1475,7 @@ fn scan_rust(file: &str, text: &str) -> Vec<ContractRow> {
                 line: (i + 1) as u32,
                 language: "rust".to_string(),
                 framework: "axum".to_string(),
+            access: None,
             });
             continue;
         }
@@ -1459,6 +1494,7 @@ fn scan_rust(file: &str, text: &str) -> Vec<ContractRow> {
                 line: (i + 1) as u32,
                 language: "rust".to_string(),
                 framework: "rocket".to_string(),
+            access: None,
             });
             continue;
         }
@@ -1478,6 +1514,7 @@ fn scan_rust(file: &str, text: &str) -> Vec<ContractRow> {
                 line: (i + 1) as u32,
                 language: "rust".to_string(),
                 framework: "actix".to_string(),
+            access: None,
             });
             continue;
         }
@@ -1492,6 +1529,7 @@ fn scan_rust(file: &str, text: &str) -> Vec<ContractRow> {
                     method: None, path: Some(svc), topic: None,
                     file: file.to_string(), line: (i + 1) as u32,
                     language: "rust".to_string(), framework: "tonic".to_string(),
+                access: None,
                 });
                 continue;
             }
@@ -1506,6 +1544,7 @@ fn scan_rust(file: &str, text: &str) -> Vec<ContractRow> {
                     method: None, path: Some(svc), topic: None,
                     file: file.to_string(), line: (i + 1) as u32,
                     language: "rust".to_string(), framework: "tonic".to_string(),
+                access: None,
                 });
                 continue;
             }
@@ -1520,6 +1559,7 @@ fn scan_rust(file: &str, text: &str) -> Vec<ContractRow> {
                 method: None, path: None, topic: Some(topic),
                 file: file.to_string(), line: (i + 1) as u32,
                 language: "rust".to_string(), framework: framework.to_string(),
+            access: None,
             });
             continue;
         }
@@ -1532,6 +1572,7 @@ fn scan_rust(file: &str, text: &str) -> Vec<ContractRow> {
                     method: None, path: None, topic: Some(topic),
                     file: file.to_string(), line: (i + 1) as u32,
                     language: "rust".to_string(), framework: framework.to_string(),
+                access: None,
                 });
             }
             continue;
@@ -1548,6 +1589,7 @@ fn scan_rust(file: &str, text: &str) -> Vec<ContractRow> {
                 method: None, path: None, topic: Some(topic),
                 file: file.to_string(), line: (i + 1) as u32,
                 language: "rust".to_string(), framework: framework.to_string(),
+            access: None,
             });
             continue;
         }
@@ -1566,6 +1608,7 @@ fn scan_rust(file: &str, text: &str) -> Vec<ContractRow> {
                 line: (i + 1) as u32,
                 language: "rust".to_string(),
                 framework: "reqwest".to_string(),
+            access: None,
             });
         }
     }
@@ -1617,6 +1660,7 @@ fn scan_php(file: &str, text: &str) -> Vec<ContractRow> {
                 line: (i + 1) as u32,
                 language: "php".to_string(),
                 framework: "laravel".to_string(),
+            access: None,
             });
             continue;
         }
@@ -1635,6 +1679,7 @@ fn scan_php(file: &str, text: &str) -> Vec<ContractRow> {
                 line: (i + 1) as u32,
                 language: "php".to_string(),
                 framework: "laravel".to_string(),
+            access: None,
             });
         }
     }
@@ -1659,6 +1704,7 @@ fn scan_php(file: &str, text: &str) -> Vec<ContractRow> {
                 method: None, path: None, topic: Some(topic),
                 file: file.to_string(), line: (i + 1) as u32,
                 language: "php".to_string(), framework: framework.to_string(),
+            access: None,
             });
         }
         if php_sub.is_match(line) {
@@ -1673,6 +1719,7 @@ fn scan_php(file: &str, text: &str) -> Vec<ContractRow> {
                     method: None, path: None, topic: Some(topic),
                     file: file.to_string(), line: (i + 1) as u32,
                     language: "php".to_string(), framework: framework.to_string(),
+                access: None,
                 });
             }
         }
@@ -1762,6 +1809,7 @@ fn scan_csharp(file: &str, text: &str) -> Vec<ContractRow> {
                 line: (i + 1) as u32,
                 language: "csharp".to_string(),
                 framework: "grpc".to_string(),
+            access: None,
             });
             continue;
         }
@@ -1781,6 +1829,7 @@ fn scan_csharp(file: &str, text: &str) -> Vec<ContractRow> {
                     line: (i + 1) as u32,
                     language: "csharp".to_string(),
                     framework: "grpc".to_string(),
+                access: None,
                 });
                 continue;
             }
@@ -1807,6 +1856,7 @@ fn scan_csharp(file: &str, text: &str) -> Vec<ContractRow> {
                 line: (i + 1) as u32,
                 language: "csharp".to_string(),
                 framework: "aspnet".to_string(),
+            access: None,
             });
             continue;
         }
@@ -1824,6 +1874,7 @@ fn scan_csharp(file: &str, text: &str) -> Vec<ContractRow> {
                 line: (i + 1) as u32,
                 language: "csharp".to_string(),
                 framework: "aspnet-minimal".to_string(),
+            access: None,
             });
             continue;
         }
@@ -1841,6 +1892,7 @@ fn scan_csharp(file: &str, text: &str) -> Vec<ContractRow> {
                 line: (i + 1) as u32,
                 language: "csharp".to_string(),
                 framework: "httpclient".to_string(),
+            access: None,
             });
         }
     }
@@ -1857,6 +1909,7 @@ fn scan_csharp(file: &str, text: &str) -> Vec<ContractRow> {
                 method: None, path: None, topic: Some(topic),
                 file: file.to_string(), line: (i + 1) as u32,
                 language: "csharp".to_string(), framework: framework.to_string(),
+            access: None,
             });
             continue;
         }
@@ -1873,6 +1926,7 @@ fn scan_csharp(file: &str, text: &str) -> Vec<ContractRow> {
                     method: None, path: None, topic: Some(topic),
                     file: file.to_string(), line: (i + 1) as u32,
                     language: "csharp".to_string(), framework: framework.to_string(),
+                access: None,
                 });
             }
         }
@@ -1931,6 +1985,7 @@ fn scan_openapi(file: &str, text: &str) -> Vec<ContractRow> {
                     line: 0,
                     language: "yaml".to_string(),
                     framework: "openapi".to_string(),
+                access: None,
                 });
             }
         }
@@ -1960,6 +2015,7 @@ fn scan_openapi(file: &str, text: &str) -> Vec<ContractRow> {
                     line: 0,
                     language: "yaml".to_string(),
                     framework: "asyncapi".to_string(),
+                access: None,
                 });
             }
         }
@@ -2025,6 +2081,14 @@ fn push_db_row(
     out: &mut Vec<ContractRow>, file: &str, line_no: u32,
     table: &str, role: &str, language: &str, framework: &str,
 ) {
+    push_db_row_with_access(out, file, line_no, table, role, language, framework, None);
+}
+
+fn push_db_row_with_access(
+    out: &mut Vec<ContractRow>, file: &str, line_no: u32,
+    table: &str, role: &str, language: &str, framework: &str,
+    access: Option<&str>,
+) {
     out.push(ContractRow {
         contract_id: format!("db::{table}"),
         kind: "db".to_string(),
@@ -2036,6 +2100,7 @@ fn push_db_row(
         line: line_no,
         language: language.to_string(),
         framework: framework.to_string(),
+        access: access.map(str::to_string),
     });
 }
 
@@ -2102,9 +2167,13 @@ fn raw_sql_call_re() -> &'static Regex {
         // `db.Exec("SELECT ...")` / `db.Query(...)` / `db.QueryContext(ctx, ...)` /
         // `db.Select(&rows, "SELECT ...")` / `conn.Query(ctx, "...")`.
         // Capture the first string-literal argument. Backticks (Go raw
-        // string) and double-quotes both accepted.
+        // string) and double-quotes both accepted. `(?s)` so multi-line
+        // backtick raw strings — common for long SQL — match across
+        // newlines. Argument prefix uses `[\s\S]*?` (lazy) instead of
+        // `[^)]*?` so quoted-string args before the SQL are tolerated
+        // without anchoring on `)` inside the SQL itself.
         Regex::new(
-            r#"\.\s*(?:Exec|ExecContext|Query|QueryContext|QueryRow|QueryRowContext|Select|Get|NamedExec|NamedQuery)\s*\([^)]*?(?:`([^`]+)`|"((?:[^"\\]|\\.)+)")"#,
+            r#"(?s)\.\s*(?:Exec|ExecContext|Query|QueryContext|QueryRow|QueryRowContext|Select|Get|NamedExec|NamedQuery)\s*\([^`")]*?(?:`([^`]+)`|"((?:[^"\\]|\\.)+)")"#,
         )
         .unwrap()
     })
@@ -2178,17 +2247,22 @@ fn extract_sql_tables(sql: &str) -> Vec<(String, &'static str)> {
 
 /// Remove `CREATE FUNCTION ... BEGIN ... END;` bodies from a SQL string so
 /// table references inside function definitions don't masquerade as the
-/// outer query's targets. Best-effort: matches the BEGIN..END block.
+/// outer query's targets. Best-effort: matches the outer `BEGIN ... END;`
+/// block. The terminal `END` is required to be followed by `;` so inner
+/// PL/pgSQL `END IF` / `END LOOP` / `END CASE` (which terminate without
+/// a semicolon at the same position) don't cut the strip short — the
+/// lazy match continues to the real `END;` of the function body.
 fn strip_create_function_bodies(sql: &str) -> String {
     static RE: OnceLock<Regex> = OnceLock::new();
     let re = RE.get_or_init(|| {
-        Regex::new(r#"(?is)\bCREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\b.*?\bBEGIN\b.*?\bEND\s*;?"#)
+        Regex::new(r#"(?is)\bCREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\b.*?\bBEGIN\b.*?\bEND\s*;"#)
             .unwrap()
     });
     re.replace_all(sql, "").to_string()
 }
 
 fn emit_db_consumer_rows(file: &str, text: &str, language: &str, out: &mut Vec<ContractRow>) {
+    // GORM + struct-tag patterns are single-line; iterate line-by-line.
     for (i, line) in text.lines().enumerate() {
         if let Some(caps) = gorm_table_call_re().captures(line) {
             push_db_row(out, file, (i + 1) as u32, &caps[1], "consumer", language, "gorm");
@@ -2196,19 +2270,23 @@ fn emit_db_consumer_rows(file: &str, text: &str, language: &str, out: &mut Vec<C
         if let Some(caps) = gorm_struct_tag_table_re().captures(line) {
             push_db_row(out, file, (i + 1) as u32, &caps[1], "consumer", language, "gorm");
         }
-        if let Some(caps) = raw_sql_call_re().captures(line) {
-            // First non-empty captured group is the SQL literal.
-            let sql = caps.get(1).or_else(|| caps.get(2)).map(|m| m.as_str()).unwrap_or("");
-            for (table, _access) in extract_sql_tables(sql) {
-                let framework = match language {
-                    "go" => "database/sql",
-                    _ => "raw-sql",
-                };
-                push_db_row(
-                    out, file, (i + 1) as u32,
-                    &table, "consumer", language, framework,
-                );
-            }
+    }
+    // Raw SQL scans the whole file so multi-line Go backtick raw
+    // strings (common for long queries) match across newlines.
+    let line_of = |offset: usize| -> u32 {
+        (text[..offset.min(text.len())].matches('\n').count() + 1) as u32
+    };
+    for caps in raw_sql_call_re().captures_iter(text) {
+        let sql = caps.get(1).or_else(|| caps.get(2)).map(|m| m.as_str()).unwrap_or("");
+        let ln = line_of(caps.get(0).unwrap().start());
+        for (table, access) in extract_sql_tables(sql) {
+            let framework = match language {
+                "go" => "database/sql",
+                _ => "raw-sql",
+            };
+            push_db_row_with_access(
+                out, file, ln, &table, "consumer", language, framework, Some(access),
+            );
         }
     }
 }
@@ -2270,6 +2348,7 @@ fn scan_graphql(file: &str, text: &str) -> Vec<ContractRow> {
                 line: (i + 1) as u32,
                 language: "graphql".to_string(),
                 framework: "graphql".to_string(),
+            access: None,
             });
         }
         depth = (depth + opens - closes).max(0);
@@ -2327,6 +2406,7 @@ fn emit_graphql_client_rows(file: &str, text: &str, language: &str, out: &mut Ve
             line: line_no,
             language: language.to_string(),
             framework: "graphql-client".to_string(),
+        access: None,
         });
     }
 }
@@ -2450,10 +2530,13 @@ fn kinesis_put_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| {
         // `client.PutRecord(ctx, &kinesis.PutRecordInput{...StreamName: aws.String("name") ...})`
-        // and the batch form. `.*?` with `(?s)` so nested struct-literal
-        // braces in adjacent fields don't terminate the match early.
+        // and the batch form. Inner span allows one level of nested
+        // braces (adjacent fields like `Records: []*Record{...}`) but
+        // NOT the closing brace of the outer struct, so we can't
+        // stitch across struct boundaries and attribute another
+        // struct's StreamName to this one.
         Regex::new(
-            r#"(?s)kinesis\.PutRecord(?:s)?Input\s*\{.*?StreamName\s*:\s*(?:aws\.String\s*\(\s*)?["']([^"']+)["']"#,
+            r#"(?s)kinesis\.PutRecord(?:s)?Input\s*\{(?:[^{}]|\{[^{}]*\})*?StreamName\s*:\s*(?:aws\.String\s*\(\s*)?["']([^"']+)["']"#,
         )
         .unwrap()
     })
@@ -2479,7 +2562,7 @@ fn sqs_input_re() -> &'static Regex {
         // `sqs.SendMessageInput{ QueueUrl: aws.String("https://.../queue") }`
         // and variants. Captures (operation, queueUrl).
         Regex::new(
-            r#"(?s)sqs\.(SendMessage(?:Batch)?|ReceiveMessage|DeleteMessage)Input\s*\{.*?QueueUrl\s*:\s*(?:aws\.String\s*\(\s*)?["']([^"']+)["']"#,
+            r#"(?s)sqs\.(SendMessage(?:Batch)?|ReceiveMessage|DeleteMessage)Input\s*\{(?:[^{}]|\{[^{}]*\})*?QueueUrl\s*:\s*(?:aws\.String\s*\(\s*)?["']([^"']+)["']"#,
         )
         .unwrap()
     })
@@ -2491,7 +2574,7 @@ fn kafka_writer_re() -> &'static Regex {
         // segmentio: `&kafka.Writer{ ... Topic: "orders.created" ... }`.
         // `.*?` (with `(?s)`) tolerates nested braces in adjacent
         // struct-literal fields (e.g. `Brokers: []string{"..."}`).
-        Regex::new(r#"(?s)kafka\.Writer\s*\{.*?Topic\s*:\s*["']([^"']+)["']"#).unwrap()
+        Regex::new(r#"(?s)kafka\.Writer\s*\{(?:[^{}]|\{[^{}]*\})*?Topic\s*:\s*["']([^"']+)["']"#).unwrap()
     })
 }
 
@@ -2499,7 +2582,7 @@ fn kafka_reader_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| {
         // segmentio: `kafka.ReaderConfig{ ... Topic: "orders.created" ... }`.
-        Regex::new(r#"(?s)kafka\.ReaderConfig\s*\{.*?Topic\s*:\s*["']([^"']+)["']"#).unwrap()
+        Regex::new(r#"(?s)kafka\.ReaderConfig\s*\{(?:[^{}]|\{[^{}]*\})*?Topic\s*:\s*["']([^"']+)["']"#).unwrap()
     })
 }
 
@@ -2526,10 +2609,12 @@ fn confluent_produce_re() -> &'static Regex {
 }
 
 /// Detect Go-flavored cloud queue and Kafka producer/consumer call
-/// sites. Called from `emit_cloud_queue_rows` only when `language ==
-/// "go"`. Topic-name resolution is one-hop literal → handled implicitly
-/// by the regex captures; var-refs become the var name (placeholder for
-/// workspace-side resolution).
+/// sites. Called directly from `scan_go`, parallel to the shared
+/// `emit_cloud_queue_rows` (which covers the Python-style kwarg syntax
+/// for SQS/SNS/GCP/AMQP). Topic-name resolution is one-hop literal —
+/// handled implicitly by the regex captures; var-refs become the var
+/// name as a `topic::$VAR.<name>` placeholder for later workspace-side
+/// env / const resolution.
 fn emit_go_cloud_topics(file: &str, text: &str, out: &mut Vec<ContractRow>) {
     // Whole-text scan because struct literals span multiple lines.
     // Approximate the line number by counting newlines up to the match.
@@ -2622,6 +2707,7 @@ fn push_cloud_topic(
         line: line_no,
         language: language.to_string(),
         framework: framework.to_string(),
+    access: None,
     });
 }
 
@@ -2784,6 +2870,7 @@ fn push_task_row(
         line: line_no,
         language: language.to_string(),
         framework: framework.to_string(),
+    access: None,
     });
 }
 
@@ -2952,6 +3039,7 @@ fn push_ws_provider(
         line: line_no,
         language: language.to_string(),
         framework: framework.to_string(),
+    access: None,
     });
 }
 
@@ -2972,6 +3060,7 @@ fn push_ws_consumer(
         line: line_no,
         language: language.to_string(),
         framework: framework.to_string(),
+    access: None,
     });
 }
 
@@ -3006,6 +3095,7 @@ fn emit_socketio_rows(file: &str, text: &str, language: &str, out: &mut Vec<Cont
                     line: (i + 1) as u32,
                     language: language.to_string(),
                     framework: "socket.io".to_string(),
+                access: None,
                 });
                 continue;
             }
@@ -3024,6 +3114,7 @@ fn emit_socketio_rows(file: &str, text: &str, language: &str, out: &mut Vec<Cont
                     line: (i + 1) as u32,
                     language: language.to_string(),
                     framework: "socket.io".to_string(),
+                access: None,
                 });
             }
         }
@@ -3329,6 +3420,7 @@ fn emit_pubsub_rows(file: &str, text: &str, language: &str, out: &mut Vec<Contra
                 line: (i + 1) as u32,
                 language: language.to_string(),
                 framework: framework.to_string(),
+            access: None,
             });
             publisher_matched = true;
         }
@@ -3351,6 +3443,7 @@ fn emit_pubsub_rows(file: &str, text: &str, language: &str, out: &mut Vec<Contra
                     line: (i + 1) as u32,
                     language: language.to_string(),
                     framework: "redis".to_string(),
+                access: None,
                 });
             }
         }
@@ -3369,6 +3462,7 @@ fn emit_pubsub_rows(file: &str, text: &str, language: &str, out: &mut Vec<Contra
                     line: (i + 1) as u32,
                     language: language.to_string(),
                     framework: framework.to_string(),
+                access: None,
                 });
                 subscriber_matched = true;
             }
@@ -3390,6 +3484,7 @@ fn emit_pubsub_rows(file: &str, text: &str, language: &str, out: &mut Vec<Contra
                     line: (i + 1) as u32,
                     language: language.to_string(),
                     framework: "redis".to_string(),
+                access: None,
                 });
             }
         }
@@ -3428,6 +3523,7 @@ fn emit_pubsub_rows(file: &str, text: &str, language: &str, out: &mut Vec<Contra
                 line: (i + 1) as u32,
                 language: language.to_string(),
                 framework: "redis-streams".to_string(),
+            access: None,
             });
         }
     }
@@ -3467,6 +3563,7 @@ fn scan_python(file: &str, text: &str) -> Vec<ContractRow> {
                 line: (i + 1) as u32,
                 language: "python".to_string(),
                 framework: "fastapi".to_string(),
+            access: None,
             });
             continue;
         }
@@ -3496,6 +3593,7 @@ fn scan_python(file: &str, text: &str) -> Vec<ContractRow> {
                 line: (i + 1) as u32,
                 language: "python".to_string(),
                 framework: "django".to_string(),
+            access: None,
             });
             continue;
         }
@@ -3522,6 +3620,7 @@ fn scan_python(file: &str, text: &str) -> Vec<ContractRow> {
                 line: (i + 1) as u32,
                 language: "python".to_string(),
                 framework: "drf".to_string(),
+            access: None,
             });
             continue;
         }
@@ -3568,6 +3667,7 @@ fn scan_python(file: &str, text: &str) -> Vec<ContractRow> {
                     line: (i + 1) as u32,
                     language: "python".to_string(),
                     framework: "drf".to_string(),
+                access: None,
                 });
             }
             continue;
@@ -3586,6 +3686,7 @@ fn scan_python(file: &str, text: &str) -> Vec<ContractRow> {
                 line: (i + 1) as u32,
                 language: "python".to_string(),
                 framework: "requests".to_string(),
+            access: None,
             });
             continue;
         }
@@ -3603,6 +3704,7 @@ fn scan_python(file: &str, text: &str) -> Vec<ContractRow> {
                 line: (i + 1) as u32,
                 language: "python".to_string(),
                 framework: "grpc".to_string(),
+            access: None,
             });
             continue;
         }
@@ -3624,6 +3726,7 @@ fn scan_python(file: &str, text: &str) -> Vec<ContractRow> {
                     line: (i + 1) as u32,
                     language: "python".to_string(),
                     framework: "grpc".to_string(),
+                access: None,
                 });
                 continue;
             }
@@ -3641,6 +3744,7 @@ fn scan_python(file: &str, text: &str) -> Vec<ContractRow> {
                 line: (i + 1) as u32,
                 language: "python".to_string(),
                 framework: "kafka".to_string(),
+            access: None,
             });
         }
     }
@@ -3672,6 +3776,7 @@ fn scan_python(file: &str, text: &str) -> Vec<ContractRow> {
                 method: None, path: Some(name.clone()), topic: None,
                 file: file.to_string(), line: (i + 1) as u32,
                 language: "python".to_string(), framework: "jsonrpc".to_string(),
+            access: None,
             });
         }
     }
@@ -3687,6 +3792,7 @@ fn scan_python(file: &str, text: &str) -> Vec<ContractRow> {
                         method: None, path: Some(name.clone()), topic: None,
                         file: file.to_string(), line: (i + 1) as u32,
                         language: "python".to_string(), framework: "jsonrpc".to_string(),
+                    access: None,
                     });
                 }
             }
@@ -3718,4 +3824,62 @@ fn scan_python(file: &str, text: &str) -> Vec<ContractRow> {
     // DB table contracts (SQLAlchemy / Django / Alembic / Mongo / raw SQL).
     emit_db_table_rows(file, text, "python", &mut out);
     out
+}
+
+#[cfg(test)]
+mod sql_strip_tests {
+    use super::{extract_sql_tables, strip_create_function_bodies};
+
+    #[test]
+    fn strip_skips_past_inner_end_if_to_outer_end() {
+        // PL/pgSQL function with an `END IF;` inside its body. The strip
+        // regex used to stop at the first END token; the fix requires
+        // the END to be followed by `;` so inner `END IF;` / `END LOOP;`
+        // are skipped and the strip continues to the real `END;`.
+        let body = r#"
+CREATE OR REPLACE FUNCTION audit(arg int) RETURNS void AS $$
+BEGIN
+    IF arg > 0 THEN
+        UPDATE running_jobs SET status = 'go' WHERE id = arg;
+    END IF;
+    INSERT INTO sensitive_table (id) VALUES (arg);
+END;
+$$ LANGUAGE plpgsql;
+"#;
+        let cleaned = strip_create_function_bodies(body);
+        assert!(
+            !cleaned.contains("sensitive_table"),
+            "INSERT INTO sensitive_table inside function body must be stripped (after END IF;); got: {cleaned}",
+        );
+        assert!(
+            !cleaned.contains("running_jobs"),
+            "UPDATE inside function body must be stripped; got: {cleaned}",
+        );
+    }
+
+    #[test]
+    fn extract_sql_tables_ignores_inner_function_body() {
+        // End-to-end via `extract_sql_tables`. SQL outside the function
+        // body should still surface; SQL inside (even after END IF;)
+        // must not.
+        let sql = r#"
+CREATE OR REPLACE FUNCTION cleanup() RETURNS void AS $$
+BEGIN
+    IF random() > 0.5 THEN
+        DELETE FROM leaked_table WHERE id < 0;
+    END IF;
+    INSERT INTO secret_audit VALUES (now());
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT id FROM real_table WHERE active;
+"#;
+        let tables: Vec<String> = extract_sql_tables(sql)
+            .into_iter()
+            .map(|(t, _)| t)
+            .collect();
+        assert!(tables.contains(&"real_table".to_string()), "outer SELECT must surface; got {tables:?}");
+        assert!(!tables.contains(&"leaked_table".to_string()), "inner DELETE must be hidden; got {tables:?}");
+        assert!(!tables.contains(&"secret_audit".to_string()), "inner INSERT must be hidden; got {tables:?}");
+    }
 }

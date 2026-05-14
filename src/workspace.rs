@@ -1507,7 +1507,11 @@ pub fn resolve_workspace_contract_links(workspace_root: &Path) -> Result<usize> 
                 "provider" | "publisher" | "owner" => {
                     providers.entry(id).or_default().push((m.name.clone(), c));
                 }
-                "consumer" | "subscriber" => {
+                // `reader` covers MongoDB collection reads emitted by
+                // `mongo_collection_re` in contracts.rs; `writer` is
+                // reserved for future direct INSERT/UPDATE detectors.
+                // All three role values feed the consumer-side join.
+                "consumer" | "subscriber" | "reader" | "writer" => {
                     consumers.entry(id).or_default().push((m.name.clone(), c));
                 }
                 _ => {}
@@ -2239,24 +2243,6 @@ pub struct WorkspaceResolution {
     pub confidence: f64,
 }
 
-/// Cross-repo external-symbol resolution (issue #30 MVP).
-///
-/// Walks the focus repo's `.sigil/entities.jsonl` for `kind=="external"`
-/// sentinels (these have `name = "external:<modpath>"` and
-/// `file = "<external>"`). For each, scan every sibling repo's
-/// `.sigil/entities.jsonl` for a non-external entity whose `name` (or
-/// `qualified_name`) matches the modpath or its leaf segment. Emit a
-/// `WorkspaceResolution` row per match.
-///
-/// MVP scope (per #30 open design questions):
-///   * Manifest shape: sibling sigil dirs are auto-discovered via
-///     `scan(workspace_root)`. No separate workspace.toml.
-///   * Constraint shape: NO package-deps constraint yet — every sibling
-///     is a candidate provider. Follow-up can intersect with the
-///     `package-deps` edge set.
-///   * Confidence floor: fixed at 0.4. Validate against real corpora
-///     before promoting / parametrising.
-///   * Sentinel handling: emit-alongside (don't mutate the focus index).
 /// True when a modpath is a standard-library import that shouldn't
 /// participate in cross-repo resolution. Cross-repo binding only makes
 /// sense for first-party code; stdlib bindings produce noise matched
@@ -2308,10 +2294,15 @@ const GO_STDLIB_TOPLEVEL: &[&str] = &[
 const PYTHON_STDLIB: &[&str] = &[
     "__future__", "abc", "argparse", "array", "ast", "asynchat", "asyncio",
     "asyncore", "atexit", "audioop", "base64", "bdb", "binascii", "bisect",
-    "builtins", "bz2", "calendar", "cgi", "cgitb", "chunk", "cmath", "cmd",
+    "builtins", "bz2",
+    // `cProfile` sorts BEFORE `calendar`: uppercase 'P' (0x50) < 'a'
+    // (0x61). Keep this comment as a tripwire so future alphabetizing
+    // by eye doesn't "fix" the apparent disorder and break binary_search.
+    "cProfile",
+    "calendar", "cgi", "cgitb", "chunk", "cmath", "cmd",
     "code", "codecs", "codeop", "collections", "colorsys", "compileall",
     "concurrent", "configparser", "contextlib", "contextvars", "copy",
-    "copyreg", "cProfile", "crypt", "csv", "ctypes", "curses", "dataclasses",
+    "copyreg", "crypt", "csv", "ctypes", "curses", "dataclasses",
     "datetime", "dbm", "decimal", "difflib", "dis", "distutils", "doctest",
     "email", "encodings", "ensurepip", "enum", "errno", "faulthandler",
     "fcntl", "filecmp", "fileinput", "fnmatch", "fractions", "ftplib",
@@ -2353,6 +2344,30 @@ const NODE_BUILTINS: &[&str] = &[
     "tty", "url", "util", "v8", "vm", "wasi", "worker_threads", "zlib",
 ];
 
+/// Cross-repo external-symbol resolution (issue #30 MVP, polished in
+/// issue #47).
+///
+/// Walks the focus repo's `.sigil/entities.jsonl` for `kind=="external"`
+/// sentinels (these have `name = "external:<modpath>"` and
+/// `file = "<external>"`). For each, scans every enabled workspace
+/// member's `.sigil/entities.jsonl` for a non-external entity whose
+/// `name` (or `qualified_name`) matches the modpath or its leaf
+/// segment. Emit a `WorkspaceResolution` row per match.
+///
+/// Scope:
+///   * Membership: scoped to enabled members in
+///     `.sigil-workspace/members.json` (was `scan(workspace_root)`
+///     until issue #47.3 — that broad scan produced bogus matches
+///     against unrelated sibling repos).
+///   * Stdlib filter: imports the language's standard library
+///     (`is_stdlib_modpath`) are dropped before matching — those aren't
+///     real cross-repo bindings.
+///   * Constraint shape: NO package-deps constraint yet — every member
+///     is a candidate provider. Follow-up can intersect with the
+///     `package-deps` edge set.
+///   * Confidence floor: fixed at 0.4. Validate against real corpora
+///     before promoting / parametrising.
+///   * Sentinel handling: emit-alongside (don't mutate the focus index).
 pub fn resolve_externals(
     workspace_root: &Path,
     focus_repo: &Path,
@@ -2441,21 +2456,18 @@ pub fn resolve_externals(
     out
 }
 
-/// Persist a batch of symbol-level resolutions into the workspace's
-/// `cross_repo_refs.jsonl` (issue #47.5). Module-level rows already in
-/// the file (`kind != "cross_repo_symbol"`) are preserved; existing
-/// `cross_repo_symbol` rows are dropped and replaced atomically — so
-/// `workspace resolve` is idempotent.
+/// Persist a batch of symbol-level resolutions tagged with their
+/// consumer repo into the workspace's `cross_repo_refs.jsonl` (issue
+/// #47.5). Module-level rows already in the file (`kind != "cross_repo_symbol"`)
+/// are preserved; existing `cross_repo_symbol` rows are replaced
+/// wholesale so `workspace resolve` is idempotent across runs.
 ///
 /// Rows are written in the overloaded `Reference` shape decided during
 /// grilling: `caller=external_modpath, name=provider_symbol,
 /// kind=cross_repo_symbol, callee_id=<provider_repo>/<file>::<symbol>`.
-/// Sorted by `(caller, callee_id)` for deterministic diffs.
-/// Persist a batch of symbol-level resolutions tagged with their
-/// consumer repo into the workspace's `cross_repo_refs.jsonl`. Module-
-/// level rows (any `kind != "cross_repo_symbol"`) are preserved;
-/// existing `cross_repo_symbol` rows are replaced wholesale — so
-/// `workspace resolve` is idempotent across runs.
+/// The final on-disk file is fully lexicographically sorted (preserved
+/// module-level rows merged with new symbol rows, then a single sort
+/// pass) — matches CLAUDE.md's deterministic-diff rule.
 pub fn persist_resolutions_grouped(
     workspace_root: &Path,
     tagged: &[(String, WorkspaceResolution)],
@@ -2502,15 +2514,19 @@ pub fn persist_resolutions_grouped(
         new_rows.insert((consumer_repo.clone(), r.external_modpath.clone(), callee_id), row);
     }
 
-    let mut body = String::new();
-    for line in &keep {
-        body.push_str(line);
-        body.push('\n');
-    }
-    for (_, row) in new_rows {
-        body.push_str(&row.to_string());
-        body.push('\n');
-    }
+    // Merge preserved module-level rows + new symbol rows, sort the
+    // entire output as one sequence. CLAUDE.md: "Output JSONL artifacts
+    // are lexicographically sorted for deterministic diffs."
+    let mut all_lines: Vec<String> = keep;
+    all_lines.extend(new_rows.into_values().map(|row| row.to_string()));
+    all_lines.sort();
+    let body = if all_lines.is_empty() {
+        String::new()
+    } else {
+        let mut s = all_lines.join("\n");
+        s.push('\n');
+        s
+    };
     std::fs::write(&path, body)
         .with_context(|| format!("writing {}", path.display()))?;
     Ok(())
