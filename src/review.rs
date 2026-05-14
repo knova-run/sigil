@@ -13,7 +13,7 @@
 //! This is a renderer on top of data sigil already owns. No new parsing,
 //! no new AST work — just the join.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::Path;
 
 use anyhow::{Context as _, Result};
@@ -149,7 +149,7 @@ fn blast_lookup(idx: &Index) -> HashMap<(String, String, Option<String>), BlastR
 
 fn enrich<'a>(
     result: &'a DiffResult,
-    file_rank: &HashMap<String, f64>,
+    file_rank: &BTreeMap<String, f64>,
     blast: &HashMap<(String, String, Option<String>), BlastRadius>,
 ) -> Vec<ReviewEntry<'a>> {
     let mut out: Vec<ReviewEntry<'a>> = result
@@ -518,7 +518,7 @@ mod tests {
             ed("core/hot.rs", "foo", "function", ChangeKind::Modified, false),
             ed("misc/cold.rs", "bar", "function", ChangeKind::Modified, false),
         ]);
-        let rank: HashMap<String, f64> = [
+        let rank: BTreeMap<String, f64> = [
             ("core/hot.rs".to_string(), 0.20),
             ("misc/cold.rs".to_string(), 0.01),
         ]
@@ -546,7 +546,7 @@ mod tests {
         ]);
         // Sanity-check the summary before passing through.
         assert!(r.summary.has_breaking_change);
-        let rank: HashMap<String, f64> = [("a.rs".to_string(), 0.1)].into_iter().collect();
+        let rank: BTreeMap<String, f64> = [("a.rs".to_string(), 0.1)].into_iter().collect();
         let blast: HashMap<(String, String, Option<String>), BlastRadius> = HashMap::new();
         // Force-populate entities with same file so the sort depends purely
         // on the breaking flag × the breaking multiplier.
@@ -630,7 +630,7 @@ mod tests {
             ChangeKind::Modified,
             false,
         )]);
-        let rank: HashMap<String, f64> = [("a.rs".to_string(), 0.5)].into_iter().collect();
+        let rank: BTreeMap<String, f64> = [("a.rs".to_string(), 0.5)].into_iter().collect();
         let blast: HashMap<(String, String, Option<String>), BlastRadius> = HashMap::new();
         let enriched = enrich(&r, &rank, &blast);
         let md = render_markdown(&r, &enriched, &[], &ReviewOptions::default());

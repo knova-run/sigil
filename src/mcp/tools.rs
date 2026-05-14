@@ -12,6 +12,7 @@ use crate::context::{
     ContextFormat, ContextOptions, build_context, build_file_context, build_no_match,
     render_agent_json, render_file_agent_json, render_file_full_json, render_full_json,
 };
+use crate::query::SearchHitOwned;
 use crate::query::index::{Index, Scope, SearchHit};
 
 /// `sigil_search` — symbol-aware substring search. Returns
@@ -19,11 +20,26 @@ use crate::query::index::{Index, Scope, SearchHit};
 /// optional `parent` / `sig`; each file hit is the same with
 /// `k: "file"`, `l: 0`, `n: <basename>`.
 pub fn search(idx: &Index, query: &str, limit: usize) -> Value {
-    let hits = idx.search(query, Scope::All, None, None, limit);
+    let owned: Vec<SearchHitOwned> = idx
+        .search(query, Scope::All, None, None, limit)
+        .into_iter()
+        .map(|h| match h {
+            SearchHit::Symbol(e) => SearchHitOwned::Symbol(e.clone()),
+            SearchHit::File(fh) => SearchHitOwned::File(fh),
+        })
+        .collect();
+    format_owned_hits(owned)
+}
+
+/// Format `Vec<SearchHitOwned>` into the MCP wire shape — used by both
+/// `tools::search` (after an `&Index` query) and by `SigilServer::sigil_search`
+/// which calls `Backend::search` directly so DuckDB-backed point queries
+/// skip the materialize_index path.
+pub fn format_owned_hits(hits: Vec<SearchHitOwned>) -> Value {
     let rows: Vec<Value> = hits
         .into_iter()
         .map(|h| match h {
-            SearchHit::Symbol(e) => {
+            SearchHitOwned::Symbol(e) => {
                 let mut row = json!({
                     "f": e.file,
                     "n": e.name,
@@ -38,7 +54,7 @@ pub fn search(idx: &Index, query: &str, limit: usize) -> Value {
                 }
                 row
             }
-            SearchHit::File(fh) => {
+            SearchHitOwned::File(fh) => {
                 let basename = std::path::Path::new(&fh.path)
                     .file_name()
                     .map(|s| s.to_string_lossy().into_owned())
@@ -468,6 +484,35 @@ mod tests {
         assert_eq!(hits[0]["f"], "src/lib.rs");
         assert_eq!(hits[0]["k"], "function");
         assert_eq!(hits[0]["l"], 12);
+    }
+
+    #[test]
+    fn format_owned_hits_emits_same_json_shape_as_search() {
+        // `Backend.search` already returns Vec<SearchHitOwned>. MCP's
+        // sigil_search handler calls it directly when routing through
+        // Backend (so DuckDB queries don't pay materialize_index cost).
+        // The owned-hits formatter has to emit the same JSON shape as
+        // tools::search(&Index, ...) so clients see one wire contract.
+        use crate::query::SearchHitOwned;
+        use crate::query::index::FileHit;
+
+        let symbol = SearchHitOwned::Symbol(ent("src/lib.rs", "process_data", "function", 12));
+        let file = SearchHitOwned::File(FileHit {
+            path: "src/foo.rs".into(),
+            lang: Some("rust".into()),
+            entity_count: 3,
+        });
+        let v = format_owned_hits(vec![symbol, file]);
+        let hits = v["hits"].as_array().expect("hits array");
+        assert_eq!(hits.len(), 2);
+        assert_eq!(hits[0]["n"], "process_data");
+        assert_eq!(hits[0]["f"], "src/lib.rs");
+        assert_eq!(hits[0]["k"], "function");
+        assert_eq!(hits[0]["l"], 12);
+        assert_eq!(hits[1]["k"], "file");
+        assert_eq!(hits[1]["f"], "src/foo.rs");
+        assert_eq!(hits[1]["n"], "foo.rs");
+        assert_eq!(hits[1]["l"], 0);
     }
 
     #[test]

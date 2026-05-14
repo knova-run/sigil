@@ -1997,15 +1997,117 @@ pub fn workspace_index_with_options(workspace_root: &Path, full: bool) -> Result
         }
     };
 
+    // Workspace-level PageRank over the union-loaded graph (cross-repo
+    // refs included). File-rank keys use the `<member.name>/<rel>`
+    // naming that `Index::load_workspace` emits, so consumers like
+    // `map::load_workspace_rank_manifest` and MCP's `get_overview`
+    // resolve correctly. Best-effort — a parse failure on one member
+    // doesn't abort the whole index.
+    let rank_files = match write_workspace_rank(workspace_root) {
+        Ok(n) => n,
+        Err(e) => {
+            eprintln!("workspace index: rank computation failed: {} (skipped)", e);
+            0
+        }
+    };
+
     eprintln!(
-        "workspace index: stamped {} member(s){}, {} cross-repo ref(s), {} co-change edge(s), {} contract link(s)",
+        "workspace index: stamped {} member(s){}, {} cross-repo ref(s), {} co-change edge(s), {} contract link(s), {} ranked file(s)",
         stamps.members.len(),
         if warnings > 0 { format!(" ({} skipped)", warnings) } else { String::new() },
         cross_emitted,
         co_change_count,
         contract_link_count,
+        rank_files,
     );
     Ok(())
+}
+
+/// Load the rank manifest for a workspace. Prefers
+/// `<workspace>/.sigil-workspace/rank.json` (written by `sigil workspace
+/// index` with globally-correct PageRank over the union graph). Falls
+/// back to merging each enabled member's `.sigil/rank.json` with
+/// `<member.name>/` prefixes — still useful when workspace index hasn't
+/// been run yet but per-repo ranks exist.
+pub fn load_rank_manifest(workspace_root: &Path) -> crate::rank::RankManifest {
+    use crate::rank::RankManifest;
+
+    let ws_rank = workspace_root.join(".sigil-workspace").join("rank.json");
+    if ws_rank.exists()
+        && let Ok(content) = std::fs::read_to_string(&ws_rank)
+        && let Ok(manifest) = serde_json::from_str::<RankManifest>(&content)
+    {
+        return manifest;
+    }
+
+    let manifest = match list(workspace_root) {
+        Ok(m) => m,
+        Err(_) => return RankManifest::default(),
+    };
+
+    let mut file_rank: std::collections::BTreeMap<String, f64> =
+        std::collections::BTreeMap::new();
+    for member in manifest {
+        if member.disabled {
+            continue;
+        }
+        let member_path = std::path::PathBuf::from(&member.path);
+        let rank_path = member_path.join(".sigil").join("rank.json");
+        if !rank_path.exists() {
+            continue;
+        }
+        let content = match std::fs::read_to_string(&rank_path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+        let m: RankManifest = match serde_json::from_str(&content) {
+            Ok(m) => m,
+            Err(_) => continue,
+        };
+        let prefix = format!("{}/", member.name);
+        for (file, rank) in m.file_rank {
+            file_rank.insert(format!("{prefix}{file}"), rank);
+        }
+    }
+
+    // Fallback-path metadata mirrors the parameters PageRank would have
+    // used had it run (RankConfig::default()). Hard-coding zeros made
+    // the manifest header lie about how the file_rank values were
+    // produced; using the real defaults keeps it honest even though
+    // these per-member rank.json files were computed independently
+    // rather than over the union graph.
+    let cfg = crate::rank::RankConfig::default();
+    RankManifest {
+        version: "1".to_string(),
+        sigil_version: env!("CARGO_PKG_VERSION").to_string(),
+        damping: cfg.damping,
+        iterations_max: cfg.max_iterations,
+        transitive_depth: cfg.transitive_depth,
+        file_count: file_rank.len(),
+        file_rank,
+    }
+}
+
+/// Compute PageRank over the union-loaded workspace graph and write
+/// `<workspace>/.sigil-workspace/rank.json`. File-rank keys carry the
+/// `<member.name>/<rel>` prefix so downstream consumers (map's overview,
+/// MCP's get_overview) hit the same names that `Index::load_workspace`
+/// emits. Returns the number of ranked files. Empty graph → empty
+/// manifest, written so consumers know the file is current.
+fn write_workspace_rank(workspace_root: &Path) -> Result<usize> {
+    let idx = crate::query::index::Index::load_workspace(workspace_root)
+        .context("union-load workspace for rank pass")?;
+    let cfg = crate::rank::RankConfig::default();
+    let ranked = crate::rank::rank_with_config(&idx.entities, &idx.references, &cfg);
+    let manifest = crate::rank::RankManifest::from_ranked(&ranked, &cfg);
+    let rank_path = workspace_root.join(".sigil-workspace").join("rank.json");
+    if let Some(parent) = rank_path.parent() {
+        std::fs::create_dir_all(parent).ok();
+    }
+    let body = serde_json::to_string(&manifest)?;
+    std::fs::write(&rank_path, body + "\n")
+        .with_context(|| format!("writing {}", rank_path.display()))?;
+    Ok(manifest.file_count)
 }
 
 /// Read the current membership list. Used by `workspace list` and by
@@ -2232,4 +2334,118 @@ pub fn paths(parent: &Path) -> Vec<PathBuf> {
         .into_iter()
         .map(|r| PathBuf::from(r.path))
         .collect()
+}
+
+#[cfg(test)]
+mod rank_loader_tests {
+    use super::*;
+    use crate::rank::RankManifest;
+    use std::collections::BTreeMap;
+
+    fn write_member_rank(member_root: &Path, files: &[(&str, f64)]) {
+        std::fs::create_dir_all(member_root.join(".sigil")).unwrap();
+        let mut file_rank = BTreeMap::new();
+        for (f, r) in files {
+            file_rank.insert(f.to_string(), *r);
+        }
+        let m = RankManifest {
+            version: "1".to_string(),
+            sigil_version: "test".to_string(),
+            damping: 0.85,
+            iterations_max: 50,
+            transitive_depth: 3,
+            file_count: file_rank.len(),
+            file_rank,
+        };
+        std::fs::write(
+            member_root.join(".sigil/rank.json"),
+            serde_json::to_string(&m).unwrap(),
+        )
+        .unwrap();
+    }
+
+    fn write_members_json_at(workspace_root: &Path, members: &[(&str, &Path)]) {
+        let ws_dir = workspace_root.join(".sigil-workspace");
+        std::fs::create_dir_all(&ws_dir).unwrap();
+        let arr: Vec<_> = members
+            .iter()
+            .map(|(name, path)| {
+                serde_json::json!({
+                    "name": name,
+                    "path": path.to_string_lossy(),
+                    "added_at": "2026-05-14T00:00:00Z",
+                })
+            })
+            .collect();
+        let body = serde_json::json!({"version": 1, "members": arr});
+        std::fs::write(ws_dir.join("members.json"), body.to_string()).unwrap();
+    }
+
+    #[test]
+    fn load_rank_manifest_prefers_workspace_level_rank_json() {
+        // When `.sigil-workspace/rank.json` exists, the loader reads it
+        // directly (globally-correct PageRank). Per-member rank.json is
+        // ignored — the union-graph scores include cross-repo edges
+        // that per-member ranking can't see.
+        let tmp = std::env::temp_dir().join(format!("sigil_ws_rank_prefer_ut_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+
+        let ws_dir = tmp.join(".sigil-workspace");
+        std::fs::create_dir_all(&ws_dir).unwrap();
+        let mut file_rank = BTreeMap::new();
+        file_rank.insert("repo-a/src/lib.rs".to_string(), 0.7);
+        file_rank.insert("repo-b/src/main.rs".to_string(), 0.3);
+        let m = RankManifest {
+            version: "1".to_string(),
+            sigil_version: "test".to_string(),
+            damping: 0.85,
+            iterations_max: 50,
+            transitive_depth: 3,
+            file_count: 2,
+            file_rank,
+        };
+        std::fs::write(
+            ws_dir.join("rank.json"),
+            serde_json::to_string(&m).unwrap(),
+        )
+        .unwrap();
+
+        let loaded = load_rank_manifest(&tmp);
+        assert!(
+            (loaded.file_rank["repo-a/src/lib.rs"] - 0.7).abs() < 1e-9,
+            "workspace-level rank.json must be preferred",
+        );
+        assert_eq!(loaded.file_rank.len(), 2);
+        std::fs::remove_dir_all(&tmp).ok();
+    }
+
+    #[test]
+    fn load_rank_manifest_falls_back_to_per_member_merge_with_prefixes() {
+        // No workspace-level rank.json — loader merges each member's
+        // .sigil/rank.json, prefixing file keys with the member name to
+        // match `Index::load_workspace`'s union-load naming.
+        let tmp = std::env::temp_dir().join(format!("sigil_ws_rank_merge_ut_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+
+        let alpha = tmp.join("alpha");
+        let beta = tmp.join("beta");
+        std::fs::create_dir_all(&alpha).unwrap();
+        std::fs::create_dir_all(&beta).unwrap();
+        write_member_rank(&alpha, &[("src/lib.rs", 0.6)]);
+        write_member_rank(&beta, &[("src/lib.rs", 0.4)]);
+        write_members_json_at(&tmp, &[("alpha", &alpha), ("beta", &beta)]);
+
+        let merged = load_rank_manifest(&tmp);
+        assert!(
+            (merged.file_rank["alpha/src/lib.rs"] - 0.6).abs() < 1e-9,
+            "alpha rank entry must be prefixed",
+        );
+        assert!(
+            (merged.file_rank["beta/src/lib.rs"] - 0.4).abs() < 1e-9,
+            "beta rank entry must be prefixed",
+        );
+        std::fs::remove_dir_all(&tmp).ok();
+    }
 }

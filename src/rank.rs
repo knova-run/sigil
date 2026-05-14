@@ -36,7 +36,7 @@
 //! codebase and stops being useful. Depth 3 captures the impact neighborhood
 //! a reviewer actually cares about.
 
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 
 use serde::{Deserialize, Serialize};
 
@@ -125,7 +125,11 @@ pub struct RankManifest {
     pub iterations_max: u32,
     pub transitive_depth: u32,
     pub file_count: usize,
-    pub file_rank: HashMap<String, f64>,
+    /// `BTreeMap` (not `HashMap`) so JSON serialization emits keys in
+    /// lexicographic order. Matches CLAUDE.md's deterministic-output
+    /// rule for workspace artifacts and keeps `git diff` on rank.json
+    /// readable across runs.
+    pub file_rank: BTreeMap<String, f64>,
 }
 
 impl RankManifest {
@@ -137,7 +141,7 @@ impl RankManifest {
             iterations_max: cfg.max_iterations,
             transitive_depth: cfg.transitive_depth,
             file_count: ranked.file_rank.len(),
-            file_rank: ranked.file_rank.clone(),
+            file_rank: ranked.file_rank.iter().map(|(k, v)| (k.clone(), *v)).collect(),
         }
     }
 }

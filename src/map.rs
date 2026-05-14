@@ -675,15 +675,7 @@ fn render_file_block(f: &MapFile) -> String {
 pub fn load_rank_manifest(root: &Path) -> Result<RankManifest> {
     let path = root.join(".sigil").join("rank.json");
     if !path.exists() {
-        return Ok(RankManifest {
-            version: "1".to_string(),
-            sigil_version: env!("CARGO_PKG_VERSION").to_string(),
-            damping: 0.85,
-            iterations_max: 0,
-            transitive_depth: 0,
-            file_count: 0,
-            file_rank: HashMap::new(),
-        });
+        return Ok(RankManifest::default());
     }
     let content =
         std::fs::read_to_string(&path).with_context(|| format!("read {}", path.display()))?;
@@ -1170,4 +1162,5 @@ mod tests {
         assert!((loaded.file_rank["b.rs"] - 0.75).abs() < 1e-9);
         std::fs::remove_dir_all(&tmp).ok();
     }
+
 }
