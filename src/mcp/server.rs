@@ -159,7 +159,9 @@ impl SigilServer {
             depth: args.depth.unwrap_or(10),
             budget: args.budget.unwrap_or(1500),
         };
-        let idx = self.backend.materialize_index();
+        let idx = self.backend.materialize_index().map_err(|e| {
+            McpError::internal_error(format!("materialize index: {e}"), None)
+        })?;
         let v = super::tools::context(idx, &self.root, &args.targets, &opts);
         Ok(Self::text_result(v))
     }
@@ -170,7 +172,9 @@ impl SigilServer {
         Parameters(args): Parameters<OverviewArgs>,
     ) -> Result<CallToolResult, McpError> {
         let budget = args.budget.unwrap_or(2500);
-        let idx = self.backend.materialize_index();
+        let idx = self.backend.materialize_index().map_err(|e| {
+            McpError::internal_error(format!("materialize index: {e}"), None)
+        })?;
         let v = super::tools::overview(idx, &self.rank, budget);
         Ok(Self::text_result(v))
     }
@@ -182,7 +186,9 @@ impl SigilServer {
     ) -> Result<CallToolResult, McpError> {
         let min_confidence = args.min_confidence.unwrap_or(0.4);
         let include_internals = args.include_internals.unwrap_or(false);
-        let idx = self.backend.materialize_index();
+        let idx = self.backend.materialize_index().map_err(|e| {
+            McpError::internal_error(format!("materialize index: {e}"), None)
+        })?;
         let v = super::tools::dead_code(&self.root, idx, min_confidence, include_internals);
         Ok(Self::text_result(v))
     }
@@ -202,7 +208,9 @@ impl SigilServer {
         Parameters(args): Parameters<AnswerArgs>,
     ) -> Result<CallToolResult, McpError> {
         let max_targets = args.max_targets.unwrap_or(8);
-        let idx = self.backend.materialize_index();
+        let idx = self.backend.materialize_index().map_err(|e| {
+            McpError::internal_error(format!("materialize index: {e}"), None)
+        })?;
         let bundle = super::tools::answer_bundle(idx, &self.root, &args.question, max_targets);
         let mut response = serde_json::to_value(&bundle).unwrap_or(serde_json::Value::Null);
         let supports_sampling = self.state.read().await.supports_sampling;
@@ -238,8 +246,10 @@ impl ServerHandler for SigilServer {
     }
 }
 
-/// Load the index from `.sigil/` under `root` and run the rmcp
-/// stdio server. Returns when the client closes stdin.
+/// Workspace-aware MCP entry point. Loads the index via `Backend::load`,
+/// which dispatches between per-repo `.sigil/` and workspace mode
+/// (`.sigil-workspace/members.json` → union-load every enabled member).
+/// Runs the rmcp stdio server; returns when the client closes stdin.
 pub fn run_stdio(root: PathBuf) -> Result<()> {
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -258,7 +268,7 @@ async fn run_stdio_async(root: PathBuf) -> Result<()> {
     // futures.
     let backend = crate::query::Backend::load(&root).context("load index")?;
     let rank = if crate::query::is_workspace_root(&root) {
-        crate::map::load_workspace_rank_manifest(&root)
+        crate::workspace::load_rank_manifest(&root)
     } else {
         crate::map::load_rank_manifest(&root).unwrap_or_default()
     };

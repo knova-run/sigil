@@ -105,7 +105,12 @@ src/
                           Output JSONL artifacts (`cross_repo_refs.jsonl`,
                           `contract_links.jsonl`, `contracts.jsonl`,
                           `co_changes.jsonl`) are lexicographically sorted
-                          for deterministic diffs.
+                          for deterministic diffs. `rank.json` (workspace-
+                          level PageRank over union graph, member-prefixed
+                          file keys via `BTreeMap` for sorted JSON) is
+                          written alongside; `load_rank_manifest` in
+                          workspace.rs prefers it, falls back to merging
+                          per-member `.sigil/rank.json` files.
   cross_repo_cochange.rs — `sigil cochange --workspace` — cross-repo file-pair
                           mining with exp-decay (τ=180d) + `min_strength=1.0`
                           + 200-edge cap (matches repowise). Workspace

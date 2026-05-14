@@ -52,11 +52,15 @@ pub mod duckdb_backend;
 ///    §14.9 of the plan).
 /// 4. Fall back to in-memory.
 ///
-/// Only covers the query methods wired into main.rs routing today:
-/// get_callers / get_callees / get_file_symbols / get_children. The
-/// heavier analytical commands (map / context / review / blast /
-/// benchmark) stay on in-memory Index unconditionally until the
-/// corresponding DuckDB methods + parity tests land.
+/// Point-query methods (`get_callers` / `get_callees` /
+/// `get_file_symbols` / `get_children` / `search`) dispatch on the
+/// variant — DuckDB-engaged backends serve them from the columnar
+/// engine. Heavier analytical commands (map / context / dead-code /
+/// answer) go through `Backend::materialize_index`, which lazily
+/// re-parses JSONL into a cached `Index` (lossless for `doc` /
+/// `heritage` / `rank` / `blast_radius` / `meta`). MCP routes through
+/// this `Backend` enum end-to-end; CLI commands that need the rich
+/// in-memory struct call `query::load` directly.
 pub enum Backend {
     InMemory(index::Index),
     #[cfg(feature = "db")]
@@ -102,9 +106,13 @@ impl Backend {
     /// point-query callers should prefer `Backend::search`,
     /// `Backend::get_callers`, etc. — those stay on DuckDB and avoid
     /// triggering materialization.
-    pub fn materialize_index(&self) -> &index::Index {
+    ///
+    /// Returns `Err` for cached parse/IO failures so async MCP handlers
+    /// can map them to `McpError::internal_error` instead of panicking
+    /// the tokio worker thread. The `InMemory` variant is infallible.
+    pub fn materialize_index(&self) -> Result<&index::Index, &str> {
         match self {
-            Self::InMemory(idx) => idx,
+            Self::InMemory(idx) => Ok(idx),
             #[cfg(feature = "db")]
             Self::DuckDb(db) => db.materialize_index(),
         }
@@ -1038,7 +1046,7 @@ mod backend_dispatch_tests {
         // this every invocation; it has to be free.
         let idx = Index::build(vec![ent_with_doc("Foo", "doc text")], vec![]);
         let backend = Backend::InMemory(idx);
-        let returned = backend.materialize_index();
+        let returned = backend.materialize_index().expect("InMemory materialize is infallible");
         let found = returned
             .entities_by_name("Foo")
             .next()

@@ -8,7 +8,7 @@
 //! CLI fixture path because the algorithm is the focus — the CLI handler
 //! is a thin shim over `communities::detect_leiden`.
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use sigil::communities::{detect_leiden, LeidenConfig};
 use sigil::entity::{Entity, Reference};
@@ -86,7 +86,7 @@ fn two_cluster_fixture() -> (Vec<Entity>, Vec<Reference>) {
 #[test]
 fn finds_two_clusters_on_8_file_synthetic_graph() {
     let (entities, refs) = two_cluster_fixture();
-    let clusters = detect_leiden(&entities, &refs, &HashMap::new(), &LeidenConfig::default());
+    let clusters = detect_leiden(&entities, &refs, &BTreeMap::new(), &LeidenConfig::default());
 
     assert_eq!(
         clusters.len(),
@@ -131,7 +131,7 @@ fn finds_two_clusters_on_8_file_synthetic_graph() {
 #[test]
 fn cluster_ids_are_compact_and_zero_indexed() {
     let (entities, refs) = two_cluster_fixture();
-    let clusters = detect_leiden(&entities, &refs, &HashMap::new(), &LeidenConfig::default());
+    let clusters = detect_leiden(&entities, &refs, &BTreeMap::new(), &LeidenConfig::default());
     let ids: Vec<u32> = clusters.iter().map(|c| c.cluster_id).collect();
     assert_eq!(ids, vec![0, 1], "expected {{0,1}}, got {:?}", ids);
 }
@@ -139,9 +139,9 @@ fn cluster_ids_are_compact_and_zero_indexed() {
 #[test]
 fn deterministic_across_runs() {
     let (entities, refs) = two_cluster_fixture();
-    let first = detect_leiden(&entities, &refs, &HashMap::new(), &LeidenConfig::default());
-    let second = detect_leiden(&entities, &refs, &HashMap::new(), &LeidenConfig::default());
-    let third = detect_leiden(&entities, &refs, &HashMap::new(), &LeidenConfig::default());
+    let first = detect_leiden(&entities, &refs, &BTreeMap::new(), &LeidenConfig::default());
+    let second = detect_leiden(&entities, &refs, &BTreeMap::new(), &LeidenConfig::default());
+    let third = detect_leiden(&entities, &refs, &BTreeMap::new(), &LeidenConfig::default());
     assert_eq!(first, second, "two consecutive runs must match");
     assert_eq!(second, third, "three consecutive runs must match");
 }
@@ -149,7 +149,7 @@ fn deterministic_across_runs() {
 #[test]
 fn representative_prefers_highest_pagerank_in_cluster() {
     let (entities, refs) = two_cluster_fixture();
-    let mut rank = HashMap::new();
+    let mut rank = BTreeMap::new();
     // Pin x2.rs as the x-cluster's top-ranked file and y4.rs as the
     // y-cluster's. Even-weights everywhere else.
     rank.insert("x1.rs".to_string(), 0.05);
@@ -221,7 +221,7 @@ fn labels_capture_common_path_prefix() {
         }
     }
 
-    let clusters = detect_leiden(&entities, &refs, &HashMap::new(), &LeidenConfig::default());
+    let clusters = detect_leiden(&entities, &refs, &BTreeMap::new(), &LeidenConfig::default());
     assert_eq!(clusters.len(), 2);
     let labels: Vec<String> = clusters
         .iter()
@@ -242,7 +242,7 @@ fn labels_capture_common_path_prefix() {
 #[test]
 fn ndjson_serialization_round_trips() {
     let (entities, refs) = two_cluster_fixture();
-    let clusters = detect_leiden(&entities, &refs, &HashMap::new(), &LeidenConfig::default());
+    let clusters = detect_leiden(&entities, &refs, &BTreeMap::new(), &LeidenConfig::default());
     // Serialize the CLI's NDJSON shape and parse it back — guards the
     // wire format from drift if the Cluster struct grows fields later.
     for c in &clusters {
@@ -262,7 +262,7 @@ fn ndjson_serialization_round_trips() {
 fn isolated_files_produce_singleton_clusters() {
     // Five files, no references. Each should land in its own cluster.
     let entities: Vec<Entity> = (0..5).map(|i| ent(&format!("f{}.rs", i), "x")).collect();
-    let clusters = detect_leiden(&entities, &[], &HashMap::new(), &LeidenConfig::default());
+    let clusters = detect_leiden(&entities, &[], &BTreeMap::new(), &LeidenConfig::default());
     assert_eq!(clusters.len(), 5);
     for c in &clusters {
         assert_eq!(c.size, 1);

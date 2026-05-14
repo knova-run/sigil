@@ -492,6 +492,69 @@ fn workspace_index_writes_workspace_level_rank_json() {
 }
 
 #[test]
+fn workspace_index_writes_rank_json_with_sorted_keys() {
+    // CLAUDE.md: "Output JSONL artifacts (...) are lexicographically
+    // sorted for deterministic diffs." The same determinism rule applies
+    // to .sigil-workspace/rank.json — HashMap serialization is
+    // non-deterministic across runs, so a fresh write must produce the
+    // same byte sequence each time (and order keys lexicographically so
+    // git diff stays readable).
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let a = tmp.path().join("zeta-repo");
+    let b = tmp.path().join("alpha-repo");
+    fs::create_dir_all(&ws).unwrap();
+    init_repo(&a);
+    init_repo(&b);
+
+    // Multiple files per member so sort ordering matters within and across members.
+    let ents_a = r#"{"file":"src/z.rs","name":"z1","kind":"function","line_start":1,"line_end":5,"struct_hash":"za"}
+{"file":"src/a.rs","name":"a1","kind":"function","line_start":1,"line_end":5,"struct_hash":"aa"}
+"#;
+    let ents_b = r#"{"file":"src/m.rs","name":"m1","kind":"function","line_start":1,"line_end":5,"struct_hash":"mb"}
+{"file":"src/b.rs","name":"b1","kind":"function","line_start":1,"line_end":5,"struct_hash":"bb"}
+"#;
+    write_fake_sigil(&a, ents_a, "");
+    write_fake_sigil(&b, ents_b, "");
+
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", a.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", b.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    let out = sigil(&["workspace", "index", "--root", ws.to_str().unwrap()]);
+    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+
+    let rank_path = ws.join(".sigil-workspace/rank.json");
+    let content = fs::read_to_string(&rank_path).unwrap();
+
+    // Parse the JSON to extract key insertion order. serde_json with
+    // preserve_order yields IndexMap; reading the file as raw text and
+    // capturing the order keys appear lets us verify on-disk ordering.
+    let key_order: Vec<String> = content
+        .match_indices("\"")
+        .filter_map(|(i, _)| {
+            let after = &content[i + 1..];
+            let end = after.find('"')?;
+            let key = &after[..end];
+            // Only consider keys that look like prefixed file paths.
+            if key.contains('/') && (key.starts_with("zeta-repo/") || key.starts_with("alpha-repo/")) {
+                Some(key.to_string())
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    let mut sorted = key_order.clone();
+    sorted.sort();
+    assert_eq!(
+        key_order, sorted,
+        "rank.json file_rank keys must be lexicographically sorted on disk; got {:?}",
+        key_order,
+    );
+    assert!(key_order.len() >= 4, "expected at least 4 prefixed keys; got {:?}", key_order);
+}
+
+#[test]
 fn workspace_index_stamps_each_member_jsonl() {
     let tmp = TempDir::new().unwrap();
     let ws = tmp.path().join("ws");

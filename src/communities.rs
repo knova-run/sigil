@@ -158,7 +158,7 @@ impl Default for LeidenConfig {
 pub fn detect_leiden(
     entities: &[Entity],
     references: &[Reference],
-    file_rank: &HashMap<String, f64>,
+    file_rank: &BTreeMap<String, f64>,
     cfg: &LeidenConfig,
 ) -> Vec<Cluster> {
     let Some((nodes, adj)) = build_graph(entities, references) else {
@@ -173,7 +173,7 @@ pub fn detect_leiden(
 fn clusters_from_partition(
     community_of_node: Vec<usize>,
     nodes: &[String],
-    file_rank: &HashMap<String, f64>,
+    file_rank: &BTreeMap<String, f64>,
 ) -> Vec<Cluster> {
     let mut buckets: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
     for (node, &comm) in community_of_node.iter().enumerate() {
@@ -565,7 +565,7 @@ fn is_excluded_community_file(file: &str) -> bool {
 /// Highest PageRank in the cluster wins. Tiebreaks: shortest path string,
 /// then lexicographic. Falls back to the lexicographically-smallest path
 /// when no member has a rank entry.
-fn pick_representative(members: &[String], file_rank: &HashMap<String, f64>) -> String {
+fn pick_representative(members: &[String], file_rank: &BTreeMap<String, f64>) -> String {
     members
         .iter()
         .map(|p| {
@@ -785,7 +785,7 @@ mod tests {
 
     #[test]
     fn empty_input_returns_no_clusters() {
-        let r = HashMap::new();
+        let r = BTreeMap::new();
         let out = detect_leiden(&[], &[], &r, &LeidenConfig::default());
         assert!(out.is_empty());
     }
@@ -872,7 +872,7 @@ mod tests {
         refs.push(refr("a3.rs", Some("c"), "f_b1"));
         refs.push(refr("b3.rs", Some("c"), "f_c1"));
         refs.push(refr("c3.rs", Some("c"), "f_a1"));
-        let clusters = detect_leiden(&entities, &refs, &HashMap::new(), &LeidenConfig::default());
+        let clusters = detect_leiden(&entities, &refs, &BTreeMap::new(), &LeidenConfig::default());
         assert!(!clusters.is_empty(), "expected at least one cluster");
         for cluster in &clusters {
             assert!(
@@ -917,7 +917,7 @@ mod tests {
                 }
             }
         }
-        let out = detect_leiden(&entities, &refs, &HashMap::new(), &LeidenConfig::default());
+        let out = detect_leiden(&entities, &refs, &BTreeMap::new(), &LeidenConfig::default());
         assert_eq!(out.len(), 2, "leiden should detect the two cliques: {:?}", out);
         let sizes: Vec<usize> = out.iter().map(|c| c.size).collect();
         assert_eq!(sizes, vec![4, 4]);
@@ -926,7 +926,7 @@ mod tests {
     #[test]
     fn isolated_files_each_become_their_own_cluster() {
         let entities = vec![ent("a.rs", "x"), ent("b.rs", "y"), ent("c.rs", "z")];
-        let out = detect_leiden(&entities, &[], &HashMap::new(), &LeidenConfig::default());
+        let out = detect_leiden(&entities, &[], &BTreeMap::new(), &LeidenConfig::default());
         assert_eq!(out.len(), 3, "no edges → each file is its own cluster");
         for c in &out {
             assert_eq!(c.size, 1);
@@ -964,7 +964,7 @@ mod tests {
                 }
             }
         }
-        let out = detect_leiden(&entities, &refs, &HashMap::new(), &LeidenConfig::default());
+        let out = detect_leiden(&entities, &refs, &BTreeMap::new(), &LeidenConfig::default());
         // Expect 2 clusters, each size 4.
         assert_eq!(out.len(), 2, "should detect two communities, got {:?}", out);
         let sizes: Vec<usize> = out.iter().map(|c| c.size).collect();
@@ -993,15 +993,15 @@ mod tests {
             refr("c.rs", Some("c"), "f4"),
             refr("d.rs", Some("c"), "f3"),
         ];
-        let first = detect_leiden(&entities, &refs, &HashMap::new(), &LeidenConfig::default());
-        let second = detect_leiden(&entities, &refs, &HashMap::new(), &LeidenConfig::default());
+        let first = detect_leiden(&entities, &refs, &BTreeMap::new(), &LeidenConfig::default());
+        let second = detect_leiden(&entities, &refs, &BTreeMap::new(), &LeidenConfig::default());
         assert_eq!(first, second);
     }
 
     #[test]
     fn cluster_ids_are_compact_zero_indexed() {
         let entities = vec![ent("a.rs", "x"), ent("b.rs", "y"), ent("c.rs", "z")];
-        let out = detect_leiden(&entities, &[], &HashMap::new(), &LeidenConfig::default());
+        let out = detect_leiden(&entities, &[], &BTreeMap::new(), &LeidenConfig::default());
         let ids: Vec<u32> = out.iter().map(|c| c.cluster_id).collect();
         assert_eq!(ids, vec![0, 1, 2]);
     }
@@ -1019,7 +1019,7 @@ mod tests {
             refr("a.rs", Some("c"), "h"),
             refr("b.rs", Some("c"), "g"),
         ];
-        let mut rank = HashMap::new();
+        let mut rank = BTreeMap::new();
         rank.insert("popular.rs".to_string(), 0.9);
         rank.insert("a.rs".to_string(), 0.05);
         rank.insert("b.rs".to_string(), 0.05);
@@ -1037,7 +1037,7 @@ mod tests {
             "src/short.rs".to_string(),
             "src/z.rs".to_string(),
         ];
-        let rep = pick_representative(&members, &HashMap::new());
+        let rep = pick_representative(&members, &BTreeMap::new());
         // src/z.rs and src/short.rs both length 10/12? Let's compute:
         //   src/z.rs       = 9 chars
         //   src/short.rs   = 12 chars
@@ -1115,7 +1115,7 @@ mod tests {
         let low_res = detect_leiden(
             &entities,
             &refs,
-            &HashMap::new(),
+            &BTreeMap::new(),
             &LeidenConfig {
                 resolution: 0.1,
                 ..LeidenConfig::default()
@@ -1124,7 +1124,7 @@ mod tests {
         let high_res = detect_leiden(
             &entities,
             &refs,
-            &HashMap::new(),
+            &BTreeMap::new(),
             &LeidenConfig {
                 resolution: 5.0,
                 ..LeidenConfig::default()

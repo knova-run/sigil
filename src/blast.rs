@@ -12,7 +12,7 @@
 //! `sigil index`, so this command is a join between the symbol's blast
 //! entry and the top-K callers ranked by caller-file PageRank.
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use serde::Serialize;
 
@@ -162,7 +162,7 @@ pub fn run_blast(
 fn rank_sorted_callers(
     idx: &Index,
     name: &str,
-    file_rank: &HashMap<String, f64>,
+    file_rank: &BTreeMap<String, f64>,
 ) -> Vec<CallerRow> {
     let mut seen: std::collections::HashSet<(String, u32)> = std::collections::HashSet::new();
     let mut rows: Vec<CallerRow> = idx

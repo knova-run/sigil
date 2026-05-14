@@ -121,7 +121,9 @@ pub struct DuckDbBackend {
     /// `materialize_index()` call by re-parsing JSONL (lossless), not by
     /// `SELECT * FROM entities` (which drops `doc`, `heritage`, `rank`,
     /// `blast_radius`, `meta` per `row_to_entity`'s documented limits).
-    materialized: OnceLock<Index>,
+    /// `Result<_, String>` so the cached failure mode is observable to
+    /// async MCP handlers — a panic would kill the tokio worker thread.
+    materialized: OnceLock<Result<Index, String>>,
 }
 
 impl DuckDbBackend {
@@ -176,16 +178,21 @@ impl DuckDbBackend {
     /// In workspace mode (`<root>/.sigil-workspace/members.json` exists)
     /// this delegates to `Index::load_workspace`, mirroring how
     /// `Backend::load` routes between per-repo and workspace modes.
-    pub fn materialize_index(&self) -> &Index {
-        self.materialized.get_or_init(|| {
-            if super::is_workspace_root(&self.root) {
-                Index::load_workspace(&self.root)
-                    .expect("materialize_index: workspace JSONL re-parse failed")
-            } else {
-                Index::load(&self.root)
-                    .expect("materialize_index: JSONL re-parse failed")
-            }
-        })
+    ///
+    /// Errors (corrupt JSONL, missing files, parse failures) are cached
+    /// and returned as `Err(msg)`. Async MCP handlers can map them to
+    /// `McpError::internal_error` instead of panicking the worker.
+    pub fn materialize_index(&self) -> Result<&Index, &str> {
+        self.materialized
+            .get_or_init(|| {
+                if super::is_workspace_root(&self.root) {
+                    Index::load_workspace(&self.root).map_err(|e| e.to_string())
+                } else {
+                    Index::load(&self.root).map_err(|e| e.to_string())
+                }
+            })
+            .as_ref()
+            .map_err(|s| s.as_str())
     }
 
     /// Total `(entities, references)` counts — cheap sanity check.
@@ -1723,6 +1730,42 @@ mod tests {
     }
 
     #[test]
+    fn materialize_index_returns_err_when_jsonl_corrupted() {
+        // A panic in `materialize_index` would crash the async MCP
+        // worker thread. Surface failures through Result so the tool
+        // handler can map them to `McpError` and the connection
+        // survives.
+        //
+        // Setup: build a valid backend, then corrupt the JSONL after
+        // `open()` succeeds. The materialize-time re-parse goes through
+        // serde_json (not DuckDB's read_json) and rejects the
+        // malformed row.
+        let root = tmpdir("materialize_err_corrupt_jsonl");
+        seed(&root, vec![ent("a.rs", "Foo", "struct")], vec![]);
+        let db = DuckDbBackend::open(&root).expect("open with valid JSONL");
+
+        // Now corrupt the JSONL — DuckDB tables stay populated in
+        // memory; only a subsequent serde_json parse would notice.
+        std::fs::write(
+            root.join(".sigil").join("entities.jsonl"),
+            "{this is not valid json\n",
+        )
+        .unwrap();
+
+        let outcome = db.materialize_index();
+        assert!(
+            outcome.is_err(),
+            "materialize_index must return Err on JSONL parse failure, got Ok",
+        );
+
+        // Cached: a second call returns the same error without re-trying.
+        let outcome2 = db.materialize_index();
+        assert!(outcome2.is_err(), "cached failure must remain Err");
+
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
     fn materialize_index_preserves_rich_fields_via_jsonl_reparse() {
         // Backend::materialize_index() builds the in-memory Index by re-parsing
         // JSONL, not by `SELECT * FROM entities` (which silently drops `doc`,
@@ -1740,7 +1783,7 @@ mod tests {
         seed(&root, vec![entity], vec![]);
 
         let db = DuckDbBackend::open(&root).expect("open");
-        let idx = db.materialize_index();
+        let idx = db.materialize_index().expect("valid JSONL parses cleanly");
 
         let found = idx
             .entities_by_name("Foo")
