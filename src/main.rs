@@ -1056,10 +1056,11 @@ enum WorkspaceAction {
         /// Workspace root — parent directory of child sigil-indexed repos.
         #[arg(short, long, default_value = ".")]
         root: PathBuf,
-        /// Focus repo. External sentinels in this repo's index get
-        /// resolved against the others. Defaults to current working dir.
-        #[arg(short, long, default_value = ".")]
-        focus: PathBuf,
+        /// Focus repo. Accepts a member name (looked up in
+        /// `.sigil-workspace/members.json`) OR a path. When omitted,
+        /// every enabled member is resolved in turn.
+        #[arg(short, long)]
+        focus: Option<String>,
     },
 }
 
@@ -2215,8 +2216,60 @@ fn main() {
                 }
             }
             WorkspaceAction::Resolve { root, focus } => {
-                for row in sigil::workspace::resolve_externals(&root, &focus) {
-                    match serde_json::to_string(&row) {
+                // Build the focus set:
+                //   * No --focus → every enabled member (issue #47.1)
+                //   * --focus <name> → look up in members.json (issue #47.2)
+                //   * --focus <path> → resolve that path directly
+                //   * --focus . (or any path lacking .sigil/) AND workspace
+                //     mode is active → fall back to "all enabled members"
+                let focus_targets: Vec<(String, PathBuf)> = if let Some(spec) = focus.as_ref() {
+                    // Member-name lookup first
+                    let by_name = sigil::workspace::list(&root)
+                        .ok()
+                        .and_then(|members| {
+                            members.into_iter().find(|m| !m.disabled && m.name == *spec)
+                        });
+                    if let Some(member) = by_name {
+                        vec![(member.name.clone(), PathBuf::from(&member.path))]
+                    } else {
+                        let path = PathBuf::from(spec);
+                        let consumer = path
+                            .file_name()
+                            .and_then(|s| s.to_str())
+                            .unwrap_or("focus")
+                            .to_string();
+                        vec![(consumer, path)]
+                    }
+                } else {
+                    // Default: every enabled member
+                    match sigil::workspace::list(&root) {
+                        Ok(members) => members
+                            .into_iter()
+                            .filter(|m| !m.disabled)
+                            .map(|m| (m.name.clone(), PathBuf::from(&m.path)))
+                            .collect(),
+                        Err(_) => Vec::new(),
+                    }
+                };
+
+                let mut all_rows: Vec<(String, sigil::workspace::WorkspaceResolution)> = Vec::new();
+                for (consumer_repo, focus_path) in &focus_targets {
+                    for row in sigil::workspace::resolve_externals(&root, focus_path) {
+                        all_rows.push((consumer_repo.clone(), row));
+                    }
+                }
+
+                // Persist all resolutions under their respective consumer
+                // tags. `persist_resolutions` only manages cross_repo_symbol
+                // rows; module-level entries written by `workspace index`
+                // are preserved.
+                if let Err(e) = sigil::workspace::persist_resolutions_grouped(&root, &all_rows) {
+                    eprintln!("workspace resolve: persist failed: {}", e);
+                    std::process::exit(1);
+                }
+
+                for (_, row) in &all_rows {
+                    match serde_json::to_string(row) {
                         Ok(s) => println!("{}", s),
                         Err(e) => {
                             eprintln!("workspace resolve: failed to serialize: {}", e);

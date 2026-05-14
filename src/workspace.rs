@@ -1502,7 +1502,9 @@ pub fn resolve_workspace_contract_links(workspace_root: &Path) -> Result<usize> 
 
             let id = c.contract_id.clone();
             match c.role.as_str() {
-                "provider" | "publisher" => {
+                // DB schema declaration acts as the join's "provider" — it
+                // owns the table; consumer rows are the readers/writers.
+                "provider" | "publisher" | "owner" => {
                     providers.entry(id).or_default().push((m.name.clone(), c));
                 }
                 "consumer" | "subscriber" => {
@@ -2255,6 +2257,102 @@ pub struct WorkspaceResolution {
 ///   * Confidence floor: fixed at 0.4. Validate against real corpora
 ///     before promoting / parametrising.
 ///   * Sentinel handling: emit-alongside (don't mutate the focus index).
+/// True when a modpath is a standard-library import that shouldn't
+/// participate in cross-repo resolution. Cross-repo binding only makes
+/// sense for first-party code; stdlib bindings produce noise matched
+/// against unrelated entities with colliding leaf names (issue #47.4).
+///
+/// Heuristics by modpath shape:
+///   * Contains `::` → Rust style; stdlib iff first segment is
+///     `std` / `core` / `alloc`.
+///   * Contains `/` → Go style; stdlib iff the first segment has no `.`
+///     (third-party modules always have a TLD like `github.com/...`).
+///   * Otherwise → single-segment or dotted name; check against curated
+///     Python + Node built-in sets.
+fn is_stdlib_modpath(modpath: &str) -> bool {
+    if modpath.is_empty() {
+        return false;
+    }
+
+    if modpath.contains("::") {
+        let first = modpath.split("::").next().unwrap_or("");
+        return matches!(first, "std" | "core" | "alloc");
+    }
+
+    if modpath.contains('/') {
+        let first = modpath.split('/').next().unwrap_or("");
+        return !first.is_empty() && !first.contains('.');
+    }
+
+    let first_dot_seg = modpath.split('.').next().unwrap_or(modpath);
+    PYTHON_STDLIB.binary_search(&first_dot_seg).is_ok()
+        || NODE_BUILTINS.binary_search(&first_dot_seg).is_ok()
+        || GO_STDLIB_TOPLEVEL.binary_search(&first_dot_seg).is_ok()
+}
+
+/// Go stdlib top-level package names (single-segment imports like
+/// `context`, `errors`, `fmt`). Multi-segment Go stdlib like `net/url`
+/// is caught by the slash-path branch above. Kept sorted for
+/// `binary_search`.
+const GO_STDLIB_TOPLEVEL: &[&str] = &[
+    "bufio", "bytes", "cmp", "context", "errors", "expvar", "flag", "fmt",
+    "hash", "io", "iter", "log", "maps", "math", "mime", "os", "path",
+    "plugin", "reflect", "regexp", "runtime", "slices", "sort", "strconv",
+    "strings", "structs", "sync", "syscall", "testing", "time", "unicode",
+    "unique", "unsafe", "weak",
+];
+
+/// CPython 3.x stdlib top-level module names. Kept sorted for
+/// `binary_search`. Sourced from <https://docs.python.org/3/library/>;
+/// covers the modules typical imports reach for.
+const PYTHON_STDLIB: &[&str] = &[
+    "__future__", "abc", "argparse", "array", "ast", "asynchat", "asyncio",
+    "asyncore", "atexit", "audioop", "base64", "bdb", "binascii", "bisect",
+    "builtins", "bz2", "calendar", "cgi", "cgitb", "chunk", "cmath", "cmd",
+    "code", "codecs", "codeop", "collections", "colorsys", "compileall",
+    "concurrent", "configparser", "contextlib", "contextvars", "copy",
+    "copyreg", "cProfile", "crypt", "csv", "ctypes", "curses", "dataclasses",
+    "datetime", "dbm", "decimal", "difflib", "dis", "distutils", "doctest",
+    "email", "encodings", "ensurepip", "enum", "errno", "faulthandler",
+    "fcntl", "filecmp", "fileinput", "fnmatch", "fractions", "ftplib",
+    "functools", "gc", "genericpath", "getopt", "getpass", "gettext", "glob",
+    "graphlib", "grp", "gzip", "hashlib", "heapq", "hmac", "html", "http",
+    "idlelib", "imaplib", "imghdr", "imp", "importlib", "inspect", "io",
+    "ipaddress", "itertools", "json", "keyword", "lib2to3", "linecache",
+    "locale", "logging", "lzma", "mailbox", "mailcap", "marshal", "math",
+    "mimetypes", "mmap", "modulefinder", "msilib", "msvcrt", "multiprocessing",
+    "netrc", "nis", "nntplib", "ntpath", "numbers", "opcode", "operator",
+    "optparse", "os", "ossaudiodev", "parser", "pathlib", "pdb", "pickle",
+    "pickletools", "pipes", "pkgutil", "platform", "plistlib", "poplib",
+    "posix", "posixpath", "pprint", "profile", "pstats", "pty", "pwd",
+    "py_compile", "pyclbr", "pydoc", "pyexpat", "queue", "quopri", "random",
+    "re", "readline", "reprlib", "resource", "rlcompleter", "runpy", "sched",
+    "secrets", "select", "selectors", "shelve", "shlex", "shutil", "signal",
+    "site", "smtpd", "smtplib", "sndhdr", "socket", "socketserver", "spwd",
+    "sqlite3", "ssl", "stat", "statistics", "string", "stringprep", "struct",
+    "subprocess", "sunau", "symbol", "symtable", "sys", "sysconfig", "syslog",
+    "tabnanny", "tarfile", "telnetlib", "tempfile", "termios", "test",
+    "textwrap", "threading", "time", "timeit", "tkinter", "token", "tokenize",
+    "tomllib", "trace", "traceback", "tracemalloc", "tty", "turtle",
+    "turtledemo", "types", "typing", "unicodedata", "unittest", "urllib",
+    "uu", "uuid", "venv", "warnings", "wave", "weakref", "webbrowser",
+    "winreg", "winsound", "wsgiref", "xdrlib", "xml", "xmlrpc", "zipapp",
+    "zipfile", "zipimport", "zlib", "zoneinfo",
+];
+
+/// Node.js built-in modules. Kept sorted for `binary_search`. Sourced
+/// from `node --version` 22 docs. Excludes `node:` prefix — sigil
+/// strips that before emission.
+const NODE_BUILTINS: &[&str] = &[
+    "assert", "async_hooks", "buffer", "child_process", "cluster",
+    "console", "constants", "crypto", "dgram", "diagnostics_channel",
+    "dns", "domain", "events", "fs", "http", "http2", "https",
+    "inspector", "module", "net", "os", "path", "perf_hooks", "process",
+    "punycode", "querystring", "readline", "repl", "stream",
+    "string_decoder", "sys", "test", "timers", "tls", "trace_events",
+    "tty", "url", "util", "v8", "vm", "wasi", "worker_threads", "zlib",
+];
+
 pub fn resolve_externals(
     workspace_root: &Path,
     focus_repo: &Path,
@@ -2267,7 +2365,11 @@ pub fn resolve_externals(
         return out;
     };
 
-    // Collect external modpaths from the focus repo.
+    // Collect external modpaths from the focus repo. Stdlib imports
+    // (Go `context` / `net/url`, Python `os`, Node `fs`, Rust `std::*`)
+    // are filtered here — they're not real cross-repo bindings, and
+    // matching them against unrelated entities with colliding leaf
+    // names produces noise (issue #47.4).
     let mut wanted: Vec<String> = Vec::new();
     for line in focus_text.lines() {
         let Ok(e): Result<Value, _> = serde_json::from_str(line) else { continue };
@@ -2276,6 +2378,9 @@ pub fn resolve_externals(
         }
         let Some(name) = e.get("name").and_then(Value::as_str) else { continue };
         if let Some(modpath) = name.strip_prefix("external:") {
+            if is_stdlib_modpath(modpath) {
+                continue;
+            }
             wanted.push(modpath.to_string());
         }
     }
@@ -2288,7 +2393,16 @@ pub fn resolve_externals(
     let focus_canonical = std::fs::canonicalize(focus_repo)
         .unwrap_or_else(|_| focus_repo.to_path_buf());
 
-    for sibling in scan(workspace_root) {
+    // Scope to enabled members (issue #47.3). Previously `scan()` walked
+    // every `.git/`-bearing sibling, producing bogus matches against
+    // unrelated repos in the workspace's parent dir. Resolution now
+    // respects the explicit membership in `.sigil-workspace/members.json`.
+    let members: Vec<WorkspaceMember> = match list(workspace_root) {
+        Ok(m) => m.into_iter().filter(|x| !x.disabled).collect(),
+        Err(_) => return out,
+    };
+
+    for sibling in members {
         let sibling_path = std::path::PathBuf::from(&sibling.path);
         let sibling_canonical = std::fs::canonicalize(&sibling_path)
             .unwrap_or_else(|_| sibling_path.clone());
@@ -2315,7 +2429,7 @@ pub fn resolve_externals(
                 if name == w || name == leaf || qualified == Some(w) || qualified == Some(leaf) {
                     out.push(WorkspaceResolution {
                         external_modpath: w.clone(),
-                        provider_repo: sibling.repo.clone(),
+                        provider_repo: sibling.name.clone(),
                         provider_file: file.to_string(),
                         provider_symbol: name.to_string(),
                         confidence: 0.4,
@@ -2325,6 +2439,81 @@ pub fn resolve_externals(
         }
     }
     out
+}
+
+/// Persist a batch of symbol-level resolutions into the workspace's
+/// `cross_repo_refs.jsonl` (issue #47.5). Module-level rows already in
+/// the file (`kind != "cross_repo_symbol"`) are preserved; existing
+/// `cross_repo_symbol` rows are dropped and replaced atomically — so
+/// `workspace resolve` is idempotent.
+///
+/// Rows are written in the overloaded `Reference` shape decided during
+/// grilling: `caller=external_modpath, name=provider_symbol,
+/// kind=cross_repo_symbol, callee_id=<provider_repo>/<file>::<symbol>`.
+/// Sorted by `(caller, callee_id)` for deterministic diffs.
+/// Persist a batch of symbol-level resolutions tagged with their
+/// consumer repo into the workspace's `cross_repo_refs.jsonl`. Module-
+/// level rows (any `kind != "cross_repo_symbol"`) are preserved;
+/// existing `cross_repo_symbol` rows are replaced wholesale — so
+/// `workspace resolve` is idempotent across runs.
+pub fn persist_resolutions_grouped(
+    workspace_root: &Path,
+    tagged: &[(String, WorkspaceResolution)],
+) -> Result<()> {
+    use std::collections::BTreeMap;
+
+    let path = workspace_root.join(".sigil-workspace").join("cross_repo_refs.jsonl");
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).ok();
+    }
+
+    let mut keep: Vec<String> = Vec::new();
+    if path.exists()
+        && let Ok(existing) = std::fs::read_to_string(&path)
+    {
+        for line in existing.lines() {
+            if line.trim().is_empty() {
+                continue;
+            }
+            let kind = serde_json::from_str::<serde_json::Value>(line)
+                .ok()
+                .and_then(|v| v.get("kind").and_then(|s| s.as_str()).map(str::to_string));
+            if kind.as_deref() != Some("cross_repo_symbol") {
+                keep.push(line.to_string());
+            }
+        }
+    }
+
+    // BTreeMap keyed by (consumer_repo, caller, callee_id) for
+    // deterministic output without an explicit sort.
+    let mut new_rows: BTreeMap<(String, String, String), serde_json::Value> = BTreeMap::new();
+    for (consumer_repo, r) in tagged {
+        let callee_id =
+            format!("{}/{}::{}", r.provider_repo, r.provider_file, r.provider_symbol);
+        let row = serde_json::json!({
+            "file": format!("{consumer_repo}/<external>"),
+            "caller": r.external_modpath,
+            "name": r.provider_symbol,
+            "kind": "cross_repo_symbol",
+            "line": 0,
+            "confidence": r.confidence,
+            "callee_id": callee_id,
+        });
+        new_rows.insert((consumer_repo.clone(), r.external_modpath.clone(), callee_id), row);
+    }
+
+    let mut body = String::new();
+    for line in &keep {
+        body.push_str(line);
+        body.push('\n');
+    }
+    for (_, row) in new_rows {
+        body.push_str(&row.to_string());
+        body.push('\n');
+    }
+    std::fs::write(&path, body)
+        .with_context(|| format!("writing {}", path.display()))?;
+    Ok(())
 }
 
 /// Helper for callers (e.g. multi-repo build scripts) that want each repo

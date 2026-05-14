@@ -1106,6 +1106,304 @@ CREATE TABLE IF NOT EXISTS orders (
     assert!(ids.contains(&"db::events"), "Alembic op.create_table; got {ids:?}");
 }
 
+// ───── Batch 4.5: DB consumer side (issue #46) ─────
+
+#[test]
+fn detects_aws_kinesis_publisher_and_subscriber() {
+    // Issue #45: aws-sdk-go-v2 Kinesis. PutRecord/PutRecords are
+    // publishers; GetRecords / SubscribeToShard are subscribers. Stream
+    // name resolved from `StreamName: aws.String("...")` struct field
+    // (one-hop const/var allowed too).
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("producer.go"),
+        r#"package events
+
+import (
+    "context"
+    "github.com/aws/aws-sdk-go-v2/aws"
+    "github.com/aws/aws-sdk-go-v2/service/kinesis"
+)
+
+func Emit(ctx context.Context, client *kinesis.Client, payload []byte) error {
+    _, err := client.PutRecord(ctx, &kinesis.PutRecordInput{
+        StreamName: aws.String("events-stream"),
+        Data:       payload,
+    })
+    return err
+}
+"#,
+    ).unwrap();
+    fs::write(
+        tmp.path().join("consumer.go"),
+        r#"package events
+
+import (
+    "context"
+    "github.com/aws/aws-sdk-go-v2/service/kinesis"
+)
+
+func Drain(ctx context.Context, client *kinesis.Client, iter string) error {
+    _, err := client.GetRecords(ctx, &kinesis.GetRecordsInput{ShardIterator: &iter})
+    return err
+}
+"#,
+    ).unwrap();
+
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let topic_rows: Vec<_> = rows.iter()
+        .filter(|r| r["kind"] == "topic" && r["framework"] == "aws-kinesis")
+        .collect();
+    assert!(
+        !topic_rows.is_empty(),
+        "expected aws-kinesis topic rows; got {rows:?}",
+    );
+    let pub_topic = topic_rows.iter()
+        .find(|r| r["role"] == "publisher")
+        .and_then(|r| r["topic"].as_str());
+    assert_eq!(pub_topic, Some("events-stream"), "kinesis publisher topic");
+    assert!(
+        topic_rows.iter().any(|r| r["role"] == "subscriber"),
+        "expected at least one subscriber row; got {topic_rows:?}",
+    );
+}
+
+#[test]
+fn detects_aws_sqs_publisher_and_subscriber_go() {
+    // Issue #45: aws-sdk-go-v2 SQS. SendMessage(Batch)? → publisher,
+    // ReceiveMessage → subscriber. QueueUrl is captured as the topic.
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("queue.go"),
+        r#"package q
+
+import (
+    "context"
+    "github.com/aws/aws-sdk-go-v2/aws"
+    "github.com/aws/aws-sdk-go-v2/service/sqs"
+)
+
+func Send(ctx context.Context, c *sqs.Client) error {
+    _, err := c.SendMessage(ctx, &sqs.SendMessageInput{
+        QueueUrl:    aws.String("https://sqs.us-east-1.amazonaws.com/123/orders-queue"),
+        MessageBody: aws.String("hi"),
+    })
+    return err
+}
+
+func Recv(ctx context.Context, c *sqs.Client) error {
+    _, err := c.ReceiveMessage(ctx, &sqs.ReceiveMessageInput{
+        QueueUrl: aws.String("https://sqs.us-east-1.amazonaws.com/123/orders-queue"),
+    })
+    return err
+}
+"#,
+    ).unwrap();
+
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let topic_rows: Vec<_> = rows.iter()
+        .filter(|r| r["kind"] == "topic" && r["framework"] == "aws-sqs")
+        .collect();
+    assert!(
+        topic_rows.len() >= 2,
+        "expected publisher+subscriber aws-sqs rows; got {topic_rows:?}",
+    );
+    let topics: Vec<&str> = topic_rows.iter()
+        .filter_map(|r| r["topic"].as_str())
+        .collect();
+    assert!(
+        topics.contains(&"orders-queue"),
+        "QueueUrl trailing segment must surface as topic; got {topics:?}",
+    );
+}
+
+#[test]
+fn detects_kafka_segmentio_writer_and_reader() {
+    // Issue #45: segmentio/kafka-go. Topic field on Writer / ReaderConfig.
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("kafka.go"),
+        r#"package k
+
+import "github.com/segmentio/kafka-go"
+
+var w = &kafka.Writer{
+    Addr:  kafka.TCP("localhost:9092"),
+    Topic: "orders.created",
+}
+
+func makeReader() *kafka.Reader {
+    return kafka.NewReader(kafka.ReaderConfig{
+        Brokers: []string{"localhost:9092"},
+        Topic:   "orders.created",
+        GroupID: "svc-a",
+    })
+}
+"#,
+    ).unwrap();
+
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let kafka_rows: Vec<_> = rows.iter()
+        .filter(|r| r["kind"] == "topic" && r["framework"] == "kafka-segmentio")
+        .collect();
+    assert!(
+        kafka_rows.len() >= 2,
+        "expected Writer + Reader rows; got {kafka_rows:?}",
+    );
+    let roles: Vec<&str> = kafka_rows.iter().filter_map(|r| r["role"].as_str()).collect();
+    assert!(roles.contains(&"publisher"), "Writer is publisher; got {roles:?}");
+    assert!(roles.contains(&"subscriber"), "Reader is subscriber; got {roles:?}");
+}
+
+#[test]
+fn detects_gorm_table_consumer_rows() {
+    // Issue #46: GORM `db.Table("orders")` call sites are consumers of
+    // the `orders` table. Emit `db::orders` rows with `role: consumer`
+    // and `access: read` or `write` (best-effort from the method name).
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("orders.go"),
+        r#"package app
+
+import "gorm.io/gorm"
+
+func ListOrders(db *gorm.DB) ([]Order, error) {
+    var orders []Order
+    if err := db.Table("orders").Where("status = ?", "new").Find(&orders).Error; err != nil {
+        return nil, err
+    }
+    return orders, nil
+}
+
+func MarkShipped(db *gorm.DB, id int64) error {
+    return db.Table("orders").Where("id = ?", id).Update("status", "shipped").Error
+}
+"#,
+    ).unwrap();
+
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let consumers: Vec<_> = rows.iter()
+        .filter(|r| r["kind"] == "db" && r["role"] == "consumer")
+        .collect();
+    assert!(
+        !consumers.is_empty(),
+        "expected at least one db consumer row from GORM Table(\"orders\"); got rows: {rows:?}",
+    );
+    let ids: Vec<&str> = consumers.iter().map(|r| r["contract_id"].as_str().unwrap()).collect();
+    assert!(
+        ids.contains(&"db::orders"),
+        "expected db::orders consumer; got {ids:?}",
+    );
+    let frameworks: Vec<&str> = consumers.iter().map(|r| r["framework"].as_str().unwrap()).collect();
+    assert!(
+        frameworks.iter().any(|f| *f == "gorm"),
+        "expected framework=gorm; got {frameworks:?}",
+    );
+}
+
+#[test]
+fn detects_raw_sql_table_consumers_in_go() {
+    // Issue #46: raw SQL via sqlx/database/sql/pgx. The tokenizer must
+    // extract FROM/JOIN/INSERT INTO/UPDATE/DELETE FROM targets and
+    // emit consumer rows. CREATE FUNCTION ... BEGIN ... END blocks
+    // must NOT leak the tables they reference into the outer query's
+    // matches.
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("dao.go"),
+        r#"package dao
+
+import "context"
+
+func ListUsers(ctx context.Context, db DB) error {
+    _, err := db.QueryContext(ctx, "SELECT id, name FROM users WHERE org_id = $1", 42)
+    return err
+}
+
+func CreateOrder(ctx context.Context, db DB) error {
+    _, err := db.Exec("INSERT INTO orders (id, total) VALUES ($1, $2)", 1, 100)
+    return err
+}
+
+func ShipOrder(ctx context.Context, db DB) error {
+    _, err := db.Exec(`UPDATE orders SET status = 'shipped' WHERE id = $1`, 7)
+    return err
+}
+
+func DropOldShipments(ctx context.Context, db DB) error {
+    _, err := db.Exec("DELETE FROM shipments WHERE created_at < $1", "2024-01-01")
+    return err
+}
+
+func ListWithJoin(ctx context.Context, db DB) error {
+    _, err := db.Query("SELECT o.id FROM orders o JOIN customers c ON o.customer_id = c.id")
+    return err
+}
+"#,
+    ).unwrap();
+
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let consumer_ids: Vec<&str> = rows.iter()
+        .filter(|r| r["kind"] == "db" && r["role"] == "consumer")
+        .map(|r| r["contract_id"].as_str().unwrap())
+        .collect();
+    for expected in ["db::users", "db::orders", "db::shipments", "db::customers"] {
+        assert!(
+            consumer_ids.contains(&expected),
+            "expected {expected} in consumer rows; got {consumer_ids:?}",
+        );
+    }
+}
+
+#[test]
+fn db_consumer_extraction_ignores_create_function_body() {
+    // Per #46 acceptance: tables referenced inside CREATE FUNCTION
+    // ... BEGIN ... END must not appear as either owner or consumer
+    // rows for the outer caller.
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join("setup.sql"),
+        r#"CREATE OR REPLACE FUNCTION audit_orders() RETURNS trigger AS $$
+BEGIN
+    INSERT INTO audit_log (entity, at) VALUES ('orders', NOW());
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TABLE orders (id BIGINT);
+"#,
+    ).unwrap();
+
+    let (stdout, stderr, ok) = run_contracts(tmp.path(), &[]);
+    assert!(ok, "stderr: {stderr}");
+    let rows = parse(&stdout);
+    let all_ids: Vec<&str> = rows.iter()
+        .filter(|r| r["kind"] == "db")
+        .map(|r| r["contract_id"].as_str().unwrap())
+        .collect();
+    // The outer `CREATE TABLE orders` should produce an owner row.
+    assert!(
+        all_ids.contains(&"db::orders"),
+        "outer CREATE TABLE orders must still be detected; got {all_ids:?}",
+    );
+    // `audit_log` lives inside the CREATE FUNCTION body and must NOT
+    // surface as a contract row.
+    assert!(
+        !all_ids.contains(&"db::audit_log"),
+        "tables inside CREATE FUNCTION body must be suppressed; got {all_ids:?}",
+    );
+}
+
 // ───── Batch 5: GraphQL + tRPC + JSON-RPC ─────
 
 #[test]

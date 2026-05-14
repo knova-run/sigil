@@ -972,7 +972,9 @@ fn scan_go(file: &str, text: &str) -> Vec<ContractRow> {
     // streadway/amqp). The same kwarg shapes used by the Python boto3
     // SDK appear as struct field names in Go (`QueueUrl: aws.String(...)`).
     emit_cloud_queue_rows(file, text, "go", &mut out);
+    emit_go_cloud_topics(file, text, &mut out);
     emit_db_table_rows(file, text, "go", &mut out);
+    emit_db_consumer_rows(file, text, "go", &mut out);
     out
 }
 
@@ -2068,6 +2070,149 @@ fn emit_db_table_rows(file: &str, text: &str, language: &str, out: &mut Vec<Cont
     }
 }
 
+// ─── DB consumer side (issue #46) ────────────────────────────────────────────
+//
+// `kind=db`, `role=consumer`, `access=read|write`. Owner detection lives in
+// `emit_db_table_rows` above. Consumer rows are the join partner: code that
+// reads or writes the tables those owners declare. `contract_links.jsonl`
+// joins them on `contract_id == db::<table>`.
+
+fn gorm_table_call_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `db.Table("orders")` / `tx.Table("orders")` / etc. — string-literal
+        // arg to GORM's Table() method. Single quotes also accepted for
+        // dialects that allow them; double-quote is canonical Go.
+        Regex::new(r#"\.\s*Table\s*\(\s*['"]([A-Za-z_][\w]*)['"]\s*\)"#).unwrap()
+    })
+}
+
+fn gorm_struct_tag_table_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // Struct field tag: `gorm:"table:orders"`. Matches the GORM v2
+        // tag form for explicit table binding.
+        Regex::new(r#"`[^`]*gorm:\s*"[^"]*\btable:([A-Za-z_][\w]*)[^"]*"[^`]*`"#).unwrap()
+    })
+}
+
+fn raw_sql_call_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `db.Exec("SELECT ...")` / `db.Query(...)` / `db.QueryContext(ctx, ...)` /
+        // `db.Select(&rows, "SELECT ...")` / `conn.Query(ctx, "...")`.
+        // Capture the first string-literal argument. Backticks (Go raw
+        // string) and double-quotes both accepted.
+        Regex::new(
+            r#"\.\s*(?:Exec|ExecContext|Query|QueryContext|QueryRow|QueryRowContext|Select|Get|NamedExec|NamedQuery)\s*\([^)]*?(?:`([^`]+)`|"((?:[^"\\]|\\.)+)")"#,
+        )
+        .unwrap()
+    })
+}
+
+/// Tokenize a SQL string and emit consumer rows for every distinct
+/// table referenced (FROM / JOIN → read; INSERT INTO / UPDATE /
+/// DELETE FROM → write).
+fn extract_sql_tables(sql: &str) -> Vec<(String, &'static str)> {
+    static SQL_TABLE_RE: OnceLock<Regex> = OnceLock::new();
+    let re = SQL_TABLE_RE.get_or_init(|| {
+        // Case-insensitive. Captures into named groups:
+        //   read = FROM <ident> | JOIN <ident>
+        //   write = INSERT INTO <ident> | UPDATE <ident> | DELETE FROM <ident>
+        Regex::new(
+            r#"(?ix)
+            (?:
+                (?: \b FROM \b \s+ ) ( "[A-Za-z_][\w.]*" | `[A-Za-z_][\w.]*` | [A-Za-z_][\w.]* )  # read FROM
+                |
+                (?: \b JOIN \b \s+ ) ( "[A-Za-z_][\w.]*" | `[A-Za-z_][\w.]*` | [A-Za-z_][\w.]* )  # read JOIN
+                |
+                (?: \b INSERT \s+ INTO \b \s+ ) ( "[A-Za-z_][\w.]*" | `[A-Za-z_][\w.]*` | [A-Za-z_][\w.]* )  # write INSERT
+                |
+                (?: \b UPDATE \b \s+ ) ( "[A-Za-z_][\w.]*" | `[A-Za-z_][\w.]*` | [A-Za-z_][\w.]* )  # write UPDATE
+                |
+                (?: \b DELETE \s+ FROM \b \s+ ) ( "[A-Za-z_][\w.]*" | `[A-Za-z_][\w.]*` | [A-Za-z_][\w.]* )  # write DELETE
+            )
+            "#,
+        )
+        .unwrap()
+    });
+
+    // Suppress matches inside CREATE FUNCTION ... BEGIN ... END blocks
+    // (issue #46 acceptance: PG-keyword false positives). Strip those
+    // bodies before scanning.
+    let cleaned = strip_create_function_bodies(sql);
+
+    // SQL keywords that aren't table names — guard against accidental
+    // matches like `FROM SELECT` (shouldn't happen but cheap insurance).
+    let kw_blocklist: &[&str] = &[
+        "select", "where", "if", "exists", "as", "and", "or", "not", "values",
+    ];
+
+    let mut out: Vec<(String, &'static str)> = Vec::new();
+    for caps in re.captures_iter(&cleaned) {
+        let (raw, access) = if let Some(m) = caps.get(1) {
+            (m.as_str(), "read")
+        } else if let Some(m) = caps.get(2) {
+            (m.as_str(), "read")
+        } else if let Some(m) = caps.get(3) {
+            (m.as_str(), "write")
+        } else if let Some(m) = caps.get(4) {
+            (m.as_str(), "write")
+        } else if let Some(m) = caps.get(5) {
+            (m.as_str(), "write")
+        } else {
+            continue;
+        };
+        // Strip optional quotes/backticks; collapse `schema.table` to
+        // the table-only segment (most common cross-repo join target).
+        let unquoted = raw.trim_matches('"').trim_matches('`');
+        let table = unquoted.rsplit('.').next().unwrap_or(unquoted);
+        let lower = table.to_ascii_lowercase();
+        if kw_blocklist.contains(&lower.as_str()) || table.is_empty() {
+            continue;
+        }
+        out.push((table.to_string(), access));
+    }
+    out
+}
+
+/// Remove `CREATE FUNCTION ... BEGIN ... END;` bodies from a SQL string so
+/// table references inside function definitions don't masquerade as the
+/// outer query's targets. Best-effort: matches the BEGIN..END block.
+fn strip_create_function_bodies(sql: &str) -> String {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    let re = RE.get_or_init(|| {
+        Regex::new(r#"(?is)\bCREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\b.*?\bBEGIN\b.*?\bEND\s*;?"#)
+            .unwrap()
+    });
+    re.replace_all(sql, "").to_string()
+}
+
+fn emit_db_consumer_rows(file: &str, text: &str, language: &str, out: &mut Vec<ContractRow>) {
+    for (i, line) in text.lines().enumerate() {
+        if let Some(caps) = gorm_table_call_re().captures(line) {
+            push_db_row(out, file, (i + 1) as u32, &caps[1], "consumer", language, "gorm");
+        }
+        if let Some(caps) = gorm_struct_tag_table_re().captures(line) {
+            push_db_row(out, file, (i + 1) as u32, &caps[1], "consumer", language, "gorm");
+        }
+        if let Some(caps) = raw_sql_call_re().captures(line) {
+            // First non-empty captured group is the SQL literal.
+            let sql = caps.get(1).or_else(|| caps.get(2)).map(|m| m.as_str()).unwrap_or("");
+            for (table, _access) in extract_sql_tables(sql) {
+                let framework = match language {
+                    "go" => "database/sql",
+                    _ => "raw-sql",
+                };
+                push_db_row(
+                    out, file, (i + 1) as u32,
+                    &table, "consumer", language, framework,
+                );
+            }
+        }
+    }
+}
+
 // ─── GraphQL / tRPC / JSON-RPC ───────────────────────────────────────────────
 //
 // Three RPC-like protocols. contract_ids:
@@ -2292,6 +2437,151 @@ fn amqp_publish_re() -> &'static Regex {
         )
         .unwrap()
     })
+}
+
+// ─── Go cloud / Kafka detectors (issue #45) ──────────────────────────────────
+//
+// AWS SDK Go v2 uses struct-field syntax (`StreamName: aws.String(...)`,
+// `QueueUrl: aws.String(...)`) instead of Python's kwarg style. Kafka
+// (segmentio/kafka-go and confluentinc/confluent-kafka-go) ship two
+// separate idioms — both detected here.
+
+fn kinesis_put_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `client.PutRecord(ctx, &kinesis.PutRecordInput{...StreamName: aws.String("name") ...})`
+        // and the batch form. `.*?` with `(?s)` so nested struct-literal
+        // braces in adjacent fields don't terminate the match early.
+        Regex::new(
+            r#"(?s)kinesis\.PutRecord(?:s)?Input\s*\{.*?StreamName\s*:\s*(?:aws\.String\s*\(\s*)?["']([^"']+)["']"#,
+        )
+        .unwrap()
+    })
+}
+
+fn kinesis_consume_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // GetRecords doesn't carry the stream name on its input (uses
+        // ShardIterator). We detect the call itself; resolution to a
+        // specific stream is best-effort. SubscribeToShard exposes
+        // ConsumerARN which encodes the stream.
+        Regex::new(
+            r#"\.\s*(?:GetRecords|SubscribeToShard)\s*\(\s*ctx\b|kinesis\.(?:GetRecords|SubscribeToShard)Input\s*\{"#,
+        )
+        .unwrap()
+    })
+}
+
+fn sqs_input_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `sqs.SendMessageInput{ QueueUrl: aws.String("https://.../queue") }`
+        // and variants. Captures (operation, queueUrl).
+        Regex::new(
+            r#"(?s)sqs\.(SendMessage(?:Batch)?|ReceiveMessage|DeleteMessage)Input\s*\{.*?QueueUrl\s*:\s*(?:aws\.String\s*\(\s*)?["']([^"']+)["']"#,
+        )
+        .unwrap()
+    })
+}
+
+fn kafka_writer_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // segmentio: `&kafka.Writer{ ... Topic: "orders.created" ... }`.
+        // `.*?` (with `(?s)`) tolerates nested braces in adjacent
+        // struct-literal fields (e.g. `Brokers: []string{"..."}`).
+        Regex::new(r#"(?s)kafka\.Writer\s*\{.*?Topic\s*:\s*["']([^"']+)["']"#).unwrap()
+    })
+}
+
+fn kafka_reader_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // segmentio: `kafka.ReaderConfig{ ... Topic: "orders.created" ... }`.
+        Regex::new(r#"(?s)kafka\.ReaderConfig\s*\{.*?Topic\s*:\s*["']([^"']+)["']"#).unwrap()
+    })
+}
+
+fn confluent_subscribe_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `c.SubscribeTopics([]string{"orders.created"}, nil)`.
+        Regex::new(r#"\.SubscribeTopics\s*\(\s*\[\]string\s*\{\s*["']([^"']+)["']"#).unwrap()
+    })
+}
+
+fn confluent_produce_re() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| {
+        // `p.Produce(&kafka.Message{TopicPartition: kafka.TopicPartition{Topic: &topic, ...}}, ...)`
+        // The topic is a `&<var>` reference — name-only detection,
+        // value resolution best-effort. Captures the var name as a
+        // marker.
+        Regex::new(
+            r#"(?s)kafka\.TopicPartition\s*\{[^}]*?Topic\s*:\s*&?\s*([A-Za-z_]\w*)"#,
+        )
+        .unwrap()
+    })
+}
+
+/// Detect Go-flavored cloud queue and Kafka producer/consumer call
+/// sites. Called from `emit_cloud_queue_rows` only when `language ==
+/// "go"`. Topic-name resolution is one-hop literal → handled implicitly
+/// by the regex captures; var-refs become the var name (placeholder for
+/// workspace-side resolution).
+fn emit_go_cloud_topics(file: &str, text: &str, out: &mut Vec<ContractRow>) {
+    // Whole-text scan because struct literals span multiple lines.
+    // Approximate the line number by counting newlines up to the match.
+    let line_of = |offset: usize| -> u32 {
+        (text[..offset.min(text.len())].matches('\n').count() + 1) as u32
+    };
+
+    for caps in kinesis_put_re().captures_iter(text) {
+        let topic = caps[1].to_string();
+        let ln = line_of(caps.get(0).unwrap().start());
+        push_cloud_topic(out, file, ln, &topic, "publisher", "go", "aws-kinesis");
+    }
+    for m in kinesis_consume_re().find_iter(text) {
+        let ln = line_of(m.start());
+        push_cloud_topic(out, file, ln, "<unresolved>", "subscriber", "go", "aws-kinesis");
+    }
+    for caps in sqs_input_re().captures_iter(text) {
+        let op = &caps[1];
+        let url = &caps[2];
+        let role = match op {
+            o if o.starts_with("SendMessage") => "publisher",
+            "ReceiveMessage" => "subscriber",
+            _ => continue, // DeleteMessage etc. — admin op, not pub/sub
+        };
+        let topic = last_path_segment(url);
+        let ln = line_of(caps.get(0).unwrap().start());
+        push_cloud_topic(out, file, ln, &topic, role, "go", "aws-sqs");
+    }
+    for caps in kafka_writer_re().captures_iter(text) {
+        let topic = caps[1].to_string();
+        let ln = line_of(caps.get(0).unwrap().start());
+        push_cloud_topic(out, file, ln, &topic, "publisher", "go", "kafka-segmentio");
+    }
+    for caps in kafka_reader_re().captures_iter(text) {
+        let topic = caps[1].to_string();
+        let ln = line_of(caps.get(0).unwrap().start());
+        push_cloud_topic(out, file, ln, &topic, "subscriber", "go", "kafka-segmentio");
+    }
+    for caps in confluent_subscribe_re().captures_iter(text) {
+        let topic = caps[1].to_string();
+        let ln = line_of(caps.get(0).unwrap().start());
+        push_cloud_topic(out, file, ln, &topic, "subscriber", "go", "kafka-confluent");
+    }
+    for caps in confluent_produce_re().captures_iter(text) {
+        // Captured var name (placeholder — workspace-side env / const
+        // resolver would upgrade later).
+        let topic_marker = format!("$VAR.{}", &caps[1]);
+        let ln = line_of(caps.get(0).unwrap().start());
+        push_cloud_topic(
+            out, file, ln, &topic_marker, "publisher", "go", "kafka-confluent",
+        );
+    }
 }
 
 fn amqp_consume_re() -> &'static Regex {

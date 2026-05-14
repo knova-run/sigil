@@ -67,6 +67,357 @@ fn workspace_scan_lists_child_git_repos() {
 }
 
 #[test]
+fn workspace_resolve_ignores_non_member_sibling_repos() {
+    // Bug #47.3: today `workspace resolve` walks every `.git/`-bearing
+    // sibling under the workspace root and matches focus externals
+    // against all of them. With many unrelated indexed repos in the
+    // parent dir, the output is full of bogus matches. Fix: scope
+    // resolution to enabled members from `members.json`.
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let focus = ws.join("alpha");
+    let member = ws.join("beta");
+    let nonmember = ws.join("unrelated");
+    fs::create_dir_all(&ws).unwrap();
+    init_repo(&focus);
+    init_repo(&member);
+    init_repo(&nonmember);
+
+    // alpha (focus) has an external sentinel for `shared.run`.
+    fs::create_dir_all(focus.join(".sigil")).unwrap();
+    fs::write(
+        focus.join(".sigil/entities.jsonl"),
+        "{\"file\":\"<external>\",\"name\":\"external:shared.run\",\"kind\":\"external\",\"line_start\":0,\"line_end\":0,\"struct_hash\":\"0\"}\n",
+    ).unwrap();
+    // beta (registered member) defines run.
+    fs::create_dir_all(member.join(".sigil")).unwrap();
+    fs::write(
+        member.join(".sigil/entities.jsonl"),
+        "{\"file\":\"shared.py\",\"name\":\"run\",\"kind\":\"function\",\"line_start\":1,\"line_end\":2,\"struct_hash\":\"1\"}\n",
+    ).unwrap();
+    // unrelated (NOT registered) also defines run — must be ignored.
+    fs::create_dir_all(nonmember.join(".sigil")).unwrap();
+    fs::write(
+        nonmember.join(".sigil/entities.jsonl"),
+        "{\"file\":\"shared.py\",\"name\":\"run\",\"kind\":\"function\",\"line_start\":1,\"line_end\":2,\"struct_hash\":\"bogus\"}\n",
+    ).unwrap();
+
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", focus.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", member.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    // Note: `unrelated` deliberately NOT added.
+
+    let output = Command::new(env!("CARGO_BIN_EXE_sigil"))
+        .arg("workspace").arg("resolve")
+        .arg("--root").arg(&ws)
+        .arg("--focus").arg(&focus)
+        .output()
+        .expect("failed to run sigil");
+    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let rows: Vec<serde_json::Value> = stdout.lines().filter(|l| !l.is_empty())
+        .map(|l| serde_json::from_str(l).expect("JSON"))
+        .collect();
+
+    assert!(
+        rows.iter().all(|r| r["provider_repo"].as_str() != Some("unrelated")),
+        "non-member sibling 'unrelated' must not appear in output; got {rows:?}",
+    );
+    // The legitimate member resolution should still fire.
+    assert!(
+        rows.iter().any(|r| r["provider_repo"].as_str() == Some("beta")),
+        "legitimate member resolution missing; got {rows:?}",
+    );
+}
+
+#[test]
+fn workspace_index_joins_db_owner_with_consumers_across_members() {
+    // Issue #46: with one member owning `orders` via a CREATE TABLE
+    // migration and a second member consuming `orders` via raw SQL,
+    // `contract_links.jsonl` must surface the join — that's the
+    // "who else's code depends on this table?" view the issue calls
+    // out as the highest-leverage workspace surface.
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let schema_owner = ws.join("schema-svc");
+    let consumer_svc = ws.join("orders-svc");
+    fs::create_dir_all(&ws).unwrap();
+    init_repo(&schema_owner);
+    init_repo(&consumer_svc);
+
+    fs::write(
+        schema_owner.join("schema.sql"),
+        "CREATE TABLE orders (id BIGINT PRIMARY KEY);\n",
+    ).unwrap();
+    fs::write(
+        consumer_svc.join("dao.go"),
+        r#"package dao
+
+func ListOrders(db DB) error {
+    _, err := db.Query("SELECT id FROM orders WHERE org_id = $1", 1)
+    return err
+}
+"#,
+    ).unwrap();
+
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", schema_owner.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", consumer_svc.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    let out = sigil(&["workspace", "index", "--root", ws.to_str().unwrap()]);
+    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+
+    let links = ws.join(".sigil-workspace/contract_links.jsonl");
+    assert!(links.exists(), "contract_links.jsonl must exist");
+    let content = fs::read_to_string(&links).unwrap();
+    let rows: Vec<serde_json::Value> = content.lines()
+        .filter(|l| !l.is_empty())
+        .map(|l| serde_json::from_str(l).expect("JSON"))
+        .collect();
+    let orders_link = rows.iter()
+        .find(|r| r["contract_id"].as_str() == Some("db::orders"));
+    assert!(
+        orders_link.is_some(),
+        "expected db::orders link row in contract_links.jsonl; got: {content}",
+    );
+}
+
+#[test]
+fn workspace_resolve_default_focus_iterates_all_enabled_members() {
+    // Bug #47.1: today `workspace resolve --root <ws>` from a cwd
+    // without a `.sigil/` silently exits 0. Fix: when no --focus is
+    // given (or it points at a sigil-less directory), iterate every
+    // enabled member and resolve each one's externals.
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let alpha = ws.join("alpha");
+    let beta = ws.join("beta");
+    fs::create_dir_all(&ws).unwrap();
+    init_repo(&alpha);
+    init_repo(&beta);
+
+    // alpha imports beta.run; beta imports alpha.helper.
+    fs::create_dir_all(alpha.join(".sigil")).unwrap();
+    fs::write(
+        alpha.join(".sigil/entities.jsonl"),
+        concat!(
+            "{\"file\":\"<external>\",\"name\":\"external:shared.run\",\"kind\":\"external\",\"line_start\":0,\"line_end\":0,\"struct_hash\":\"a\"}\n",
+            "{\"file\":\"src/helper.py\",\"name\":\"helper\",\"kind\":\"function\",\"line_start\":1,\"line_end\":2,\"struct_hash\":\"h\"}\n",
+        ),
+    ).unwrap();
+    fs::create_dir_all(beta.join(".sigil")).unwrap();
+    fs::write(
+        beta.join(".sigil/entities.jsonl"),
+        concat!(
+            "{\"file\":\"<external>\",\"name\":\"external:foo.helper\",\"kind\":\"external\",\"line_start\":0,\"line_end\":0,\"struct_hash\":\"b\"}\n",
+            "{\"file\":\"shared.py\",\"name\":\"run\",\"kind\":\"function\",\"line_start\":3,\"line_end\":4,\"struct_hash\":\"r\"}\n",
+        ),
+    ).unwrap();
+
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", alpha.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", beta.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+
+    // Invoke from tmp (no .sigil/ in cwd, no --focus) — expect default
+    // mode to iterate all members.
+    let output = Command::new(env!("CARGO_BIN_EXE_sigil"))
+        .arg("workspace").arg("resolve")
+        .arg("--root").arg(&ws)
+        .current_dir(tmp.path())
+        .output()
+        .expect("failed to run sigil");
+    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let rows: Vec<serde_json::Value> = stdout.lines().filter(|l| !l.is_empty())
+        .map(|l| serde_json::from_str(l).expect("JSON"))
+        .collect();
+    // Both members' externals should be resolved.
+    let modpaths: Vec<&str> = rows.iter()
+        .filter_map(|r| r["external_modpath"].as_str())
+        .collect();
+    assert!(
+        modpaths.contains(&"shared.run"),
+        "alpha's external should be resolved; got {modpaths:?}",
+    );
+    assert!(
+        modpaths.contains(&"foo.helper"),
+        "beta's external should be resolved; got {modpaths:?}",
+    );
+}
+
+#[test]
+fn workspace_resolve_focus_accepts_member_name() {
+    // Bug #47.2: `--focus <member-name>` should be looked up in
+    // members.json, not silently no-op on a non-existent path.
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let alpha = ws.join("alpha");
+    let beta = ws.join("beta");
+    fs::create_dir_all(&ws).unwrap();
+    init_repo(&alpha);
+    init_repo(&beta);
+
+    fs::create_dir_all(alpha.join(".sigil")).unwrap();
+    fs::write(
+        alpha.join(".sigil/entities.jsonl"),
+        "{\"file\":\"<external>\",\"name\":\"external:shared.run\",\"kind\":\"external\",\"line_start\":0,\"line_end\":0,\"struct_hash\":\"a\"}\n",
+    ).unwrap();
+    fs::create_dir_all(beta.join(".sigil")).unwrap();
+    fs::write(
+        beta.join(".sigil/entities.jsonl"),
+        "{\"file\":\"shared.py\",\"name\":\"run\",\"kind\":\"function\",\"line_start\":1,\"line_end\":2,\"struct_hash\":\"r\"}\n",
+    ).unwrap();
+
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", alpha.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", beta.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+
+    let output = sigil(&[
+        "workspace", "resolve",
+        "--root", ws.to_str().unwrap(),
+        "--focus", "alpha", // member name, not a path
+    ]);
+    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let rows: Vec<serde_json::Value> = stdout.lines().filter(|l| !l.is_empty())
+        .map(|l| serde_json::from_str(l).expect("JSON"))
+        .collect();
+    assert!(
+        !rows.is_empty(),
+        "member-name --focus should resolve, not silently no-op",
+    );
+    assert_eq!(rows[0]["external_modpath"].as_str(), Some("shared.run"));
+}
+
+#[test]
+fn workspace_resolve_persists_resolutions_to_cross_repo_refs_jsonl() {
+    // Bug #47.5: today `workspace resolve` only prints to stdout.
+    // Persisting to `.sigil-workspace/cross_repo_refs.jsonl` (folded
+    // alongside module-level resolver rows) makes MCP / contract-links
+    // / downstream tooling able to read a canonical artifact.
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let focus = ws.join("alpha");
+    let member = ws.join("beta");
+    fs::create_dir_all(&ws).unwrap();
+    init_repo(&focus);
+    init_repo(&member);
+
+    fs::create_dir_all(focus.join(".sigil")).unwrap();
+    fs::write(
+        focus.join(".sigil/entities.jsonl"),
+        "{\"file\":\"<external>\",\"name\":\"external:shared.run\",\"kind\":\"external\",\"line_start\":0,\"line_end\":0,\"struct_hash\":\"0\"}\n",
+    ).unwrap();
+    fs::create_dir_all(member.join(".sigil")).unwrap();
+    fs::write(
+        member.join(".sigil/entities.jsonl"),
+        "{\"file\":\"shared.py\",\"name\":\"run\",\"kind\":\"function\",\"line_start\":1,\"line_end\":2,\"struct_hash\":\"1\"}\n",
+    ).unwrap();
+
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", focus.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", member.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+
+    let out = sigil(&[
+        "workspace", "resolve", "--root", ws.to_str().unwrap(),
+        "--focus", focus.to_str().unwrap(),
+    ]);
+    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+
+    let cross = ws.join(".sigil-workspace/cross_repo_refs.jsonl");
+    assert!(cross.exists(), "cross_repo_refs.jsonl must be written");
+    let content = fs::read_to_string(&cross).unwrap();
+    let symbol_rows: Vec<serde_json::Value> = content.lines()
+        .filter(|l| !l.is_empty())
+        .filter_map(|l| serde_json::from_str(l).ok())
+        .filter(|v: &serde_json::Value| v["kind"].as_str() == Some("cross_repo_symbol"))
+        .collect();
+    assert!(
+        !symbol_rows.is_empty(),
+        "expected at least one cross_repo_symbol row in {}; got content: {content}",
+        cross.display(),
+    );
+    let row = &symbol_rows[0];
+    assert_eq!(row["caller"].as_str(), Some("shared.run"), "caller carries external_modpath");
+    assert_eq!(row["name"].as_str(), Some("run"), "name carries provider_symbol");
+    assert_eq!(
+        row["callee_id"].as_str(),
+        Some("beta/shared.py::run"),
+        "callee_id carries provider_repo/file::symbol",
+    );
+}
+
+#[test]
+fn workspace_resolve_filters_stdlib_imports() {
+    // Bug #47.4: stdlib names like `context`, `net/url`, `os`, `path`
+    // currently resolve at 0.4 against any sibling entity with a
+    // matching leaf name. These aren't real cross-repo bindings —
+    // filter them out per language convention.
+    let tmp = TempDir::new().unwrap();
+    let ws = tmp.path().join("ws");
+    let focus = ws.join("alpha");
+    let member = ws.join("beta");
+    fs::create_dir_all(&ws).unwrap();
+    init_repo(&focus);
+    init_repo(&member);
+
+    // alpha imports two externals: Go stdlib `context` and a real
+    // cross-repo `shared.run`.
+    fs::create_dir_all(focus.join(".sigil")).unwrap();
+    fs::write(
+        focus.join(".sigil/entities.jsonl"),
+        concat!(
+            "{\"file\":\"<external>\",\"name\":\"external:context\",\"kind\":\"external\",\"line_start\":0,\"line_end\":0,\"struct_hash\":\"s\"}\n",
+            "{\"file\":\"<external>\",\"name\":\"external:net/url\",\"kind\":\"external\",\"line_start\":0,\"line_end\":0,\"struct_hash\":\"t\"}\n",
+            "{\"file\":\"<external>\",\"name\":\"external:shared.run\",\"kind\":\"external\",\"line_start\":0,\"line_end\":0,\"struct_hash\":\"u\"}\n",
+        ),
+    ).unwrap();
+    // beta defines functions with names that would collide with stdlib
+    // (`context`, `url`) and with the legitimate `run` symbol.
+    fs::create_dir_all(member.join(".sigil")).unwrap();
+    fs::write(
+        member.join(".sigil/entities.jsonl"),
+        concat!(
+            "{\"file\":\"helpers.go\",\"name\":\"context\",\"kind\":\"function\",\"line_start\":1,\"line_end\":2,\"struct_hash\":\"a\"}\n",
+            "{\"file\":\"helpers.go\",\"name\":\"url\",\"kind\":\"function\",\"line_start\":3,\"line_end\":4,\"struct_hash\":\"b\"}\n",
+            "{\"file\":\"shared.py\",\"name\":\"run\",\"kind\":\"function\",\"line_start\":5,\"line_end\":6,\"struct_hash\":\"c\"}\n",
+        ),
+    ).unwrap();
+
+    sigil(&["workspace", "init", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", focus.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+    sigil(&["workspace", "add", member.to_str().unwrap(), "--root", ws.to_str().unwrap()]);
+
+    let output = Command::new(env!("CARGO_BIN_EXE_sigil"))
+        .arg("workspace").arg("resolve")
+        .arg("--root").arg(&ws)
+        .arg("--focus").arg(&focus)
+        .output()
+        .expect("failed to run sigil");
+    assert!(output.status.success(), "stderr: {}", String::from_utf8_lossy(&output.stderr));
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let rows: Vec<serde_json::Value> = stdout.lines().filter(|l| !l.is_empty())
+        .map(|l| serde_json::from_str(l).expect("JSON"))
+        .collect();
+
+    let modpaths: Vec<&str> = rows.iter()
+        .filter_map(|r| r["external_modpath"].as_str())
+        .collect();
+    assert!(
+        !modpaths.contains(&"context"),
+        "Go stdlib `context` must be filtered; got {modpaths:?}",
+    );
+    assert!(
+        !modpaths.contains(&"net/url"),
+        "Go stdlib `net/url` must be filtered; got {modpaths:?}",
+    );
+    assert!(
+        modpaths.contains(&"shared.run"),
+        "legitimate cross-repo resolution must survive; got {modpaths:?}",
+    );
+}
+
+#[test]
 fn workspace_resolve_finds_external_in_sibling_repo() {
     // Issue #30 MVP — focus repo emits an `external:utils.run` sentinel
     // (a stand-in for an unresolved import). A sibling repo has a real
@@ -92,6 +443,12 @@ fn workspace_resolve_finds_external_in_sibling_repo() {
             "{\"file\":\"other.py\",\"name\":\"noise\",\"kind\":\"function\",\"line_start\":1,\"line_end\":2,\"struct_hash\":\"2\"}\n",
         ),
     ).unwrap();
+
+    // Register both as workspace members — issue #47.3 scopes resolve
+    // to enabled membership.
+    sigil(&["workspace", "init", tmp.path().to_str().unwrap()]);
+    sigil(&["workspace", "add", focus.to_str().unwrap(), "--root", tmp.path().to_str().unwrap()]);
+    sigil(&["workspace", "add", provider.to_str().unwrap(), "--root", tmp.path().to_str().unwrap()]);
 
     let output = Command::new(env!("CARGO_BIN_EXE_sigil"))
         .arg("workspace")

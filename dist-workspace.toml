@@ -22,8 +22,11 @@ installers = ["shell", "powershell"]
 # wouldn't regenerate, and without this flag every PR run of the
 # Release workflow fails the plan step.
 allow-dirty = ["ci"]
-# Target platforms to build apps for (Rust target-triple syntax)
-targets = ["aarch64-apple-darwin", "aarch64-unknown-linux-gnu", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"]
+# Target platforms to build apps for (Rust target-triple syntax).
+# `x86_64-apple-darwin` was dropped in 0.6.2 — Rosetta 2 runs the arm64
+# binary on Intel Macs transparently. Intel-only Mac users without
+# Rosetta can fall back to `cargo install sigil` or `brew install`.
+targets = ["aarch64-apple-darwin", "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"]
 # Which actions to run on pull requests
 pr-run-mode = "plan"
 # Self-update is built into sigil via axoupdater library (no separate binary needed)

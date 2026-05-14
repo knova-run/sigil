@@ -6,6 +6,84 @@ All notable changes to sigil are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.6.2] — 2026-05-14 — CI speedup, contract detection expansion, workspace resolve polish
+
+### Fixed
+
+- **`sigil workspace resolve` major polish (issue #47).** Five
+  sub-issues fixed:
+  * Default focus (no `--focus`) now iterates every enabled member,
+    instead of silently exiting 0 when cwd has no `.sigil/`.
+  * `--focus <member-name>` is accepted in addition to a path; member
+    names are looked up in `members.json` first.
+  * Scope is now strictly the enabled membership — previously the
+    resolver walked every `.git/`-bearing sibling under the workspace
+    root and produced bogus matches against unrelated repos. This is
+    a behavior change: workspaces relying on the broad sibling-scan
+    must register members via `workspace add` first.
+  * Stdlib stoplist filters Go (`context`, `net/url`), Python (`os`,
+    `sys`, …), Node (`fs`, `path`, …), and Rust (`std::*`, `core::*`)
+    so they don't resolve at 0.4 against unrelated leaf-name matches.
+  * Output is now persisted to `.sigil-workspace/cross_repo_refs.jsonl`
+    with `kind: "cross_repo_symbol"` rows alongside the existing
+    module-level entries. Stdout output is preserved for piping.
+
+### Added
+
+- **Contract detection: AWS SDK + Kafka topics (issue #45).** New Go
+  detectors (`framework: "aws-kinesis" | "aws-sqs" | "kafka-segmentio"
+  | "kafka-confluent"`):
+  * Kinesis `PutRecord(s)` → publisher; `GetRecords` /
+    `SubscribeToShard` → subscriber.
+  * SQS `SendMessage(Batch)?` → publisher; `ReceiveMessage` →
+    subscriber. QueueUrl's trailing path segment becomes the topic.
+  * Kafka segmentio `kafka.Writer{Topic: ...}` (publisher) and
+    `kafka.NewReader(kafka.ReaderConfig{Topic: ...})` (subscriber).
+  * Kafka confluent `Produce(&kafka.Message{TopicPartition: ...
+    Topic: &t})` (publisher) and `SubscribeTopics([]string{...})`
+    (subscriber).
+  * Var-referenced topics (no string literal in scope) emit a
+    `topic::$VAR.<varname>` placeholder for later workspace-side
+    env / const resolution.
+
+- **Contract detection: DB consumer side (issue #46).** `kind: "db",
+  role: "consumer"` rows for GORM (`db.Table("X")` calls,
+  `gorm:"table:X"` struct tags) and raw SQL (`Exec` / `Query` / `Select`
+  / `QueryContext` / `Get` / `NamedExec` etc.). The SQL tokenizer
+  extracts `FROM` / `JOIN` (read) and `INSERT INTO` / `UPDATE` /
+  `DELETE FROM` (write) targets. `CREATE FUNCTION ... BEGIN ... END`
+  bodies are stripped so the inner table refs don't leak into the
+  outer query's matches. `contract_links.jsonl` now joins `db::<table>`
+  owners with consumers across members.
+
+### CI / build
+
+- **`x86_64-apple-darwin` published artifact dropped.** Rosetta 2 runs
+  the arm64 binary on Intel Macs transparently (installed-on-demand
+  since macOS 11). Intel-only Mac users without Rosetta need `cargo
+  install sigil` or `brew install` instead of the `.tar.gz` /
+  `npx @knova-run/sigil`. Saves ~15 min from each release build.
+
+- **Tree-sitter + DuckDB build cache.** Added a secondary
+  `actions/cache@v4` entry under `.github/build-setup.yml` keyed by
+  `Cargo.toml` dep version (with `restore-keys` fallback) so the heavy
+  C/C++ compile output survives the lockfile bumps that defeat the
+  primary `Swatinem/rust-cache`.
+
+- **Windows MSVC LTO disabled in release builds.** `CARGO_PROFILE_DIST_LTO=false`
+  injected into the Windows-target matrix slot only. 3–5% larger
+  Windows binary, no runtime impact for the CLI workload, saves
+  2–4 min per release.
+
+### Breaking changes
+
+- `workspace resolve` no longer matches against arbitrary sibling repos
+  under the workspace root — only registered members. Workflows that
+  relied on the implicit scan should run `workspace add` first.
+- `RankManifest.file_rank` was switched from `HashMap` to `BTreeMap`
+  in 0.6.1; consumers reading the JSON shouldn't notice (keys appear
+  in sorted order now).
+
 ## [0.6.1] — 2026-05-14 — MCP workspace-aware loading + DuckDB-async + workspace rank.json
 
 ### Fixed
