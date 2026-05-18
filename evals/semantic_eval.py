@@ -254,6 +254,60 @@ def retriever_sigil_semantic_m2v_no_doc(query: str, root: Path, k: int) -> List[
     return _sigil_semantic(query, root, k, ["--m2v", "--no-doc"])
 
 
+# --- semble baseline: import the upstream library directly. Indexes the
+# `--root` repo once per process (we cache the SembleIndex globally so
+# 200 queries don't pay the indexing cost 200 times) and runs in three
+# modes for fair sub-comparison: HYBRID (full pipeline incl. rerank),
+# BM25 only, SEMANTIC (embeddings) only.
+
+_SEMBLE_CACHE: Dict[str, object] = {}
+
+
+def _semble_index(root: Path):
+    key = str(root.resolve())
+    if key not in _SEMBLE_CACHE:
+        from semble import SembleIndex
+        _SEMBLE_CACHE[key] = SembleIndex.from_path(root)
+    return _SEMBLE_CACHE[key]
+
+
+def _semble_search(query: str, root: Path, k: int, mode: str) -> List[Hit]:
+    try:
+        idx = _semble_index(root)
+        from semble import SearchMode
+        results = idx.search(query, top_k=k, mode=SearchMode(mode))
+    except Exception as e:
+        print(f"semble error ({mode}): {e}", file=sys.stderr)
+        return []
+    hits: List[Hit] = []
+    for r in results:
+        c = r.chunk
+        hits.append(
+            Hit(
+                file=c.file_path,
+                line_start=c.start_line,
+                line_end=c.end_line,
+                snippet=c.content[:200] if c.content else "",
+            )
+        )
+    return hits
+
+
+@register("semble_hybrid")
+def retriever_semble_hybrid(query: str, root: Path, k: int) -> List[Hit]:
+    return _semble_search(query, root, k, "hybrid")
+
+
+@register("semble_bm25")
+def retriever_semble_bm25(query: str, root: Path, k: int) -> List[Hit]:
+    return _semble_search(query, root, k, "bm25")
+
+
+@register("semble_semantic")
+def retriever_semble_semantic(query: str, root: Path, k: int) -> List[Hit]:
+    return _semble_search(query, root, k, "semantic")
+
+
 # Built-in baseline: classic grep over source files.
 _STOPWORDS = set(
     """
@@ -361,9 +415,15 @@ def _hit_matches(h: Hit, g: GoldPair) -> bool:
         # Some retrievers report the qualifier (Class.method).
         if g.name in h.name.split("."):
             return True
-    # Line-range overlap (grep-style hits without symbol metadata).
-    if h.line_start and g.line_start <= h.line_start <= g.line_end:
-        return True
+    # Range overlap: hit covers (or is covered by) the gold's line range.
+    # `[a,b]` overlaps `[c,d]` iff a <= d and b >= c. Hits without an
+    # end (grep) use start == end. This catches both:
+    #   - line-pinpoint hits whose line is inside the gold function
+    #   - chunk hits (semble) whose range contains the gold function
+    if h.line_start is not None:
+        hs, he = h.line_start, h.line_end if h.line_end is not None else h.line_start
+        if hs <= g.line_end and he >= g.line_start:
+            return True
     return False
 
 

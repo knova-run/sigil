@@ -23,6 +23,15 @@ All notable changes to sigil are documented here. Format follows
   with doc indexed and 0.370 doc-masked. Median latency ~50 ms per
   query.
 
+- **Cross-repo semantic-eval harness (`evals/cross_repo_semantic_eval.py`).**
+  Extends the sigil-on-sigil harness to a 4-repo corpus (ripgrep 14.1.0
+  / httpx 0.27.0 / mdbook v0.4.40 / cobra v1.8.0; Rust + Python + Rust +
+  Go) so retriever wins can be measured cross-language. Compares sigil
+  retrievers against the upstream semble library (BM25, semantic, HYBRID)
+  on the same indexes and queries. Drops the per-repo `corpus.tsv`
+  refspec column when picking rows (refspec is for cross-repo cochange,
+  not semantic eval).
+
 - **`sigil semantic <query> --m2v` (Spike 2 of the semantic-search
   workstream).** Static-embedding retrieval via Model2Vec
   (`potion-code-16M`, 256-dim, no transformer forward pass — embedding

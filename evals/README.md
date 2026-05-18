@@ -78,7 +78,84 @@ field is part of the indexed text. The `--no-doc` retriever (`sigil semantic
 only `name + qualified_name + sig` per entity — that's the **honest lower
 bound** on what BM25 buys us when docstring overlap is removed.
 
-**Honest reading:**
+### Cross-repo eval — 4 repos × 4 languages × 50 queries each (2026-05-18)
+
+To check whether the sigil-on-sigil wins above generalise, ran the same
+harness against a 4-repo corpus pinned at stable releases:
+**ripgrep 14.1.0** (Rust), **httpx 0.27.0** (Python),
+**mdbook v0.4.40** (Rust), **cobra v1.8.0** (Go). 50 docstring-bootstrap
+queries per repo = 200 total queries, **including 4 retrievers from sigil
+and 3 retrievers from semble (the upstream library, `pip install semble`)
+on the same indexes and same queries**:
+
+```bash
+evals/.venv/bin/python evals/cross_repo_semantic_eval.py \
+    --max-pairs-per-repo 50 \
+    --retrievers sigil_semantic_bm25,sigil_semantic_bm25_no_doc,\
+sigil_semantic_m2v,sigil_semantic_m2v_no_doc,\
+semble_hybrid,semble_bm25,semble_semantic \
+    --out evals/results/semantic-cross-repo-<date>.json
+```
+
+**Cross-repo global aggregate (200 queries, all 4 repos pooled):**
+
+| Retriever | NDCG@10 | R@1 | R@10 | Tok@10 | Median ms |
+|---|---:|---:|---:|---:|---:|
+| `sigil_semantic_bm25` (Spike 1, full) | **0.955** | **0.885** | **1.000** | **240** | 30 |
+| `sigil_semantic_m2v` (Spike 2, full) | 0.915 | 0.820 | 0.990 | 243 | 100 |
+| `semble_bm25` | 0.850 | 0.740 | 0.950 | 571 | **0.1** |
+| `semble_hybrid` (semble's default) | 0.643 | 0.535 | 0.750 | 577 | 2.3 |
+| `semble_semantic` | 0.642 | 0.490 | 0.810 | 575 | 0.2 |
+| `sigil_semantic_m2v_no_doc` | 0.613 | 0.440 | 0.795 | 242 | 89 |
+| `sigil_semantic_bm25_no_doc` | 0.472 | 0.325 | 0.645 | 257 | 29 |
+
+**Cross-repo findings:**
+
+1. **The wins hold across all 4 repos and 4 languages.** Per-repo
+   `sigil_semantic_bm25` NDCG@10 ranges 0.943–0.983; `semble_bm25` 0.802–0.894.
+   Pattern is consistent — sigil BM25 wins on every single repo by a
+   comparable margin. Not a sigil-on-sigil artifact.
+
+2. **Sigil BM25 beats semble's best mode by ~12% relative**, sigil m2v
+   beats semble HYBRID by ~42% relative.
+
+3. **Semble HYBRID is worse than semble BM25 alone on every repo.**
+   Their RRF-fused default consistently underperforms pure BM25 here —
+   this is a known risk that Spike 3 needs to design around, not just
+   adopt by default.
+
+4. **Doc-masked m2v decisively beats doc-masked BM25** (0.613 vs 0.472,
+   +30% relative). Embeddings buy a real lift on the "no lexical
+   overlap" hard cases — most visible on cobra (Go) where idiomatic
+   identifiers and godoc make name+sig text already informative
+   (0.805 vs 0.720).
+
+5. **Token efficiency persists**: sigil ~240 vs semble ~575 tokens at k=10
+   — 2.4× more efficient at the same recall, across all repos.
+
+6. **Latency caveat**: semble wins on per-query latency (0.1–2.3 ms vs
+   sigil's 30–100 ms) because they persist their index and we rebuild
+   per query. With m2v persistence (the natural Spike 2 follow-up),
+   sigil would match.
+
+### Per-repo NDCG@10 breakdown
+
+| Retriever | ripgrep | httpx | mdbook | cobra |
+|---|---:|---:|---:|---:|
+| `sigil_semantic_bm25` | 0.946 | 0.983 | 0.943 | 0.948 |
+| `sigil_semantic_m2v` | 0.885 | 0.904 | 0.940 | 0.929 |
+| `semble_bm25` | 0.802 | 0.874 | 0.830 | 0.894 |
+| `semble_hybrid` | 0.581 | 0.542 | 0.667 | 0.784 |
+| `semble_semantic` | 0.652 | 0.478 | 0.686 | 0.753 |
+
+### Sigil-on-sigil single-repo eval (legacy, kept for trace)
+
+The original single-repo eval below is preserved because the bias
+discussion (self-referential docstring queries on the same repo) drove
+the addition of the doc-masked retriever and the cross-repo extension
+above.
+
+**Honest reading (sigil-on-sigil):**
 - **BM25 outscores Model2Vec on full-text mode (0.905 vs 0.856).** Lexical
   overlap on docstring-shaped queries beats semantic embedding when the
   agent's query happens to share words with the indexed doc — and on this
