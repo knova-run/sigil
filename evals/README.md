@@ -102,7 +102,7 @@ semble_hybrid,semble_bm25,semble_semantic \
 | Retriever | NDCG@10 | R@1 | R@10 | Tok@10 | Median ms |
 |---|---:|---:|---:|---:|---:|
 | `sigil_semantic_bm25` (Spike 1, full) | **0.955** | **0.885** | **1.000** | **240** | 30 |
-| `sigil_semantic_m2v` (Spike 2, full) | 0.915 | 0.820 | 0.990 | 243 | 100 |
+| `sigil_semantic_m2v` (Spike 2, full, persisted) | 0.915 | 0.820 | 0.990 | 243 | 60 |
 | `semble_bm25` | 0.850 | 0.740 | 0.950 | 571 | **0.1** |
 | `semble_hybrid` (semble's default) | 0.643 | 0.535 | 0.750 | 577 | 2.3 |
 | `semble_semantic` | 0.642 | 0.490 | 0.810 | 575 | 0.2 |
@@ -134,9 +134,14 @@ semble_hybrid,semble_bm25,semble_semantic \
    — 2.4× more efficient at the same recall, across all repos.
 
 6. **Latency caveat**: semble wins on per-query latency (0.1–2.3 ms vs
-   sigil's 30–100 ms) because they persist their index and we rebuild
-   per query. With m2v persistence (the natural Spike 2 follow-up),
-   sigil would match.
+   sigil's 30–60 ms). The remaining gap is dominated by CLI startup +
+   model load on a fresh process; semble runs in a long-lived process
+   (MCP server / Python REPL) and amortises both. For agentic CLI use,
+   60 ms is unnoticeable; if sigil exposes a long-lived MCP retriever
+   later, the gap closes further. After persistence (this commit),
+   first-query latency is ~2 s on sigil-on-sigil (full corpus encode);
+   subsequent queries load `.sigil/embeddings.bin` and only encode the
+   query (~µs) before scoring.
 
 ### Per-repo NDCG@10 breakdown
 

@@ -10,10 +10,13 @@
 use crate::entity::Entity;
 use crate::semantic::bm25::Index;
 use crate::semantic::m2v::{cosine_sim, default_model_dir, Model2Vec};
+use crate::semantic::m2v_index::{entity_key, sigil_dir, M2vIndex};
 use anyhow::{anyhow, Context, Result};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
+
+const M2V_MODEL_NAME: &str = "potion-code-16M";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Retriever {
@@ -71,7 +74,7 @@ pub fn run(root: &Path, opts: SemanticOptions) -> Result<()> {
                 .map(|(id, score)| (id.parse::<usize>().unwrap(), score))
                 .collect()
         }
-        Retriever::M2v => rank_by_m2v(&entities, &opts.query, opts.limit, opts.include_doc)?,
+        Retriever::M2v => rank_by_m2v(root, &entities, &opts.query, opts.limit, opts.include_doc)?,
     };
 
     let rows: Vec<serde_json::Value> = hits
@@ -160,6 +163,7 @@ fn round3(x: f32) -> f32 {
 }
 
 fn rank_by_m2v(
+    root: &Path,
     entities: &[Entity],
     query: &str,
     k: usize,
@@ -180,17 +184,53 @@ fn rank_by_m2v(
     let model = Model2Vec::from_dir(&dir).context("load potion-code-16M")?;
     let query_vec = model.encode(query);
 
-    // Score every entity. Embeddings are L2-normalized so cosine == dot.
-    let mut scores: Vec<(usize, f32)> = Vec::with_capacity(entities.len());
-    for (i, e) in entities.iter().enumerate() {
-        let v = model.encode(&entity_text(e, include_doc));
-        scores.push((i, cosine_sim(&query_vec, &v)));
+    // --no-doc stays on the in-memory (uncached) path — it's a
+    // measurement-time flag, not a production retriever shape. Production
+    // m2v always uses the persisted full-text index.
+    if !include_doc {
+        let mut scores: Vec<(usize, f32)> = Vec::with_capacity(entities.len());
+        for (i, e) in entities.iter().enumerate() {
+            let v = model.encode(&entity_text(e, false));
+            scores.push((i, cosine_sim(&query_vec, &v)));
+        }
+        scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        scores.truncate(k);
+        return Ok(scores);
     }
-    scores.sort_by(|a, b| {
-        b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal)
-    });
-    scores.truncate(k);
-    Ok(scores)
+
+    // Production path: persist embeddings under .sigil/ keyed by the
+    // current entity set. First query is slow (encode all entities);
+    // subsequent queries load from disk and only encode the query.
+    let expected_keys: Vec<String> = entities
+        .iter()
+        .map(|e| entity_key(&e.file, e.line_start, &e.name))
+        .collect();
+    let sigil_d = sigil_dir(root);
+    let needs_rebuild = match M2vIndex::load_from(&sigil_d)? {
+        Some(idx) if !idx.is_stale_for(&expected_keys, M2V_MODEL_NAME, model.dim()) => {
+            return Ok(idx.search(&query_vec, k));
+        }
+        _ => true,
+    };
+    if needs_rebuild {
+        let dim = model.dim();
+        let mut vectors: Vec<f32> = Vec::with_capacity(entities.len() * dim);
+        for e in entities {
+            let v = model.encode(&entity_text(e, true));
+            vectors.extend_from_slice(&v);
+        }
+        let built = M2vIndex::new(
+            M2V_MODEL_NAME.to_string(),
+            dim,
+            expected_keys,
+            vectors,
+        );
+        built
+            .write_to(&sigil_d)
+            .with_context(|| format!("persist embeddings under {}", sigil_d.display()))?;
+        return Ok(built.search(&query_vec, k));
+    }
+    unreachable!()
 }
 
 fn print_text(rows: &[serde_json::Value]) {

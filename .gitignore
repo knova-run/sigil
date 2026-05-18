@@ -29,6 +29,12 @@ skills/sigil-workspace/
 .sigil/index.duckdb
 .sigil/index.duckdb.stamp
 .sigil/index.duckdb.wal
+# Static-embedding cache. Large (~3.5 MB on sigil-on-sigil; scales with
+# entity count × 256 dim × 4 bytes) and trivially regenerable from
+# .sigil/entities.jsonl + the model — committing would just create
+# merge noise.
+.sigil/embeddings.bin
+.sigil/embeddings.meta.json
 .claude/
 tests/fixtures/*/.sigil/
 

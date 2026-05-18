@@ -215,3 +215,69 @@ fn semantic_m2v_emits_score_field() {
     assert!(score > 0.0, "expected positive cosine sim, got {score}");
     assert!(score <= 1.0001, "cosine sim bounded at 1.0, got {score}");
 }
+
+#[test]
+fn semantic_m2v_persists_embeddings_to_disk() {
+    if !potion_model_present() {
+        eprintln!("skip: potion-code-16M not present");
+        return;
+    }
+    let dir = stage_fixture();
+    index(&dir);
+
+    let emb = dir.join(".sigil").join("embeddings.bin");
+    let meta = dir.join(".sigil").join("embeddings.meta.json");
+    assert!(!emb.exists(), "fresh workspace should have no embeddings.bin");
+    assert!(!meta.exists(), "fresh workspace should have no embeddings.meta.json");
+
+    // First m2v query: builds + persists.
+    let hits = semantic_with_flags(&dir, "parse json", 3, &["--m2v"]);
+    assert!(!hits.is_empty(), "expected hits on first m2v query");
+    assert!(emb.exists(), "first m2v query should persist embeddings.bin");
+    assert!(meta.exists(), "first m2v query should persist embeddings.meta.json");
+
+    let emb_mtime_first = std::fs::metadata(&emb).unwrap().modified().unwrap();
+
+    // Sleep briefly so any rebuild's mtime is distinguishable.
+    std::thread::sleep(std::time::Duration::from_millis(20));
+
+    // Second m2v query: should NOT rebuild (entity_keys unchanged).
+    let _ = semantic_with_flags(&dir, "compile rust", 3, &["--m2v"]);
+    let emb_mtime_second = std::fs::metadata(&emb).unwrap().modified().unwrap();
+    assert_eq!(
+        emb_mtime_first, emb_mtime_second,
+        "second query with same entities should reuse persisted embeddings (no rebuild)"
+    );
+}
+
+#[test]
+fn semantic_m2v_rebuilds_when_entities_change() {
+    if !potion_model_present() {
+        eprintln!("skip: potion-code-16M not present");
+        return;
+    }
+    let dir = stage_fixture();
+    index(&dir);
+
+    // First query builds embeddings.
+    let _ = semantic_with_flags(&dir, "parse json", 3, &["--m2v"]);
+    let emb = dir.join(".sigil").join("embeddings.bin");
+    let mtime1 = std::fs::metadata(&emb).unwrap().modified().unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(20));
+
+    // Add a new source file → re-index → entity_keys change → m2v
+    // should rebuild on next query.
+    std::fs::write(
+        dir.join("new.rs"),
+        "/// Convert a date to an ISO-8601 string.\npub fn format_date(_d: u64) -> String { String::new() }\n",
+    )
+    .unwrap();
+    index(&dir);
+    let _ = semantic_with_flags(&dir, "format date", 3, &["--m2v"]);
+
+    let mtime2 = std::fs::metadata(&emb).unwrap().modified().unwrap();
+    assert!(
+        mtime2 > mtime1,
+        "embeddings.bin should have been rewritten after entity set changed"
+    );
+}

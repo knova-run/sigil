@@ -67,14 +67,19 @@ src/
                      for the embedding matrix, mean-pool + L2-normalize.
                      Model resolves from `$XDG_CACHE_HOME/sigil/models/
                      potion-code-16M/` (manual download for now).
+                     `m2v_index.rs` persisted corpus-embedding index at
+                     `.sigil/embeddings.{bin,meta.json}` — flat f32 LE
+                     row-major matrix + JSON meta (schema_version, model,
+                     dim, entity_keys). Staleness detection via
+                     entity_keys mismatch triggers rebuild.
                      `cmd.rs` CLI handler — loads `.sigil/entities.jsonl`,
                      indexes `name + qualified_name + sig + doc` per
                      source-code entity, ranks via the selected retriever,
                      emits JSON with `score`. `--no-doc` excludes the doc
-                     field (used for unbiased eval). BM25 index is built
-                     per-query (~50 ms on sigil); m2v re-encodes the
-                     corpus per query (~200 ms). Persistence for m2v is a
-                     follow-up if measurements justify keeping it.
+                     field (used for unbiased eval; stays on the in-memory
+                     uncached path). BM25 builds per-query (~30 ms on
+                     sigil); m2v first-query builds + persists (~2 s),
+                     subsequent queries load the cached matrix (~60 ms).
 
   # Phase 1 — rank, blast radius, agent commands
   rank.rs          — File-level PageRank + per-entity blast-radius BFS.

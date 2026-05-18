@@ -40,14 +40,18 @@ All notable changes to sigil are documented here. Format follows
   `$XDG_CACHE_HOME/sigil/models/potion-code-16M/` on Linux,
   `~/Library/Caches/sigil/models/potion-code-16M/` on macOS; manual
   download for now via the URL printed in the error message (a
-  `sigil semantic download-model` command is on the roadmap). On
+  `sigil semantic download-model` command is on the roadmap).
+  Embeddings are persisted at `.sigil/embeddings.{bin,meta.json}` keyed
+  by entity_keys + model + dim — first query encodes the corpus and
+  writes to disk (~2 s for sigil's 3500-entity index, ~3.5 MB on
+  disk); subsequent queries memory-map the matrix and only encode the
+  query (~60 ms median). Staleness detection rebuilds when entities,
+  model, or dim change. Embedding files are gitignored. On
   sigil-on-sigil eval, m2v scores 0.856 full-text and 0.404 doc-masked
   — beats BM25 on doc-masked (+8.6% relative) and catches ~10 extra
   long-tail queries where names/sigs share no tokens with the prose
   query, but trails BM25 on full-text (lexical overlap wins when
-  queries share docstring vocabulary). Currently re-encodes the corpus
-  per query (~200 ms on sigil itself); a persisted embedding index is
-  the natural follow-up if we keep m2v in the shipping retriever set.
+  queries share docstring vocabulary).
 
 ## [0.6.2] — 2026-05-14 — CI speedup, contract detection expansion, workspace resolve polish
 
