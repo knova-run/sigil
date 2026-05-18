@@ -67,6 +67,12 @@ src/
                      for the embedding matrix, mean-pool + L2-normalize.
                      Model resolves from `$XDG_CACHE_HOME/sigil/models/
                      potion-code-16M/` (manual download for now).
+                     `rrf.rs` Spike-3 Reciprocal Rank Fusion across multiple
+                     ranked lists. `k_constant = 60` (Cormack 2009). Exposed
+                     via `sigil semantic --fuse`. Empirically *hurts* vs
+                     BM25 alone on the cross-repo eval (0.942 vs 0.951);
+                     kept available for selective-fusion / weighted-RRF
+                     follow-ups.
                      `rerank.rs` Spike-4 code-aware rerank signals over a
                      retrieval candidate set. Multiplicative boosts/penalties
                      reuse sigil primitives: `is_test_path`, vendored /

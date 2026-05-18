@@ -261,6 +261,14 @@ enum Cli {
         /// ones below them.
         #[arg(long)]
         rerank: bool,
+        /// Reciprocal Rank Fusion of BM25 + Model2Vec. Runs both
+        /// retrievers internally and combines their ranked lists via
+        /// RRF (k_constant=60, Cormack 2009 default). Independent of
+        /// --m2v: `--fuse` always uses both. Requires the m2v model
+        /// to be available. Combine with `--rerank` to apply Spike-4
+        /// signals after fusion.
+        #[arg(long)]
+        fuse: bool,
     },
     /// List all symbols in a file
     Symbols {
@@ -1455,18 +1463,21 @@ fn main() {
                 }
             }
         }
-        Cli::Semantic { query, root, limit, json, pretty, no_doc, m2v, rerank } => {
+        Cli::Semantic { query, root, limit, json, pretty, no_doc, m2v, rerank, fuse } => {
+            let retriever = if fuse {
+                sigil::semantic::cmd::Retriever::Fuse
+            } else if m2v {
+                sigil::semantic::cmd::Retriever::M2v
+            } else {
+                sigil::semantic::cmd::Retriever::Bm25
+            };
             let opts = sigil::semantic::cmd::SemanticOptions {
                 query,
                 limit: limit as usize,
                 json,
                 pretty,
                 include_doc: !no_doc,
-                retriever: if m2v {
-                    sigil::semantic::cmd::Retriever::M2v
-                } else {
-                    sigil::semantic::cmd::Retriever::Bm25
-                },
+                retriever,
                 rerank,
             };
             if let Err(e) = sigil::semantic::cmd::run(&root, opts) {

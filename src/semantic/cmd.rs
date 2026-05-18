@@ -144,6 +144,8 @@ pub fn refresh_embeddings(
 pub enum Retriever {
     Bm25,
     M2v,
+    /// Reciprocal Rank Fusion of BM25 + Model2Vec.
+    Fuse,
 }
 
 const SEARCHABLE_KINDS: &[&str] = &[
@@ -193,19 +195,21 @@ pub fn run(root: &Path, opts: SemanticOptions) -> Result<()> {
         opts.limit
     };
     let raw_hits: Vec<(usize, f32)> = match opts.retriever {
-        Retriever::Bm25 => {
-            let docs: Vec<(String, String)> = entities
-                .iter()
-                .enumerate()
-                .map(|(i, e)| (i.to_string(), entity_text(e, opts.include_doc)))
-                .collect();
-            let idx = Index::build(docs);
-            idx.search(&opts.query, candidates_k)
-                .into_iter()
-                .map(|(id, score)| (id.parse::<usize>().unwrap(), score))
-                .collect()
-        }
+        Retriever::Bm25 => rank_by_bm25(&entities, &opts.query, candidates_k, opts.include_doc),
         Retriever::M2v => rank_by_m2v(root, &entities, &opts.query, candidates_k, opts.include_doc)?,
+        Retriever::Fuse => {
+            // RRF fuses each retriever's full candidate-K list. Pull
+            // a wider net from each side than we'd give back to the
+            // user, so RRF has more positional information to work
+            // with — semble does the same.
+            let bm25_hits = rank_by_bm25(&entities, &opts.query, candidates_k, opts.include_doc);
+            let m2v_hits = rank_by_m2v(root, &entities, &opts.query, candidates_k, opts.include_doc)?;
+            crate::semantic::rrf::rrf_fuse(
+                &[bm25_hits, m2v_hits],
+                crate::semantic::rrf::DEFAULT_K_CONSTANT,
+                candidates_k,
+            )
+        }
     };
     let hits = if opts.rerank {
         let cfg = crate::semantic::rerank::RerankConfig::default();
@@ -297,6 +301,24 @@ fn entity_text(e: &Entity, include_doc: bool) -> String {
 
 fn round3(x: f32) -> f32 {
     (x * 1000.0).round() / 1000.0
+}
+
+fn rank_by_bm25(
+    entities: &[Entity],
+    query: &str,
+    k: usize,
+    include_doc: bool,
+) -> Vec<(usize, f32)> {
+    let docs: Vec<(String, String)> = entities
+        .iter()
+        .enumerate()
+        .map(|(i, e)| (i.to_string(), entity_text(e, include_doc)))
+        .collect();
+    Index::build(docs)
+        .search(query, k)
+        .into_iter()
+        .map(|(id, score)| (id.parse::<usize>().unwrap(), score))
+        .collect()
 }
 
 fn rank_by_m2v(

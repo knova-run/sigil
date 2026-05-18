@@ -268,6 +268,19 @@ def retriever_sigil_semantic_m2v_rerank(query: str, root: Path, k: int) -> List[
     return _sigil_semantic(query, root, k, ["--m2v", "--rerank"])
 
 
+# Spike 3: RRF fusion of BM25 + Model2Vec (k_constant=60). Runs both
+# retrievers internally and combines via positional fusion.
+@register("sigil_semantic_fuse")
+def retriever_sigil_semantic_fuse(query: str, root: Path, k: int) -> List[Hit]:
+    return _sigil_semantic(query, root, k, ["--fuse"])
+
+
+# Spike 3 + Spike 4: fuse first, then code-aware rerank the fused list.
+@register("sigil_semantic_fuse_rerank")
+def retriever_sigil_semantic_fuse_rerank(query: str, root: Path, k: int) -> List[Hit]:
+    return _sigil_semantic(query, root, k, ["--fuse", "--rerank"])
+
+
 # --- semble baseline: import the upstream library directly. Indexes the
 # `--root` repo once per process (we cache the SembleIndex globally so
 # 200 queries don't pay the indexing cost 200 times) and runs in three

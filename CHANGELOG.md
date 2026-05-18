@@ -23,6 +23,38 @@ All notable changes to sigil are documented here. Format follows
   with doc indexed and 0.370 doc-masked. Median latency ~50 ms per
   query.
 
+- **`sigil semantic <query> --fuse` (Spike 3 of the semantic-search
+  workstream).** Reciprocal Rank Fusion of BM25 + Model2Vec, using
+  the Cormack 2009 default `k_constant = 60`. Runs both retrievers
+  internally and combines their ranked lists by positional fusion
+  (raw scores discarded; only ranks matter). Available behind the
+  `--fuse` flag; can be combined with `--rerank` for fusion → Spike-4
+  signals.
+
+  **Empirically the wrong default on this corpus.** Cross-repo eval
+  (200 queries, 4 repos):
+
+  ```
+  retriever                    NDCG@10    R@1     vs BM25 baseline
+  sigil_semantic_bm25_rerank     0.959  0.895    +0.8%   ← winner
+  sigil_semantic_bm25            0.951  0.875    (baseline)
+  sigil_semantic_fuse_rerank     0.946  0.875    -0.5%
+  sigil_semantic_fuse            0.942  0.860    -0.9%
+  ```
+
+  Fusion *hurts* by ~0.9% relative NDCG@10 vs pure BM25. Same
+  pattern that semble's HYBRID showed against its BM25 mode (0.643
+  vs 0.850 in our reproduction). Confirms a real anti-pattern: when
+  BM25 already achieves 0.99 R@10, m2v's positional contributions
+  drag the fused ranking instead of lifting it — m2v catches very
+  few hits BM25 misses, but adds noise to the ones it does catch.
+
+  Kept the flag exposed because (a) Spike 3 produced rigorous data
+  that's worth preserving as a reproducible artifact, (b) selective
+  fusion (only on hard queries) or weighted RRF (BM25 weighted
+  higher) are worth measuring as v0.7+ follow-ups, (c) on doc-masked
+  / cross-repo / long-tail evals the picture might shift.
+
 - **`sigil semantic <query> --rerank` (Spike 4 of the semantic-search
   workstream).** Code-aware rerank signals applied to the retrieval
   candidate set before truncation. Multiplicative boosts/penalties on
