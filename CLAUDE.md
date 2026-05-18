@@ -67,6 +67,15 @@ src/
                      for the embedding matrix, mean-pool + L2-normalize.
                      Model resolves from `$XDG_CACHE_HOME/sigil/models/
                      potion-code-16M/` (manual download for now).
+                     `rerank.rs` Spike-4 code-aware rerank signals over a
+                     retrieval candidate set. Multiplicative boosts/penalties
+                     reuse sigil primitives: `is_test_path`, vendored /
+                     generated path heuristic, `Entity.kind`, `Entity.rank`.
+                     Default weights tuned for ~+0.6% NDCG@10 lift on the
+                     200-query cross-repo eval at zero latency cost.
+                     `CANDIDATE_OVER_FETCH = 3` — retriever pulls 3×k
+                     candidates so penalties can drop bad hits without
+                     losing good ones.
                      `m2v_index.rs` persisted corpus-embedding index at
                      `.sigil/embeddings.{bin,meta.json}` — flat f32 LE
                      row-major matrix + JSON meta (schema v2:

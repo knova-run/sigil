@@ -253,6 +253,14 @@ enum Cli {
         /// potion-code-16M` on macOS).
         #[arg(long)]
         m2v: bool,
+        /// Apply code-aware rerank signals over the candidate set
+        /// before truncating to --limit: penalise test-file + vendored
+        /// hits, boost function/class/struct kinds + high-rank files.
+        /// Pulls 3x the requested candidates from the retriever so
+        /// penalty multipliers can drop bad hits without losing good
+        /// ones below them.
+        #[arg(long)]
+        rerank: bool,
     },
     /// List all symbols in a file
     Symbols {
@@ -1447,7 +1455,7 @@ fn main() {
                 }
             }
         }
-        Cli::Semantic { query, root, limit, json, pretty, no_doc, m2v } => {
+        Cli::Semantic { query, root, limit, json, pretty, no_doc, m2v, rerank } => {
             let opts = sigil::semantic::cmd::SemanticOptions {
                 query,
                 limit: limit as usize,
@@ -1459,6 +1467,7 @@ fn main() {
                 } else {
                     sigil::semantic::cmd::Retriever::Bm25
                 },
+                rerank,
             };
             if let Err(e) = sigil::semantic::cmd::run(&root, opts) {
                 eprintln!("error: {e}");

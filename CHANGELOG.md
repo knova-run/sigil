@@ -23,6 +23,24 @@ All notable changes to sigil are documented here. Format follows
   with doc indexed and 0.370 doc-masked. Median latency ~50 ms per
   query.
 
+- **`sigil semantic <query> --rerank` (Spike 4 of the semantic-search
+  workstream).** Code-aware rerank signals applied to the retrieval
+  candidate set before truncation. Multiplicative boosts/penalties on
+  raw retriever scores: test-file penalty (0.45×), vendored / generated
+  / build-output penalty (0.30×), definition-kind boost (1.20× for
+  function/method/class/struct/impl/enum/interface/trait),
+  non-definition penalty (0.85× for import/variable/constant/external),
+  and file PageRank boost (up to +30% for max-rank files). Pulls 3×
+  the requested candidates from the upstream retriever so penalties
+  can demote bad hits without losing good ones below them. All signals
+  reuse existing sigil primitives (`is_test_path`, `Entity.kind`,
+  `Entity.rank`) — no new deps. Cross-repo aggregate (200 queries):
+  BM25 0.952 → 0.958 (+0.6% relative); m2v 0.915 → 0.918 (+0.3%
+  relative). Latency-free (32 ms unchanged). The win is concentrated
+  in specific failure modes (test docstrings out-matching source,
+  vendored hits surfacing) rather than broad lift — exactly the
+  edge cases agents complain about.
+
 - **Cross-repo semantic-eval harness (`evals/cross_repo_semantic_eval.py`).**
   Extends the sigil-on-sigil harness to a 4-repo corpus (ripgrep 14.1.0
   / httpx 0.27.0 / mdbook v0.4.40 / cobra v1.8.0; Rust + Python + Rust +

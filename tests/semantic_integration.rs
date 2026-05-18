@@ -198,6 +198,56 @@ fn semantic_m2v_ranks_topical_match_first() {
 }
 
 #[test]
+fn semantic_rerank_promotes_source_function_over_test_file() {
+    // Drop a tests/ fixture that lexically matches the query stronger
+    // than the production function. Without --rerank the test file
+    // wins; with --rerank the source function should win.
+    let dir = stage_fixture();
+    let tests_dir = dir.join("tests");
+    std::fs::create_dir_all(&tests_dir).unwrap();
+    std::fs::write(
+        tests_dir.join("json_test.rs"),
+        // Verbose docstring stuffed with "parse json file" keywords so
+        // BM25 ranks it high.
+        "/// Parse json file: parse a json file and return value parse json file parse.\n\
+         /// Parse json file parse json file parse json file parse json file.\n\
+         pub fn test_parse_json_file() {}\n",
+    )
+    .unwrap();
+    index(&dir);
+
+    let no_rerank = semantic_with_flags(&dir, "parse json file", 3, &[]);
+    // With BM25's lexical match favouring the keyword-stuffed test
+    // file, it usually ranks first without rerank.
+    let test_first_no_rerank = no_rerank
+        .first()
+        .and_then(|h| h.get("file"))
+        .and_then(|v| v.as_str())
+        .map(|s| s.contains("tests/"))
+        .unwrap_or(false);
+
+    let with_rerank = semantic_with_flags(&dir, "parse json file", 3, &["--rerank"]);
+    let top_file_with_rerank = with_rerank
+        .first()
+        .and_then(|h| h.get("file"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+
+    if test_first_no_rerank {
+        assert!(
+            !top_file_with_rerank.contains("tests/"),
+            "rerank should demote test file below source; top file without rerank was tests/*, \
+             with rerank: {top_file_with_rerank}"
+        );
+    }
+    // Either way, the top hit with --rerank should not be in tests/.
+    assert!(
+        !top_file_with_rerank.contains("tests/"),
+        "with --rerank the top hit should not be a test file; got: {top_file_with_rerank}"
+    );
+}
+
+#[test]
 fn semantic_m2v_emits_score_field() {
     if !potion_model_present() {
         eprintln!("skip: potion-code-16M not present");

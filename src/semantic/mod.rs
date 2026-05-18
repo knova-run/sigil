@@ -8,4 +8,5 @@ pub mod bm25;
 pub mod cmd;
 pub mod m2v;
 pub mod m2v_index;
+pub mod rerank;
 pub mod tokenize;

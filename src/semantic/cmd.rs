@@ -170,6 +170,8 @@ pub struct SemanticOptions {
     /// against `name + qualified_name + sig` only.
     pub include_doc: bool,
     pub retriever: Retriever,
+    /// Apply Spike-4 rerank signals (test-file / vendored / kind / rank).
+    pub rerank: bool,
 }
 
 pub fn run(root: &Path, opts: SemanticOptions) -> Result<()> {
@@ -183,7 +185,14 @@ pub fn run(root: &Path, opts: SemanticOptions) -> Result<()> {
         return Ok(());
     }
 
-    let hits: Vec<(usize, f32)> = match opts.retriever {
+    // When rerank is active, over-fetch candidates so the rerank
+    // multipliers can demote bad hits without losing good ones.
+    let candidates_k = if opts.rerank {
+        opts.limit * crate::semantic::rerank::CANDIDATE_OVER_FETCH
+    } else {
+        opts.limit
+    };
+    let raw_hits: Vec<(usize, f32)> = match opts.retriever {
         Retriever::Bm25 => {
             let docs: Vec<(String, String)> = entities
                 .iter()
@@ -191,12 +200,18 @@ pub fn run(root: &Path, opts: SemanticOptions) -> Result<()> {
                 .map(|(i, e)| (i.to_string(), entity_text(e, opts.include_doc)))
                 .collect();
             let idx = Index::build(docs);
-            idx.search(&opts.query, opts.limit)
+            idx.search(&opts.query, candidates_k)
                 .into_iter()
                 .map(|(id, score)| (id.parse::<usize>().unwrap(), score))
                 .collect()
         }
-        Retriever::M2v => rank_by_m2v(root, &entities, &opts.query, opts.limit, opts.include_doc)?,
+        Retriever::M2v => rank_by_m2v(root, &entities, &opts.query, candidates_k, opts.include_doc)?,
+    };
+    let hits = if opts.rerank {
+        let cfg = crate::semantic::rerank::RerankConfig::default();
+        crate::semantic::rerank::rerank(&entities, raw_hits, &cfg, opts.limit)
+    } else {
+        raw_hits
     };
 
     let rows: Vec<serde_json::Value> = hits

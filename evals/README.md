@@ -101,8 +101,10 @@ semble_hybrid,semble_bm25,semble_semantic \
 
 | Retriever | NDCG@10 | R@1 | R@10 | Tok@10 | Median ms |
 |---|---:|---:|---:|---:|---:|
-| `sigil_semantic_bm25` (Spike 1, full) | **0.955** | **0.885** | **1.000** | **240** | 30 |
-| `sigil_semantic_m2v` (Spike 2, full, persisted) | 0.915 | 0.820 | 0.990 | 243 | 60 |
+| `sigil_semantic_bm25` (Spike 1, full) | 0.952 | 0.880 | **1.000** | 240 | 32 |
+| `sigil_semantic_bm25_rerank` (Spike 1+4) | **0.958** | **0.890** | **1.000** | 243 | 32 |
+| `sigil_semantic_m2v` (Spike 2, full, persisted) | 0.915 | 0.820 | 0.990 | 243 | 65 |
+| `sigil_semantic_m2v_rerank` (Spike 2+4) | 0.918 | 0.830 | 0.990 | 240 | 64 |
 | `semble_bm25` | 0.850 | 0.740 | 0.950 | 571 | **0.1** |
 | `semble_hybrid` (semble's default) | 0.643 | 0.535 | 0.750 | 577 | 2.3 |
 | `semble_semantic` | 0.642 | 0.490 | 0.810 | 575 | 0.2 |

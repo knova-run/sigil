@@ -254,6 +254,20 @@ def retriever_sigil_semantic_m2v_no_doc(query: str, root: Path, k: int) -> List[
     return _sigil_semantic(query, root, k, ["--m2v", "--no-doc"])
 
 
+# Spike 4: BM25 + code-aware rerank signals (test-file / vendored /
+# definition-kind / file-rank). Pulls 3*k candidates from BM25 and
+# reranks before truncating.
+@register("sigil_semantic_bm25_rerank")
+def retriever_sigil_semantic_bm25_rerank(query: str, root: Path, k: int) -> List[Hit]:
+    return _sigil_semantic(query, root, k, ["--rerank"])
+
+
+# Spike 4 + Model2Vec: same rerank signals over the m2v candidate set.
+@register("sigil_semantic_m2v_rerank")
+def retriever_sigil_semantic_m2v_rerank(query: str, root: Path, k: int) -> List[Hit]:
+    return _sigil_semantic(query, root, k, ["--m2v", "--rerank"])
+
+
 # --- semble baseline: import the upstream library directly. Indexes the
 # `--root` repo once per process (we cache the SembleIndex globally so
 # 200 queries don't pay the indexing cost 200 times) and runs in three
