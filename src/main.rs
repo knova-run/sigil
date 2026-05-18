@@ -37,6 +37,7 @@ sigil groups commands into two tiers:
     duplicates    Clone report across the codebase
     cochange      Git-history file-pair co-change miner
     identifiers   Symbol-shaped tokens lifted from arbitrary text
+    semantic      BM25 / Model2Vec retrieval over the entity index (natural-language queries)
     decisions     `WHY:` / `DECISION:` / `RATIONALE:` / `TRADEOFF:` / `ADR:` / `REJECTED:` markers
     package-deps  Dependency edges from manifest files (go.mod, package.json)
     contracts     HTTP routes, gRPC services, queue topics
@@ -218,6 +219,25 @@ enum Cli {
         #[arg(long)]
         pretty: bool,
     },
+    /// Download / refresh the `potion-code-16M` static-embedding model
+    /// to the cache dir used by `sigil semantic --m2v`. Idempotent:
+    /// files already on disk are skipped unless `--force` is set.
+    /// Streams the body with progress on stderr; no SHA pinning yet.
+    SemanticDownloadModel {
+        /// Force re-download even when cached files exist
+        #[arg(long)]
+        force: bool,
+        /// Override the upstream base URL (test seam — production
+        /// defaults to the HuggingFace `resolve/main/` URL).
+        #[arg(long, hide = true)]
+        base_url: Option<String>,
+        /// Override the destination directory (test seam).
+        #[arg(long, hide = true)]
+        dest: Option<PathBuf>,
+        /// Print streaming progress to stderr
+        #[arg(short, long, default_value = "true")]
+        verbose: bool,
+    },
     /// BM25 semantic search over the entity index. Ranks symbols by
     /// relevance to a natural-language query. Where `sigil search` does
     /// exact substring lookup against symbol names, `sigil semantic`
@@ -246,11 +266,11 @@ enum Cli {
         #[arg(long)]
         no_doc: bool,
         /// Use Model2Vec static-embedding retrieval (potion-code-16M)
-        /// instead of BM25. Embeds each entity's `name + sig + doc`
-        /// (or `name + sig` if --no-doc) and ranks by cosine similarity
-        /// to the query embedding. Requires the model downloaded to
-        /// the resolved cache dir (`~/Library/Caches/sigil/models/
-        /// potion-code-16M` on macOS).
+        /// instead of BM25. Embeds each entity's `name + qualified_name +
+        /// sig + doc` (or `name + qualified_name + sig` if --no-doc) and
+        /// ranks by cosine similarity to the query embedding. Requires
+        /// the model — run `sigil semantic-download-model` first
+        /// (`~/Library/Caches/sigil/models/potion-code-16M` on macOS).
         #[arg(long)]
         m2v: bool,
         /// Apply code-aware rerank signals over the candidate set
@@ -1461,6 +1481,12 @@ fn main() {
                         sugg.join(", ")
                     );
                 }
+            }
+        }
+        Cli::SemanticDownloadModel { force, base_url, dest, verbose } => {
+            if let Err(e) = sigil::semantic::download::run(dest, base_url, force, verbose) {
+                eprintln!("error: {e:#}");
+                std::process::exit(1);
             }
         }
         Cli::Semantic { query, root, limit, json, pretty, no_doc, m2v, rerank, fuse } => {

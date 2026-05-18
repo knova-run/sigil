@@ -8,6 +8,19 @@ All notable changes to sigil are documented here. Format follows
 
 ### Added
 
+- **`sigil semantic-download-model`.** Downloads the three files of the
+  `potion-code-16M` static-embedding model
+  (`config.json`/`tokenizer.json`/`model.safetensors`) from the
+  upstream HuggingFace repo to `$XDG_CACHE_HOME/sigil/models/
+  potion-code-16M/` (`~/Library/Caches/sigil/models/...` on macOS).
+  Idempotent — files already present are skipped unless `--force` is
+  set. Body streamed via `ureq` with stderr progress (200 ms throttle,
+  TTY `\r`-overwrite). Writes to `<file>.partial` and atomically
+  renames on success so a crash mid-download leaves the cache in a
+  known state. `--base-url` and `--dest` are hidden test seams.
+  Replaces the curl-it-yourself error message that earlier landed
+  with Spike 2; the error now points users at the new command.
+
 - **`sigil semantic <query>` (Spike 1 of the semantic-search workstream).**
   BM25 retrieval over the entity index ranks symbols by relevance to a
   natural-language query, complementing the substring-matching `sigil

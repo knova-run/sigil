@@ -2,10 +2,10 @@
 //!
 //! Loads `.sigil/entities.jsonl`, filters to source-code kinds (skipping
 //! markdown/JSON/external chunks), builds a BM25 index over
-//! `name + sig + doc` per entity, then ranks the corpus against the user's
-//! query. Output mirrors `sigil search`'s JSON shape with an added `score`
-//! field so downstream consumers (the eval harness, agent integrations) can
-//! reason about ranking confidence.
+//! `name + qualified_name + sig + doc` per entity, then ranks the corpus
+//! against the user's query. Output mirrors `sigil search`'s JSON shape
+//! with an added `score` field so downstream consumers (the eval harness,
+//! agent integrations) can reason about ranking confidence.
 
 use crate::entity::Entity;
 use crate::semantic::bm25::Index;
@@ -282,8 +282,9 @@ fn load_searchable_entities(root: &Path) -> Result<Vec<Entity>> {
 }
 
 fn entity_text(e: &Entity, include_doc: bool) -> String {
-    // `name + sig + doc` is the minimum-viable representation. Body text
-    // would require re-reading the source file — a Spike-1.1 follow-up.
+    // `name + qualified_name + sig + doc` is the minimum-viable
+    // representation. Body text would require re-reading the source
+    // file — a Spike-1.1 follow-up.
     let mut parts: Vec<&str> = vec![e.name.as_str()];
     if let Some(qn) = &e.qualified_name {
         parts.push(qn);
@@ -333,10 +334,8 @@ fn rank_by_m2v(
     })?;
     if !dir.join("tokenizer.json").exists() || !dir.join("model.safetensors").exists() {
         return Err(anyhow!(
-            "potion-code-16M not found at {}. Download it manually for now:\n  \
-             curl -sL https://huggingface.co/minishlab/potion-code-16M/resolve/main/{{config.json,tokenizer.json,model.safetensors}} -o '{}/#1'\n  \
-             (a `sigil semantic download-model` command is on the roadmap)",
-            dir.display(),
+            "potion-code-16M not found at {}. Install it with:\n  \
+             sigil semantic-download-model",
             dir.display(),
         ));
     }

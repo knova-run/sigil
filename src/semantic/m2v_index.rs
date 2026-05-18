@@ -5,17 +5,23 @@
 //! and persist the resulting vectors at:
 //!
 //!   `.sigil/embeddings.bin`       — flat little-endian f32 row-major matrix
-//!   `.sigil/embeddings.meta.json` — schema_version, model, dim, entity_keys
+//!   `.sigil/embeddings.meta.json` — schema v2:
+//!                                   { schema_version, model_name, dim,
+//!                                     n_entities, entries: [{key,
+//!                                     text_hash}, ...] }
 //!
 //! Subsequent queries skip the corpus encoding entirely: load the matrix
-//! (~30 MB for sigil-on-sigil), encode just the query (~µs), score by
-//! cosine similarity against every row (~ms). Per-query latency drops
-//! from ~100 ms (in-memory rebuild) to single-digit ms.
+//! (~3.5 MB for sigil-on-sigil — scales with `entity_count × 256 dim
+//! × 4 bytes`), encode just the query (~µs), score by cosine similarity
+//! against every row (~ms). Per-query latency drops from ~100 ms
+//! (in-memory rebuild) to single-digit ms.
 //!
-//! Staleness is detected by comparing the persisted `entity_keys` against
+//! Staleness is detected by comparing the persisted entry keys against
 //! the keys derived from the current `entities.jsonl`. A mismatch triggers
 //! a full rebuild. Mismatch can be caused by any of: re-indexing surfaced
-//! new entities, model changed, model dim changed.
+//! new entities, model changed, model dim changed. Within an unchanged
+//! key set, `build_incremental` further compares per-entry `text_hash`
+//! so individual unchanged entities skip re-encoding.
 
 use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};

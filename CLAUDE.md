@@ -67,6 +67,14 @@ src/
                      for the embedding matrix, mean-pool + L2-normalize.
                      Model resolves from `$XDG_CACHE_HOME/sigil/models/
                      potion-code-16M/` (manual download for now).
+                     `download.rs` `sigil semantic-download-model` —
+                     fetches potion-code-16M from HuggingFace into the
+                     cache dir via ureq. Streams bodies, writes
+                     `<file>.partial` then atomic-renames, idempotent
+                     skip when files already present unless --force.
+                     Test seam: `Fetcher` trait abstracts the HTTP
+                     boundary so unit tests use a `StubFetcher` with
+                     canned bytes (no network).
                      `rrf.rs` Spike-3 Reciprocal Rank Fusion across multiple
                      ranked lists. `k_constant = 60` (Cormack 2009). Exposed
                      via `sigil semantic --fuse`. Empirically *hurts* vs
