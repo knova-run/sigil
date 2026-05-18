@@ -166,3 +166,52 @@ fn semantic_no_doc_flag_still_matches_name_and_sig() {
     assert!(!hits.is_empty(), "name-shaped query should hit without doc");
     assert_eq!(top_name(&hits), "lookup_record");
 }
+
+// --- Spike 2: Model2Vec embedding retrieval (`--m2v`) -------------------
+//
+// Gated on potion-code-16M being present at the default model dir.
+
+fn potion_model_present() -> bool {
+    match sigil::semantic::m2v::default_model_dir() {
+        Some(d) => {
+            d.join("tokenizer.json").exists() && d.join("model.safetensors").exists()
+        }
+        None => false,
+    }
+}
+
+#[test]
+fn semantic_m2v_ranks_topical_match_first() {
+    if !potion_model_present() {
+        eprintln!("skip: potion-code-16M not present");
+        return;
+    }
+    let dir = stage_fixture();
+    index(&dir);
+
+    // Topical query that doesn't share rare identifier tokens with the
+    // gold entity's name. Lexical retrieval would struggle; embedding
+    // retrieval should find the JSON-parsing function from intent.
+    let hits = semantic_with_flags(&dir, "read a document from disk", 3, &["--m2v"]);
+    assert!(!hits.is_empty(), "m2v should produce hits");
+    assert_eq!(top_name(&hits), "parse_json_file");
+}
+
+#[test]
+fn semantic_m2v_emits_score_field() {
+    if !potion_model_present() {
+        eprintln!("skip: potion-code-16M not present");
+        return;
+    }
+    let dir = stage_fixture();
+    index(&dir);
+    let hits = semantic_with_flags(&dir, "compile rust", 3, &["--m2v"]);
+    assert!(!hits.is_empty());
+    let top = &hits[0];
+    let score = top
+        .get("score")
+        .and_then(|v| v.as_f64())
+        .expect("score field present");
+    assert!(score > 0.0, "expected positive cosine sim, got {score}");
+    assert!(score <= 1.0001, "cosine sim bounded at 1.0, got {score}");
+}

@@ -60,15 +60,16 @@ evals/.venv/bin/python evals/semantic_eval.py \
 - `tok@10` — Median tokens (o200k_base BPE) of the stitched top-10 result.
 - `ms` — Median wall-clock per query.
 
-**Baseline + Spike 1 + doc-masked results (sigil-on-sigil, 200 docstring queries, 2026-05-18):**
+**Baseline + Spike 1 + Spike 2 results (sigil-on-sigil, 200 docstring queries, 2026-05-18):**
 
 | Retriever | NDCG@10 | R@1 | R@10 | Tokens@10 | Median ms |
 |---|---:|---:|---:|---:|---:|
-| `sigil_search` (multi-probe distinctive terms) | 0.129 | 0.045 | 0.250 | 264 | 421 |
-| `sigil_search_verbatim` (raw prose) | 0.000 | 0.000 | 0.000 | 0 | 226 |
-| `grep` (multi-term regex) | 0.020 | 0.010 | 0.030 | 300 | 1377 |
-| `sigil_semantic_bm25` (Spike 1, full text) | **0.905** | **0.780** | **0.995** | 276 | 52 |
-| `sigil_semantic_bm25_no_doc` (doc-masked) | **0.370** | 0.220 | 0.525 | 278 | 48 |
+| `sigil_search` (multi-probe distinctive terms) | 0.129 | 0.045 | 0.250 | 264 | 438 |
+| `grep` (multi-term regex) | 0.020 | 0.010 | 0.030 | 300 | 1373 |
+| `sigil_semantic_bm25` (Spike 1, full text) | **0.905** | **0.780** | **0.995** | 276 | **53** |
+| `sigil_semantic_bm25_no_doc` (doc-masked) | 0.372 | 0.225 | 0.525 | 279 | 49 |
+| `sigil_semantic_m2v` (Spike 2, full text) | 0.856 | 0.745 | 0.960 | 274 | 197 |
+| `sigil_semantic_m2v_no_doc` (doc-masked) | **0.404** | 0.240 | 0.585 | 265 | 156 |
 
 The full-text BM25 result (0.905) is **inflated by self-referential overlap**:
 queries are first sentences of docstrings, and the gold entity's own `doc`
@@ -78,21 +79,32 @@ only `name + qualified_name + sig` per entity — that's the **honest lower
 bound** on what BM25 buys us when docstring overlap is removed.
 
 **Honest reading:**
-- Doc-masked BM25 (0.370) is **~2.9× better than `sigil_search` (0.129)** on
-  the same queries, and ~8× faster.
-- Bringing docstrings back into the index lifts NDCG@10 from 0.370 → 0.905.
-  That lift is **real in production** when the agent queries a documented
-  codebase — it isn't pure measurement bias; it's the value of indexing
-  doctrings. The bias issue is only that our eval queries are *literally
-  first sentences of docs*, which over-rewards doc-overlap.
-- True production performance for docstring-style natural-language queries
-  is between 0.370 (worst case: query terms appear nowhere in entity text)
-  and 0.905 (best case: query terms heavily overlap with indexed doc).
-- Semble's reported 0.854 is on a different (broader) corpus; not
-  directly comparable without their query set.
-- Doc-masked still has 79/200 queries missing the top-20 — that's the
-  headroom Spike 2 (static embeddings) and Spike 4 (rerank signals) are
-  competing for.
+- **BM25 outscores Model2Vec on full-text mode (0.905 vs 0.856).** Lexical
+  overlap on docstring-shaped queries beats semantic embedding when the
+  agent's query happens to share words with the indexed doc — and on this
+  bootstrap corpus, it usually does.
+- **Model2Vec wins on doc-masked mode (0.404 vs 0.372).** When the
+  lexical overlap signal is removed, embeddings buy back ~8.6% relative
+  NDCG@10. m2v also has fewer top-20 misses (69 vs 79).
+- **Where m2v helps is the long tail.** Look at rank distribution: m2v_no_doc
+  has 69 misses, bm25_no_doc has 79. Embeddings catch ~10 queries where
+  the name/sig lacks any token overlap with the prose query — the
+  "agent asks about a concept the codebase calls something different"
+  case lexical retrieval can't bridge.
+- **m2v is currently 3-4× slower** (197 ms vs 53 ms) because every query
+  re-encodes the whole corpus. With persisted embeddings, query time
+  drops to single-digit ms (encode query once + dot product against
+  precomputed matrix). Persistence is a follow-up if we keep m2v.
+- **Doc-overlap is real production signal**, not just measurement bias —
+  agents querying a documented codebase do benefit from doc match. Our
+  eval queries are literally first sentences of docs, which over-rewards
+  it; production is between the doc-masked (worst) and full-text (best)
+  numbers.
+- **The takeaway for ship/revert (task #6):** BM25 alone may already be the
+  right answer for sigil. Embeddings give a measurable but modest lift
+  on the hard cases. The real win could come from Spike 3 (RRF fusion of
+  BM25 + m2v) — combining the lexical and semantic signals so each
+  catches what the other misses.
 
 ## What's measured today
 

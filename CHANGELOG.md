@@ -23,6 +23,23 @@ All notable changes to sigil are documented here. Format follows
   with doc indexed and 0.370 doc-masked. Median latency ~50 ms per
   query.
 
+- **`sigil semantic <query> --m2v` (Spike 2 of the semantic-search
+  workstream).** Static-embedding retrieval via Model2Vec
+  (`potion-code-16M`, 256-dim, no transformer forward pass — embedding
+  matrix lookup + mean-pool + L2-normalize). Inference is pure Rust
+  via `tokenizers` + `safetensors`. Model auto-resolves from
+  `$XDG_CACHE_HOME/sigil/models/potion-code-16M/` on Linux,
+  `~/Library/Caches/sigil/models/potion-code-16M/` on macOS; manual
+  download for now via the URL printed in the error message (a
+  `sigil semantic download-model` command is on the roadmap). On
+  sigil-on-sigil eval, m2v scores 0.856 full-text and 0.404 doc-masked
+  — beats BM25 on doc-masked (+8.6% relative) and catches ~10 extra
+  long-tail queries where names/sigs share no tokens with the prose
+  query, but trails BM25 on full-text (lexical overlap wins when
+  queries share docstring vocabulary). Currently re-encodes the corpus
+  per query (~200 ms on sigil itself); a persisted embedding index is
+  the natural follow-up if we keep m2v in the shipping retriever set.
+
 ## [0.6.2] — 2026-05-14 — CI speedup, contract detection expansion, workspace resolve polish
 
 ### Fixed

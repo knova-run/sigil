@@ -1,0 +1,117 @@
+{
+  "schema": "sigil-semantic-eval/v1",
+  "root": "/Users/gaurav/Downloads/SuprSend/sigil",
+  "n_pairs": 200,
+  "k": 20,
+  "tokenizer": "o200k_base",
+  "reports": [
+    {
+      "retriever": "sigil_search",
+      "n_queries": 200,
+      "ndcg_at_10": 0.1293184598852657,
+      "recall_at_1": 0.045,
+      "recall_at_5": 0.15,
+      "recall_at_10": 0.25,
+      "recall_at_20": 0.28,
+      "median_tokens_at_10": 264,
+      "median_elapsed_ms": 437.8598749972298,
+      "rank_distribution": {
+        "1": 9,
+        "2-5": 21,
+        "6-10": 20,
+        "11-20": 6,
+        ">20 or miss": 144
+      }
+    },
+    {
+      "retriever": "sigil_semantic_bm25",
+      "n_queries": 200,
+      "ndcg_at_10": 0.9048549160885416,
+      "recall_at_1": 0.78,
+      "recall_at_5": 0.985,
+      "recall_at_10": 0.995,
+      "recall_at_20": 0.995,
+      "median_tokens_at_10": 276,
+      "median_elapsed_ms": 53.030500006570946,
+      "rank_distribution": {
+        "1": 156,
+        "2-5": 41,
+        "6-10": 2,
+        "11-20": 0,
+        ">20 or miss": 1
+      }
+    },
+    {
+      "retriever": "sigil_semantic_bm25_no_doc",
+      "n_queries": 200,
+      "ndcg_at_10": 0.37245047430637485,
+      "recall_at_1": 0.225,
+      "recall_at_5": 0.46,
+      "recall_at_10": 0.525,
+      "recall_at_20": 0.605,
+      "median_tokens_at_10": 279,
+      "median_elapsed_ms": 48.556749999988824,
+      "rank_distribution": {
+        "1": 45,
+        "2-5": 47,
+        "6-10": 13,
+        "11-20": 16,
+        ">20 or miss": 79
+      }
+    },
+    {
+      "retriever": "sigil_semantic_m2v",
+      "n_queries": 200,
+      "ndcg_at_10": 0.8563807332522743,
+      "recall_at_1": 0.745,
+      "recall_at_5": 0.925,
+      "recall_at_10": 0.96,
+      "recall_at_20": 0.975,
+      "median_tokens_at_10": 274,
+      "median_elapsed_ms": 196.858749994135,
+      "rank_distribution": {
+        "1": 149,
+        "2-5": 36,
+        "6-10": 7,
+        "11-20": 3,
+        ">20 or miss": 5
+      }
+    },
+    {
+      "retriever": "sigil_semantic_m2v_no_doc",
+      "n_queries": 200,
+      "ndcg_at_10": 0.40439531407836493,
+      "recall_at_1": 0.24,
+      "recall_at_5": 0.49,
+      "recall_at_10": 0.585,
+      "recall_at_20": 0.655,
+      "median_tokens_at_10": 265,
+      "median_elapsed_ms": 156.08962499391055,
+      "rank_distribution": {
+        "1": 48,
+        "2-5": 50,
+        "6-10": 19,
+        "11-20": 14,
+        ">20 or miss": 69
+      }
+    },
+    {
+      "retriever": "grep",
+      "n_queries": 200,
+      "ndcg_at_10": 0.01974871155020719,
+      "recall_at_1": 0.01,
+      "recall_at_5": 0.025,
+      "recall_at_10": 0.03,
+      "recall_at_20": 0.045,
+      "median_tokens_at_10": 300,
+      "median_elapsed_ms": 1372.962292000011,
+      "rank_distribution": {
+        "1": 2,
+        "2-5": 3,
+        "6-10": 1,
+        "11-20": 3,
+        ">20 or miss": 191
+      }
+    }
+  ]
+}

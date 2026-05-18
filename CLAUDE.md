@@ -54,15 +54,27 @@ src/
   formatter.rs     — Colored terminal output
   markdown_formatter.rs — GitHub-flavored Markdown output
 
-  semantic/        — Lexical-semantic retrieval (`sigil semantic <query>`).
-                     `tokenize.rs` identifier-aware splitter (CamelCase / snake_case /
-                     kebab-case + acronym→Word boundary; numeric tokens dropped).
-                     `bm25.rs` Robertson BM25 (k1=1.2, b=0.75) over (doc_id, text).
-                     `cmd.rs` CLI handler — loads .sigil/entities.jsonl, indexes
-                     `name + qualified_name + sig + doc` per source-code entity,
-                     ranks and emits JSON with `score`. Index is built per-query
-                     today (~50 ms on sigil's 30k-entity corpus); persistence is
-                     a follow-up if measurements justify it.
+  semantic/        — Semantic retrieval (`sigil semantic <query>`). Two
+                     retrievers behind one CLI: BM25 (default) and Model2Vec
+                     static-embeddings (`--m2v`).
+                     `tokenize.rs` identifier-aware splitter (CamelCase /
+                     snake_case / kebab-case + acronym→Word boundary;
+                     numeric tokens dropped).
+                     `bm25.rs` Robertson BM25 (k1=1.2, b=0.75) over
+                     (doc_id, text).
+                     `m2v.rs` Model2Vec inference — HuggingFace `tokenizers`
+                     crate for tokenization, `safetensors` (memory-mapped)
+                     for the embedding matrix, mean-pool + L2-normalize.
+                     Model resolves from `$XDG_CACHE_HOME/sigil/models/
+                     potion-code-16M/` (manual download for now).
+                     `cmd.rs` CLI handler — loads `.sigil/entities.jsonl`,
+                     indexes `name + qualified_name + sig + doc` per
+                     source-code entity, ranks via the selected retriever,
+                     emits JSON with `score`. `--no-doc` excludes the doc
+                     field (used for unbiased eval). BM25 index is built
+                     per-query (~50 ms on sigil); m2v re-encodes the
+                     corpus per query (~200 ms). Persistence for m2v is a
+                     follow-up if measurements justify keeping it.
 
   # Phase 1 — rank, blast radius, agent commands
   rank.rs          — File-level PageRank + per-entity blast-radius BFS.

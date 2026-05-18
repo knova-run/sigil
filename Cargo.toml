@@ -32,6 +32,24 @@ axoupdater = { version = "0.10", features = ["github_releases", "blocking"] }
 # Language grammars are feature-gated; defaults match codeix's defaults.
 tree-sitter = "0.26"
 
+# Static-embedding retrieval (Spike 2 of the semantic-search workstream).
+# `tokenizers` is HuggingFace's official Rust impl of `tokenizer.json` —
+# required to match training-time tokenization for potion-code-16M.
+# `safetensors` is the load-time format for the embedding matrix.
+tokenizers = { version = "0.21", default-features = false, features = ["onig"] }
+safetensors = "0.6"
+# Memory-map model.safetensors so the 64 MB embedding matrix doesn't
+# inflate sigil's RSS or block on initial load.
+memmap2 = "0.9"
+# Minimal HTTP client for download-on-first-use of the static-embedding
+# model. `ureq` is blocking + dep-light (no tokio for this code path) —
+# the async runtime we already have is reserved for the MCP server.
+ureq = { version = "2", features = ["tls"] }
+# `$XDG_*` / Application Support / %LOCALAPPDATA% abstraction for the
+# model cache. We already use `dirs` indirectly elsewhere; pull it in
+# explicitly so we don't depend on transitive availability.
+dirs = "5"
+
 # Official Rust MCP SDK + async runtime for the `sigil mcp` server.
 # `server`/`macros`/`transport-io` features give us ServerHandler +
 # `#[tool_router]`/`#[tool]` derive macros + the stdio transport.

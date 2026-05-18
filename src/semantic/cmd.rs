@@ -9,10 +9,17 @@
 
 use crate::entity::Entity;
 use crate::semantic::bm25::Index;
-use anyhow::{Context, Result};
+use crate::semantic::m2v::{cosine_sim, default_model_dir, Model2Vec};
+use anyhow::{anyhow, Context, Result};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Retriever {
+    Bm25,
+    M2v,
+}
 
 const SEARCHABLE_KINDS: &[&str] = &[
     "function",
@@ -37,6 +44,7 @@ pub struct SemanticOptions {
     /// indexed text. When false, doc is excluded — the retriever scores
     /// against `name + qualified_name + sig` only.
     pub include_doc: bool,
+    pub retriever: Retriever,
 }
 
 pub fn run(root: &Path, opts: SemanticOptions) -> Result<()> {
@@ -50,18 +58,25 @@ pub fn run(root: &Path, opts: SemanticOptions) -> Result<()> {
         return Ok(());
     }
 
-    let docs: Vec<(String, String)> = entities
-        .iter()
-        .enumerate()
-        .map(|(i, e)| (i.to_string(), entity_text(e, opts.include_doc)))
-        .collect();
-    let idx = Index::build(docs);
-    let hits = idx.search(&opts.query, opts.limit);
+    let hits: Vec<(usize, f32)> = match opts.retriever {
+        Retriever::Bm25 => {
+            let docs: Vec<(String, String)> = entities
+                .iter()
+                .enumerate()
+                .map(|(i, e)| (i.to_string(), entity_text(e, opts.include_doc)))
+                .collect();
+            let idx = Index::build(docs);
+            idx.search(&opts.query, opts.limit)
+                .into_iter()
+                .map(|(id, score)| (id.parse::<usize>().unwrap(), score))
+                .collect()
+        }
+        Retriever::M2v => rank_by_m2v(&entities, &opts.query, opts.limit, opts.include_doc)?,
+    };
 
     let rows: Vec<serde_json::Value> = hits
         .into_iter()
-        .map(|(id, score)| {
-            let i: usize = id.parse().expect("doc id was usize-as-str");
+        .map(|(i, score)| {
             let e = &entities[i];
             let mut obj = serde_json::Map::new();
             obj.insert("file".into(), serde_json::Value::String(e.file.clone()));
@@ -142,6 +157,40 @@ fn entity_text(e: &Entity, include_doc: bool) -> String {
 
 fn round3(x: f32) -> f32 {
     (x * 1000.0).round() / 1000.0
+}
+
+fn rank_by_m2v(
+    entities: &[Entity],
+    query: &str,
+    k: usize,
+    include_doc: bool,
+) -> Result<Vec<(usize, f32)>> {
+    let dir = default_model_dir().ok_or_else(|| {
+        anyhow!("could not resolve user cache dir for the m2v model")
+    })?;
+    if !dir.join("tokenizer.json").exists() || !dir.join("model.safetensors").exists() {
+        return Err(anyhow!(
+            "potion-code-16M not found at {}. Download it manually for now:\n  \
+             curl -sL https://huggingface.co/minishlab/potion-code-16M/resolve/main/{{config.json,tokenizer.json,model.safetensors}} -o '{}/#1'\n  \
+             (a `sigil semantic download-model` command is on the roadmap)",
+            dir.display(),
+            dir.display(),
+        ));
+    }
+    let model = Model2Vec::from_dir(&dir).context("load potion-code-16M")?;
+    let query_vec = model.encode(query);
+
+    // Score every entity. Embeddings are L2-normalized so cosine == dot.
+    let mut scores: Vec<(usize, f32)> = Vec::with_capacity(entities.len());
+    for (i, e) in entities.iter().enumerate() {
+        let v = model.encode(&entity_text(e, include_doc));
+        scores.push((i, cosine_sim(&query_vec, &v)));
+    }
+    scores.sort_by(|a, b| {
+        b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal)
+    });
+    scores.truncate(k);
+    Ok(scores)
 }
 
 fn print_text(rows: &[serde_json::Value]) {

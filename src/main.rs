@@ -235,6 +235,14 @@ enum Cli {
         /// gold's own docstring vs. the symbol-shape signal alone.
         #[arg(long)]
         no_doc: bool,
+        /// Use Model2Vec static-embedding retrieval (potion-code-16M)
+        /// instead of BM25. Embeds each entity's `name + sig + doc`
+        /// (or `name + sig` if --no-doc) and ranks by cosine similarity
+        /// to the query embedding. Requires the model downloaded to
+        /// the resolved cache dir (`~/Library/Caches/sigil/models/
+        /// potion-code-16M` on macOS).
+        #[arg(long)]
+        m2v: bool,
     },
     /// List all symbols in a file
     Symbols {
@@ -1415,13 +1423,18 @@ fn main() {
                 }
             }
         }
-        Cli::Semantic { query, root, limit, json, pretty, no_doc } => {
+        Cli::Semantic { query, root, limit, json, pretty, no_doc, m2v } => {
             let opts = sigil::semantic::cmd::SemanticOptions {
                 query,
                 limit: limit as usize,
                 json,
                 pretty,
                 include_doc: !no_doc,
+                retriever: if m2v {
+                    sigil::semantic::cmd::Retriever::M2v
+                } else {
+                    sigil::semantic::cmd::Retriever::Bm25
+                },
             };
             if let Err(e) = sigil::semantic::cmd::run(&root, opts) {
                 eprintln!("error: {e}");

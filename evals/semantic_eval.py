@@ -236,6 +236,24 @@ def retriever_sigil_semantic_bm25_no_doc(query: str, root: Path, k: int) -> List
     return _sigil_semantic(query, root, k, ["--no-doc"])
 
 
+# Spike 2: Model2Vec static-embedding retrieval. potion-code-16M (256-dim
+# static vectors, mean-pooled, L2-normalised). Each entity is encoded as
+# `name + sig + doc`; query is encoded once; ranks by cosine similarity.
+# Today rebuilds the embedding index in-memory on every query — expensive
+# at scale, but fine for measurement.
+@register("sigil_semantic_m2v")
+def retriever_sigil_semantic_m2v(query: str, root: Path, k: int) -> List[Hit]:
+    return _sigil_semantic(query, root, k, ["--m2v"])
+
+
+# Spike 2 + doc-masked: Model2Vec over `name + sig` only. Honest comparison
+# against `sigil_semantic_bm25_no_doc` — measures whether embeddings beat
+# lexical BM25 when both lose the docstring-overlap signal.
+@register("sigil_semantic_m2v_no_doc")
+def retriever_sigil_semantic_m2v_no_doc(query: str, root: Path, k: int) -> List[Hit]:
+    return _sigil_semantic(query, root, k, ["--m2v", "--no-doc"])
+
+
 # Built-in baseline: classic grep over source files.
 _STOPWORDS = set(
     """
