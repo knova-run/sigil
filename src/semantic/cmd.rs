@@ -10,13 +10,135 @@
 use crate::entity::Entity;
 use crate::semantic::bm25::Index;
 use crate::semantic::m2v::{cosine_sim, default_model_dir, Model2Vec};
-use crate::semantic::m2v_index::{entity_key, sigil_dir, M2vIndex};
+use crate::semantic::m2v_index::{build_incremental, entity_key, sigil_dir, BuildStats, M2vIndex};
 use anyhow::{anyhow, Context, Result};
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, IsTerminal, Write};
 use std::path::Path;
+use std::time::{Duration, Instant};
 
 const M2V_MODEL_NAME: &str = "potion-code-16M";
+
+/// Refresh `.sigil/embeddings.{bin,meta.json}` for the given entity set
+/// using the (key, text_hash) cache to skip re-encoding entities whose
+/// `name + qualified_name + sig + doc` text didn't change.
+///
+/// Returns:
+///   - `Ok(true)`  — embeddings written / refreshed
+///   - `Ok(false)` — silently skipped (model not installed)
+///   - `Err(...)`  — actual error (caller surfaces to stderr)
+///
+/// Called from `sigil index` at the end of the indexing pass so
+/// subsequent `sigil semantic --m2v` queries hit a warm cache.
+pub fn refresh_embeddings(
+    root: &Path,
+    all_entities: &[Entity],
+    verbose: bool,
+) -> Result<bool> {
+    let Some(model_dir) = default_model_dir() else {
+        return Ok(false);
+    };
+    if !model_dir.join("tokenizer.json").exists()
+        || !model_dir.join("model.safetensors").exists()
+    {
+        // Model not installed — skip silently. Users who want m2v will
+        // get a clear error message from `sigil semantic --m2v` later.
+        return Ok(false);
+    }
+    // Filter to the same searchable kinds used at query time. Anything
+    // we wouldn't return as a hit shouldn't waste a row in the matrix.
+    let entities: Vec<&Entity> = all_entities
+        .iter()
+        .filter(|e| {
+            SEARCHABLE_KINDS.contains(&e.kind.as_str()) && e.file != "<external>"
+        })
+        .collect();
+    if entities.is_empty() {
+        return Ok(false);
+    }
+    let model = Model2Vec::from_dir(&model_dir).context("load potion-code-16M")?;
+    let dim = model.dim();
+    let docs: Vec<(String, String)> = entities
+        .iter()
+        .map(|e| (entity_key(&e.file, e.line_start, &e.name), entity_text(e, true)))
+        .collect();
+    let sigil_d = sigil_dir(root);
+    let old = M2vIndex::load_from(&sigil_d)?;
+
+    // Progress writer: only active when `verbose`. Throttles to one
+    // update per 200 ms (plus a final line at completion) so big
+    // corpora don't spam stderr with thousands of lines. TTY gets
+    // \r-overwrite for a single live line; piped output gets one line
+    // per tick so agents can parse `embed: N/M cached=… encoded=…`
+    // out of the stream.
+    let stderr_tty = std::io::stderr().is_terminal();
+    let mut last_print = Instant::now()
+        .checked_sub(Duration::from_millis(500))
+        .unwrap_or_else(Instant::now);
+    let mut wrote_tty_line = false;
+    let mut cb = |s: BuildStats| {
+        if !verbose {
+            return;
+        }
+        let done = s.cached + s.encoded;
+        let is_last = done == s.total;
+        if !is_last && last_print.elapsed() < Duration::from_millis(200) {
+            return;
+        }
+        last_print = Instant::now();
+        let pct = if s.total > 0 {
+            100.0 * done as f64 / s.total as f64
+        } else {
+            0.0
+        };
+        if stderr_tty {
+            // Pad to overwrite any leftover characters from a longer
+            // previous line. 80 cols is comfortable for the message.
+            eprint!(
+                "\rembed: {done}/{total} ({pct:5.1}%) cached={cached} encoded={encoded}            ",
+                total = s.total,
+                cached = s.cached,
+                encoded = s.encoded,
+            );
+            let _ = std::io::stderr().flush();
+            wrote_tty_line = true;
+            if is_last {
+                eprintln!();
+            }
+        } else {
+            eprintln!(
+                "embed: {done}/{total} cached={cached} encoded={encoded}",
+                total = s.total,
+                cached = s.cached,
+                encoded = s.encoded,
+            );
+        }
+    };
+
+    let (built, stats) = build_incremental(
+        M2V_MODEL_NAME,
+        dim,
+        old.as_ref(),
+        &docs,
+        |t| model.encode(t),
+        Some(&mut cb),
+    );
+    // If we printed TTY progress but the last tick didn't land at total
+    // (e.g. throttle skipped the last update), close the line.
+    if verbose && stderr_tty && wrote_tty_line {
+        // We already trail with \n on is_last path; nothing further needed.
+    }
+    built
+        .write_to(&sigil_d)
+        .with_context(|| format!("persist embeddings under {}", sigil_d.display()))?;
+    if verbose {
+        eprintln!(
+            "Embedded {} entities (encoded {}, cached {}) → .sigil/embeddings.bin",
+            stats.total, stats.encoded, stats.cached
+        );
+    }
+    Ok(true)
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Retriever {
@@ -198,39 +320,42 @@ fn rank_by_m2v(
         return Ok(scores);
     }
 
-    // Production path: persist embeddings under .sigil/ keyed by the
-    // current entity set. First query is slow (encode all entities);
-    // subsequent queries load from disk and only encode the query.
-    let expected_keys: Vec<String> = entities
-        .iter()
-        .map(|e| entity_key(&e.file, e.line_start, &e.name))
-        .collect();
+    // Production path: persist embeddings under .sigil/, reusing rows
+    // whose (key, text_hash) match the previous build. First call is
+    // slow (encode every entity); subsequent calls only re-encode the
+    // entities whose name/sig/doc actually changed.
     let sigil_d = sigil_dir(root);
-    let needs_rebuild = match M2vIndex::load_from(&sigil_d)? {
-        Some(idx) if !idx.is_stale_for(&expected_keys, M2V_MODEL_NAME, model.dim()) => {
-            return Ok(idx.search(&query_vec, k));
+    let old = M2vIndex::load_from(&sigil_d)?;
+    // Cache hit: identical entity set + model + dim AND every entity's
+    // text_hash matches → return early without rebuilding.
+    let docs: Vec<(String, String)> = entities
+        .iter()
+        .map(|e| (entity_key(&e.file, e.line_start, &e.name), entity_text(e, true)))
+        .collect();
+    if let Some(ref old_idx) = old {
+        let expected_keys: Vec<String> = docs.iter().map(|(k, _)| k.clone()).collect();
+        if !old_idx.is_stale_for(&expected_keys, M2V_MODEL_NAME, model.dim()) {
+            // Same key set; verify text_hashes too.
+            let all_match = old_idx.meta.entries.iter().zip(&docs).all(|(e, (_, t))| {
+                e.text_hash == crate::semantic::m2v_index::text_hash(t)
+            });
+            if all_match {
+                return Ok(old_idx.search(&query_vec, k));
+            }
         }
-        _ => true,
-    };
-    if needs_rebuild {
-        let dim = model.dim();
-        let mut vectors: Vec<f32> = Vec::with_capacity(entities.len() * dim);
-        for e in entities {
-            let v = model.encode(&entity_text(e, true));
-            vectors.extend_from_slice(&v);
-        }
-        let built = M2vIndex::new(
-            M2V_MODEL_NAME.to_string(),
-            dim,
-            expected_keys,
-            vectors,
-        );
-        built
-            .write_to(&sigil_d)
-            .with_context(|| format!("persist embeddings under {}", sigil_d.display()))?;
-        return Ok(built.search(&query_vec, k));
     }
-    unreachable!()
+    let (built, _stats) = build_incremental(
+        M2V_MODEL_NAME,
+        model.dim(),
+        old.as_ref(),
+        &docs,
+        |t| model.encode(t),
+        None,
+    );
+    built
+        .write_to(&sigil_d)
+        .with_context(|| format!("persist embeddings under {}", sigil_d.display()))?;
+    Ok(built.search(&query_vec, k))
 }
 
 fn print_text(rows: &[serde_json::Value]) {

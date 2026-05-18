@@ -95,6 +95,16 @@ enum Cli {
         #[arg(long)]
         no_tier3: bool,
 
+        /// Skip building / refreshing the Model2Vec embedding cache at
+        /// `.sigil/embeddings.{bin,meta.json}`. On by default when the
+        /// `potion-code-16M` model is installed under
+        /// `$XDG_CACHE_HOME/sigil/models/potion-code-16M/`; absent
+        /// model silently skips the pass either way. Use `--no-embed`
+        /// to opt out (faster index, but the first `sigil semantic
+        /// --m2v` query then pays the build cost).
+        #[arg(long)]
+        no_embed: bool,
+
         /// Print progress information
         #[arg(short, long)]
         verbose: bool,
@@ -1122,7 +1132,7 @@ fn main() {
     let cli = Cli::parse();
 
     match cli {
-        Cli::Index { root, files, stdout, pretty, full, no_refs, no_rank, no_tier3, verbose } => {
+        Cli::Index { root, files, stdout, pretty, full, no_refs, no_rank, no_tier3, no_embed, verbose } => {
             let files_arg = if files.is_empty() { None } else { Some(files.as_slice()) };
             let mut result = index::build_index(&root, files_arg, full, !no_refs, !no_tier3, verbose);
 
@@ -1183,6 +1193,20 @@ fn main() {
                         result.refs.len(),
                         rank_note
                     );
+                }
+
+                // Eager + incremental m2v embedding build. Silently
+                // skipped when --no-embed is set OR the model isn't
+                // installed at the default cache dir. Subsequent
+                // `sigil semantic --m2v` queries hit the warm cache.
+                if !no_embed {
+                    if let Err(e) = sigil::semantic::cmd::refresh_embeddings(
+                        &root,
+                        &result.entities,
+                        verbose,
+                    ) {
+                        eprintln!("sigil: embedding pass skipped: {e}");
+                    }
                 }
             }
         }

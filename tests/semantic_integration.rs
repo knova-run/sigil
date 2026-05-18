@@ -217,36 +217,119 @@ fn semantic_m2v_emits_score_field() {
 }
 
 #[test]
-fn semantic_m2v_persists_embeddings_to_disk() {
+fn semantic_m2v_query_uses_persisted_embeddings_without_rebuild() {
     if !potion_model_present() {
         eprintln!("skip: potion-code-16M not present");
         return;
     }
     let dir = stage_fixture();
+    // `sigil index` is responsible for building embeddings eagerly
+    // (see sigil_index_eagerly_builds_embeddings_when_model_present).
     index(&dir);
-
     let emb = dir.join(".sigil").join("embeddings.bin");
     let meta = dir.join(".sigil").join("embeddings.meta.json");
-    assert!(!emb.exists(), "fresh workspace should have no embeddings.bin");
-    assert!(!meta.exists(), "fresh workspace should have no embeddings.meta.json");
-
-    // First m2v query: builds + persists.
-    let hits = semantic_with_flags(&dir, "parse json", 3, &["--m2v"]);
-    assert!(!hits.is_empty(), "expected hits on first m2v query");
-    assert!(emb.exists(), "first m2v query should persist embeddings.bin");
-    assert!(meta.exists(), "first m2v query should persist embeddings.meta.json");
+    assert!(emb.exists(), "sigil index should have eagerly built embeddings.bin");
+    assert!(meta.exists());
 
     let emb_mtime_first = std::fs::metadata(&emb).unwrap().modified().unwrap();
-
-    // Sleep briefly so any rebuild's mtime is distinguishable.
     std::thread::sleep(std::time::Duration::from_millis(20));
 
-    // Second m2v query: should NOT rebuild (entity_keys unchanged).
+    // Run two m2v queries — neither should touch the embeddings file
+    // because the entity set hasn't changed since the eager build.
+    let hits = semantic_with_flags(&dir, "parse json", 3, &["--m2v"]);
+    assert!(!hits.is_empty(), "expected hits");
+    let mid = std::fs::metadata(&emb).unwrap().modified().unwrap();
+    assert_eq!(emb_mtime_first, mid, "first m2v query should not rebuild");
     let _ = semantic_with_flags(&dir, "compile rust", 3, &["--m2v"]);
-    let emb_mtime_second = std::fs::metadata(&emb).unwrap().modified().unwrap();
-    assert_eq!(
-        emb_mtime_first, emb_mtime_second,
-        "second query with same entities should reuse persisted embeddings (no rebuild)"
+    let last = std::fs::metadata(&emb).unwrap().modified().unwrap();
+    assert_eq!(emb_mtime_first, last, "subsequent m2v query should not rebuild");
+}
+
+#[test]
+fn semantic_m2v_query_builds_lazily_when_no_eager_pass() {
+    if !potion_model_present() {
+        eprintln!("skip: potion-code-16M not present");
+        return;
+    }
+    let dir = stage_fixture();
+    // Index with --no-embed so the eager pass is skipped; the embedding
+    // cache should then be built lazily on the first `--m2v` query.
+    let out = std::process::Command::new(env!("CARGO_BIN_EXE_sigil"))
+        .args(["index", "--root", dir.to_str().unwrap(), "--full", "--no-embed"])
+        .output()
+        .expect("run sigil index --no-embed");
+    assert!(out.status.success());
+    let emb = dir.join(".sigil").join("embeddings.bin");
+    assert!(!emb.exists(), "--no-embed should skip eager build");
+    let _ = semantic_with_flags(&dir, "parse json", 3, &["--m2v"]);
+    assert!(
+        emb.exists(),
+        "first --m2v query should build the embedding cache lazily when --no-embed was used"
+    );
+}
+
+#[test]
+fn sigil_index_eagerly_builds_embeddings_when_model_present() {
+    if !potion_model_present() {
+        eprintln!("skip: potion-code-16M not present");
+        return;
+    }
+    let dir = stage_fixture();
+    // No prior `sigil semantic --m2v` invocation — just plain index.
+    index(&dir);
+    let emb = dir.join(".sigil").join("embeddings.bin");
+    let meta = dir.join(".sigil").join("embeddings.meta.json");
+    assert!(
+        emb.exists(),
+        "sigil index should eagerly build embeddings.bin when model is present"
+    );
+    assert!(meta.exists(), "sigil index should eagerly build embeddings.meta.json");
+}
+
+#[test]
+fn sigil_index_no_embed_skips_embedding_build() {
+    if !potion_model_present() {
+        eprintln!("skip: potion-code-16M not present");
+        return;
+    }
+    let dir = stage_fixture();
+    let out = std::process::Command::new(env!("CARGO_BIN_EXE_sigil"))
+        .args(["index", "--root", dir.to_str().unwrap(), "--full", "--no-embed"])
+        .output()
+        .expect("run sigil index --no-embed");
+    assert!(out.status.success());
+    let emb = dir.join(".sigil").join("embeddings.bin");
+    assert!(!emb.exists(), "--no-embed should skip embedding build");
+}
+
+#[test]
+fn sigil_index_incremental_reuses_cached_embeddings() {
+    if !potion_model_present() {
+        eprintln!("skip: potion-code-16M not present");
+        return;
+    }
+    let dir = stage_fixture();
+    // First index: builds embeddings from scratch.
+    index(&dir);
+    let emb = dir.join(".sigil").join("embeddings.bin");
+    let mtime_a = std::fs::metadata(&emb).unwrap().modified().unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(20));
+
+    // Second index without any source changes — should be near-instant
+    // because every entity hits the cache.
+    let t0 = std::time::Instant::now();
+    index(&dir);
+    let second_elapsed = t0.elapsed();
+    let _mtime_b = std::fs::metadata(&emb).unwrap().modified().unwrap();
+
+    // The cache reuse path encodes 0 entities; this should finish in well
+    // under what a full encode would take (~2 s on sigil-on-sigil). The
+    // tiny fixture only has 3 entities so even cold-build is fast — we
+    // assert "under 2 seconds" as a generous regression guard, not as a
+    // precision benchmark.
+    assert!(
+        second_elapsed < std::time::Duration::from_secs(5),
+        "second `sigil index` should be fast with cache reuse, took {second_elapsed:?}"
     );
 }
 

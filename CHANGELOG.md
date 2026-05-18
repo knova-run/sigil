@@ -32,6 +32,30 @@ All notable changes to sigil are documented here. Format follows
   refspec column when picking rows (refspec is for cross-repo cochange,
   not semantic eval).
 
+- **Eager + incremental m2v embedding build during `sigil index`.**
+  `sigil index` now refreshes `.sigil/embeddings.{bin,meta.json}` at
+  the end of the indexing pass, gated on the `potion-code-16M` model
+  being installed (silently skipped otherwise). Meta-format bumps to
+  schema v2: each entry now carries a BLAKE3-16 `text_hash` of the
+  encoded `name + qualified_name + sig + doc` text, so subsequent
+  indexes only re-encode entities whose text actually changed. On
+  sigil-on-sigil, a no-change reindex hits the cache for all ~3500
+  entities (0 encoded, 3500 cached). New `--no-embed` flag skips the
+  embedding pass for users who don't use `--m2v` or who want a
+  faster index. Legacy v1 meta files trigger a full rebuild (no
+  migration path — one-time cost).
+
+  Verbose mode (`-v`) streams progress to stderr during the encode
+  loop: `embed: N/M cached=C encoded=E` lines throttled to one per
+  200 ms (or every entity, whichever is slower). TTY output uses
+  `\r`-overwrite for a single live line; piped output writes a new
+  line per tick so agents can parse the progress stream with a
+  simple regex (`^embed: (\d+)/(\d+)`).
+
+  This swaps the cost from "first `sigil semantic --m2v` query
+  pays the build" to "indexing pays it." Subsequent queries are
+  always fast.
+
 - **`sigil semantic <query> --m2v` (Spike 2 of the semantic-search
   workstream).** Static-embedding retrieval via Model2Vec
   (`potion-code-16M`, 256-dim, no transformer forward pass — embedding

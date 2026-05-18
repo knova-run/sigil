@@ -69,17 +69,27 @@ src/
                      potion-code-16M/` (manual download for now).
                      `m2v_index.rs` persisted corpus-embedding index at
                      `.sigil/embeddings.{bin,meta.json}` — flat f32 LE
-                     row-major matrix + JSON meta (schema_version, model,
-                     dim, entity_keys). Staleness detection via
-                     entity_keys mismatch triggers rebuild.
+                     row-major matrix + JSON meta (schema v2:
+                     schema_version, model, dim, entries[{key,text_hash}]).
+                     `build_incremental(model, entities, old, encode_fn,
+                     on_progress)` reuses cached vectors when both the
+                     entity_key and the BLAKE3-16 of the indexed text
+                     match. `refresh_embeddings(root, entities, verbose)`
+                     is the eager hook called from `sigil index` after
+                     entities + refs land. Silently skipped when the
+                     model isn't installed.
                      `cmd.rs` CLI handler — loads `.sigil/entities.jsonl`,
                      indexes `name + qualified_name + sig + doc` per
                      source-code entity, ranks via the selected retriever,
-                     emits JSON with `score`. `--no-doc` excludes the doc
-                     field (used for unbiased eval; stays on the in-memory
-                     uncached path). BM25 builds per-query (~30 ms on
-                     sigil); m2v first-query builds + persists (~2 s),
-                     subsequent queries load the cached matrix (~60 ms).
+                     emits JSON with `score`. Hosts `refresh_embeddings`
+                     (called by `sigil index`) and the throttled stderr
+                     progress writer (`embed: N/M cached=C encoded=E`,
+                     200 ms throttle, TTY `\r`-overwrite). `--no-doc`
+                     excludes the doc field (used for unbiased eval;
+                     stays on the in-memory uncached path). `--no-embed`
+                     on `sigil index` opts out of the eager pass. BM25
+                     builds per-query (~30 ms on sigil); m2v query loads
+                     the persisted matrix (~60 ms).
 
   # Phase 1 — rank, blast radius, agent commands
   rank.rs          — File-level PageRank + per-entity blast-radius BFS.
