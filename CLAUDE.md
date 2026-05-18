@@ -23,7 +23,7 @@ src/
   lib.rs           — Library crate: re-exports modules for Python bindings and tests
   main.rs          — CLI binary (clap). Two-tier command surface:
                       Agent-facing: map, context, review, blast, benchmark
-                      Script-facing: search, symbols, children, callers, callees,
+                      Script-facing: search, semantic, symbols, children, callers, callees,
                                      explore, duplicates, cochange, query, diff, index,
                                      identifiers, decisions, package-deps, contracts,
                                      workspace, hotspots, ownership, bus-factor, log,
@@ -53,6 +53,66 @@ src/
   output.rs        — DiffOutput intermediate model for formatters
   formatter.rs     — Colored terminal output
   markdown_formatter.rs — GitHub-flavored Markdown output
+
+  semantic/        — Semantic retrieval (`sigil semantic <query>`). Two
+                     retrievers behind one CLI: BM25 (default) and Model2Vec
+                     static-embeddings (`--m2v`).
+                     `tokenize.rs` identifier-aware splitter (CamelCase /
+                     snake_case / kebab-case + acronym→Word boundary;
+                     numeric tokens dropped).
+                     `bm25.rs` Robertson BM25 (k1=1.2, b=0.75) over
+                     (doc_id, text).
+                     `m2v.rs` Model2Vec inference — HuggingFace `tokenizers`
+                     crate for tokenization, `safetensors` (memory-mapped)
+                     for the embedding matrix, mean-pool + L2-normalize.
+                     Model resolves from `$XDG_CACHE_HOME/sigil/models/
+                     potion-code-16M/` (manual download for now).
+                     `download.rs` `sigil semantic-download-model` —
+                     fetches potion-code-16M from HuggingFace into the
+                     cache dir via ureq. Streams bodies, writes
+                     `<file>.partial` then atomic-renames, idempotent
+                     skip when files already present unless --force.
+                     Test seam: `Fetcher` trait abstracts the HTTP
+                     boundary so unit tests use a `StubFetcher` with
+                     canned bytes (no network).
+                     `rrf.rs` Spike-3 Reciprocal Rank Fusion across multiple
+                     ranked lists. `k_constant = 60` (Cormack 2009). Exposed
+                     via `sigil semantic --fuse`. Empirically *hurts* vs
+                     BM25 alone on the cross-repo eval (0.942 vs 0.951);
+                     kept available for selective-fusion / weighted-RRF
+                     follow-ups.
+                     `rerank.rs` Spike-4 code-aware rerank signals over a
+                     retrieval candidate set. Multiplicative boosts/penalties
+                     reuse sigil primitives: `is_test_path`, vendored /
+                     generated path heuristic, `Entity.kind`, `Entity.rank`.
+                     Default weights tuned for ~+0.6% NDCG@10 lift on the
+                     200-query cross-repo eval at zero latency cost.
+                     `CANDIDATE_OVER_FETCH = 3` — retriever pulls 3×k
+                     candidates so penalties can drop bad hits without
+                     losing good ones.
+                     `m2v_index.rs` persisted corpus-embedding index at
+                     `.sigil/embeddings.{bin,meta.json}` — flat f32 LE
+                     row-major matrix + JSON meta (schema v2:
+                     schema_version, model, dim, entries[{key,text_hash}]).
+                     `build_incremental(model, entities, old, encode_fn,
+                     on_progress)` reuses cached vectors when both the
+                     entity_key and the BLAKE3-16 of the indexed text
+                     match. `refresh_embeddings(root, entities, verbose)`
+                     is the eager hook called from `sigil index` after
+                     entities + refs land. Silently skipped when the
+                     model isn't installed.
+                     `cmd.rs` CLI handler — loads `.sigil/entities.jsonl`,
+                     indexes `name + qualified_name + sig + doc` per
+                     source-code entity, ranks via the selected retriever,
+                     emits JSON with `score`. Hosts `refresh_embeddings`
+                     (called by `sigil index`) and the throttled stderr
+                     progress writer (`embed: N/M cached=C encoded=E`,
+                     200 ms throttle, TTY `\r`-overwrite). `--no-doc`
+                     excludes the doc field (used for unbiased eval;
+                     stays on the in-memory uncached path). `--no-embed`
+                     on `sigil index` opts out of the eager pass. BM25
+                     builds per-query (~30 ms on sigil); m2v query loads
+                     the persisted matrix (~60 ms).
 
   # Phase 1 — rank, blast radius, agent commands
   rank.rs          — File-level PageRank + per-entity blast-radius BFS.

@@ -18,3 +18,4 @@
 ripgrep	https://github.com/BurntSushi/ripgrep	14.1.0	HEAD~20..HEAD
 httpx	https://github.com/encode/httpx	0.27.0	HEAD~20..HEAD
 mdbook	https://github.com/rust-lang/mdBook	v0.4.40	HEAD~20..HEAD
+cobra	https://github.com/spf13/cobra	v1.8.0	HEAD~20..HEAD

@@ -6,6 +6,140 @@ All notable changes to sigil are documented here. Format follows
 
 ## [Unreleased]
 
+### Added
+
+- **`sigil semantic-download-model`.** Downloads the three files of the
+  `potion-code-16M` static-embedding model
+  (`config.json`/`tokenizer.json`/`model.safetensors`) from the
+  upstream HuggingFace repo to `$XDG_CACHE_HOME/sigil/models/
+  potion-code-16M/` (`~/Library/Caches/sigil/models/...` on macOS).
+  Idempotent — files already present are skipped unless `--force` is
+  set. Body streamed via `ureq` with stderr progress (200 ms throttle,
+  TTY `\r`-overwrite). Writes to `<file>.partial` and atomically
+  renames on success so a crash mid-download leaves the cache in a
+  known state. `--base-url` and `--dest` are hidden test seams.
+  Replaces the curl-it-yourself error message that earlier landed
+  with Spike 2; the error now points users at the new command.
+
+- **`sigil semantic <query>` (Spike 1 of the semantic-search workstream).**
+  BM25 retrieval over the entity index ranks symbols by relevance to a
+  natural-language query, complementing the substring-matching `sigil
+  search`. Identifier-aware tokenizer splits CamelCase/snake_case/
+  kebab-case at the boundary. Robertson BM25 with k1=1.2, b=0.75. Indexed
+  text per entity is `name + qualified_name + sig + doc`. JSON output
+  mirrors `sigil search`'s shape with an added `score` field.
+  `--no-doc` excludes the doc field from indexed text — used for eval
+  de-biasing (queries are docstring first-sentences; including doc in
+  the index inflates measured retrieval quality via self-referential
+  overlap). On sigil-on-sigil eval (200 docstring queries, see
+  `evals/README.md`) NDCG@10 jumps from 0.129 (`sigil search`) to 0.905
+  with doc indexed and 0.370 doc-masked. Median latency ~50 ms per
+  query.
+
+- **`sigil semantic <query> --fuse` (Spike 3 of the semantic-search
+  workstream).** Reciprocal Rank Fusion of BM25 + Model2Vec, using
+  the Cormack 2009 default `k_constant = 60`. Runs both retrievers
+  internally and combines their ranked lists by positional fusion
+  (raw scores discarded; only ranks matter). Available behind the
+  `--fuse` flag; can be combined with `--rerank` for fusion → Spike-4
+  signals.
+
+  **Empirically the wrong default on this corpus.** Cross-repo eval
+  (200 queries, 4 repos):
+
+  ```
+  retriever                    NDCG@10    R@1     vs BM25 baseline
+  sigil_semantic_bm25_rerank     0.959  0.895    +0.8%   ← winner
+  sigil_semantic_bm25            0.951  0.875    (baseline)
+  sigil_semantic_fuse_rerank     0.946  0.875    -0.5%
+  sigil_semantic_fuse            0.942  0.860    -0.9%
+  ```
+
+  Fusion *hurts* by ~0.9% relative NDCG@10 vs pure BM25. Same
+  pattern that semble's HYBRID showed against its BM25 mode (0.643
+  vs 0.850 in our reproduction). Confirms a real anti-pattern: when
+  BM25 already achieves 0.99 R@10, m2v's positional contributions
+  drag the fused ranking instead of lifting it — m2v catches very
+  few hits BM25 misses, but adds noise to the ones it does catch.
+
+  Kept the flag exposed because (a) Spike 3 produced rigorous data
+  that's worth preserving as a reproducible artifact, (b) selective
+  fusion (only on hard queries) or weighted RRF (BM25 weighted
+  higher) are worth measuring as v0.7+ follow-ups, (c) on doc-masked
+  / cross-repo / long-tail evals the picture might shift.
+
+- **`sigil semantic <query> --rerank` (Spike 4 of the semantic-search
+  workstream).** Code-aware rerank signals applied to the retrieval
+  candidate set before truncation. Multiplicative boosts/penalties on
+  raw retriever scores: test-file penalty (0.45×), vendored / generated
+  / build-output penalty (0.30×), definition-kind boost (1.20× for
+  function/method/class/struct/impl/enum/interface/trait),
+  non-definition penalty (0.85× for import/variable/constant/external),
+  and file PageRank boost (up to +30% for max-rank files). Pulls 3×
+  the requested candidates from the upstream retriever so penalties
+  can demote bad hits without losing good ones below them. All signals
+  reuse existing sigil primitives (`is_test_path`, `Entity.kind`,
+  `Entity.rank`) — no new deps. Cross-repo aggregate (200 queries):
+  BM25 0.952 → 0.958 (+0.6% relative); m2v 0.915 → 0.918 (+0.3%
+  relative). Latency-free (32 ms unchanged). The win is concentrated
+  in specific failure modes (test docstrings out-matching source,
+  vendored hits surfacing) rather than broad lift — exactly the
+  edge cases agents complain about.
+
+- **Cross-repo semantic-eval harness (`evals/cross_repo_semantic_eval.py`).**
+  Extends the sigil-on-sigil harness to a 4-repo corpus (ripgrep 14.1.0
+  / httpx 0.27.0 / mdbook v0.4.40 / cobra v1.8.0; Rust + Python + Rust +
+  Go) so retriever wins can be measured cross-language. Compares sigil
+  retrievers against the upstream semble library (BM25, semantic, HYBRID)
+  on the same indexes and queries. Drops the per-repo `corpus.tsv`
+  refspec column when picking rows (refspec is for cross-repo cochange,
+  not semantic eval).
+
+- **Eager + incremental m2v embedding build during `sigil index`.**
+  `sigil index` now refreshes `.sigil/embeddings.{bin,meta.json}` at
+  the end of the indexing pass, gated on the `potion-code-16M` model
+  being installed (silently skipped otherwise). Meta-format bumps to
+  schema v2: each entry now carries a BLAKE3-16 `text_hash` of the
+  encoded `name + qualified_name + sig + doc` text, so subsequent
+  indexes only re-encode entities whose text actually changed. On
+  sigil-on-sigil, a no-change reindex hits the cache for all ~3500
+  entities (0 encoded, 3500 cached). New `--no-embed` flag skips the
+  embedding pass for users who don't use `--m2v` or who want a
+  faster index. Legacy v1 meta files trigger a full rebuild (no
+  migration path — one-time cost).
+
+  Verbose mode (`-v`) streams progress to stderr during the encode
+  loop: `embed: N/M cached=C encoded=E` lines throttled to one per
+  200 ms (or every entity, whichever is slower). TTY output uses
+  `\r`-overwrite for a single live line; piped output writes a new
+  line per tick so agents can parse the progress stream with a
+  simple regex (`^embed: (\d+)/(\d+)`).
+
+  This swaps the cost from "first `sigil semantic --m2v` query
+  pays the build" to "indexing pays it." Subsequent queries are
+  always fast.
+
+- **`sigil semantic <query> --m2v` (Spike 2 of the semantic-search
+  workstream).** Static-embedding retrieval via Model2Vec
+  (`potion-code-16M`, 256-dim, no transformer forward pass — embedding
+  matrix lookup + mean-pool + L2-normalize). Inference is pure Rust
+  via `tokenizers` + `safetensors`. Model auto-resolves from
+  `$XDG_CACHE_HOME/sigil/models/potion-code-16M/` on Linux,
+  `~/Library/Caches/sigil/models/potion-code-16M/` on macOS; manual
+  download for now via the URL printed in the error message (a
+  `sigil semantic download-model` command is on the roadmap).
+  Embeddings are persisted at `.sigil/embeddings.{bin,meta.json}` keyed
+  by entity_keys + model + dim — first query encodes the corpus and
+  writes to disk (~2 s for sigil's 3500-entity index, ~3.5 MB on
+  disk); subsequent queries memory-map the matrix and only encode the
+  query (~60 ms median). Staleness detection rebuilds when entities,
+  model, or dim change. Embedding files are gitignored. On
+  sigil-on-sigil eval, m2v scores 0.856 full-text and 0.404 doc-masked
+  — beats BM25 on doc-masked (+8.6% relative) and catches ~10 extra
+  long-tail queries where names/sigs share no tokens with the prose
+  query, but trails BM25 on full-text (lexical overlap wins when
+  queries share docstring vocabulary).
+
 ## [0.6.2] — 2026-05-14 — CI speedup, contract detection expansion, workspace resolve polish
 
 ### Fixed

@@ -1,0 +1,63 @@
+{
+  "schema": "sigil-semantic-eval/v1",
+  "root": "/Users/gaurav/Downloads/SuprSend/sigil",
+  "n_pairs": 200,
+  "k": 20,
+  "tokenizer": "o200k_base",
+  "reports": [
+    {
+      "retriever": "sigil_search",
+      "n_queries": 200,
+      "ndcg_at_10": 0.13462727207117697,
+      "recall_at_1": 0.05,
+      "recall_at_5": 0.155,
+      "recall_at_10": 0.255,
+      "recall_at_20": 0.28,
+      "median_tokens_at_10": 265,
+      "median_elapsed_ms": 426.9603749999078,
+      "rank_distribution": {
+        "1": 10,
+        "2-5": 21,
+        "6-10": 20,
+        "11-20": 5,
+        ">20 or miss": 144
+      }
+    },
+    {
+      "retriever": "sigil_search_verbatim",
+      "n_queries": 200,
+      "ndcg_at_10": 0.0,
+      "recall_at_1": 0.0,
+      "recall_at_5": 0.0,
+      "recall_at_10": 0.0,
+      "recall_at_20": 0.0,
+      "median_tokens_at_10": 0,
+      "median_elapsed_ms": 226.20095800084528,
+      "rank_distribution": {
+        "1": 0,
+        "2-5": 0,
+        "6-10": 0,
+        "11-20": 0,
+        ">20 or miss": 200
+      }
+    },
+    {
+      "retriever": "grep",
+      "n_queries": 200,
+      "ndcg_at_10": 0.01974871155020719,
+      "recall_at_1": 0.01,
+      "recall_at_5": 0.025,
+      "recall_at_10": 0.03,
+      "recall_at_20": 0.045,
+      "median_tokens_at_10": 300,
+      "median_elapsed_ms": 1386.680540999805,
+      "rank_distribution": {
+        "1": 2,
+        "2-5": 3,
+        "6-10": 1,
+        "11-20": 3,
+        ">20 or miss": 191
+      }
+    }
+  ]
+}

@@ -37,6 +37,7 @@ sigil groups commands into two tiers:
     duplicates    Clone report across the codebase
     cochange      Git-history file-pair co-change miner
     identifiers   Symbol-shaped tokens lifted from arbitrary text
+    semantic      BM25 / Model2Vec retrieval over the entity index (natural-language queries)
     decisions     `WHY:` / `DECISION:` / `RATIONALE:` / `TRADEOFF:` / `ADR:` / `REJECTED:` markers
     package-deps  Dependency edges from manifest files (go.mod, package.json)
     contracts     HTTP routes, gRPC services, queue topics
@@ -94,6 +95,16 @@ enum Cli {
         /// default; this flag opts out for strict-only call graphs.
         #[arg(long)]
         no_tier3: bool,
+
+        /// Skip building / refreshing the Model2Vec embedding cache at
+        /// `.sigil/embeddings.{bin,meta.json}`. On by default when the
+        /// `potion-code-16M` model is installed under
+        /// `$XDG_CACHE_HOME/sigil/models/potion-code-16M/`; absent
+        /// model silently skips the pass either way. Use `--no-embed`
+        /// to opt out (faster index, but the first `sigil semantic
+        /// --m2v` query then pays the build cost).
+        #[arg(long)]
+        no_embed: bool,
 
         /// Print progress information
         #[arg(short, long)]
@@ -207,6 +218,77 @@ enum Cli {
         /// Pretty-print JSON output (default: minified)
         #[arg(long)]
         pretty: bool,
+    },
+    /// Download / refresh the `potion-code-16M` static-embedding model
+    /// to the cache dir used by `sigil semantic --m2v`. Idempotent:
+    /// files already on disk are skipped unless `--force` is set.
+    /// Streams the body with progress on stderr; no SHA pinning yet.
+    SemanticDownloadModel {
+        /// Force re-download even when cached files exist
+        #[arg(long)]
+        force: bool,
+        /// Override the upstream base URL (test seam — production
+        /// defaults to the HuggingFace `resolve/main/` URL).
+        #[arg(long, hide = true)]
+        base_url: Option<String>,
+        /// Override the destination directory (test seam).
+        #[arg(long, hide = true)]
+        dest: Option<PathBuf>,
+        /// Print streaming progress to stderr
+        #[arg(short, long, default_value = "true")]
+        verbose: bool,
+    },
+    /// BM25 semantic search over the entity index. Ranks symbols by
+    /// relevance to a natural-language query. Where `sigil search` does
+    /// exact substring lookup against symbol names, `sigil semantic`
+    /// scores entities against the prose intent of the query — useful
+    /// for "how is X handled?" / "find the parser for Y" agent prompts.
+    Semantic {
+        /// Natural-language query (multi-word, prose-friendly).
+        query: String,
+        /// Project root directory
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
+        /// Max results
+        #[arg(long, default_value = "20")]
+        limit: u32,
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+        /// Pretty-print JSON output (default: minified)
+        #[arg(long)]
+        pretty: bool,
+        /// Exclude the `doc` field from per-entity indexed text. The
+        /// retriever then sees only `name + qualified_name + sig` per
+        /// entity — useful for measuring how much of a docstring-based
+        /// query's win comes from self-referential overlap with the
+        /// gold's own docstring vs. the symbol-shape signal alone.
+        #[arg(long)]
+        no_doc: bool,
+        /// Use Model2Vec static-embedding retrieval (potion-code-16M)
+        /// instead of BM25. Embeds each entity's `name + qualified_name +
+        /// sig + doc` (or `name + qualified_name + sig` if --no-doc) and
+        /// ranks by cosine similarity to the query embedding. Requires
+        /// the model — run `sigil semantic-download-model` first
+        /// (`~/Library/Caches/sigil/models/potion-code-16M` on macOS).
+        #[arg(long)]
+        m2v: bool,
+        /// Apply code-aware rerank signals over the candidate set
+        /// before truncating to --limit: penalise test-file + vendored
+        /// hits, boost function/class/struct kinds + high-rank files.
+        /// Pulls 3x the requested candidates from the retriever so
+        /// penalty multipliers can drop bad hits without losing good
+        /// ones below them.
+        #[arg(long)]
+        rerank: bool,
+        /// Reciprocal Rank Fusion of BM25 + Model2Vec. Runs both
+        /// retrievers internally and combines their ranked lists via
+        /// RRF (k_constant=60, Cormack 2009 default). Independent of
+        /// --m2v: `--fuse` always uses both. Requires the m2v model
+        /// to be available. Combine with `--rerank` to apply Spike-4
+        /// signals after fusion.
+        #[arg(long)]
+        fuse: bool,
     },
     /// List all symbols in a file
     Symbols {
@@ -1086,7 +1168,7 @@ fn main() {
     let cli = Cli::parse();
 
     match cli {
-        Cli::Index { root, files, stdout, pretty, full, no_refs, no_rank, no_tier3, verbose } => {
+        Cli::Index { root, files, stdout, pretty, full, no_refs, no_rank, no_tier3, no_embed, verbose } => {
             let files_arg = if files.is_empty() { None } else { Some(files.as_slice()) };
             let mut result = index::build_index(&root, files_arg, full, !no_refs, !no_tier3, verbose);
 
@@ -1147,6 +1229,20 @@ fn main() {
                         result.refs.len(),
                         rank_note
                     );
+                }
+
+                // Eager + incremental m2v embedding build. Silently
+                // skipped when --no-embed is set OR the model isn't
+                // installed at the default cache dir. Subsequent
+                // `sigil semantic --m2v` queries hit the warm cache.
+                if !no_embed {
+                    if let Err(e) = sigil::semantic::cmd::refresh_embeddings(
+                        &root,
+                        &result.entities,
+                        verbose,
+                    ) {
+                        eprintln!("sigil: embedding pass skipped: {e}");
+                    }
                 }
             }
         }
@@ -1385,6 +1481,34 @@ fn main() {
                         sugg.join(", ")
                     );
                 }
+            }
+        }
+        Cli::SemanticDownloadModel { force, base_url, dest, verbose } => {
+            if let Err(e) = sigil::semantic::download::run(dest, base_url, force, verbose) {
+                eprintln!("error: {e:#}");
+                std::process::exit(1);
+            }
+        }
+        Cli::Semantic { query, root, limit, json, pretty, no_doc, m2v, rerank, fuse } => {
+            let retriever = if fuse {
+                sigil::semantic::cmd::Retriever::Fuse
+            } else if m2v {
+                sigil::semantic::cmd::Retriever::M2v
+            } else {
+                sigil::semantic::cmd::Retriever::Bm25
+            };
+            let opts = sigil::semantic::cmd::SemanticOptions {
+                query,
+                limit: limit as usize,
+                json,
+                pretty,
+                include_doc: !no_doc,
+                retriever,
+                rerank,
+            };
+            if let Err(e) = sigil::semantic::cmd::run(&root, opts) {
+                eprintln!("error: {e}");
+                std::process::exit(1);
             }
         }
         Cli::Symbols { file, root, limit, depth, json, pretty, names_only, with_hashes } => {
