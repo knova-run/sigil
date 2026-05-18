@@ -23,7 +23,7 @@ src/
   lib.rs           — Library crate: re-exports modules for Python bindings and tests
   main.rs          — CLI binary (clap). Two-tier command surface:
                       Agent-facing: map, context, review, blast, benchmark
-                      Script-facing: search, symbols, children, callers, callees,
+                      Script-facing: search, semantic, symbols, children, callers, callees,
                                      explore, duplicates, cochange, query, diff, index,
                                      identifiers, decisions, package-deps, contracts,
                                      workspace, hotspots, ownership, bus-factor, log,
@@ -53,6 +53,16 @@ src/
   output.rs        — DiffOutput intermediate model for formatters
   formatter.rs     — Colored terminal output
   markdown_formatter.rs — GitHub-flavored Markdown output
+
+  semantic/        — Lexical-semantic retrieval (`sigil semantic <query>`).
+                     `tokenize.rs` identifier-aware splitter (CamelCase / snake_case /
+                     kebab-case + acronym→Word boundary; numeric tokens dropped).
+                     `bm25.rs` Robertson BM25 (k1=1.2, b=0.75) over (doc_id, text).
+                     `cmd.rs` CLI handler — loads .sigil/entities.jsonl, indexes
+                     `name + qualified_name + sig + doc` per source-code entity,
+                     ranks and emits JSON with `score`. Index is built per-query
+                     today (~50 ms on sigil's 30k-entity corpus); persistence is
+                     a follow-up if measurements justify it.
 
   # Phase 1 — rank, blast radius, agent commands
   rank.rs          — File-level PageRank + per-entity blast-radius BFS.

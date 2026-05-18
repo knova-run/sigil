@@ -6,6 +6,23 @@ All notable changes to sigil are documented here. Format follows
 
 ## [Unreleased]
 
+### Added
+
+- **`sigil semantic <query>` (Spike 1 of the semantic-search workstream).**
+  BM25 retrieval over the entity index ranks symbols by relevance to a
+  natural-language query, complementing the substring-matching `sigil
+  search`. Identifier-aware tokenizer splits CamelCase/snake_case/
+  kebab-case at the boundary. Robertson BM25 with k1=1.2, b=0.75. Indexed
+  text per entity is `name + qualified_name + sig + doc`. JSON output
+  mirrors `sigil search`'s shape with an added `score` field.
+  `--no-doc` excludes the doc field from indexed text — used for eval
+  de-biasing (queries are docstring first-sentences; including doc in
+  the index inflates measured retrieval quality via self-referential
+  overlap). On sigil-on-sigil eval (200 docstring queries, see
+  `evals/README.md`) NDCG@10 jumps from 0.129 (`sigil search`) to 0.905
+  with doc indexed and 0.370 doc-masked. Median latency ~50 ms per
+  query.
+
 ## [0.6.2] — 2026-05-14 — CI speedup, contract detection expansion, workspace resolve polish
 
 ### Fixed

@@ -31,3 +31,6 @@ skills/sigil-workspace/
 .sigil/index.duckdb.wal
 .claude/
 tests/fixtures/*/.sigil/
+
+# eval harness virtualenv
+evals/.venv/

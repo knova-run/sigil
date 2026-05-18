@@ -208,6 +208,34 @@ enum Cli {
         #[arg(long)]
         pretty: bool,
     },
+    /// BM25 semantic search over the entity index. Ranks symbols by
+    /// relevance to a natural-language query. Where `sigil search` does
+    /// exact substring lookup against symbol names, `sigil semantic`
+    /// scores entities against the prose intent of the query — useful
+    /// for "how is X handled?" / "find the parser for Y" agent prompts.
+    Semantic {
+        /// Natural-language query (multi-word, prose-friendly).
+        query: String,
+        /// Project root directory
+        #[arg(short, long, default_value = ".")]
+        root: PathBuf,
+        /// Max results
+        #[arg(long, default_value = "20")]
+        limit: u32,
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+        /// Pretty-print JSON output (default: minified)
+        #[arg(long)]
+        pretty: bool,
+        /// Exclude the `doc` field from per-entity indexed text. The
+        /// retriever then sees only `name + qualified_name + sig` per
+        /// entity — useful for measuring how much of a docstring-based
+        /// query's win comes from self-referential overlap with the
+        /// gold's own docstring vs. the symbol-shape signal alone.
+        #[arg(long)]
+        no_doc: bool,
+    },
     /// List all symbols in a file
     Symbols {
         /// File path (supports GLOB patterns)
@@ -1385,6 +1413,19 @@ fn main() {
                         sugg.join(", ")
                     );
                 }
+            }
+        }
+        Cli::Semantic { query, root, limit, json, pretty, no_doc } => {
+            let opts = sigil::semantic::cmd::SemanticOptions {
+                query,
+                limit: limit as usize,
+                json,
+                pretty,
+                include_doc: !no_doc,
+            };
+            if let Err(e) = sigil::semantic::cmd::run(&root, opts) {
+                eprintln!("error: {e}");
+                std::process::exit(1);
             }
         }
         Cli::Symbols { file, root, limit, depth, json, pretty, names_only, with_hashes } => {

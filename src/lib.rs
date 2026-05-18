@@ -46,6 +46,7 @@ pub mod query;
 pub mod rank;
 pub mod review;
 pub mod security_scan;
+pub mod semantic;
 pub mod signature;
 pub mod tokens;
 pub mod where_cmd;

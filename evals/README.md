@@ -23,7 +23,76 @@ evals/
   README.md              ← this file: methodology + how to run
   run.sh                 ← capture a new result snapshot
   results/               ← one JSON per (sigil_version, refspec)
+  semantic_eval.py       ← semantic-search retrieval eval (NDCG@10 / Recall@k)
 ```
+
+## Semantic-search retrieval eval
+
+`semantic_eval.py` measures **retrieval quality** rather than token cost: given
+a natural-language query, how high does each retriever rank the gold entity?
+Drives the `feat/semantic-search` workstream (Spike 1 → 4).
+
+Query/gold pairs are bootstrapped from docstrings already in
+`.sigil/entities.jsonl` (first sentence of the docstring → the entity it
+documents — same CodeSearchNet methodology semble uses). Single-repo today
+(sigil itself); multi-repo corpus to follow.
+
+```bash
+# One-time env setup (creates evals/.venv with tiktoken for BPE counts)
+python3 -m venv evals/.venv && evals/.venv/bin/pip install tiktoken
+
+# Run the baseline (sigil search + grep)
+evals/.venv/bin/python evals/semantic_eval.py \
+    --max-pairs 200 \
+    --retrievers sigil_search,grep \
+    --out evals/results/semantic-baseline-<date>.json
+
+# Add new retrievers by registering them in semantic_eval.py:
+#   @register("my_retriever")
+#   def my_retriever(query: str, root: Path, k: int) -> List[Hit]: ...
+```
+
+**Metrics:**
+- `ndcg@10` — Normalized Discounted Cumulative Gain at rank 10 (binary
+  relevance, single gold doc → equivalent to MRR@10).
+- `r@k` — Recall at k: fraction of queries where the gold entity appears in
+  the top-k.
+- `tok@10` — Median tokens (o200k_base BPE) of the stitched top-10 result.
+- `ms` — Median wall-clock per query.
+
+**Baseline + Spike 1 + doc-masked results (sigil-on-sigil, 200 docstring queries, 2026-05-18):**
+
+| Retriever | NDCG@10 | R@1 | R@10 | Tokens@10 | Median ms |
+|---|---:|---:|---:|---:|---:|
+| `sigil_search` (multi-probe distinctive terms) | 0.129 | 0.045 | 0.250 | 264 | 421 |
+| `sigil_search_verbatim` (raw prose) | 0.000 | 0.000 | 0.000 | 0 | 226 |
+| `grep` (multi-term regex) | 0.020 | 0.010 | 0.030 | 300 | 1377 |
+| `sigil_semantic_bm25` (Spike 1, full text) | **0.905** | **0.780** | **0.995** | 276 | 52 |
+| `sigil_semantic_bm25_no_doc` (doc-masked) | **0.370** | 0.220 | 0.525 | 278 | 48 |
+
+The full-text BM25 result (0.905) is **inflated by self-referential overlap**:
+queries are first sentences of docstrings, and the gold entity's own `doc`
+field is part of the indexed text. The `--no-doc` retriever (`sigil semantic
+<q> --no-doc`) excludes `doc` from the indexed text so the retriever sees
+only `name + qualified_name + sig` per entity — that's the **honest lower
+bound** on what BM25 buys us when docstring overlap is removed.
+
+**Honest reading:**
+- Doc-masked BM25 (0.370) is **~2.9× better than `sigil_search` (0.129)** on
+  the same queries, and ~8× faster.
+- Bringing docstrings back into the index lifts NDCG@10 from 0.370 → 0.905.
+  That lift is **real in production** when the agent queries a documented
+  codebase — it isn't pure measurement bias; it's the value of indexing
+  doctrings. The bias issue is only that our eval queries are *literally
+  first sentences of docs*, which over-rewards doc-overlap.
+- True production performance for docstring-style natural-language queries
+  is between 0.370 (worst case: query terms appear nowhere in entity text)
+  and 0.905 (best case: query terms heavily overlap with indexed doc).
+- Semble's reported 0.854 is on a different (broader) corpus; not
+  directly comparable without their query set.
+- Doc-masked still has 79/200 queries missing the top-20 — that's the
+  headroom Spike 2 (static embeddings) and Spike 4 (rerank signals) are
+  competing for.
 
 ## What's measured today
 
